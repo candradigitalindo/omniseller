@@ -1,0 +1,31 @@
+# Local services (backend doc 5.4). Ports match tools/scripts/native-infra.sh and .env.example.
+# PostgreSQL is published on 5433 so it never collides with a PostgreSQL already running on 5432.
+# Roles and the database are created by `pnpm db:bootstrap`, not by an init script, so Docker and
+# native setups follow the same path. Services for later milestones (Meilisearch, MinIO,
+# mock marketplace) are added together with the code that uses them.
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports: ["5433:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      retries: 30
+  redis-queue:
+    image: redis:7.2
+    command: ["redis-server", "--appendonly", "yes"]
+    ports: ["6379:6379"]
+  redis-cache:
+    image: redis:7.2
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports: ["6380:6379"]
+  mailpit:
+    image: axllent/mailpit
+    ports: ["1025:1025", "8025:8025"] # SMTP, web inbox
+volumes:
+  pgdata: {}

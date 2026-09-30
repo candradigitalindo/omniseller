@@ -1,0 +1,973 @@
+# OmniSeller — Dokumen Teknologi dan Arsitektur Teknis
+
+| Item | Keterangan |
+|---|---|
+| Versi dokumen | 1.4 |
+| Tanggal | 1 Oktober 2026 |
+| Status | Keputusan final untuk implementasi |
+| Pemilik dokumen | Candra Syahputra |
+| Dokumen induk | DOKUMEN-SPESIFIKASI-APLIKASI.md versi 1.9 (PRD); rincian backend di DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.3 |
+| Audiens | Tech lead, engineer backend, frontend, mobile, DevOps, QA |
+
+Dokumen ini menetapkan teknologi yang dipakai OmniSeller. Setiap lapisan memiliki **satu keputusan**, bukan daftar pilihan. Alasan dan konsekuensinya dicatat agar keputusan dapat ditinjau ulang dengan dasar yang jelas, bukan diganti karena selera. Perubahan keputusan hanya melalui ADR baru (bagian 25).
+
+---
+
+## Daftar Isi
+
+1. [Ringkasan Keputusan](#1-ringkasan-keputusan)
+2. [Prinsip yang Menentukan Pilihan](#2-prinsip-yang-menentukan-pilihan)
+3. [Arsitektur Sistem](#3-arsitektur-sistem)
+4. [Bahasa, Runtime, dan Monorepo](#4-bahasa-runtime-dan-monorepo)
+5. [Backend](#5-backend)
+6. [Basis Data](#6-basis-data)
+7. [Antrean, Cache, dan Realtime](#7-antrean-cache-dan-realtime)
+8. [Sync Engine dan Connector Marketplace](#8-sync-engine-dan-connector-marketplace)
+9. [Frontend Web](#9-frontend-web)
+10. [Aplikasi Mobile](#10-aplikasi-mobile)
+11. [Ekstensi Browser](#11-ekstensi-browser)
+12. [Agen Cetak Lokal](#12-agen-cetak-lokal)
+13. [Layanan Pendukung](#13-layanan-pendukung)
+14. [Kecerdasan Buatan](#14-kecerdasan-buatan)
+15. [Pengumpul Data Riset](#15-pengumpul-data-riset)
+16. [Infrastruktur](#16-infrastruktur)
+17. [CI/CD dan Manajemen Rilis](#17-cicd-dan-manajemen-rilis)
+18. [Observabilitas](#18-observabilitas)
+19. [Keamanan](#19-keamanan)
+20. [Perkakas Pengujian](#20-perkakas-pengujian)
+21. [Standar Kode dan Konvensi](#21-standar-kode-dan-konvensi)
+22. [Kapasitas, Performa, dan Skala](#22-kapasitas-performa-dan-skala)
+23. [Estimasi Biaya](#23-estimasi-biaya)
+24. [Tim dan Alat Kerja](#24-tim-dan-alat-kerja)
+25. [Catatan Keputusan Arsitektur (ADR)](#25-catatan-keputusan-arsitektur-adr)
+26. [Lampiran](#26-lampiran)
+
+---
+
+## 1. Ringkasan Keputusan
+
+| Lapisan | Keputusan |
+|---|---|
+| Bahasa | TypeScript di seluruh sistem (backend, web, mobile, ekstensi, agen cetak) |
+| Runtime backend | Node.js 24 LTS |
+| Kerangka backend | NestJS 11, modular monolith, satu basis kode dijalankan sebagai lima peran proses: api, webhook, worker, scheduler, research-collector |
+| API | REST versi `/v1`, OpenAPI 3.1 dihasilkan dari kode, validasi Zod |
+| Basis data | PostgreSQL 17 di Amazon RDS Multi-AZ, kunci primer ULID (domain `ulid` di atas `text`), Row-Level Security per tenant, kunci asing komposit yang menyertakan tenant, partisi range bulanan pada ULID untuk tabel besar |
+| ORM dan migrasi | Drizzle ORM untuk query bertipe; migrasi SQL tulisan tangan (berversi dan repeatable) dengan migrator sendiri (ADR-027) |
+| Antrean pekerjaan | BullMQ 5 di atas Redis 7.2 (Amazon ElastiCache), instans terpisah dari cache |
+| Cache dan rate limit | Redis 7.2 (instans kedua) |
+| Realtime | Socket.IO dengan adapter Redis |
+| Pencarian | Meilisearch |
+| Penyimpanan objek | Cloudflare R2 |
+| Frontend web | Next.js (App Router) 15 atau lebih baru, React 19, Tailwind CSS 4, shadcn/ui, TanStack Query dan Table, react-hook-form, Zod, Apache ECharts, next-intl |
+| Mobile | React Native dengan Expo, satu basis kode untuk aplikasi gudang (Android) dan aplikasi owner (Android dan iOS) |
+| Ekstensi browser | WXT, Manifest V3, React, untuk Chrome dan Edge |
+| Agen cetak lokal | Electron, Windows utama dan macOS sekunder, pembaruan otomatis |
+| PDF | pdf-lib untuk gabung dan imposisi label marketplace, Playwright (Chromium headless) untuk render HTML ke PDF |
+| Email | Amazon SES lewat antarmuka SMTP (Nodemailer), dikirim hanya dari proses worker; templat transaksional berupa HTML dan teks di kode, React Email dipakai bila templat bertambah kompleks; Mailpit di lokal |
+| WhatsApp | Meta WhatsApp Business Platform (Cloud API) langsung |
+| Pembayaran langganan | Xendit (virtual account, QRIS, e-wallet, kartu, tagihan berulang) |
+| Feature flag | Tabel internal dengan penargetan per tenant dan persentase, cache di Redis |
+| AI generatif | Claude Opus 5 (`claude-opus-5`) untuk semua fitur yang dibaca pengguna; Claude Haiku 4.5 (`claude-haiku-4-5`) untuk ekstraksi massal via Message Batches API; SDK `@anthropic-ai/sdk` |
+| Embedding dan pencarian vektor | Voyage AI (multimodal untuk gambar produk, teks untuk judul) disimpan di pgvector |
+| Pengumpul riset | undici fetch dan Playwright, parser berversi, egress IP terpisah dari operasional |
+| Cloud | AWS region Jakarta (ap-southeast-3): ECS on Fargate (ARM64 Graviton), RDS, ElastiCache, EC2 untuk Meilisearch, RDS Proxy, ALB, KMS, Secrets Manager |
+| Edge | Cloudflare: DNS, CDN, WAF, rate limit, Turnstile, R2 |
+| Infrastructure as Code | Terraform |
+| CI/CD | GitHub Actions, Amazon ECR, deploy blue/green ECS melalui CodeDeploy dengan canary dan rollback otomatis |
+| Observabilitas | OpenTelemetry ke Grafana Cloud (metrik, log, trace), Sentry untuk error, Better Stack untuk uptime, status page, dan on-call |
+| Lint dan format | Biome |
+| Pengujian | Vitest, Supertest, Testcontainers, Playwright, Maestro, k6, OWASP ZAP, Semgrep, Trivy |
+| Manajemen paket dan repositori | pnpm 10 workspaces per komponen (`backend/`, nanti `frontend/`, `mobile/`); Turborepo tidak dipakai (ADR-032) |
+
+---
+
+## 2. Prinsip yang Menentukan Pilihan
+
+1. **Satu bahasa, satu tim.** TypeScript di semua permukaan agar tipe data (produk, pesanan, stok) dibagikan antar backend, web, mobile, dan ekstensi. Tim kecil tidak perlu ahli di tiga bahasa.
+2. **Modular monolith sebelum microservices.** Satu basis kode dengan batas modul yang tegas, dijalankan sebagai beberapa proses. Pemecahan menjadi layanan terpisah hanya bila ambang di bagian 22 tercapai.
+3. **Layanan terkelola untuk yang bukan inti.** Basis data, antrean, cache, observabilitas, dan email memakai layanan terkelola. Waktu tim dihabiskan untuk connector dan logika stok, bukan mengurus server.
+4. **Data residency di Indonesia.** Semua data tenant dan pembeli disimpan di region Jakarta. Layanan yang belum tersedia di Jakarta (dicatat eksplisit) hanya menerima data non-pribadi.
+5. **Tahan terhadap marketplace.** Setiap panggilan keluar idempoten, dibatasi lajunya per toko, dapat diulang, dan dicatat. Kegagalan satu marketplace tidak menyentuh marketplace lain.
+6. **Keamanan sejak skema.** Isolasi tenant ditegakkan oleh basis data (RLS), bukan hanya oleh kode aplikasi.
+7. **Murah untuk memulai, jelas untuk membesar.** Biaya awal di bawah Rp20 juta per bulan dengan jalur skala yang sudah ditentukan.
+8. **Tidak ada keputusan tanpa alasan tertulis.** Setiap keputusan penting dicatat sebagai ADR.
+
+---
+
+## 3. Arsitektur Sistem
+
+### 3.1 Konteks sistem
+
+```mermaid
+flowchart LR
+    subgraph Pengguna
+        OWN[Owner dan Admin: web dan mobile]
+        WH[Staf gudang: aplikasi Android dan agen cetak]
+        RS[Riset: ekstensi browser]
+    end
+    subgraph OmniSeller
+        EDGE[Cloudflare edge]
+        APP[Platform OmniSeller di AWS Jakarta]
+    end
+    subgraph Pihak luar
+        MP[API marketplace: Shopee, TikTok Shop dan Tokopedia, Lazada, Blibli]
+        EXP[Agregator ekspedisi]
+        PAY[Xendit]
+        WA[Meta WhatsApp Cloud API]
+        AI[Anthropic Claude API dan Voyage AI]
+        ACC[Accurate, Jurnal]
+    end
+    OWN --> EDGE --> APP
+    WH --> EDGE
+    RS --> EDGE
+    APP <--> MP
+    APP --> EXP
+    APP <--> PAY
+    APP --> WA
+    APP --> AI
+    APP --> ACC
+    MP -. webhook .-> EDGE
+```
+
+### 3.2 Kontainer dan proses
+
+```mermaid
+flowchart TB
+    CF[Cloudflare: DNS, WAF, CDN, R2]
+    ALB[Application Load Balancer]
+    subgraph ECS Fargate
+        API[api: REST, Socket.IO, auth]
+        WHK[webhook: penerima push marketplace, jawab dalam 1 detik]
+        WRK[worker: BullMQ processor, connector, stock pusher, PDF, AI]
+        SCH[scheduler: polling cadangan, refresh token, laporan terjadwal]
+        RSC[research-collector: pengumpul riset, egress terpisah]
+    end
+    PGX[RDS Proxy]
+    PG[(RDS PostgreSQL 17 Multi-AZ, pgvector)]
+    RQ[(ElastiCache Redis: antrean BullMQ)]
+    RC[(ElastiCache Redis: cache, sesi, rate limit, Socket.IO)]
+    MS[(EC2 Meilisearch)]
+    R2[(Cloudflare R2: gambar, PDF label, ekspor)]
+    OBS[Grafana Cloud, Sentry, Better Stack]
+
+    CF --> ALB
+    ALB --> API
+    ALB --> WHK
+    API --> PGX --> PG
+    WHK --> RQ
+    WRK --> RQ
+    SCH --> RQ
+    WRK --> PGX
+    SCH --> PGX
+    RSC --> PGX
+    API --> RC
+    WRK --> RC
+    API --> MS
+    WRK --> MS
+    WRK --> R2
+    API --> R2
+    API --> OBS
+    WRK --> OBS
+```
+
+Kelima proses dibangun dari satu image Docker dengan entrypoint berbeda. Modul NestJS yang dimuat per proses diatur lewat variabel lingkungan `APP_ROLE`.
+
+### 3.3 Aliran utama: webhook pesanan ke label
+
+```mermaid
+sequenceDiagram
+    participant MP as Marketplace
+    participant WH as webhook
+    participant Q as Redis BullMQ
+    participant W as worker
+    participant DB as PostgreSQL
+    participant UI as Web/Socket.IO
+
+    MP->>WH: POST webhook (ditandatangani)
+    WH->>WH: Verifikasi tanda tangan, simpan ke webhook_inbox (unik per event_id)
+    WH->>Q: Enqueue job order.ingest (jobId = event_id)
+    WH-->>MP: 200 OK dalam < 1 detik
+    Q->>W: Ambil job
+    W->>MP: GET detail pesanan (bila payload tidak lengkap)
+    W->>DB: BEGIN, SET LOCAL app.tenant_id, upsert order, reservasi stok, COMMIT
+    W->>Q: Enqueue stock.push per (variant, warehouse) dengan debounce 5 detik
+    W->>UI: Emit order.new ke room tenant
+    Q->>W: stock.push (nilai absolut ke tiap listing dan gudang marketplace)
+    W->>MP: POST update stok (token bucket per toko)
+```
+
+---
+
+## 4. Bahasa, Runtime, dan Monorepo
+
+| Aspek | Keputusan |
+|---|---|
+| Bahasa | TypeScript 5.x, `strict: true`, `noUncheckedIndexedAccess: true` |
+| Runtime | Node.js 24 LTS. Versi dikunci di `.nvmrc` dan `engines` |
+| Manajemen paket | pnpm 10 dengan workspaces |
+| Orkestrasi build | Skrip pnpm (`pnpm -r` dalam urutan dependensi). Turborepo tidak dipakai: workspace backend hanya berisi aplikasi dan paket kecil, sehingga cache lintas paket tidak sepadan dengan konfigurasinya (ADR-032) |
+| Struktur | Satu repositori, satu folder per komponen: `backend/` sekarang, `frontend/`, `mobile/`, `extension/`, `print-agent/` menyusul (lihat 26.1) |
+
+**Alasan.** Tipe domain (Order, Variant, Inventory) didefinisikan sekali di `packages/shared` dan dipakai backend, web, mobile, ekstensi, dan agen cetak. Skema Zod yang sama memvalidasi input API dan formulir web. Perubahan kontrak API langsung terdeteksi oleh compiler di semua klien.
+
+Saat ini `packages/shared` berada di `backend/packages/shared`. Cara `frontend/` dan `mobile/` memakai tipe dan skema yang sama (workspace pnpm di root yang mencakup semua komponen, atau paket bersama yang diterbitkan ke registry privat) diputuskan saat komponen itu dimulai (ADR-032). Sampai saat itu tidak ada kode di luar `backend/`.
+
+**Konsekuensi.** Pekerjaan CPU-berat (render PDF ratusan halaman, parsing gambar) dipindahkan ke proses worker terpisah agar event loop proses api tidak terblokir.
+
+---
+
+## 5. Backend
+
+### 5.1 Kerangka dan struktur
+
+- **NestJS 11** sebagai kerangka. Alasan: struktur modul, dependency injection, dekorator untuk OpenAPI, ekosistem BullMQ dan Socket.IO yang matang, dan pola yang mudah dipelajari engineer baru.
+- **Modular monolith.** Setiap modul PRD (produk, stok, pesanan, pengiriman, keuangan, chat, riset, dan seterusnya) menjadi modul NestJS dengan antarmuka publik yang sempit. Modul lain hanya memanggil service publik, tidak menyentuh tabel modul lain secara langsung.
+- **Lima peran proses** dari satu image: `api`, `webhook`, `worker`, `scheduler`, dan `research-collector` yang memuat hanya modul riset. Setiap peran hanya menerima URL basis data untuk role yang boleh dipakainya.
+- **Event internal** memakai pola transactional outbox: service menulis `outbox_event` dalam transaksi yang sama dengan perubahan data, relay di proses `scheduler` memindahkannya ke BullMQ. Aturan: setiap efek samping ke sistem luar (marketplace, email, WhatsApp, AI) selalu lewat outbox dan BullMQ, tidak pernah langsung dari request handler. Rincian di DOKUMEN-ARSITEKTUR-BACKEND.md bagian 8.5.
+
+### 5.2 API
+
+| Aspek | Keputusan |
+|---|---|
+| Gaya | REST, prefix `/v1`. Versi baru hanya saat perubahan yang memutus kompatibilitas |
+| Dokumentasi | OpenAPI 3.1 dihasilkan dari dekorator `@nestjs/swagger`, dipublikasikan di `/docs` untuk staging dan API publik |
+| Validasi | Zod melalui `nestjs-zod`. Skema yang sama dipakai frontend |
+| Format error | RFC 9457 Problem Details: `type`, `title`, `status`, `detail`, `instance`, ditambah `code` internal dan `errors[]` per field |
+| Paginasi | Cursor-based (`cursor`, `limit` maksimal 200). Tidak ada offset untuk tabel besar |
+| Filter dan urutan | Query string dengan whitelist field per endpoint |
+| Idempotensi tulis | Header `Idempotency-Key` wajib untuk POST yang memicu efek luar (proses pesanan, cetak, ubah harga). Kunci disimpan 24 jam di Redis |
+| Rate limit | Per tenant dan per pengguna di Redis (token bucket): 600 permintaan per menit per tenant untuk UI, 120 untuk API publik |
+| Realtime | Socket.IO di proses api, room per tenant, adapter Redis |
+| API publik (Fase 4) | Endpoint yang sama dengan autentikasi API key dan webhook keluar bertanda tangan HMAC |
+
+### 5.3 Autentikasi dan otorisasi
+
+| Aspek | Keputusan |
+|---|---|
+| Kata sandi | Argon2id (memori 64 MB, iterasi 3, paralelisme 4) |
+| Sesi web | Token sesi acak 256 bit disimpan di Redis, cookie `HttpOnly; Secure; SameSite=Lax`, masa hidup 30 hari geser, batas 10 sesi per pengguna |
+| Mobile dan ekstensi | Access token opaque 1 jam dan refresh token 90 hari dengan rotasi, disimpan di secure storage perangkat |
+| 2FA | TOTP (`otplib`) wajib untuk Owner dan Admin mulai Fase 2, kode cadangan 10 buah, passkey WebAuthn di Fase 4 |
+| Agen cetak | Token perangkat yang dibuat dari UI, dapat dicabut per perangkat |
+| API publik | API key dengan prefix `os_live_`, hash disimpan, scope per key |
+| RBAC | Izin berbentuk string `modul:aksi` (misalnya `order:ship`), peran adalah kumpulan izin. Guard NestJS memeriksa izin; izin dan cakupan toko dan gudang dimuat ulang dari basis data setiap permintaan, bukan disimpan di sesi (ADR-033) |
+| Undangan dan atur ulang sandi | Token acak 256 bit, hanya hash yang disimpan, dibuat oleh worker saat email dikirim sehingga token mentah tidak pernah ada di basis data atau outbox. Undangan 72 jam (kirim ulang membatalkan tautan lama), atur ulang sandi 60 menit, sekali pakai |
+| Penguncian dan batas laju | 5 kali gagal mengunci akun 15 menit; akun terkunci ditolak sebelum sandi diperiksa. Token bucket di Redis per IP, per email, dan per tenant (rincian di DOKUMEN-ARSITEKTUR-BACKEND 8.10) |
+
+Autentikasi ditulis sendiri di NestJS. Alasan: kebutuhan (organisasi, peran per toko dan gudang, token perangkat, API key) spesifik dan sederhana, dan ketergantungan pada penyedia identitas luar menambah biaya dan risiko vendor tanpa manfaat yang sebanding.
+
+### 5.4 Multi-tenant
+
+- Setiap tabel memiliki kolom `tenant_id ulid NOT NULL` (domain di atas `text COLLATE "C"`, ADR-023), dan setiap kunci asing ke tabel milik tenant adalah komposit `(tenant_id, x_id)` sehingga relasi lintas tenant mustahil di tingkat basis data.
+- Guard autentikasi membentuk konteks tenant dari sesi, lalu setiap transaksi memanggil `set_config('app.tenant_id', $1, true)` (setara `SET LOCAL` dengan parameter terikat).
+- Empat role basis data: `omniseller_api` (RLS, tidak dapat membaca token), `omniseller_worker` (RLS, dapat membaca token), `omniseller_system` (`BYPASSRLS`, hanya job lintas tenant di scheduler), `omniseller_migrator` (DDL). Tidak ada proses yang memakai superuser.
+- Kebijakan RLS pada semua tabel (contoh di 26.3). Query tanpa tenant di sesi mengembalikan nol baris, bukan semua baris.
+- Uji otomatis isolasi tenant dijalankan di CI untuk setiap endpoint (lihat PRD 13.3).
+
+### 5.5 Konfigurasi
+
+- Semua konfigurasi dari variabel lingkungan, divalidasi Zod saat proses mulai. Proses gagal cepat bila ada yang kurang.
+- Rahasia diambil dari AWS Secrets Manager saat mulai dan disuntik sebagai variabel lingkungan oleh ECS.
+- Daftar variabel di 26.2.
+
+---
+
+## 6. Basis Data
+
+### 6.1 Mesin dan penyimpanan
+
+| Aspek | Keputusan |
+|---|---|
+| Mesin | PostgreSQL 17 di Amazon RDS, Multi-AZ, instance Graviton (`db.m7g`) |
+| Koneksi | RDS Proxy dengan pooling transaksi. Aman karena tenant ditetapkan dengan `SET LOCAL` dalam transaksi |
+| Ekstensi | `pgvector` (embedding), `pg_stat_statements`, `pgcrypto`, `citext` |
+| Kunci primer | ULID (26 karakter Crockford base32) sebagai domain `ulid` di atas `text COLLATE "C"` dengan pemeriksaan format, dibuat di aplikasi dengan generator monotonik. Terurut waktu, dapat dibaca manusia, ramah indeks B-tree, dan memungkinkan partisi range pada `id`. `text`, bukan `char(26)`, agar perbandingan dengan `current_setting()` di predikat RLS tetap memakai indeks |
+| Uang | `bigint` dalam rupiah utuh. Tidak ada `numeric` dengan desimal dan tidak ada `float` |
+| Waktu | `timestamptz`, selalu UTC di basis data, dikonversi ke zona waktu tenant di lapisan tampilan |
+| Teks bebas | `text` dengan batas panjang di Zod, bukan `varchar(n)` |
+| Enum | Tabel referensi atau `text` dengan constraint `CHECK`, bukan tipe enum PostgreSQL, agar penambahan nilai tidak butuh migrasi berat |
+
+### 6.2 Partisi
+
+Tabel bervolume tinggi dipartisi **range pada kolom `id`** (ULID terurut waktu) dengan batas bulanan yang dihitung dari prefiks waktu ULID. Kunci primer tetap `(id)` dan kunci asing ke tabel terpartisi merujuk `(tenant_id, id)`. Partisi dibuat dan dilepas oleh job `partition-maintenance` di proses scheduler (rincian di DOKUMEN-ARSITEKTUR-BACKEND.md 7.6 dan 17.5):
+
+| Tabel | Kunci partisi | Interval | Retensi aktif |
+|---|---|---|---|
+| `order`, `order_item`, `order_event` | `id` | Bulanan | 24 bulan aktif, lalu diarsipkan ke R2 (Parquet) |
+| `stock_movement` | `id` | Bulanan | 24 bulan |
+| `sync_job` | `id` | Bulanan | 90 hari |
+| `audit_log` | `id` | Bulanan | 12 bulan aktif, ekspor bulanan ke R2 dengan object lock |
+| `ai_call_log` | `id` | Bulanan | 12 bulan |
+| `research.research_snapshot` | `id` | Bulanan | 90 hari mentah, diringkas ke `research_daily` selama 24 bulan |
+
+`webhook_inbox` (retensi 30 hari) dan `outbox_event` (7 hari setelah terkirim) tidak dipartisi karena batasan uniknya harus berlaku lintas waktu; retensinya lewat hapus batch harian.
+
+### 6.3 ORM dan migrasi
+
+- **Drizzle ORM.** Alasan: dekat dengan SQL sehingga query rumit (rekonsiliasi, laporan) tidak dipaksa lewat abstraksi, mendukung definisi kebijakan RLS di skema, ringan, dan tipe hasil query mengikuti skema.
+- **Migrasi SQL tulisan tangan** (ADR-027). Partisi range pada ULID, FK komposit dengan `SET NULL (kolom)`, RLS, grant per role, trigger, dan fungsi `SECURITY DEFINER` tidak dapat dinyatakan di skema Drizzle, sehingga SQL yang ditinjau di PR menjadi sumber kebenaran dan skema Drizzle menjadi cerminnya; uji skema menjaga keduanya sama. Migrator sendiri menjalankan file berversi sekali (dengan checksum) dan file repeatable (fungsi, trigger, kebijakan, grant, seed) setiap kali. Rincian di DOKUMEN-ARSITEKTUR-BACKEND.md bagian 12.
+- Pola **expand and contract**: rilis N menambah kolom atau tabel, aplikasi menulis ke keduanya, rilis N+1 menghapus yang lama. Tidak pernah ada `DROP` atau `ALTER TYPE` destruktif dalam rilis yang sama dengan perubahan kode.
+- Migrasi dijalankan sebagai tugas ECS satu kali sebelum deploy aplikasi, dan gagal berarti deploy berhenti.
+
+### 6.4 Indeks dan performa
+
+- Setiap tabel: indeks komposit yang diawali `tenant_id` untuk pola akses utama.
+- `order`: `(tenant_id, status, deadline_ship_at)`, `(tenant_id, store_id, external_order_id)` unik, `(tenant_id, tracking_number)`.
+- `inventory`: kunci primer `id` ULID dengan UNIQUE `(tenant_id, variant_id, warehouse_id)`.
+- `research_snapshot`: `(research_item_id, captured_at DESC)`.
+- Pencarian teks bebas produk dan pesanan tidak memakai `LIKE`, melainkan Meilisearch (bagian 13).
+- Read replica ditambahkan saat ambang di bagian 22 tercapai. Laporan berat membaca dari replika.
+
+### 6.5 Backup dan pemulihan
+
+- Snapshot otomatis RDS harian, retensi 30 hari, point-in-time recovery aktif (granularitas 5 menit).
+- Salinan snapshot mingguan ke ap-southeast-1 (Singapura) terenkripsi, untuk pemulihan bencana region.
+- Uji pemulihan penuh ke lingkungan sementara setiap kuartal, dicatat waktunya. Target RTO 4 jam, RPO 1 jam (aktual PITR jauh lebih baik).
+
+---
+
+## 7. Antrean, Cache, dan Realtime
+
+### 7.1 Antrean pekerjaan
+
+- **BullMQ** di atas **Redis 7.2** (ElastiCache) instans khusus antrean dengan persistensi AOF.
+- Antrean dipisah per jenis dan prioritas:
+
+| Antrean | Isi | Konkurensi per worker | Percobaan ulang |
+|---|---|---|---|
+| `order.ingest` | Pesanan masuk dari webhook dan polling | 20 | 5 kali, backoff eksponensial mulai 2 detik |
+| `stock.push` | Dorong stok per (variant, warehouse) | 10 per toko melalui token bucket | 8 kali, backoff sampai 10 menit |
+| `mp.outbound` | Panggilan tulis ke marketplace (terima pesanan, atur kirim, ubah harga) | Dibatasi per toko | 5 kali |
+| `mp.poll` | Polling cadangan | 5 | 3 kali |
+| `pdf` | Gabung dan render PDF | 4 (CPU-berat) | 3 kali |
+| `notify` | Email, WhatsApp, in-app | 20 | 5 kali |
+| `ai` | Panggilan Claude dan embedding | 5 | 3 kali |
+| `research` | Pengumpulan dan parsing riset | 5 per domain | 2 kali |
+| `settlement` | Tarik dan rekonsiliasi settlement | 2 | 3 kali |
+
+- `jobId` selalu berupa kunci idempoten dengan pemisah `|` (misalnya `order.ingest|{store_id}|{event_id}`), sehingga pekerjaan ganda ditolak oleh BullMQ. BullMQ 5 menolak id kustom yang mengandung `:`. Aksi yang sah berulang untuk entitas yang sama (dorongan stok, dorongan harga) menyertakan kunci kejadian di id-nya, karena BullMQ juga menolak id milik job yang sudah selesai tetapi masih disimpan (`removeOnComplete` satu jam).
+- Pekerjaan yang habis percobaan masuk dead letter queue per antrean, terlihat di UI admin internal dan memicu alarm bila melewati 50 dalam 10 menit.
+- **Token bucket per toko** diimplementasikan dengan skrip Lua di Redis (atomik), kapasitas dan laju isi ulang dibaca dari konfigurasi connector.
+- **Debounce stok**: perubahan stok dicatat ke sorted set Redis dengan skor waktu; scheduler memicu `stock.push` untuk kunci yang sudah diam 5 detik dengan id job yang menyertakan skor, lalu menghapus kunci hanya bila skornya belum berubah (skrip Lua). Nilai yang dikirim selalu hasil hitung ulang saat job berjalan, bukan nilai saat event.
+
+### 7.2 Cache
+
+- Redis 7.2 instans kedua (tanpa persistensi) untuk: sesi, rate limit, kunci idempotensi, cache konfigurasi tenant, cache feature flag, hasil hitung dasbor (TTL 30 detik), adapter Socket.IO.
+- Pemisahan dari instans antrean agar kegagalan atau evict cache tidak pernah menghilangkan pekerjaan.
+
+### 7.3 Realtime
+
+- Socket.IO di proses api dengan `@socket.io/redis-adapter`. Room per tenant dan per pengguna.
+- Event yang dikirim: `order.new`, `order.updated`, `sync.status`, `print.job`, `campaign.live_stats`, `notification`.
+- Agen cetak dan aplikasi gudang berlangganan lewat WebSocket yang sama dengan token perangkat.
+
+---
+
+## 8. Sync Engine dan Connector Marketplace
+
+### 8.1 Antarmuka connector
+
+Setiap marketplace adalah paket di `packages/connectors/<nama>` yang mengimplementasikan satu antarmuka yang sama (26.4). Logika inti tidak pernah mengimpor detail marketplace. Menambah marketplace berarti menambah paket, bukan mengubah inti.
+
+| Connector | Paket | Catatan implementasi |
+|---|---|---|
+| Shopee | `@omniseller/connector-shopee` | Tanda tangan HMAC-SHA256 per permintaan, access token 4 jam, webhook push, modul lengkap (produk, pesanan, logistik, pembayaran, promosi, retur, account health, chat, media, ads) |
+| TikTok Shop dan Tokopedia | `@omniseller/connector-tiktokshop` | Satu connector untuk kedua toko, webhook, modul affiliate dan analytics |
+| Lazada | `@omniseller/connector-lazada` | LazOP 2.0, Lazada Push |
+| Blibli | `@omniseller/connector-blibli` | Seller API dan webhook |
+| Shopify, WooCommerce | `@omniseller/connector-shopify`, `-woocommerce` | Fase 2 |
+| Agregator ekspedisi | `@omniseller/connector-shipping-*` | Untuk pesanan manual dan tautan |
+
+### 8.2 Aturan yang berlaku untuk semua connector
+
+- Semua respons API disimpan mentah (payload) ke `sync_job` untuk debugging, dengan retensi 90 hari dan penyamaran field pribadi pembeli sebelum disimpan.
+- Setiap connector mendeklarasikan batas laju per toko dan per partner. Nilai dibaca dari konfigurasi, bukan ditulis mati.
+- Error diklasifikasikan: `Transient` (jaringan, 429, 5xx) diulang; `AuthExpired` memicu refresh token lalu ulang sekali; `Permanent` (400, data tidak valid, token dicabut) dilaporkan ke pengguna tanpa ulang.
+- Pemetaan status pesanan per marketplace berada di tabel konfigurasi connector, bukan di kode inti.
+- Uji kontrak: setiap metode memiliki fixture respons nyata (teranonimkan) dan dijalankan terhadap sandbox setiap hari (PRD 13.3).
+
+### 8.3 Webhook receiver
+
+- Proses `webhook` hanya melakukan: verifikasi tanda tangan, tulis ke `webhook_inbox` dengan constraint unik `(source, event_id)`, enqueue, balas 200. Tidak ada logika bisnis, tidak ada panggilan keluar. Target p95 di bawah 200 milidetik.
+- Bila Redis tidak tersedia, receiver tetap menulis ke `webhook_inbox` dan membalas 200. Scheduler mengambil baris yang belum diproses setiap 30 detik. Tidak ada webhook yang hilang karena antrean mati.
+
+### 8.4 Siklus token
+
+- Token disimpan terenkripsi (bagian 19.3). Hanya proses worker dan scheduler yang memiliki hak dekripsi.
+- Scheduler memperbarui token pada 80% masa hidup. Untuk Shopee (4 jam) berarti sekitar setiap 3 jam per toko, dengan jitter agar tidak serentak.
+- Refresh dilakukan di dalam transaksi yang mengunci baris `store_credential` toko itu, lalu memeriksa ulang masa berlaku, karena beberapa marketplace merotasi refresh token dan hanya menerima satu pemakaian.
+- Kegagalan refresh tiga kali berturut menandai toko `reauth_required` dan mengirim notifikasi.
+
+### 8.5 Polling cadangan
+
+- Scheduler memakai BullMQ repeatable jobs: pesanan setiap 5 menit per toko, produk setiap 6 jam, settlement harian pukul 03.00 WIB, gudang marketplace setiap 6 jam.
+- Polling memakai cursor `updated_since` per toko yang disimpan di basis data, sehingga tidak ada jendela yang terlewat saat proses mati.
+
+---
+
+## 9. Frontend Web
+
+| Aspek | Keputusan |
+|---|---|
+| Kerangka | Next.js (App Router) versi stabil terbaru saat mulai, minimal 15, dengan React 19 |
+| Rendering | Server Components untuk halaman baca, Client Components untuk tabel interaktif dan formulir. Tidak ada SSR untuk data yang berubah per detik; dasbor memakai polling TanStack Query 15 detik ditambah Socket.IO |
+| Styling | Tailwind CSS 4 dan komponen shadcn/ui (Radix) yang disalin ke `packages/ui` dan disesuaikan |
+| Data | TanStack Query untuk semua akses API, klien API dihasilkan dari OpenAPI (`openapi-typescript` dan `openapi-fetch`) sehingga tipe respons selalu sinkron |
+| Tabel | TanStack Table dengan virtualisasi (`@tanstack/react-virtual`) untuk daftar pesanan puluhan ribu baris |
+| Formulir | react-hook-form dan Zod, skema dibagikan dari `packages/shared` |
+| State lokal | Zustand hanya untuk state UI lintas komponen (pilihan massal, filter). Tidak ada state server di Zustand |
+| Grafik | Apache ECharts melalui `echarts-for-react`. Alasan: render canvas untuk riwayat harga ribuan titik dan dasbor padat |
+| i18n | `next-intl`, bahasa `id-ID` bawaan, `en` opsional. Format tanggal dan angka lewat `Intl` |
+| Waktu | Luxon untuk konversi zona waktu tenant |
+| Cetak dari browser | Tidak ada. Semua cetak lewat PDF dari server atau agen cetak lokal |
+| Hosting | Container Node di ECS (bukan platform Vercel) agar data dan log tetap di Jakarta dan satu jalur deploy |
+| Aksesibilitas | Komponen Radix memberi dasar keyboard dan ARIA; kontras diuji otomatis dengan axe di Playwright |
+
+---
+
+## 10. Aplikasi Mobile
+
+| Aspek | Keputusan |
+|---|---|
+| Kerangka | React Native dengan Expo (SDK stabil terbaru), EAS Build dan EAS Update untuk pembaruan over-the-air |
+| Basis kode | Satu aplikasi dengan dua mode: mode gudang (Android, layar besar, fokus scan) dan mode owner (Android dan iOS). Modul dimuat sesuai peran pengguna |
+| Navigasi | Expo Router |
+| Scan barcode | `react-native-vision-camera` dengan frame processor ML Kit, mendukung scanner Bluetooth (mode HID keyboard) |
+| Offline gudang | `expo-sqlite` dengan pola outbox: setiap aksi scan disimpan lokal lalu dikirim berurutan saat koneksi kembali. Konflik diselesaikan server (versi rekaman) dan ditampilkan ke staf |
+| Data | TanStack Query dengan persist ke SQLite |
+| Notifikasi push | Expo Notifications (FCM dan APNs) |
+| Cetak dari mobile | Tidak langsung. Aplikasi mengirim perintah ke agen cetak lokal lewat backend |
+| Distribusi | Google Play dan App Store, ditambah APK internal untuk perangkat gudang yang dikelola |
+| Perangkat gudang | Rekomendasi resmi: Android 12 ke atas dengan pemindai Bluetooth, atau PDA Android dengan pemindai bawaan. Aplikasi memakai ML Kit sebagai cadangan |
+
+---
+
+## 11. Ekstensi Browser
+
+| Aspek | Keputusan |
+|---|---|
+| Kerangka | WXT dengan React dan TypeScript, Manifest V3, target Chrome dan Edge |
+| Fungsi | Modul riset (PRD 6.19): membaca halaman marketplace dan sumber supplier yang sedang dibuka pengguna, mengirim data terstruktur ke API. Mode kedua: mengambil data listing toko sendiri untuk pemetaan cepat |
+| Content script | Satu per domain sumber, parser berversi yang sama dengan pengumpul server (`packages/research-parsers`) agar hasil identik |
+| Pengiriman data | Batch ke `/v1/research/ingest` dengan access token pengguna, maksimal 200 item per batch |
+| Pengaman identitas | Ekstensi memeriksa apakah ada tab seller center yang terbuka di profil yang sama (izin `tabs`) dan menolak berjalan bila ada, sesuai FR-RSC-01. Onboarding ekstensi memandu membuat profil browser terpisah |
+| Batas laju | Ekstensi tidak pernah memuat halaman sendiri. Hanya membaca DOM halaman yang dibuka pengguna |
+| Publikasi | Chrome Web Store dan Edge Add-ons, pembaruan otomatis |
+
+---
+
+## 12. Agen Cetak Lokal
+
+| Aspek | Keputusan |
+|---|---|
+| Kerangka | Electron dengan `electron-builder` dan `electron-updater` untuk pembaruan otomatis |
+| Platform | Windows 10 dan 11 sebagai utama (mayoritas komputer gudang), macOS sekunder |
+| Cetak | Windows: `pdf-to-printer` dengan SumatraPDF yang dibundel, cetak langsung tanpa dialog. macOS: `lp` |
+| Koneksi | WebSocket ke backend dengan token perangkat. Menerima `print.job` berisi URL PDF bertanda tangan (R2, kedaluwarsa 10 menit) dan nama printer tujuan |
+| Antrean lokal | SQLite kecil untuk antrean cetak, ulang otomatis bila printer sibuk, laporan status kembali ke server |
+| Keamanan | Tidak menyimpan data pesanan selain PDF sementara yang dihapus setelah dicetak. Pembaruan ditandatangani kode |
+| Ukuran | Sekitar 80 MB. Diterima karena dipasang sekali per komputer gudang |
+
+---
+
+## 13. Layanan Pendukung
+
+| Layanan | Keputusan | Alasan |
+|---|---|---|
+| Pencarian | Meilisearch versi stabil terbaru di EC2 `t4g.medium` dengan EBS gp3, satu indeks per jenis data dengan filter `tenant_id` wajib. Indeks diperbarui oleh worker dari event | Pencarian produk dan pesanan yang cepat dan toleran salah ketik, ringan dioperasikan, tanpa JVM |
+| Penyimpanan objek | Cloudflare R2, bucket terpisah untuk gambar produk (publik lewat CDN), PDF label (privat, URL bertanda tangan), ekspor dan arsip (privat) | Tanpa biaya egress, terintegrasi dengan CDN Cloudflare yang sudah dipakai di edge |
+| PDF | `pdf-lib` untuk menggabungkan PDF label dari marketplace dan imposisi 4 label per A4. Playwright Chromium headless di proses worker untuk render HTML ke PDF (pick list, packing list, label kustom, label pesanan manual). Font Noto Sans dibundel | Label marketplace sudah PDF sehingga cukup digabung. Template HTML mudah diubah desainer |
+| Email | Amazon SES dengan template React Email, domain terverifikasi, DKIM dan DMARC. Region ap-southeast-1 karena SES belum tersedia di Jakarta saat penulisan; email hanya memuat data tenant, tidak memuat data pembeli | Murah, andal, terintegrasi IAM |
+| WhatsApp | Meta WhatsApp Business Platform (Cloud API) langsung, template pesan disetujui Meta, hanya untuk notifikasi ke pengguna OmniSeller, bukan ke pembeli | Tanpa biaya perantara, kontrol penuh atas template |
+| Pembayaran langganan | Xendit: tagihan berulang, virtual account, QRIS, e-wallet, kartu. Logika paket, kuota, dan metering pesanan ditulis di modul `billing` internal | Metode bayar lokal lengkap, API dan webhook matang |
+| Feature flag | Tabel `feature_flag` dan `feature_flag_override` dengan penargetan per tenant dan persentase, dievaluasi di server dan di-cache di Redis 30 detik, UI admin internal | Kebutuhan hanya penargetan tenant; layanan luar menambah komponen tanpa manfaat |
+| Notifikasi push | Expo Notifications | Bagian dari Expo |
+| Bot dan spam | Cloudflare Turnstile pada pendaftaran dan login | Tanpa CAPTCHA yang mengganggu |
+| Integrasi akuntansi | Modul `accounting-export` dengan adapter Accurate Online dan Jurnal by Mekari (Fase 4) | Sesuai PRD |
+
+---
+
+## 14. Kecerdasan Buatan
+
+### 14.1 Model dan SDK
+
+| Aspek | Keputusan |
+|---|---|
+| Penyedia | Anthropic Claude API, SDK resmi `@anthropic-ai/sdk` |
+| Model utama | **Claude Opus 5** (`claude-opus-5`) untuk semua keluaran yang dibaca pengguna atau pembeli: saran balasan chat, auto-jawab, deskripsi dan judul produk, insight mingguan, ringkasan tema ulasan yang ditampilkan |
+| Model ekstraksi massal | **Claude Haiku 4.5** (`claude-haiku-4-5`) untuk klasifikasi dan ekstraksi bervolume tinggi yang hasilnya dikonsumsi mesin: penandaan tema per ulasan, ekstraksi kata kunci per judul, klasifikasi alasan retur. Dijalankan lewat **Message Batches API** (biaya 50%) karena tidak sensitif latensi |
+| Thinking | Adaptive thinking (`thinking: {type: "adaptive"}`) pada Opus 5. Tingkat effort per rute: `low` untuk saran chat dan klasifikasi, `medium` untuk deskripsi produk, `high` untuk insight mingguan. Haiku 4.5 tanpa thinking |
+| Keluaran terstruktur | `output_config.format` dengan skema Zod untuk semua hasil yang dikonsumsi mesin. Tidak ada parsing teks bebas |
+| Prompt caching | `cache_control` pada system prompt dan konteks katalog per tenant. System prompt dibekukan per versi, konten yang berubah (pertanyaan pembeli, pesanan) diletakkan setelah breakpoint cache |
+| Fallback penolakan | Parameter `fallbacks: "default"` dengan header beta `server-side-fallback-2026-07-01` diaktifkan pada semua panggilan Opus 5, agar penolakan pengaman diarahkan otomatis ke model lain |
+| Streaming | Untuk saran chat di UI agar agen melihat teks muncul; permintaan lain non-streaming dengan `max_tokens` yang cukup |
+| Embedding | Voyage AI: model multimodal untuk gambar dan judul produk (pemetaan SKU visual), model teks untuk pencarian kemiripan judul. Vektor disimpan di pgvector dengan indeks HNSW, dimensi mengikuti model |
+| Evaluasi | Setiap rute AI memiliki set evaluasi minimal 50 contoh nyata teranonimkan, dijalankan di CI saat prompt atau model berubah. Perubahan prompt tanpa evaluasi tidak digabung |
+
+### 14.2 Aturan operasional
+
+- Semua panggilan AI lewat antrean `ai` dengan batas konkurensi dan anggaran token per tenant per bulan sesuai paket. Melewati anggaran berarti fitur AI dijeda untuk tenant itu, bukan tagihan membengkak.
+- Data pembeli disamarkan sebelum dikirim (nama, nomor telepon, alamat diganti placeholder), sesuai PRD 6.17 dan 12.1.
+- Setiap keluaran yang ditampilkan ke pembeli diberi penanda konten AI (Permendag 19/2026) dan menunggu persetujuan pengguna kecuali auto-jawab yang diaktifkan eksplisit.
+- Log panggilan AI menyimpan versi prompt, model, token masuk dan keluar, biaya, dan hasil `stop_reason`. Penolakan (`stop_reason: refusal`) dicatat dan ditangani sebagai hasil kosong, bukan error.
+- Model dan versi prompt dikonfigurasi per rute di basis data, bukan ditulis mati, sehingga migrasi model tidak butuh deploy.
+
+---
+
+## 15. Pengumpul Data Riset
+
+| Aspek | Keputusan |
+|---|---|
+| Proses | `research-collector`, layanan ECS terpisah di subnet privat sendiri dengan NAT gateway dan Elastic IP sendiri. Alamat IP operasional (connector marketplace) tidak pernah dipakai untuk riset |
+| HTTP | `undici` fetch dengan User-Agent jujur `OmniSellerResearch/1.0 (+https://omniseller.id/bot)` dan halaman penjelasan bot publik |
+| Halaman berat JavaScript | Playwright Chromium hanya bila halaman tidak dapat dibaca tanpa JS, dengan batas 2 browser per instans |
+| Kepatuhan | `robots-parser` untuk robots.txt (cache 24 jam), batas laju per domain di Redis (bawaan 1 permintaan per 3 detik per domain, dan maksimal 1 kali per 6 jam per tautan pantauan), berhenti 6 jam setelah 403 atau 429, tidak ada penyelesaian CAPTCHA, tidak ada login, tidak ada proxy rotasi |
+| Parser | `packages/research-parsers`: satu modul per sumber per jenis halaman dengan nomor versi, fixture HTML nyata, uji harian. Field kosong melebihi 20% menandai parser rusak dan menjeda sumber |
+| Penyimpanan | Skema PostgreSQL terpisah `research`, tabel `research_snapshot` terpartisi, tidak ada foreign key ke skema operasional kecuali `tracked_competitor.variant_id` |
+| Ringkasan | Job harian meringkas snapshot menjadi `research_daily` (harga min, median, maks, terjual delta) dan menghapus snapshot mentah lebih dari 90 hari |
+| Ekstensi | Memakai parser yang sama sehingga hasil dari browser pengguna dan dari server identik |
+
+---
+
+## 16. Infrastruktur
+
+### 16.1 Penyedia dan region
+
+- **AWS, region ap-southeast-3 (Jakarta)** untuk semua komputasi dan data. Alasan: data residency di Indonesia, layanan terkelola lengkap (RDS, ElastiCache, ECS, KMS), latensi rendah ke marketplace lokal.
+- **Cloudflare** sebagai edge global: DNS, CDN, WAF, rate limiting, Turnstile, dan R2.
+- Layanan yang dipakai di luar Jakarta hanya SES (ap-southeast-1) untuk email tanpa data pembeli, dan salinan backup terenkripsi.
+
+### 16.2 Komponen
+
+| Komponen | Spesifikasi awal (Fase 1) | Catatan |
+|---|---|---|
+| ECS on Fargate | ARM64 Graviton. `api` 2 tugas 0,5 vCPU 1 GB; `webhook` 2 tugas 0,25 vCPU 0,5 GB; `worker` 2 tugas 1 vCPU 2 GB; `scheduler` 1 tugas 0,25 vCPU 0,5 GB; `research-collector` 1 tugas 1 vCPU 2 GB; `web` 2 tugas 0,5 vCPU 1 GB | Autoscaling berdasarkan CPU dan panjang antrean (worker) |
+| RDS PostgreSQL 17 | `db.m7g.large` Multi-AZ, 100 GB gp3, autoscaling storage | Read replica di Fase 3 |
+| RDS Proxy | Aktif | Pooling untuk Fargate yang sering scale |
+| ElastiCache Redis 7.2 | 2 klaster `cache.t4g.small`: antrean (AOF) dan cache | Naik ke `r7g` saat panjang antrean menuntut |
+| EC2 Meilisearch | `t4g.medium`, EBS gp3 50 GB, snapshot harian | Satu node cukup sampai Fase 3 |
+| ALB | Satu, dengan target group per layanan, health check `/healthz` | |
+| NAT Gateway | Dua: operasional dan riset, masing-masing dengan Elastic IP tetap | IP operasional didaftarkan ke marketplace bila mereka mensyaratkan whitelist |
+| VPC | Subnet publik (ALB, NAT), privat aplikasi, privat data, privat riset. Tidak ada IP publik pada tugas ECS dan basis data | |
+| KMS | CMK terpisah untuk basis data, R2 tidak berlaku, dan envelope encryption token | |
+| Secrets Manager | Semua rahasia, rotasi kata sandi basis data otomatis 90 hari | |
+| ECR | Registry image, pemindaian Trivy saat push | |
+
+### 16.3 Lingkungan
+
+| Lingkungan | Bentuk | Data |
+|---|---|---|
+| Lokal | Docker Compose: PostgreSQL, Redis x2, Meilisearch, MinIO (pengganti R2), server tiruan marketplace (Hono) | Dataset uji standar |
+| Staging | Salinan produksi dengan ukuran lebih kecil, akun sandbox marketplace, Xendit test mode | Data teranonimkan |
+| Produksi | Sesuai 16.2 | Data nyata |
+
+Semua lingkungan didefinisikan dengan **Terraform** (modul per komponen, state di S3 dengan lock DynamoDB, satu workspace per lingkungan). Tidak ada perubahan infrastruktur lewat konsol.
+
+---
+
+## 17. CI/CD dan Manajemen Rilis
+
+### 17.1 Pipeline
+
+| Tahap | Isi | Pemicu |
+|---|---|---|
+| Verifikasi | Biome, `tsc --noEmit`, Vitest unit, uji integrasi dengan Testcontainers (PostgreSQL, Redis), uji isolasi tenant, Semgrep | Setiap pull request |
+| Build | Image Docker multi-stage ARM64, push ke ECR, pemindaian Trivy (gagal bila ada kerentanan kritis) | Merge ke `main` |
+| Deploy staging | Migrasi DB sebagai tugas ECS satu kali, lalu deploy semua layanan, lalu Playwright end-to-end dan uji kontrak connector | Setiap merge ke `main` |
+| Deploy produksi | Tag `v*` dengan persetujuan manual satu orang. Migrasi, lalu CodeDeploy blue/green per layanan: 10% lalu lintas selama 10 menit, alarm (error rate, p95 latensi, DLQ) memicu rollback otomatis, lalu 100% | Tag rilis |
+| Mobile | EAS Build untuk rilis toko aplikasi; EAS Update untuk perubahan JavaScript tanpa rilis toko | Tag `mobile-v*` |
+| Ekstensi dan agen cetak | Build terpisah, unggah ke store dan rilis GitHub bertanda tangan | Tag masing-masing |
+
+### 17.2 Aturan rilis
+
+- Rilis produksi hanya Selasa sampai Kamis pukul 09.00 sampai 15.00 WIB, kecuali perbaikan darurat.
+- Tidak ada rilis besar tujuh hari sebelum kampanye tanggal kembar dan Lebaran (PRD 13.5).
+- Fitur baru selalu di balik feature flag; aktivasi bertahap per tenant terpisah dari deploy kode.
+- Setiap rilis memiliki catatan rilis untuk pengguna dan tag Sentry release untuk melacak regresi.
+- Rollback: CodeDeploy mengembalikan versi sebelumnya; migrasi DB tidak perlu dibalik karena pola expand and contract.
+
+---
+
+## 18. Observabilitas
+
+| Aspek | Keputusan |
+|---|---|
+| Instrumentasi | OpenTelemetry SDK untuk Node (trace, metrik) di semua proses, dengan auto-instrumentation HTTP, PostgreSQL, Redis, dan BullMQ. Log lewat `pino` dalam JSON dengan `trace_id` |
+| Pengumpul | Grafana Alloy sebagai sidecar di setiap tugas ECS, meneruskan ke Grafana Cloud |
+| Backend observabilitas | Grafana Cloud: Mimir (metrik), Loki (log), Tempo (trace), dasbor dan alert |
+| Error tracking | Sentry untuk backend, web, mobile, ekstensi, agen cetak, dengan source map dan release tagging |
+| Uptime dan status | Better Stack: pemeriksaan eksternal setiap 30 detik, halaman status publik per komponen dan per integrasi marketplace, jadwal on-call dan eskalasi |
+| ID korelasi | `request_id` dari Cloudflare diteruskan ke semua log dan job; setiap job BullMQ membawa `trace_id` asal |
+
+### 18.1 SLO dan alarm
+
+| SLO | Target | Alarm |
+|---|---|---|
+| Ketersediaan API | 99,9% per bulan (diukur di ALB) | Error rate 5xx di atas 1% selama 5 menit |
+| Webhook ke pesanan tersimpan | p95 di bawah 10 detik | p95 di atas 30 detik selama 10 menit |
+| Perubahan stok ke marketplace | p95 di bawah 60 detik | p95 di atas 120 detik selama 10 menit |
+| Kegagalan API marketplace | Di bawah 5% per marketplace | Di atas 5% selama 10 menit, alarm per marketplace |
+| Dead letter queue | Kosong | Lebih dari 50 job dalam 10 menit |
+| Kesegaran token | Semua toko aktif punya token valid | Toko `reauth_required` lebih dari 10 dalam 1 jam |
+| Parser riset | 95% sumber sehat | Sumber rusak lebih dari 2 |
+| Basis data | CPU di bawah 70%, koneksi di bawah 80% kapasitas proxy | Ambang dilewati 10 menit |
+
+Alarm P1 masuk ke Better Stack on-call (telepon dan WhatsApp), alarm lain ke saluran Slack tim.
+
+---
+
+## 19. Keamanan
+
+### 19.1 Perimeter dan jaringan
+
+- Cloudflare WAF dengan managed ruleset, rate limiting per IP, Turnstile di pendaftaran dan login, dan hanya IP Cloudflare yang diizinkan mencapai ALB.
+- Basis data, Redis, dan Meilisearch tidak memiliki IP publik dan hanya menerima koneksi dari security group aplikasi.
+- Akses operasional ke lingkungan produksi lewat AWS SSM Session Manager, tanpa SSH terbuka, dengan MFA dan log sesi.
+
+### 19.2 Aplikasi
+
+- Header keamanan: HSTS, CSP ketat dengan nonce, `X-Content-Type-Options`, `Referrer-Policy`.
+- Semua input divalidasi Zod di batas sistem. Query lewat Drizzle dengan parameter, tidak ada SQL yang disusun dari string.
+- Unggahan file diperiksa tipe MIME dari isi, dibatasi 10 MB per gambar, dipindai, dan disimpan di R2 dengan nama acak.
+- Kebijakan sesi, 2FA, dan RBAC sesuai 5.3.
+
+### 19.3 Enkripsi
+
+- Data at rest: RDS, EBS, dan ElastiCache terenkripsi dengan KMS.
+- Data in transit: TLS 1.2 minimum di edge, TLS antar layanan internal ke basis data dan Redis.
+- **Token marketplace dan rahasia tenant**: envelope encryption. Setiap tenant memiliki data encryption key (DEK) yang dienkripsi oleh KMS CMK. Token dienkripsi AES-256-GCM dengan DEK tenant, disimpan bersama nonce dan versi kunci. Rotasi CMK tahunan otomatis, rotasi DEK saat tenant meminta atau saat insiden.
+- Hanya proses `worker` dan `scheduler` yang memegang izin KMS. Proses `api` tidak memegang izin KMS sama sekali: redirect OAuth diterima `api`, kodenya diteruskan lewat outbox, dan job di worker yang menukarnya dengan token, mengenkripsi dengan DEK tenant, dan menyimpannya (ADR-029). Dengan envelope encryption, `api` memang tidak dapat mengenkripsi tanpa DEK plaintext, dan mendapatkan DEK berarti bisa mendekripsi.
+
+### 19.4 Rantai pasok dan kode
+
+- Dependabot untuk pembaruan dependensi mingguan, `pnpm audit` di CI, Semgrep dengan aturan OWASP dan aturan khusus (misalnya larangan query tanpa tenant), Trivy untuk image.
+- Lockfile wajib, dependensi dipasang dengan `--frozen-lockfile`.
+- Rahasia tidak pernah di repositori: `gitleaks` di pre-commit dan CI.
+- Uji penetrasi eksternal tahunan dan sebelum rilis paket Business.
+
+### 19.5 Audit dan retensi
+
+- `audit_log` hanya bisa ditambah (trigger menolak UPDATE dan DELETE), diekspor bulanan ke R2 dengan object lock 1 tahun.
+- Retensi data mengikuti PRD 12.1 dan 6.2 dokumen ini, dijalankan oleh job terjadwal yang mencatat jumlah baris yang dihapus atau dianonimkan.
+
+---
+
+## 20. Perkakas Pengujian
+
+Memetakan lapisan pengujian di PRD bagian 13 ke perkakas:
+
+| Lapisan | Perkakas | Tempat |
+|---|---|---|
+| Unit | Vitest, cakupan dengan `@vitest/coverage-v8`, ambang 80% pada modul stok, harga, keuangan | Setiap paket |
+| API dan integrasi | Vitest, Supertest, Testcontainers (PostgreSQL 17, Redis 7.2), server tiruan marketplace berbasis Hono yang memutar ulang fixture webhook | `backend` |
+| Kontrak connector | Vitest dengan fixture respons nyata teranonimkan, ditambah job harian terhadap sandbox nyata yang melaporkan ke Grafana | `packages/connectors/*` |
+| Isolasi tenant | Generator uji otomatis yang memanggil setiap endpoint OpenAPI sebagai tenant A dengan sumber daya tenant B dan mengharapkan 404 | `backend/test/tenant-isolation` |
+| End-to-end web | Playwright dengan axe untuk aksesibilitas, berjalan terhadap staging | `frontend/e2e` |
+| End-to-end mobile | Maestro terhadap build EAS internal | `mobile/.maestro` |
+| Beban | k6 dengan skenario 10.000 pesanan per hari, 500 webhook per menit, 5.000 pesanan dalam 10 menit (live), dijalankan terhadap staging berukuran produksi sebelum rilis besar | `tools/load` |
+| Keamanan | OWASP ZAP baseline terhadap staging, Semgrep, Trivy, gitleaks | CI |
+| Evaluasi AI | Skrip evaluasi per rute dengan set contoh teranonimkan, skor dicatat ke Grafana | `backend/src/ai/evals` |
+| Cetak | Uji manual terjadwal pada dua printer thermal referensi dan satu printer laser, checklist di setiap rilis agen cetak | Ruang uji |
+
+---
+
+## 21. Standar Kode dan Konvensi
+
+| Aspek | Keputusan |
+|---|---|
+| Lint dan format | Biome, konfigurasi tunggal di root, dijalankan di pre-commit (lefthook) dan CI |
+| Commit | Conventional Commits, PR kecil, minimal satu peninjau, squash merge |
+| Penamaan | File `kebab-case.ts`, kelas `PascalCase`, fungsi dan variabel `camelCase`, tabel dan kolom `snake_case`, kunci Redis `namespace:tenant:objek` |
+| Struktur modul backend | `modules/<nama>/{controller,service,repository,events,dto,schema}.ts`, tidak ada impor lintas modul selain melalui `index.ts` publik |
+| Error | Kelas error domain (`InsufficientStockError`) dipetakan ke Problem Details di satu filter global. Tidak ada `throw new Error('string')` di kode domain |
+| Logging | `pino`, tingkat `info` untuk peristiwa bisnis, `warn` untuk kondisi yang pulih sendiri, `error` hanya untuk yang butuh tindakan. Tidak ada data pribadi pembeli di log |
+| Transaksi | Setiap unit kerja tulis dalam satu transaksi dengan `SET LOCAL app.tenant_id`. Helper `withTenantTx(tenantId, fn)` wajib dipakai |
+| Waktu | Simpan UTC, hitung SLA dalam UTC, tampilkan dengan Luxon di zona tenant |
+| Uang | `bigint` di basis data, `number` aman sampai 9 x 10^15 di aplikasi dengan util `Money` yang menolak desimal |
+| Dokumentasi | README per paket, ADR di `docs/adr`, runbook operasional di `docs/runbooks` |
+| Bahasa kode | Identifier dan komentar dalam bahasa Inggris, teks UI dalam bahasa Indonesia melalui i18n |
+| Definisi selesai | Sesuai PRD 13.1 |
+
+---
+
+## 22. Kapasitas, Performa, dan Skala
+
+### 22.1 Anggaran performa
+
+| Ukuran | Target | Cara menjaga |
+|---|---|---|
+| Latensi API p95 | Di bawah 500 ms | Indeks komposit tenant, cache dasbor 30 detik, paginasi cursor |
+| Webhook receiver p95 | Di bawah 200 ms | Tanpa logika bisnis, tulis lalu enqueue |
+| Push stok p95 | Di bawah 60 detik | Debounce 5 detik, token bucket per toko, worker autoscale pada panjang antrean |
+| Render 500 label | Di bawah 30 detik | Gabung PDF di worker, paralel 4, hasil ke R2 |
+| Muat dasbor | Di bawah 2 detik pada 10.000 pesanan aktif | Agregat di Redis, tabel virtual |
+| Impor 5.000 baris | Di bawah 5 menit | Job bertahap 500 baris dengan progres |
+
+### 22.2 Jalur skala dan ambang pemecahan
+
+| Ambang yang tercapai | Tindakan |
+|---|---|
+| Panjang antrean `stock.push` di atas 5.000 selama 15 menit | Tambah tugas worker (autoscale sudah menangani), naikkan ElastiCache ke `r7g.large` |
+| CPU RDS di atas 60% rata-rata harian | Naik ke `db.m7g.xlarge`, lalu tambah read replica untuk laporan |
+| Lebih dari 500 tenant aktif | Pisahkan proses `worker` menjadi worker per kelompok antrean (mp, pdf, ai, research) dengan autoscale masing-masing |
+| Lebih dari 2.000 tenant atau 1 juta pesanan per hari | Pisahkan modul connector menjadi layanan tersendiri per marketplace, dan pertimbangkan antrean berbasis Kafka untuk `order.ingest` (keputusan lewat ADR baru) |
+| Indeks Meilisearch di atas 50 GB | Naik ke instans memori besar, lalu Meilisearch Cloud |
+| Tabel `order` di atas 200 juta baris | Arsip partisi lebih dari 24 bulan ke R2 Parquet, query arsip lewat DuckDB di worker |
+
+---
+
+## 23. Estimasi Biaya
+
+Asumsi kurs Rp16.500 per USD. Angka adalah estimasi untuk perencanaan, bukan penawaran vendor.
+
+### 23.1 Fase 1 (pilot, sampai 50 tenant)
+
+| Komponen | USD per bulan |
+|---|---|
+| ECS Fargate (semua layanan, ARM64) | 180 |
+| RDS PostgreSQL `db.m7g.large` Multi-AZ, 100 GB, RDS Proxy | 370 |
+| ElastiCache Redis 2 x `cache.t4g.small` | 50 |
+| EC2 Meilisearch `t4g.medium` dan EBS | 30 |
+| NAT Gateway 2 unit dan transfer data | 90 |
+| ALB | 25 |
+| Cloudflare Pro dan R2 | 25 |
+| Grafana Cloud, Sentry, Better Stack | 110 |
+| Amazon SES, Secrets Manager, KMS, ECR | 15 |
+| GitHub Team 8 kursi | 32 |
+| Anthropic Claude API (pilot) | 100 |
+| Voyage AI | 10 |
+| Expo EAS | 20 |
+| **Total** | **sekitar 1.060 USD, sekitar Rp17,5 juta** |
+
+### 23.2 Fase 3 (sekitar 500 tenant, 200.000 pesanan per hari gabungan)
+
+| Komponen | USD per bulan |
+|---|---|
+| ECS Fargate | 700 |
+| RDS `db.m7g.xlarge` Multi-AZ, 500 GB, read replica, Proxy | 1.000 |
+| ElastiCache 2 x `cache.r7g.large` | 250 |
+| Meilisearch `r7g.large` | 90 |
+| NAT dan transfer data | 200 |
+| ALB | 40 |
+| Cloudflare Business dan R2 | 250 |
+| Observabilitas | 300 |
+| Anthropic Claude API | 800 |
+| Voyage AI | 50 |
+| Lainnya (SES, KMS, EAS, GitHub 12 kursi) | 120 |
+| **Total** | **sekitar 3.800 USD, sekitar Rp63 juta** |
+
+Biaya AI dibatasi oleh anggaran token per paket (14.2), sehingga menjadi biaya variabel yang mengikuti pendapatan.
+
+---
+
+## 24. Tim dan Alat Kerja
+
+### 24.1 Komposisi tim Fase 1
+
+| Peran | Jumlah | Tanggung jawab utama |
+|---|---|---|
+| Tech lead | 1 | Arsitektur, tinjauan kode, connector Shopee, keputusan teknis |
+| Engineer backend | 2 | Connector TikTok Shop, sync engine, stok dan pesanan, keuangan |
+| Engineer frontend web | 1 | Next.js, komponen UI, dasbor, tabel pesanan |
+| Engineer mobile dan ekstensi | 1 | Expo, agen cetak, ekstensi riset |
+| Engineer QA otomasi | 1 | Kerangka uji, uji kontrak, beban, isolasi tenant |
+| DevOps | 0,5 | Terraform, CI/CD, observabilitas, on-call bersama tech lead |
+| Product designer | 1 | Alur, desain sistem komponen, uji kegunaan |
+| Product manager | 1 | PRD, prioritas, pilot, kepatuhan bersama konsultan |
+
+Fase 2 menambah satu engineer backend (promosi, chat, kesehatan toko) dan satu engineer support engineering. Fase 3 menambah satu engineer data (rekonsiliasi, riset, AI).
+
+### 24.2 Alat kerja
+
+| Kebutuhan | Alat |
+|---|---|
+| Kode dan tinjauan | GitHub |
+| Perencanaan | Linear |
+| Komunikasi | Slack, saluran per modul dan per alarm |
+| Dokumentasi | Markdown di repositori (`docs/`), ADR dan runbook ikut ditinjau di PR |
+| Desain | Figma |
+| Rahasia lokal | 1Password dengan integrasi CLI |
+| On-call | Better Stack |
+
+---
+
+## 25. Catatan Keputusan Arsitektur (ADR)
+
+| ID | Keputusan | Alasan utama | Konsekuensi yang diterima |
+|---|---|---|---|
+| ADR-001 | TypeScript di semua permukaan | Tipe dan skema dibagikan, satu kolam talenta | Pekerjaan CPU-berat dipindah ke worker; tidak memakai Go untuk connector |
+| ADR-002 | NestJS modular monolith dengan empat peran proses | Batas modul jelas tanpa biaya operasional microservices | Disiplin batas modul harus ditegakkan lewat lint dan tinjauan |
+| ADR-003 | PostgreSQL 17 dengan RLS sebagai penegak isolasi tenant | Isolasi tidak bergantung pada kebenaran setiap query aplikasi | Setiap transaksi wajib menetapkan tenant; kesalahan menghasilkan nol baris, bukan kebocoran |
+| ADR-004 | Drizzle ORM | Dekat SQL, ringan, tipe hasil query mengikuti skema | Lebih sedikit abstraksi otomatis dibanding ORM berat; tim menulis SQL untuk laporan. Migrasi tidak memakai drizzle-kit (ADR-027) |
+| ADR-005 | BullMQ di Redis, terpisah dari Redis cache | Idempotensi lewat jobId, rate limit, retry, DLQ, matang di Node | Bukan streaming log seperti Kafka; ambang pemecahan ditetapkan di 22.2 |
+| ADR-006 | Nilai stok absolut, debounce 5 detik, token bucket per toko | Tahan pesan tidak berurutan dan batas laju marketplace | Latensi push minimal 5 detik yang diterima |
+| ADR-007 | Webhook receiver tanpa logika bisnis dan tulis dulu ke inbox | Tidak ada webhook hilang walau antrean mati | Duplikasi ditangani di hilir lewat constraint unik |
+| ADR-008 | AWS Jakarta, ECS Fargate ARM64, bukan Kubernetes | Data residency, layanan terkelola, tim kecil, biaya Graviton | Fitur orkestrasi lanjutan Kubernetes tidak tersedia; dianggap tidak dibutuhkan sampai ambang 22.2 |
+| ADR-009 | Cloudflare sebagai edge dan R2 sebagai penyimpanan objek | WAF dan CDN global, tanpa biaya egress untuk PDF dan gambar | Dua penyedia (AWS dan Cloudflare) yang harus dikelola |
+| ADR-010 | Next.js di ECS, bukan Vercel | Data dan log tetap di Jakarta, satu jalur deploy | Tim mengelola container web sendiri |
+| ADR-011 | React Native Expo untuk gudang dan owner | Satu basis kode, EAS Update untuk perbaikan cepat | Performa kamera bergantung pada vision-camera; PDA dengan pemindai bawaan tetap disarankan |
+| ADR-012 | Electron untuk agen cetak | Cetak thermal tanpa dialog di Windows, pembaruan otomatis, satu bahasa | Ukuran instalasi sekitar 80 MB |
+| ADR-013 | Autentikasi ditulis sendiri di NestJS | Kebutuhan spesifik (toko, gudang, token perangkat, API key), tanpa ketergantungan vendor | Tim bertanggung jawab penuh atas keamanan auth, diimbangi uji dan pentest |
+| ADR-014 | Envelope encryption dengan DEK per tenant dan KMS | Token marketplace adalah aset paling sensitif; api tidak bisa mendekripsi | Kompleksitas kunci per tenant, rotasi harus diotomasi |
+| ADR-015 | Claude Opus 5 sebagai model utama, Haiku 4.5 hanya untuk ekstraksi massal via Batches | Kualitas keluaran yang dibaca pengguna menentukan kepercayaan; ekstraksi mesin bervolume tinggi cukup dengan model kecil dan setengah harga | Biaya AI dikendalikan lewat anggaran per paket, caching, dan effort per rute |
+| ADR-016 | Voyage AI dan pgvector untuk embedding | Multimodal untuk pemetaan SKU visual, tanpa basis data vektor terpisah | Dimensi vektor mengikat ke model; migrasi model berarti re-embed katalog |
+| ADR-017 | Pengumpul riset di egress terpisah, tanpa proxy rotasi, tanpa bypass | Melindungi IP operasional dan akun toko, sesuai PRD 6.19.1 | Sumber yang memblokir tidak dipaksa; fitur bergantung pada ekstensi browser untuk sumber itu |
+| ADR-018 | Feature flag internal, bukan layanan luar | Kebutuhan hanya penargetan tenant dan persentase | UI admin flag harus dibangun sendiri (kecil) |
+| ADR-019 | Grafana Cloud, Sentry, Better Stack | Observabilitas terkelola penuh untuk tim kecil | Biaya berlangganan tetap; data telemetri (tanpa data pribadi) berada di luar Jakarta |
+| ADR-020 | Xendit untuk penagihan langganan | Metode bayar lokal lengkap dan API matang | Logika paket dan kuota tetap ditulis sendiri |
+| ADR-021 | Meilisearch di EC2 | Pencarian cepat tanpa JVM, operasional ringan | Satu node adalah titik gagal untuk pencarian; fitur inti tidak bergantung pada pencarian |
+| ADR-022 | Rilis blue/green CodeDeploy dengan canary 10% dan feature flag | Rollback otomatis pada alarm, eksposur fitur terpisah dari deploy | Dua kapasitas berjalan sementara saat deploy |
+| ADR-023 | ULID sebagai kunci primer semua tabel (menggantikan UUID v7), disimpan sebagai domain `ulid` di atas `text COLLATE "C"` | Terurut waktu, dapat dibaca manusia dan agen AI, memungkinkan partisi range pada `id` tanpa kolom partisi tambahan; domain memeriksa format di satu tempat | 26 byte per id (bukan 16); kolase `"C"` wajib; ULID dibuat di aplikasi, kecuali id seed global dan id audit (`gen_ulid()`) |
+| ADR-024 | Transactional outbox untuk semua efek samping keluar | Tidak ada event hilang saat Redis mati; event dan data selalu konsisten karena satu transaksi | Latensi tambahan sampai 1 detik dari relay; konsumen wajib idempoten |
+| ADR-025 | Kunci asing komposit `(tenant_id, x_id)` ke semua tabel milik tenant | Relasi lintas tenant mustahil di tingkat basis data, bukan hanya di kode | Setiap tabel induk butuh `UNIQUE (tenant_id, id)`; sedikit ruang indeks tambahan |
+| ADR-026 | Empat role basis data dengan hak berbeda (api, worker, system, migrator) | Proses api tidak dapat membaca token marketplace walau disusupi; job lintas tenant eksplisit | Dua string koneksi per proses; uji integrasi harus berjalan dengan role yang benar, bukan superuser |
+| ADR-027 | Migrasi SQL tulisan tangan dengan migrator sendiri: file berversi sekali jalan dengan checksum, file repeatable (fungsi, trigger, kebijakan, grant, seed) setiap kali; skema Drizzle hanya cermin bertipe | Sebagian besar DDL penjaga integritas (partisi ULID, FK komposit dengan `SET NULL (kolom)`, RLS, grant, `SECURITY DEFINER`) tidak dapat dinyatakan di Drizzle; mengedit SQL hasil drizzle-kit setiap kali rawan lupa | Engineer menulis SQL dan cermin Drizzle; uji skema wajib menjaga keduanya sama |
+| ADR-028 | Pembacaan sebelum tenant diketahui (webhook, login, token, undangan) lewat fungsi `SECURITY DEFINER` yang sempit | Di bawah RLS query biasa mengembalikan nol baris; memberi `BYPASSRLS` ke proses webhook atau api akan membuka semua data | Setiap alur pra-tenant baru butuh fungsi dan grant eksplisit |
+| ADR-029 | Penukaran kode OAuth dan enkripsi token di worker; api tanpa hak token dan tanpa KMS | Aturan tanpa panggilan keluar dari api (I4) dan envelope encryption membuat api tidak dapat menukar kode maupun mengenkripsi tanpa bisa mendekripsi | Otorisasi toko selesai asinkron (beberapa detik); UI menampilkan progres |
+| ADR-030 | Transisi status yang dilaporkan marketplace boleh melompati langkah penjual (`via = 'marketplace'`) | Mode paralel migrasi dan pedagang yang mencetak label tanpa scan: tanpa lompatan, kabar "dikirim" ditolak trigger dan reservasi stok tertahan | Service wajib menandai sumber status dengan `withStatusSource` |
+| ADR-031 | Id job BullMQ dengan pemisah `\|` dan kunci kejadian untuk aksi berulang | BullMQ 5 menolak `:` di id kustom; id kunci bisnis saja membuat dorongan stok atau harga kedua dalam satu jam dibuang diam-diam | Id lebih panjang; konvensi dijaga helper `jobKey()` |
+| ADR-032 | Satu folder per komponen di root repositori; backend di `backend/` sebagai workspace pnpm sendiri tanpa Turborepo | Root hanya berisi dokumen dan setiap komponen jelas batasnya; tiga paket kecil tidak butuh orkestrasi build | Berbagi `packages/shared` dengan frontend dan mobile belum otomatis; mekanismenya diputuskan saat frontend dimulai (menggeser workspace ke root, atau menerbitkan paket) |
+| ADR-033 | Izin dan cakupan pengguna dimuat ulang dari basis data setiap permintaan, bukan dibekukan di sesi | Mencabut peran, mengubah cakupan toko, atau menonaktifkan pengguna berlaku di permintaan berikutnya, tanpa menunggu sesi 30 hari habis dan tanpa daftar pencabutan | Satu query agregat per permintaan (indeks `(tenant_id, user_id)`); cache Redis pendek bisa ditambahkan bila terukur jadi beban |
+
+---
+
+## 26. Lampiran
+
+### 26.1 Struktur repositori
+
+Repositori dibagi per komponen (ADR-032). Root hanya berisi dokumen; setiap komponen berdiri di foldernya sendiri dengan workspace pnpm sendiri.
+
+```
+marketplace/
+├── DOKUMEN-*.md             # PRD, teknologi, arsitektur backend, UI/UX
+├── AGENTS.md, README.md
+├── backend/                 # sudah ada; rincian di DOKUMEN-ARSITEKTUR-BACKEND.md bagian 4
+│   ├── src/                 # NestJS: api, webhook, worker, scheduler, research-collector (APP_ROLE)
+│   ├── drizzle/             # migrasi SQL berversi dan repeatable
+│   ├── test/
+│   ├── packages/
+│   │   ├── shared/          # tipe domain, skema Zod, konstanta, util Money dan waktu
+│   │   ├── logging/         # logger JSON dengan redaksi data pribadi
+│   │   ├── api-client/      # klien TS dari OpenAPI (menyusul bersama endpoint pertama)
+│   │   ├── connectors/      # core, shopee, tiktokshop, lazada, blibli, shipping-* (menyusul)
+│   │   └── research-parsers/ # parser per sumber, dipakai ekstensi dan collector (menyusul)
+│   ├── infra/
+│   │   ├── docker/          # compose lokal
+│   │   └── terraform/       # modul dan workspace per lingkungan (menyusul)
+│   ├── tools/               # dev.mjs, scripts/, load/ (k6)
+│   ├── package.json         # root workspace sekaligus paket aplikasi
+│   └── pnpm-workspace.yaml
+├── frontend/                # Next.js (menyusul)
+├── mobile/                  # Expo, mode gudang dan owner (menyusul)
+├── extension/               # WXT (menyusul)
+└── print-agent/             # Electron (menyusul)
+```
+
+### 26.2 Variabel lingkungan utama
+
+| Variabel | Proses | Keterangan |
+|---|---|---|
+| `APP_ROLE` | semua | `api`, `webhook`, `worker`, `scheduler`, `research-collector` |
+| `DATABASE_URL` | api, webhook | Melalui RDS Proxy, role `omniseller_api` |
+| `DATABASE_URL_WORKER` | worker, scheduler, research-collector | Melalui RDS Proxy, role `omniseller_worker` |
+| `DATABASE_URL_SYSTEM` | scheduler | Role `omniseller_system`. Relay outbox memakai koneksi langsung (bukan RDS Proxy) untuk `LISTEN` |
+| `DATABASE_MIGRATOR_URL` | tugas migrasi | Role `omniseller_migrator` |
+| `REDIS_QUEUE_URL`, `REDIS_CACHE_URL` | semua | Dua instans |
+| `MEILISEARCH_URL`, `MEILISEARCH_KEY` | api, worker | |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_*` | api, worker | |
+| `KMS_KEY_ID_TOKENS` | worker, scheduler | Envelope encryption; tidak pernah diberikan ke api |
+| `SHOPEE_PARTNER_ID`, `SHOPEE_PARTNER_KEY` | webhook, worker, scheduler | Per marketplace, pola yang sama untuk TikTok Shop, Lazada, Blibli |
+| `ANTHROPIC_API_KEY`, `VOYAGE_API_KEY` | worker | |
+| `XENDIT_SECRET_KEY`, `XENDIT_WEBHOOK_TOKEN` | api, webhook | |
+| `SES_REGION`, `EMAIL_FROM` | worker | |
+| `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID` | worker | |
+| `SESSION_SECRET`, `TOTP_ISSUER` | api | |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`, `SENTRY_DSN` | semua | |
+| `RESEARCH_USER_AGENT`, `RESEARCH_MAX_RPS_PER_DOMAIN` | research-collector | |
+
+### 26.3 Contoh kebijakan RLS
+
+```sql
+ALTER TABLE "order" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "order" FORCE ROW LEVEL SECURITY;
+
+CREATE POLICY tenant_isolation ON "order"
+  USING (tenant_id = current_setting('app.tenant_id', true))
+  WITH CHECK (tenant_id = current_setting('app.tenant_id', true));
+
+-- Role aplikasi tidak pernah melewati RLS
+CREATE ROLE omniseller_api LOGIN NOBYPASSRLS;
+CREATE ROLE omniseller_worker LOGIN NOBYPASSRLS;
+
+-- Hak tingkat kolom hanya bekerja bila hak tingkat tabel TIDAK diberikan: REVOKE SELECT (kolom)
+-- setelah GRANT SELECT pada tabel tidak berpengaruh apa pun. Karena itu token dilindungi dengan
+-- memberi omniseller_api SELECT hanya pada kolom metadata, bukan dengan mencabut kolom token.
+REVOKE ALL ON store_credential FROM omniseller_api;
+GRANT SELECT (id, tenant_id, store_id, dek_version, access_expires_at, refresh_expires_at,
+              scopes, last_refreshed_at, refresh_fail_count) ON store_credential TO omniseller_api;
+```
+
+Versi 1.1 dokumen ini memakai `GRANT SELECT ... ON ALL TABLES` lalu `REVOKE SELECT (access_token_enc, refresh_token_enc)`, yang tidak mencabut apa pun. Hak lengkap per tabel dan role ada di `backend/drizzle/sql/40_grants.sql` dan diuji di `backend/test/db/tenant-isolation.int.spec.ts`.
+
+Di aplikasi, helper `withTenantTx` membuka transaksi, menjalankan `set_config('app.tenant_id', $1, true)`, menjalankan fungsi, lalu commit. Tidak ada jalur lain untuk menulis data tenant. Kode lengkap di DOKUMEN-ARSITEKTUR-BACKEND.md 17.3.
+
+### 26.4 Antarmuka connector (ringkas)
+
+```ts
+export interface MarketplaceConnector {
+  readonly id: "shopee" | "tiktokshop" | "lazada" | "blibli" | "shopify" | "woocommerce";
+  readonly rateLimit: { perShopPerSecond: number; perPartnerPerSecond: number };
+
+  auth: {
+    buildAuthorizeUrl(state: string): string;
+    exchangeCode(code: string, shopHint?: string): Promise<TokenSet>;
+    refresh(tokens: TokenSet): Promise<TokenSet>;
+  };
+  webhooks: {
+    verify(headers: Headers, rawBody: Buffer): boolean;
+    parse(rawBody: Buffer): NormalizedEvent[];
+  };
+  catalog: {
+    listItems(ctx: ShopCtx, cursor?: string): Promise<Page<NormalizedListing>>;
+    updateStock(ctx: ShopCtx, updates: StockUpdate[]): Promise<Result[]>;
+    updatePrice(ctx: ShopCtx, updates: PriceUpdate[]): Promise<Result[]>;
+    setListingStatus(ctx: ShopCtx, ids: string[], active: boolean): Promise<Result[]>;
+  };
+  orders: {
+    list(ctx: ShopCtx, since: Date, cursor?: string): Promise<Page<NormalizedOrder>>;
+    get(ctx: ShopCtx, externalOrderId: string): Promise<NormalizedOrder>;
+    accept(ctx: ShopCtx, ids: string[]): Promise<Result[]>;
+    cancel(ctx: ShopCtx, id: string, reason: string): Promise<Result>;
+  };
+  fulfillment: {
+    arrangeShipment(ctx: ShopCtx, req: ShipmentRequest[]): Promise<Result[]>;
+    getLabel(ctx: ShopCtx, ids: string[]): Promise<LabelFile[]>;
+    track(ctx: ShopCtx, trackingNumber: string): Promise<TrackingStatus>;
+  };
+  warehouses: { list(ctx: ShopCtx): Promise<MarketplaceWarehouse[]> };
+  finance?: { settlements(ctx: ShopCtx, range: DateRange): Promise<SettlementLine[]> };
+  returns?: { list(ctx: ShopCtx, since: Date): Promise<ReturnRequest[]>; respond(ctx: ShopCtx, id: string, action: ReturnAction): Promise<Result> };
+  chat?: { threads(ctx: ShopCtx, since: Date): Promise<ChatThread[]>; send(ctx: ShopCtx, threadId: string, msg: OutboundMessage): Promise<Result> };
+  promotions?: { list(ctx: ShopCtx): Promise<Promotion[]>; upsert(ctx: ShopCtx, promo: PromotionInput): Promise<Result> };
+  health?: { metrics(ctx: ShopCtx): Promise<ShopHealth> };
+}
+```
+
+Setiap metode opsional yang tidak didukung marketplace dibiarkan `undefined`, dan UI menyembunyikan fitur terkait untuk toko itu.
+
+### 26.5 Referensi
+
+- PRD OmniSeller versi 1.9, bagian 8 (kebutuhan non-fungsional), 9 (arsitektur), 10 (model data), 11 (integrasi API), 12 (keamanan), 13 (pengujian).
+- Dokumentasi resmi masing-masing teknologi pada versi yang dikunci di lockfile repositori.
+- Referensi API Claude yang dipakai saat penulisan: model `claude-opus-5` (input 5 USD dan output 25 USD per juta token, konteks 1 juta token) dan `claude-haiku-4-5` (input 1 USD dan output 5 USD per juta token), Message Batches API dengan potongan 50%, adaptive thinking, `output_config.format`, prompt caching, dan parameter `fallbacks`.
+
+### 26.6 Riwayat perubahan
+
+| Versi | Tanggal | Perubahan | Penulis |
+|---|---|---|---|
+| 1.0 | 30 September 2026 | Keputusan final seluruh lapisan teknologi | Candra Syahputra |
+| 1.1 | 30 September 2026 | Kunci primer diubah ke ULID; partisi range pada `id` tanpa pg_partman; kunci asing komposit tenant; empat role basis data; transactional outbox; ADR-023 sampai ADR-026; rujukan ke DOKUMEN-ARSITEKTUR-BACKEND.md | Candra Syahputra |
+| 1.2 | 30 September 2026 | Hasil implementasi fondasi backend: ADR-027 sampai ADR-031; ADR-004 dan ADR-023 disesuaikan; contoh grant kolom di 26.3 diperbaiki (versi lama tidak mencabut akses token); api tanpa KMS (19.3); kunci per toko saat refresh token (8.4); format `jobId` (7.1); variabel basis data per role (26.2); lima peran proses; sisa rujukan pg_partman dihapus; kunci `inventory` | Candra Syahputra |
+| 1.3 | 30 September 2026 | Struktur repositori per komponen: kode backend di `backend/`, root hanya dokumen; Turborepo tidak dipakai; ADR-032; struktur 26.1 dan lokasi pengujian disesuaikan | Candra Syahputra |
+| 1.4 | 1 Oktober 2026 | Hasil implementasi identitas dan autentikasi: email lewat SMTP SES dengan Nodemailer dari worker; token undangan dan atur ulang sandi acak dengan hash (bukan tautan bertanda tangan); penguncian dan batas laju di 5.3; ADR-033 (izin dimuat ulang per permintaan); tipe `tenant_id` di 5.4 disamakan dengan ADR-023 | Candra Syahputra |

@@ -1,0 +1,86 @@
+import { boolean, integer, jsonb, pgTable, smallint, text } from "drizzle-orm/pg-core";
+import { baseColumns, money, qty, tstz, ulid } from "../columns";
+
+export const product = pgTable("product", {
+  ...baseColumns(),
+  name: text("name").notNull(),
+  sku: text("sku").notNull(),
+  description: text("description"),
+  brand: text("brand"),
+  categoryPath: text("category_path"),
+  status: text("status").$type<"active" | "archived">().notNull().default("active"),
+  attributeNames: text("attribute_names").array().notNull().default([]),
+  deletedAt: tstz("deleted_at"),
+});
+
+export const variant = pgTable("variant", {
+  ...baseColumns(),
+  productId: ulid("product_id").notNull(),
+  sku: text("sku").notNull(),
+  barcode: text("barcode"),
+  name: text("name").notNull(),
+  attributes: jsonb("attributes").$type<Record<string, string>>().notNull().default({}),
+  costPrice: money("cost_price").notNull().default(0),
+  basePrice: money("base_price").notNull(),
+  weightG: integer("weight_g").notNull(),
+  lengthMm: integer("length_mm"),
+  widthMm: integer("width_mm"),
+  heightMm: integer("height_mm"),
+  isBundle: boolean("is_bundle").notNull().default(false),
+  status: text("status").$type<"active" | "archived">().notNull().default("active"),
+  deletedAt: tstz("deleted_at"),
+});
+
+export const productImage = pgTable("product_image", {
+  ...baseColumns(),
+  productId: ulid("product_id").notNull(),
+  variantId: ulid("variant_id"),
+  fileObjectId: ulid("file_object_id").notNull(),
+  position: smallint("position").notNull(),
+});
+
+export const bundleComponent = pgTable("bundle_component", {
+  ...baseColumns(),
+  bundleVariantId: ulid("bundle_variant_id").notNull(),
+  componentVariantId: ulid("component_variant_id").notNull(),
+  qty: integer("qty").notNull(),
+});
+
+export interface LinkFields {
+  title: boolean;
+  description: boolean;
+  price: boolean;
+  images: boolean;
+  weight: boolean;
+}
+
+export const channelListing = pgTable("channel_listing", {
+  ...baseColumns(),
+  storeId: ulid("store_id").notNull(),
+  externalItemId: text("external_item_id").notNull(),
+  externalVariantId: text("external_variant_id").notNull().default(""),
+  externalSku: text("external_sku"),
+  variantId: ulid("variant_id"),
+  title: text("title").notNull(),
+  price: money("price"),
+  originalPrice: money("original_price"),
+  status: text("status").$type<"active" | "inactive" | "banned" | "deleted" | "unknown">().notNull().default("unknown"),
+  stockAtChannel: qty("stock_at_channel"),
+  linkFields: jsonb("link_fields")
+    .$type<LinkFields>()
+    .notNull()
+    .default({ title: false, description: false, price: true, images: false, weight: true }),
+  overrides: jsonb("overrides").$type<Record<string, unknown>>().notNull().default({}),
+  channelData: jsonb("channel_data").$type<Record<string, unknown>>().notNull().default({}),
+  lastPulledAt: tstz("last_pulled_at"),
+});
+
+export const listingStockState = pgTable("listing_stock_state", {
+  ...baseColumns(),
+  listingId: ulid("listing_id").notNull(),
+  channelWarehouseId: ulid("channel_warehouse_id").notNull(),
+  lastPushedQty: qty("last_pushed_qty"),
+  lastPushedAt: tstz("last_pushed_at"),
+  lastError: text("last_error"),
+  pushFailCount: integer("push_fail_count").notNull().default(0),
+});
