@@ -50,6 +50,9 @@ NestJS injection always uses explicit `@Inject(TOKEN)`; do not rely on construct
 - Inside a Drizzle `sql` subquery, reference the outer table's columns fully qualified (`sql.raw('"user"."id"')`). In a single-table select Drizzle renders `${user.id}` as a bare `"id"`, which binds to the subquery's own table.
 - Raw `tx.execute(sql...)` returns `timestamptz` as strings; use the query builder when you need `Date`.
 - Endpoints that must work before a tenant is known (login, webhooks, token links) go through the `SECURITY DEFINER` lookups in `PreTenantLookup`, never around RLS.
+- Marketplace JSON goes through `parseJsonSafe` (`@omniseller/connector-core`), never plain `JSON.parse`: TikTok Shop product ids have 19 digits and lose precision as numbers. The webhook receiver already lost an id this way once.
+- Marketplace calls go only through `MarketplaceGateway.call`; the per-shop rate limit is taken per HTTP request inside it (`withRequestGate`), so a connector method may page as much as it needs.
+- Listing pulls page in batches (`PAGES_PER_JOB`) and continue through an outbox event; do not loop over a whole catalog in one job.
 - Never hold a database transaction open across an HTTP call to a marketplace: the worker role ends sessions idle in a transaction after 10 seconds. Call marketplaces only through `MarketplaceGateway` (rate limit, sync log, token refresh); for a lock that must span the call use `withAdvisoryLock`.
 - Webhook signatures cover the exact raw body. The webhook process parses no JSON before verifying (`webhook/webhook-app.ts`); do not add a JSON body parser there.
 - `outbox.enqueue` writes nothing for an event that no job consumes yet, so a test cannot look for that event's row.

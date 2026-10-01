@@ -8,6 +8,7 @@ import {
   store,
   storeAuthorization,
   storeCredential,
+  syncCursor,
 } from "../../db/schema";
 
 export type StoreRow = typeof store.$inferSelect;
@@ -184,6 +185,27 @@ export class ChannelRepository {
 
   async deleteCredential(tx: Tx, storeId: string): Promise<void> {
     await tx.delete(storeCredential).where(eq(storeCredential.storeId, storeId));
+  }
+
+  // ---- sync_cursor ----
+
+  async syncCursor(tx: Tx, storeId: string, resource: string): Promise<string | null> {
+    const [row] = await tx
+      .select({ cursor: syncCursor.cursor })
+      .from(syncCursor)
+      .where(and(eq(syncCursor.storeId, storeId), eq(syncCursor.resource, resource)));
+    return row?.cursor ?? null;
+  }
+
+  async advanceSyncCursor(tx: Tx, tenantId: string, storeId: string, resource: string, cursor: string): Promise<void> {
+    const now = new Date();
+    await tx
+      .insert(syncCursor)
+      .values({ id: newId(), tenantId, storeId, resource, cursor, advancedAt: now })
+      .onConflictDoUpdate({
+        target: [syncCursor.storeId, syncCursor.resource],
+        set: { cursor, advancedAt: now, updatedAt: now, rowVersion: sql`${syncCursor.rowVersion} + 1` },
+      });
   }
 
   // ---- channel_warehouse ----

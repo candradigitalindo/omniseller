@@ -1,13 +1,9 @@
 import { Inject, Injectable } from "@nestjs/common";
-import {
-  isConnectorError,
-  type MarketplaceConnector,
-  type ShopCredentials,
-  TransientConnectorError,
-} from "@omniseller/connector-core";
+import { isConnectorError, type MarketplaceConnector, type ShopCredentials } from "@omniseller/connector-core";
 import type { RequestContext } from "../../common/context/request-context";
 import type { RateLimiter } from "../../common/security/rate-limiter";
 import { RATE_LIMITER } from "../../infra/tokens";
+import { withRequestGate } from "../sync/connector-calls";
 import { type SyncLogEntry, SyncLogService } from "../sync/sync-log.service";
 import type { StoreRow } from "./channel.repository";
 import { CONNECTORS, type ConnectorRegistry } from "./connector-registry";
@@ -19,7 +15,7 @@ export type ShopCall<T> = (connector: MarketplaceConnector, shop: ShopCredential
 /**
  * The one way the worker calls a marketplace for a store (backend doc 8.6, `ConnectorRegistry.forStore`):
  *
- * - takes a token from the store's bucket (manifest rate, Redis) or asks BullMQ to retry later
+ * - takes a token from the store's bucket (manifest rate, Redis) before every HTTP request
  * - records the call in the store's sync log with every HTTP request it made
  * - refreshes and retries once when the marketplace says the access token expired
  * - moves the store to `reauth_required` when the marketplace says the authorization is gone
@@ -47,21 +43,26 @@ export class MarketplaceGateway {
       async () => {
         let { store, shop } = await this.credentials.forShop(ctx, storeId);
         const connector = this.connectors.get(store.channel);
-        await this.throttle(storeId, connector);
-        try {
-          return await fn(connector, shop, store);
-        } catch (err) {
-          if (isConnectorError(err) && err.kind === "auth_expired") {
-            await this.credentials.refresh(ctx, storeId, { force: true });
-            ({ store, shop } = await this.credentials.forShop(ctx, storeId));
-            await this.throttle(storeId, connector);
-            return await this.revokedGuard(ctx, storeId, () => fn(connector, shop, store));
+        const gate = {
+          limiter: this.limiter,
+          key: `mp:${connector.manifest.id}:${storeId}`,
+          rule: connector.manifest.shopRateLimit,
+        };
+        return withRequestGate(gate, async () => {
+          try {
+            return await fn(connector, shop, store);
+          } catch (err) {
+            if (isConnectorError(err) && err.kind === "auth_expired") {
+              await this.credentials.refresh(ctx, storeId, { force: true });
+              ({ store, shop } = await this.credentials.forShop(ctx, storeId));
+              return await this.revokedGuard(ctx, storeId, () => fn(connector, shop, store));
+            }
+            if (isConnectorError(err) && err.kind === "auth_revoked") {
+              await this.stores.markReauthRequired(ctx, storeId, revokedReason(err.code));
+            }
+            throw err;
           }
-          if (isConnectorError(err) && err.kind === "auth_revoked") {
-            await this.stores.markReauthRequired(ctx, storeId, revokedReason(err.code));
-          }
-          throw err;
-        }
+        });
       },
       summarize,
     );
@@ -76,22 +77,6 @@ export class MarketplaceGateway {
         await this.stores.markReauthRequired(ctx, storeId, revokedReason(err.code));
       }
       throw err;
-    }
-  }
-
-  private async throttle(storeId: string, connector: MarketplaceConnector): Promise<void> {
-    const rule = connector.manifest.shopRateLimit;
-    const decision = await this.limiter.take(`mp:${connector.manifest.id}:${storeId}`, {
-      capacity: rule.capacity,
-      refill: rule.refillPerSecond,
-      windowMs: 1000,
-    });
-    if (!decision.allowed) {
-      throw new TransientConnectorError({
-        code: "local_rate_limit",
-        message: "per-store call budget used up",
-        retryAfterMs: decision.retryAfterSeconds * 1000,
-      });
     }
   }
 }

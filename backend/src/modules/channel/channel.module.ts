@@ -44,12 +44,16 @@ export function keyProviderFor(env: EnvFor<"worker">): KeyProvider {
   return AwsKmsKeyProvider.create(env.KMS_KEY_ID_TOKENS!, env.AWS_REGION!);
 }
 
-/** Worker only: tokens, marketplace calls, the code exchange, warehouse and webhook sync. */
+/**
+ * Worker only: tokens, marketplace calls, the code exchange, warehouse and webhook sync. Global, so
+ * other worker modules use MarketplaceGateway without importing (and re-creating) this module.
+ */
 @Module({})
 export class ChannelWorkerModule {
   static forEnv(env: EnvFor<"worker">): DynamicModule {
     const services = [CredentialService, MarketplaceGateway, StoreConnectService, ChannelSyncService];
     return {
+      global: true,
       module: ChannelWorkerModule,
       imports: [ChannelModule, SyncModule, InventoryModule],
       providers: [{ provide: TOKEN_VAULT, useValue: new TokenVault(keyProviderFor(env)) }, ...services],

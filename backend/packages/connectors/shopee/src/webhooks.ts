@@ -1,6 +1,7 @@
 import {
   hmacSha256Hex,
   type NormalizedWebhookEvent,
+  parseJsonSafe,
   sha256Hex,
   signatureEquals,
   type WebhookEventKind,
@@ -29,7 +30,10 @@ export const SHOPEE_PUSH_CODES = {
   ORDER_STATUS: 3,
   ORDER_TRACKING_NO: 4,
   SHOPEE_UPDATES: 5,
+  BANNED_ITEM: 6,
   OPEN_API_AUTHORIZATION_EXPIRY: 12,
+  VIOLATION_ITEM: 16,
+  ITEM_PRICE_UPDATE: 22,
 } as const;
 
 const KINDS: Record<number, WebhookEventKind> = {
@@ -37,7 +41,10 @@ const KINDS: Record<number, WebhookEventKind> = {
   2: "authorization.revoked",
   3: "order.status_changed",
   4: "order.tracking_updated",
+  6: "listing.changed",
   12: "authorization.expiring",
+  16: "listing.changed",
+  22: "listing.changed",
 };
 
 interface ShopeePushBody {
@@ -62,7 +69,7 @@ function ids(value: unknown): string[] {
 export function parseShopeePush(rawBody: Buffer): NormalizedWebhookEvent[] {
   let body: ShopeePushBody;
   try {
-    body = JSON.parse(rawBody.toString("utf8")) as ShopeePushBody;
+    body = parseJsonSafe(rawBody.toString("utf8")) as ShopeePushBody;
   } catch {
     return [];
   }
@@ -97,6 +104,10 @@ export function parseShopeePush(rawBody: Buffer): NormalizedWebhookEvent[] {
   }
   if (kind === "authorization.revoked" && typeof data.authorize_type === "string") {
     event.data.reason = data.authorize_type;
+  }
+  if (kind === "listing.changed") {
+    if (data.item_id !== undefined) event.data.externalItemId = String(data.item_id);
+    if (typeof data.item_status === "string") event.data.status = data.item_status;
   }
   if (kind === "order.status_changed" || kind === "order.tracking_updated") {
     if (typeof data.ordersn === "string") event.data.externalOrderId = data.ordersn;

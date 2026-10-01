@@ -9,6 +9,7 @@ import type { Env } from "./config/env.schema";
 import { InfraModule } from "./infra/infra.module";
 import { AuditHttpModule } from "./modules/audit/audit.module";
 import { AuthHttpModule, AuthModule } from "./modules/auth/auth.module";
+import { CatalogHttpModule, CatalogModule, CatalogWorkerModule } from "./modules/catalog/catalog.module";
 import {
   ChannelHttpModule,
   ChannelModule,
@@ -40,7 +41,7 @@ const HTTP_PROVIDERS: Provider[] = [
 
 /**
  * One image, five process roles (backend doc 3.1). The role decides which modules load:
- * api       HTTP API: auth, identity, audit, stores and warehouses (more modules join as they are built)
+ * api       HTTP API: auth, identity, audit, stores, warehouses, catalog (more modules join as they are built)
  * webhook   HTTP webhook receiver only (verify, store, enqueue, reply)
  * worker    BullMQ processors and the services their handlers call
  * scheduler outbox relay, stock flush, partitions, periodic jobs
@@ -68,6 +69,7 @@ export class AppModule {
             AuditHttpModule,
             InventoryHttpModule,
             ChannelHttpModule,
+            CatalogHttpModule,
           ],
           providers: HTTP_PROVIDERS,
         };
@@ -95,6 +97,8 @@ export class AppModule {
             SyncModule,
             ChannelModule,
             ChannelWorkerModule.forEnv(env),
+            CatalogModule,
+            CatalogWorkerModule,
           ],
           providers: [WorkerRunner],
         };

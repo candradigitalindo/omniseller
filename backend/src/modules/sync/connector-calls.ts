@@ -1,5 +1,13 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { type CallRecord, type ConnectorError, isConnectorError } from "@omniseller/connector-core";
+import { setTimeout as sleep } from "node:timers/promises";
+import {
+  type CallRecord,
+  type ConnectorError,
+  isConnectorError,
+  type RateLimitRule,
+  TransientConnectorError,
+} from "@omniseller/connector-core";
+import type { RateLimiter } from "../../common/security/rate-limiter";
 
 /**
  * Connector call recording (backend doc 8.6): every HTTP call a connector makes inside
@@ -15,6 +23,49 @@ export function recordConnectorCalls<T>(into: CallRecord[], fn: () => Promise<T>
 export const connectorCallObserver = (record: CallRecord): void => {
   callScope.getStore()?.push(record);
 };
+
+/**
+ * Per-shop rate limit applied to every HTTP call a connector makes (technology doc 7.1, token bucket
+ * per store): one operation may make hundreds of calls (a catalog pull), so the bucket is taken per
+ * request, not per operation. Inside `withRequestGate`, each request waits for a token up to
+ * `MAX_WAIT_MS` in total, then gives up with a transient error so BullMQ retries later.
+ */
+interface Gate {
+  limiter: RateLimiter;
+  key: string;
+  rule: RateLimitRule;
+  waitedMs: number;
+}
+
+const gateScope = new AsyncLocalStorage<Gate>();
+const MAX_WAIT_MS = 30_000;
+
+export function withRequestGate<T>(gate: Omit<Gate, "waitedMs">, fn: () => Promise<T>): Promise<T> {
+  return gateScope.run({ ...gate, waitedMs: 0 }, fn);
+}
+
+export async function connectorRequestGate(): Promise<void> {
+  const gate = gateScope.getStore();
+  if (!gate) return;
+  for (;;) {
+    const decision = await gate.limiter.take(gate.key, {
+      capacity: gate.rule.capacity,
+      refill: gate.rule.refillPerSecond,
+      windowMs: 1000,
+    });
+    if (decision.allowed) return;
+    const wait = Math.max(50, decision.retryAfterSeconds * 1000);
+    if (gate.waitedMs + wait > MAX_WAIT_MS) {
+      throw new TransientConnectorError({
+        code: "local_rate_limit",
+        message: "per-store call budget used up",
+        retryAfterMs: wait,
+      });
+    }
+    gate.waitedMs += wait;
+    await sleep(wait);
+  }
+}
 
 const KIND_MESSAGES: Record<ConnectorError["kind"], string> = {
   transient: "Marketplace sedang sibuk atau tidak bisa dihubungi. OmniSeller mencoba lagi otomatis.",

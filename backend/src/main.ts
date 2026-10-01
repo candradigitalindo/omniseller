@@ -5,6 +5,7 @@ import { SwaggerModule } from "@nestjs/swagger";
 import { configureLogger, logger, setLogContextProvider } from "@omniseller/logging";
 import { AppModule } from "./app.module";
 import { logFields } from "./common/context/request-context";
+import { configureApiApp } from "./common/http/api-app";
 import { NestPinoLogger } from "./common/logging/nest-logger";
 import { parseEnv } from "./config/env.schema";
 import { buildOpenApiDocument } from "./openapi/document";
@@ -24,6 +25,7 @@ async function bootstrap(): Promise<void> {
       bodyParser: !webhook,
     });
     if (webhook) configureWebhookApp(app);
+    else configureApiApp(app);
     app.enableShutdownHooks();
     if (env.APP_ROLE === "api") {
       // The web app calls the API cross-origin with the session cookie (technology doc 5.3).

@@ -14,8 +14,11 @@ export interface ShopeePushConfig {
   push_config_off_list?: number[];
 }
 
-/** Push codes OmniSeller subscribes to: authorization lifecycle, orders, tracking numbers, Shopee updates. */
-export const SHOPEE_SUBSCRIBED_PUSH_CODES = [1, 2, 3, 4, 5, 12] as const;
+/**
+ * Push codes OmniSeller subscribes to: authorization lifecycle (1, 2, 12), orders and tracking numbers
+ * (3, 4), Shopee updates (5), banned and violating items (6, 16), item price changes (22).
+ */
+export const SHOPEE_SUBSCRIBED_PUSH_CODES = [1, 2, 3, 4, 5, 6, 12, 16, 22] as const;
 
 export async function getShopeePushConfig(client: ShopeeClient): Promise<ShopeePushConfig> {
   const res = await client.publicCall<{ response?: ShopeePushConfig }>("GET", "/api/v2/push/get_app_push_config");

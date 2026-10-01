@@ -9,6 +9,7 @@ import {
   type ShopProfile,
   type TokenSet,
 } from "@omniseller/connector-core";
+import { tiktokCatalog } from "./catalog.js";
 import { TiktokShopClient, type TiktokShopConfig } from "./client.js";
 import { parseTiktokWebhook, TIKTOK_WEBHOOK_TOPICS, verifyTiktokWebhook } from "./webhooks.js";
 
@@ -224,6 +225,8 @@ export function createTiktokShopConnector(config: TiktokShopConfig): Marketplace
         return out;
       },
     },
+
+    catalog: tiktokCatalog(client),
 
     webhooks: {
       verify(req) {

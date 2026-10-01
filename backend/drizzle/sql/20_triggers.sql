@@ -36,6 +36,12 @@ SELECT ensure_trigger('variant', 'audit_upd_trg',
   'CREATE TRIGGER audit_upd_trg AFTER UPDATE ON variant FOR EACH ROW
      WHEN ((OLD.cost_price, OLD.base_price, OLD.status) IS DISTINCT FROM (NEW.cost_price, NEW.base_price, NEW.status))
      EXECUTE FUNCTION audit_row()');
+SELECT ensure_trigger('product', 'audit_insdel_trg',
+  'CREATE TRIGGER audit_insdel_trg AFTER INSERT OR DELETE ON product FOR EACH ROW EXECUTE FUNCTION audit_row()');
+SELECT ensure_trigger('product', 'audit_upd_trg',
+  'CREATE TRIGGER audit_upd_trg AFTER UPDATE ON product FOR EACH ROW
+     WHEN ((OLD.name, OLD.sku, OLD.status, OLD.deleted_at) IS DISTINCT FROM (NEW.name, NEW.sku, NEW.status, NEW.deleted_at))
+     EXECUTE FUNCTION audit_row()');
 SELECT ensure_trigger('channel_listing', 'audit_insdel_trg',
   'CREATE TRIGGER audit_insdel_trg AFTER INSERT OR DELETE ON channel_listing FOR EACH ROW EXECUTE FUNCTION audit_row()');
 SELECT ensure_trigger('channel_listing', 'audit_upd_trg',

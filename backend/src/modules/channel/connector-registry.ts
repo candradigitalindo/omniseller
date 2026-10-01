@@ -2,7 +2,7 @@ import type { ConnectorManifest, HttpConfig, MarketplaceConnector } from "@omnis
 import { createShopeeConnector, SHOPEE_MANIFEST } from "@omniseller/connector-shopee";
 import { createTiktokShopConnector, TIKTOKSHOP_MANIFEST } from "@omniseller/connector-tiktokshop";
 import type { Env } from "../../config/env.schema";
-import { connectorCallObserver } from "../sync/connector-calls";
+import { connectorCallObserver, connectorRequestGate } from "../sync/connector-calls";
 import { channelNotConfigured } from "./channel.errors";
 
 /** Channels with a connector today. Lazada and Blibli follow in phase 2 (PRD 14). */
@@ -43,7 +43,11 @@ export class ConnectorRegistry {
   }
 
   static fromEnv(env: Env, fetchImpl?: typeof fetch): ConnectorRegistry {
-    const http: HttpConfig = { observer: connectorCallObserver, ...(fetchImpl ? { fetch: fetchImpl } : {}) };
+    const http: HttpConfig = {
+      observer: connectorCallObserver,
+      beforeRequest: connectorRequestGate,
+      ...(fetchImpl ? { fetch: fetchImpl } : {}),
+    };
     const entries: [SupportedChannel, MarketplaceConnector][] = [];
     const role = env.APP_ROLE;
 

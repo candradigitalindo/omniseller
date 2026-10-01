@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { signatureEquals } from "./crypto.js";
 import { PermanentConnectorError, TransientConnectorError } from "./errors.js";
-import { type CallRecord, requestJson, retryAfter } from "./http.js";
+import { type CallRecord, parseJsonSafe, requestJson, retryAfter, toRupiah } from "./http.js";
 import { REDACTED, redactUrl, redactValue, summarize } from "./redact.js";
 
 describe("redaction", () => {
@@ -79,5 +79,25 @@ describe("requestJson", () => {
   it("reads Retry-After as seconds or a date", () => {
     expect(retryAfter(new Headers({ "retry-after": "5" }))).toEqual({ retryAfterMs: 5000 });
     expect(retryAfter(new Headers())).toEqual({});
+  });
+});
+
+describe("parseJsonSafe and toRupiah", () => {
+  it("keeps integers beyond 2^53 as exact strings and leaves safe numbers alone", () => {
+    expect(parseJsonSafe('{"id":576486316948490012,"n":42,"f":1.5,"s":"x"}')).toEqual({
+      id: "576486316948490012",
+      n: 42,
+      f: 1.5,
+      s: "x",
+    });
+  });
+
+  it("rounds marketplace amounts to whole rupiah and rejects junk", () => {
+    expect(toRupiah(65000)).toBe(65000);
+    expect(toRupiah("65000.4")).toBe(65000);
+    expect(toRupiah("")).toBeNull();
+    expect(toRupiah(undefined)).toBeNull();
+    expect(toRupiah("abc")).toBeNull();
+    expect(toRupiah(-1)).toBeNull();
   });
 });

@@ -35,7 +35,9 @@ export const productImage = pgTable("product_image", {
   ...baseColumns(),
   productId: ulid("product_id").notNull(),
   variantId: ulid("variant_id"),
-  fileObjectId: ulid("file_object_id").notNull(),
+  /** Stored copy; null while the image is only referenced by its marketplace URL. */
+  fileObjectId: ulid("file_object_id"),
+  sourceUrl: text("source_url"),
   position: smallint("position").notNull(),
 });
 
@@ -45,6 +47,10 @@ export const bundleComponent = pgTable("bundle_component", {
   componentVariantId: ulid("component_variant_id").notNull(),
   qty: integer("qty").notNull(),
 });
+
+export type ListingStatus = "active" | "inactive" | "banned" | "reviewing" | "deleted" | "unknown";
+/** auto_sku: same SKU as a variant; manual: chosen by a person; created: the variant was created from it. */
+export type MappingSource = "auto_sku" | "manual" | "created";
 
 export interface LinkFields {
   title: boolean;
@@ -64,7 +70,7 @@ export const channelListing = pgTable("channel_listing", {
   title: text("title").notNull(),
   price: money("price"),
   originalPrice: money("original_price"),
-  status: text("status").$type<"active" | "inactive" | "banned" | "deleted" | "unknown">().notNull().default("unknown"),
+  status: text("status").$type<ListingStatus>().notNull().default("unknown"),
   stockAtChannel: qty("stock_at_channel"),
   linkFields: jsonb("link_fields")
     .$type<LinkFields>()
@@ -73,6 +79,8 @@ export const channelListing = pgTable("channel_listing", {
   overrides: jsonb("overrides").$type<Record<string, unknown>>().notNull().default({}),
   channelData: jsonb("channel_data").$type<Record<string, unknown>>().notNull().default({}),
   lastPulledAt: tstz("last_pulled_at"),
+  mappingSource: text("mapping_source").$type<MappingSource>(),
+  mappedAt: tstz("mapped_at"),
 });
 
 export const listingStockState = pgTable("listing_stock_state", {

@@ -5,6 +5,7 @@ import {
   TransientConnectorError,
 } from "@omniseller/connector-core";
 import { describe, expect, it } from "vitest";
+import { tiktokListingStatus } from "./catalog.js";
 import { tiktokSign, tiktokSignString } from "./client.js";
 import { createTiktokShopConnector } from "./connector.js";
 import { parseTiktokWebhook, verifyTiktokWebhook } from "./webhooks.js";
@@ -301,5 +302,136 @@ describe("TikTok Shop warehouses and webhook subscription", () => {
     expect(put).not.toContain("SELLER_DEAUTHORIZATION");
     expect(put).toContain("ORDER_STATUS_CHANGE");
     expect(put).toContain("UPCOMING_AUTHORIZATION_EXPIRATION");
+  });
+});
+
+describe("TikTok Shop catalog", () => {
+  const shop = { externalShopId: "7495", shopCipher: "ROW_abc", accessToken: "t" };
+  const detail = {
+    id: "1729592969712207008",
+    title: "Kaos Polos",
+    status: "ACTIVATE",
+    integrated_platform_statuses: [{ platform: "TOKOPEDIA", status: "SELLER_DEACTIVATED" }],
+    main_images: [{ urls: ["https://p16.tiktokcdn.com/main.jpg"] }],
+    package_weight: { value: "0.3", unit: "KILOGRAM" },
+    package_dimensions: { length: "20", width: "15", height: "3", unit: "CENTIMETER" },
+    category_chains: [{ local_name: "Pakaian Pria" }, { local_name: "Kaos" }],
+    skus: [
+      {
+        id: "1729592969712207012",
+        seller_sku: "KAOS-HTM-L",
+        price: { currency: "IDR", tax_exclusive_price: "65000" },
+        inventory: [
+          { warehouse_id: "w-jkt", quantity: 10 },
+          { warehouse_id: "w-sby", quantity: 5 },
+        ],
+        sales_attributes: [
+          { name: "Warna", value_name: "Hitam", sku_img: { urls: ["https://p16.tiktokcdn.com/hitam.jpg"] } },
+          { name: "Ukuran", value_name: "L" },
+        ],
+        status_info: { status: "NORMAL" },
+      },
+      {
+        id: "1729592969712207013",
+        seller_sku: "KAOS-HTM-XL",
+        price: { tax_exclusive_price: "67000" },
+        inventory: [],
+        sales_attributes: [
+          { name: "Warna", value_name: "Hitam" },
+          { name: "Ukuran", value_name: "XL" },
+        ],
+        status_info: { status: "DEACTIVATED", deactivation_source: "PLATFORM" },
+      },
+    ],
+  };
+
+  it("searches products, reads each one's details, and reports deleted products", async () => {
+    const f = fakeFetch({
+      "POST /product/202502/products/search": (url, init) => {
+        expect(url.searchParams.get("page_size")).toBe("100");
+        expect(url.searchParams.get("page_token")).toBe("tok1");
+        expect(JSON.parse(String(init.body))).toEqual({ status: "ALL", update_time_ge: 1790000000 });
+        return {
+          code: 0,
+          data: {
+            products: [
+              { id: "1729592969712207008", status: "ACTIVATE" },
+              { id: "1729592969712209999", status: "DELETED" },
+            ],
+            next_page_token: "",
+          },
+        };
+      },
+      "GET /product/202309/products/1729592969712207008": () => ({ code: 0, data: detail }),
+    });
+    const page = await connector(f.fn).catalog.listListings(shop, {
+      cursor: "tok1",
+      updatedSince: new Date(1_790_000_000_000),
+    });
+    expect(page.nextCursor).toBeNull();
+    expect(page.deletedItemIds).toEqual(["1729592969712209999"]);
+    expect(page.listings.map((l) => [l.externalVariantId, l.sku, l.variantName, l.status, l.price, l.stock])).toEqual([
+      ["1729592969712207012", "KAOS-HTM-L", "Hitam, L", "active", 65000, 15],
+      ["1729592969712207013", "KAOS-HTM-XL", "Hitam, XL", "banned", 67000, 0],
+    ]);
+    expect(page.listings[0]).toMatchObject({
+      stockByWarehouse: { "w-jkt": 10, "w-sby": 5 },
+      imageUrl: "https://p16.tiktokcdn.com/hitam.jpg",
+      weightG: 300,
+      dimensionsMm: { length: 200, width: 150, height: 30 },
+      categoryPath: "Pakaian Pria > Kaos",
+      statusDetail: { tiktok_shop: "ACTIVATE", tokopedia: "SELLER_DEACTIVATED", sku: "NORMAL" },
+    });
+  });
+
+  it("counts a product active when it sells on TikTok Shop or Tokopedia", () => {
+    expect(tiktokListingStatus(undefined, [{ platform: "TOKOPEDIA", status: "ACTIVATE" }])).toBe("active");
+    expect(tiktokListingStatus("SELLER_DEACTIVATED", [{ platform: "TOKOPEDIA", status: "ACTIVATE" }])).toBe("active");
+    expect(tiktokListingStatus("PENDING")).toBe("reviewing");
+    expect(tiktokListingStatus("FREEZE", [{ platform: "TOKOPEDIA", status: "PLATFORM_DEACTIVATED" }])).toBe("banned");
+    expect(tiktokListingStatus("ACTIVATE", [], { status: "DEACTIVATED", deactivation_source: "SELLER" })).toBe(
+      "inactive",
+    );
+    expect(tiktokListingStatus(undefined)).toBe("unknown");
+  });
+
+  it("activates and deactivates, reading per-product errors even when code is 0", async () => {
+    const f = fakeFetch({
+      "POST /product/202309/products/deactivate": (_u, init) => {
+        expect(JSON.parse(String(init.body))).toEqual({ product_ids: ["1", "2"] });
+        return {
+          code: 0,
+          data: {
+            errors: [
+              {
+                code: 12052990,
+                message: "Batch deactivate business error.",
+                detail: {
+                  product_id: "2",
+                  extra_errors: [{ code: 12052048, message: "You can't edit other sellers' products" }],
+                },
+              },
+            ],
+          },
+        };
+      },
+    });
+    expect(await connector(f.fn).catalog.setListingStatus(shop, ["1", "2"], false)).toEqual([
+      { externalItemId: "1", ok: true },
+      { externalItemId: "2", ok: false, error: "You can't edit other sellers' products" },
+    ]);
+  });
+
+  it("keeps 19-digit product ids exact in product webhooks", () => {
+    const [e] = parseTiktokWebhook(
+      Buffer.from(
+        '{"type":5,"tts_notification_id":"7327112393057371910","shop_id":"7494049642642441621","timestamp":1644412885,"data":{"product_id":576486316948490012,"status":"PRODUCT_AUDIT_FAILURE","suspended_reason":"","update_time":1644412885}}',
+      ),
+    );
+    expect(e).toMatchObject({
+      kind: "listing.changed",
+      code: "PRODUCT_STATUS_CHANGE",
+      data: { externalItemId: "576486316948490012" },
+    });
   });
 });

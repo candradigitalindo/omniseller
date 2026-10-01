@@ -7,6 +7,7 @@ import { sql } from "drizzle-orm";
 import request from "supertest";
 import { AppModule } from "../../src/app.module";
 import { systemContext } from "../../src/common/context/request-context";
+import { configureApiApp } from "../../src/common/http/api-app";
 import { ConfigModule } from "../../src/config/config.module";
 import { parseEnv } from "../../src/config/env.schema";
 import type { DbHandle } from "../../src/db/client";
@@ -14,6 +15,7 @@ import { InfraModule } from "../../src/infra/infra.module";
 import type { JobDef } from "../../src/jobs/define";
 import { JOB_DEFINITIONS, JobRegistry } from "../../src/jobs/registry";
 import { AuthModule } from "../../src/modules/auth/auth.module";
+import { CatalogModule, CatalogWorkerModule } from "../../src/modules/catalog/catalog.module";
 import { ChannelModule, ChannelWorkerModule, ConnectorsModule } from "../../src/modules/channel/channel.module";
 import { IdentityModule } from "../../src/modules/identity/identity.module";
 import { InventoryModule } from "../../src/modules/inventory/inventory.module";
@@ -72,7 +74,8 @@ export async function startApi(
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule.forEnv(env, { queuePrefix: infra.keyPrefix })],
   }).compile();
-  const app = moduleRef.createNestApplication({ logger: false });
+  const app = moduleRef.createNestApplication<NestExpressApplication>({ logger: false });
+  configureApiApp(app);
   await app.init();
   return app;
 }
@@ -109,6 +112,8 @@ export async function startWorker(infra: TestInfra, system: DbHandle, opts: { ma
       SyncModule,
       ChannelModule,
       ChannelWorkerModule.forEnv(env),
+      CatalogModule,
+      CatalogWorkerModule,
     ],
   }).compile();
   const ctx = await moduleRef.init();

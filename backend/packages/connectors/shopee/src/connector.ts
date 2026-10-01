@@ -9,6 +9,7 @@ import {
   type ShopProfile,
   type TokenSet,
 } from "@omniseller/connector-core";
+import { shopeeCatalog } from "./catalog.js";
 import { accessExpiry, ShopeeClient, type ShopeeConfig } from "./client.js";
 import { parseShopeePush, verifyShopeePush } from "./webhooks.js";
 
@@ -311,6 +312,8 @@ export function createShopeeConnector(config: ShopeeConfig): MarketplaceConnecto
         return out;
       },
     },
+
+    catalog: shopeeCatalog(client, SHOPEE_FBS_WAREHOUSE_ID),
 
     webhooks: {
       verify(req) {

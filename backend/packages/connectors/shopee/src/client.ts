@@ -113,7 +113,11 @@ export class ShopeeClient {
   }
 
   /** Public API: tokens, push configuration, partner-level lists. */
-  publicCall<T>(method: "GET" | "POST", path: string, opts: { query?: Record<string, string>; body?: object } = {}) {
+  publicCall<T>(
+    method: "GET" | "POST",
+    path: string,
+    opts: { query?: Record<string, string | readonly string[]>; body?: object } = {},
+  ) {
     return this.call<T>(method, path, opts);
   }
 
@@ -122,7 +126,7 @@ export class ShopeeClient {
     shop: { externalShopId: string; accessToken: string },
     method: "GET" | "POST",
     path: string,
-    opts: { query?: Record<string, string>; body?: object } = {},
+    opts: { query?: Record<string, string | readonly string[]>; body?: object } = {},
   ) {
     return this.call<T>(method, path, { ...opts, shop });
   }
@@ -131,7 +135,7 @@ export class ShopeeClient {
     method: "GET" | "POST",
     path: string,
     opts: {
-      query?: Record<string, string>;
+      query?: Record<string, string | readonly string[]>;
       body?: object;
       shop?: { externalShopId: string; accessToken: string };
     },
@@ -154,7 +158,11 @@ export class ShopeeClient {
       url.searchParams.set("shop_id", opts.shop.externalShopId);
     }
     url.searchParams.set("sign", sign);
-    for (const [k, v] of Object.entries(opts.query ?? {})) url.searchParams.set(k, v);
+    // Array parameters repeat the key (item_status=NORMAL&item_status=BANNED), as Shopee documents.
+    for (const [k, v] of Object.entries(opts.query ?? {})) {
+      if (typeof v === "string") url.searchParams.set(k, v);
+      else for (const item of v) url.searchParams.append(k, item);
+    }
 
     const body = opts.body === undefined ? undefined : JSON.stringify(opts.body);
     const res = await requestJson(

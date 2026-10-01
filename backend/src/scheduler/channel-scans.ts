@@ -111,7 +111,11 @@ export async function scanTokenRefresh(
   return rows.length;
 }
 
-/** `mp.poll.warehouses` (every 6 h): refreshes the marketplace warehouse list of every usable store. */
+/**
+ * `mp.poll.warehouses` (every 6 h): refreshes the marketplace warehouse list of every usable store,
+ * re-checks per-shop webhook subscriptions (new topics reach shops connected earlier), and runs the
+ * incremental listing pull (`mp.poll.products`).
+ */
 export async function scanWarehousePolls(
   system: DbHandle,
   queues: QueueRegistry,
@@ -125,13 +129,30 @@ export async function scanWarehousePolls(
   });
   const slot = `p${Math.floor(now.getTime() / WAREHOUSE_POLL_SLOT_MS)}`;
   for (const r of rows) {
+    const payload = { storeId: r.store_id, tenantId: r.tenant_id };
     await add(
       queues,
       registry,
       "mp.poll",
       "store.warehouses_sync",
-      { storeId: r.store_id, tenantId: r.tenant_id },
+      payload,
       jobKey("store.warehouses_sync", r.store_id, slot),
+    );
+    await add(
+      queues,
+      registry,
+      "mp.outbound",
+      "store.webhooks_subscribe",
+      payload,
+      jobKey("store.webhooks_subscribe", r.store_id, slot),
+    );
+    await add(
+      queues,
+      registry,
+      "mp.poll",
+      "listing.pull",
+      { ...payload, mode: "incremental" },
+      jobKey("listing.pull", r.store_id, slot),
     );
   }
   return rows.length;

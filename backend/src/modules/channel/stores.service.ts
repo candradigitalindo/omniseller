@@ -223,6 +223,21 @@ export class StoresService {
     });
   }
 
+  // ---- sync bookkeeping for other modules' pulls (worker) ----
+
+  /** Where the last pull of `resource` (`listings`, later `orders`) left off. */
+  async syncCursor(ctx: RequestContext, storeId: string, resource: string): Promise<string | null> {
+    return withTenantTx(this.db, ctx, (tx) => this.repo.syncCursor(tx, storeId, resource));
+  }
+
+  /** Records a finished pull: its cursor and, for listings, `last_product_sync_at`. */
+  async recordPull(ctx: RequestContext, storeId: string, resource: "listings", cursor: string): Promise<void> {
+    await withTenantTx(this.db, ctx, async (tx) => {
+      await this.repo.advanceSyncCursor(tx, ctx.tenantId, storeId, resource, cursor);
+      await this.repo.updateStore(tx, storeId, { lastProductSyncAt: new Date() });
+    });
+  }
+
   // ---- status changes from webhooks and token refreshes (worker) ----
 
   /**

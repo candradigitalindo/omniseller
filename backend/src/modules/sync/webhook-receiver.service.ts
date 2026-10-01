@@ -1,5 +1,6 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { Inject, Injectable } from "@nestjs/common";
+import { parseJsonSafe } from "@omniseller/connector-core";
 import { logger } from "@omniseller/logging";
 import { newId } from "@omniseller/shared";
 import { sql } from "drizzle-orm";
@@ -59,7 +60,9 @@ export class WebhookReceiver {
     const events = connector.webhooks.parse(rawBody);
     let payload: unknown;
     try {
-      payload = JSON.parse(rawBody.toString("utf8"));
+      // Integers beyond 2^53 (TikTok Shop product ids) are kept as strings, or they would change on
+      // the way into jsonb and back out through JSON.parse.
+      payload = parseJsonSafe(rawBody.toString("utf8"));
     } catch {
       payload = { raw: rawBody.toString("utf8").slice(0, 10_000) };
     }

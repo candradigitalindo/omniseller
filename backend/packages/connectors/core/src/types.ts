@@ -65,12 +65,66 @@ export interface MarketplaceWarehouse {
   address: Record<string, unknown> | null;
 }
 
+export type ListingStatus = "active" | "inactive" | "banned" | "reviewing" | "deleted" | "unknown";
+
+/**
+ * One sellable variant of a marketplace item (Shopee model, TikTok Shop SKU); items without variants
+ * have one listing with `externalVariantId = ""`. Prices are whole rupiah.
+ */
+export interface NormalizedListing {
+  externalItemId: string;
+  externalVariantId: string;
+  /** Variant SKU set by the seller (Shopee model_sku, or item_sku without models; TikTok Shop seller_sku). */
+  sku: string | null;
+  /** Parent SKU of the item, when the marketplace has one (Shopee item_sku). */
+  itemSku: string | null;
+  title: string;
+  /** "Hitam, L" */
+  variantName: string | null;
+  /** { Warna: "Hitam", Ukuran: "L" } */
+  attributes: Record<string, string>;
+  price: number | null;
+  originalPrice: number | null;
+  status: ListingStatus;
+  /** Marketplace-native statuses, e.g. per platform for Tokopedia & Shop. */
+  statusDetail: Record<string, unknown>;
+  /** Total sellable stock at the marketplace. */
+  stock: number | null;
+  /** Stock per marketplace warehouse id (Shopee location_id, TikTok Shop warehouse id). */
+  stockByWarehouse: Record<string, number>;
+  imageUrl: string | null;
+  /** All image URLs of the item, main first. */
+  itemImageUrls: string[];
+  description: string | null;
+  brand: string | null;
+  categoryPath: string | null;
+  weightG: number | null;
+  dimensionsMm: { length: number; width: number; height: number } | null;
+  updatedAt: Date | null;
+}
+
+export interface ListingPage {
+  listings: NormalizedListing[];
+  /** Items the marketplace reports as deleted; their listings are closed without fetching details. */
+  deletedItemIds: string[];
+  /** Opaque, pass back to get the next page; null on the last page. */
+  nextCursor: string | null;
+  itemCount: number;
+}
+
+export interface ListingStatusResult {
+  externalItemId: string;
+  ok: boolean;
+  error?: string;
+}
+
 export type WebhookEventKind =
   | "authorization.granted"
   | "authorization.revoked"
   | "authorization.expiring"
   | "order.status_changed"
   | "order.tracking_updated"
+  | "listing.changed"
   | "other";
 
 export interface NormalizedWebhookEvent {
@@ -87,6 +141,7 @@ export interface NormalizedWebhookEvent {
     expiresAt?: Date;
     reason?: string;
     externalOrderId?: string;
+    externalItemId?: string;
     status?: string;
   };
 }
@@ -135,6 +190,21 @@ export interface MarketplaceConnector {
 
   warehouses: {
     list(shop: ShopCredentials): Promise<MarketplaceWarehouse[]>;
+  };
+
+  catalog: {
+    /**
+     * One page of listings. `updatedSince` limits the page to items changed since then (incremental
+     * pull); without it every item is returned (full pull, which also reveals deletions).
+     */
+    listListings(
+      shop: ShopCredentials,
+      input: { cursor?: string | null; updatedSince?: Date | null },
+    ): Promise<ListingPage>;
+    /** Current listings of specific items (after a webhook or a status change). */
+    getListings(shop: ShopCredentials, externalItemIds: string[]): Promise<ListingPage>;
+    /** Activates or deactivates whole items; per-item results, partial success is normal. */
+    setListingStatus(shop: ShopCredentials, externalItemIds: string[], active: boolean): Promise<ListingStatusResult[]>;
   };
 
   webhooks: {

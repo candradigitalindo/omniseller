@@ -19,10 +19,28 @@ export const TIKTOK = {
   serviceId: "7000000000000000001",
 };
 
+/** A Shopee item; `models` empty means an item without variants. */
+export interface MockShopeeItem {
+  item_id: number;
+  item_name: string;
+  item_sku?: string;
+  item_status: "NORMAL" | "UNLIST" | "BANNED" | "REVIEWING" | "SELLER_DELETE" | "SHOPEE_DELETE";
+  update_time: number;
+  weight?: string;
+  images?: string[];
+  price?: number;
+  stock?: number;
+  tiers?: { name: string; options: string[] }[];
+  models?: { model_id: number; model_sku?: string; tier_index: number[]; price: number; stock: number }[];
+  /** unlist_item refuses this item, like an item under promotion */
+  lockedForUnlist?: boolean;
+}
+
 export interface MockShopeeShop {
   shopId: string;
   name: string;
   region: string;
+  items?: MockShopeeItem[];
   fulfillmentFlag?: string;
   /** "not_whitelisted" answers warehouse.error_not_in_whitelist, like a shop without multi-warehouse. */
   warehouses: "not_whitelisted" | { warehouse_id: number; warehouse_name: string; location_id: string }[];
@@ -30,11 +48,28 @@ export interface MockShopeeShop {
   expireTime?: number;
 }
 
+export interface MockTiktokProduct {
+  id: string;
+  title: string;
+  status: "ACTIVATE" | "SELLER_DEACTIVATED" | "PLATFORM_DEACTIVATED" | "PENDING" | "DELETED";
+  tokopedia?: string;
+  update_time: number;
+  images?: string[];
+  skus: {
+    id: string;
+    seller_sku?: string;
+    price: number;
+    attrs: Record<string, string>;
+    inventory: Record<string, number>;
+  }[];
+}
+
 export interface MockTiktokShop {
   id: string;
   name: string;
   region: string;
   cipher: string;
+  products?: MockTiktokProduct[];
   warehouses: { id: string; name: string; type: "SALES_WAREHOUSE" | "RETURN_WAREHOUSE"; is_default: boolean }[];
   fbt?: { fbt_warehouse_id: string; name: string; subscribed: boolean }[];
 }
@@ -43,6 +78,8 @@ interface Call {
   method: string;
   path: string;
   query: Record<string, string>;
+  /** Query string as sent, to read repeated parameters. */
+  rawQuery: string;
   body: string;
   headers: IncomingMessage["headers"];
 }
@@ -152,6 +189,7 @@ export class MockMarketplace {
       method: req.method ?? "GET",
       path: url.pathname,
       query: Object.fromEntries(url.searchParams),
+      rawQuery: url.search,
       body,
       headers: req.headers,
     };
@@ -224,6 +262,89 @@ export class MockMarketplace {
           );
         }
         return ok({ response: shop.warehouses.map((w) => ({ ...w, warehouse_type: 1, region: shop.region })) });
+      case "/api/v2/product/get_item_list": {
+        const statuses = new URLSearchParams(call.rawQuery).getAll("item_status");
+        const from = q.update_time_from ? Number(q.update_time_from) : 0;
+        const all = (shop.items ?? []).filter((i) => statuses.includes(i.item_status) && i.update_time >= from);
+        const offset = Number(q.offset ?? 0);
+        const size = Number(q.page_size ?? 100);
+        const page = all.slice(offset, offset + size);
+        return ok({
+          response: {
+            item: page.map((i) => ({ item_id: i.item_id, item_status: i.item_status, update_time: i.update_time })),
+            total_count: all.length,
+            has_next_page: offset + size < all.length,
+            next_offset: offset + size,
+          },
+        });
+      }
+      case "/api/v2/product/get_item_base_info": {
+        const ids = (q.item_id_list ?? "").split(",").map(Number);
+        if (ids.length > 50) return this.shopeeError("error_param", "item_id_list should be [1,50]", 400);
+        const items = (shop.items ?? []).filter((i) => ids.includes(i.item_id));
+        return ok({
+          response: {
+            item_list: items.map((i) => ({
+              item_id: i.item_id,
+              item_name: i.item_name,
+              item_sku: i.item_sku ?? "",
+              item_status: i.item_status,
+              update_time: i.update_time,
+              has_model: (i.models ?? []).length > 0,
+              weight: i.weight ?? "0.2",
+              image: { image_url_list: i.images ?? [] },
+              ...((i.models ?? []).length === 0
+                ? {
+                    price_info: [{ currency: "IDR", current_price: i.price ?? 0, original_price: i.price ?? 0 }],
+                    stock_info_v2: {
+                      summary_info: { total_available_stock: i.stock ?? 0 },
+                      seller_stock: [{ location_id: "IDZ", stock: i.stock ?? 0 }],
+                    },
+                  }
+                : {}),
+            })),
+          },
+        });
+      }
+      case "/api/v2/product/get_model_list": {
+        const item = (shop.items ?? []).find((i) => i.item_id === Number(q.item_id));
+        if (!item) return this.shopeeError("error_item_not_found", "item not found", 404);
+        return ok({
+          response: {
+            tier_variation: (item.tiers ?? []).map((t) => ({
+              name: t.name,
+              option_list: t.options.map((o) => ({ option: o })),
+            })),
+            model: (item.models ?? []).map((m) => ({
+              model_id: m.model_id,
+              model_sku: m.model_sku ?? "",
+              tier_index: m.tier_index,
+              model_status: "MODEL_NORMAL",
+              price_info: [{ currency: "IDR", current_price: m.price, original_price: m.price }],
+              stock_info_v2: {
+                summary_info: { total_available_stock: m.stock },
+                seller_stock: [{ location_id: "IDZ", stock: m.stock }],
+              },
+            })),
+          },
+        });
+      }
+      case "/api/v2/product/unlist_item": {
+        const body = JSON.parse(call.body) as { item_list: { item_id: number; unlist: boolean }[] };
+        const success_list: object[] = [];
+        const failure_list: object[] = [];
+        for (const e of body.item_list) {
+          const item = (shop.items ?? []).find((i) => i.item_id === e.item_id);
+          if (!item || item.lockedForUnlist) {
+            failure_list.push({ item_id: e.item_id, failed_reason: "Can't unlist item when item is under promotion" });
+            continue;
+          }
+          item.item_status = e.unlist ? "UNLIST" : "NORMAL";
+          item.update_time = now();
+          success_list.push({ item_id: e.item_id, unlist: e.unlist });
+        }
+        return ok({ response: { success_list, failure_list } });
+      }
       case "/api/v2/logistics/get_address_list":
         return ok({
           response: {
@@ -408,6 +529,42 @@ export class MockMarketplace {
             },
           })),
         });
+      case "POST /product/202502/products/search": {
+        const body = JSON.parse(call.body || "{}") as { status?: string; update_time_ge?: number };
+        const all = (shop.products ?? []).filter((p) => !body.update_time_ge || p.update_time >= body.update_time_ge);
+        const offset = Number(q.page_token ? Buffer.from(q.page_token, "base64url").toString() : 0);
+        const size = Number(q.page_size ?? 100);
+        const page = all.slice(offset, offset + size);
+        return this.tiktokReply(0, "Success", {
+          total_count: all.length,
+          products: page.map((p) => ({ id: p.id, title: p.title, status: p.status, update_time: p.update_time })),
+          next_page_token: offset + size < all.length ? Buffer.from(String(offset + size)).toString("base64url") : "",
+        });
+      }
+      case "POST /product/202309/products/activate":
+      case "POST /product/202309/products/deactivate": {
+        const body = JSON.parse(call.body) as { product_ids: string[] };
+        const activate = call.path.endsWith("/activate");
+        const errors: object[] = [];
+        for (const id of body.product_ids) {
+          const p = (shop.products ?? []).find((x) => x.id === id);
+          if (!p) {
+            errors.push({
+              code: 12052990,
+              message: "Batch business error.",
+              detail: {
+                product_id: id,
+                extra_errors: [{ code: 12052048, message: "You can't edit other sellers' products" }],
+              },
+            });
+            continue;
+          }
+          p.status = activate ? "ACTIVATE" : "SELLER_DEACTIVATED";
+          if (p.tokopedia) p.tokopedia = p.status;
+          p.update_time = now();
+        }
+        return this.tiktokReply(0, "Success", { errors });
+      }
       case "GET /fbt/202409/merchants/onboarded_regions":
         return this.tiktokReply(0, "Success", shop.fbt ? { onboarded_regions: [{ region_code: "ID" }] } : {});
       case "GET /fbt/202408/warehouses":
@@ -428,8 +585,31 @@ export class MockMarketplace {
         this.tiktokWebhooks.set(shop.cipher, hooks);
         return this.tiktokReply(0, "Success");
       }
-      default:
+      default: {
+        const m = /^\/product\/202309\/products\/(\d+)$/.exec(call.path);
+        if (call.method === "GET" && m) {
+          const p = (shop.products ?? []).find((x) => x.id === m[1]);
+          if (!p) return this.tiktokReply(12052700, "The product does not exist.");
+          return this.tiktokReply(0, "Success", {
+            id: p.id,
+            title: p.title,
+            status: p.status,
+            update_time: p.update_time,
+            integrated_platform_statuses: p.tokopedia ? [{ platform: "TOKOPEDIA", status: p.tokopedia }] : [],
+            main_images: (p.images ?? []).map((u) => ({ urls: [u] })),
+            package_weight: { value: "0.3", unit: "KILOGRAM" },
+            skus: p.skus.map((k) => ({
+              id: k.id,
+              seller_sku: k.seller_sku ?? "",
+              price: { currency: "IDR", tax_exclusive_price: String(k.price) },
+              inventory: Object.entries(k.inventory).map(([warehouse_id, quantity]) => ({ warehouse_id, quantity })),
+              sales_attributes: Object.entries(k.attrs).map(([name, value_name]) => ({ name, value_name })),
+              status_info: { status: "NORMAL" },
+            })),
+          });
+        }
         return this.tiktokReply(36009009, "Invalid path.", {}, 404);
+      }
     }
   }
 }

@@ -38,7 +38,7 @@ let b: { c: Client; me: MeBody };
 const fixtures: Record<string, Fixture> = {};
 
 /** Path parameters besides {id}, filled with A's fixture of the given kind. */
-const PATH_PARAMS: Record<string, string> = { "{channelWarehouseId}": "channel_warehouse" };
+const PATH_PARAMS: Record<string, string> = { "{channelWarehouseId}": "channel_warehouse", "{variantId}": "variant" };
 
 /** Bodies for mutating operations, keyed by operationId. `ids` holds A's fixture ids and B's own ids. */
 const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: string; aState: string }) => object> = {
@@ -59,6 +59,15 @@ const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: s
   StoresController_disconnect: () => ({}),
   StoresController_syncWarehouses: () => ({}),
   StoresController_mapChannelWarehouse: ({ a: ids }) => ({ warehouseId: ids.warehouse! }),
+  ProductsController_update: () => ({ name: "Penyusup" }),
+  ProductsController_remove: () => ({}),
+  ProductsController_addVariant: () => ({ sku: "PENYUSUP-1", basePrice: 1, weightG: 1 }),
+  ProductsController_updateVariant: () => ({ basePrice: 1 }),
+  ListingsController_autoMap: ({ a: ids }) => ({ storeId: ids.store! }),
+  ListingsController_createProducts: ({ a: ids }) => ({ listingIds: [ids.listing!] }),
+  ListingsController_setStatus: ({ a: ids }) => ({ listingIds: [ids.listing!], active: false }),
+  ListingsController_sync: ({ a: ids }) => ({ storeId: ids.store! }),
+  ListingsController_map: ({ a: ids }) => ({ variantId: ids.variant! }),
 };
 
 beforeAll(async () => {
@@ -88,6 +97,19 @@ beforeAll(async () => {
     await tx.execute(sql`INSERT INTO channel_warehouse (id, tenant_id, store_id, external_warehouse_id, name, kind, last_seen_at)
                          VALUES (${cwId}, ${tenantId}, ${storeId}, 'default', 'Gudang toko', 'seller', now())`);
     fixtures.channel_warehouse = { id: cwId };
+  });
+  const product = await a.c.post("/v1/products", {
+    sku: "A-KAOS",
+    name: "Kaos Tenant A",
+    variants: [{ sku: "A-KAOS-1", basePrice: 50000, weightG: 200 }],
+  });
+  fixtures.product = { id: product.body.id };
+  fixtures.variant = { id: product.body.variants[0].id };
+  await withTenantTx(h.worker, userCtx(tenantId), async (tx) => {
+    const listingId = newId();
+    await tx.execute(sql`INSERT INTO channel_listing (id, tenant_id, store_id, external_item_id, external_sku, title, status)
+                         VALUES (${listingId}, ${tenantId}, ${fixtures.store!.id}, '9001', 'A-KAOS-1', 'Kaos Tenant A', 'active')`);
+    fixtures.listing = { id: listingId };
   });
   const started = await a.c.post("/v1/store-authorizations", { channel: "shopee" });
   expect(started.status).toBe(201);
@@ -190,6 +212,11 @@ describe("tenant isolation generated from openapi.json", () => {
       mappingStatus: string;
     }[];
     expect(cws.map((w) => w.mappingStatus)).toEqual(["unmapped"]);
+    expect((await a.c.get(`/v1/products/${fixtures.product!.id}`)).body).toMatchObject({ name: "Kaos Tenant A" });
+    expect((await a.c.get(`/v1/listings/${fixtures.listing!.id}`)).body).toMatchObject({
+      status: "active",
+      mapping: null,
+    });
     // B's callback attempt with A's state did not consume it
     expect((await a.c.get(`/v1/store-authorizations/${fixtures.store_authorization!.id}`)).body.status).toBe("pending");
   });

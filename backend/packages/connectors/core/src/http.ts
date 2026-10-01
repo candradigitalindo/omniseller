@@ -19,6 +19,8 @@ export interface HttpConfig {
   fetch?: typeof fetch;
   timeoutMs?: number;
   observer?: CallObserver;
+  /** Awaited before every request: the backend's per-shop rate limit (token bucket). */
+  beforeRequest?: () => Promise<void>;
 }
 
 export interface HttpRequest {
@@ -49,6 +51,7 @@ export async function requestJson(
   requestIdOf: (json: unknown) => string | undefined,
 ): Promise<HttpResponse> {
   const doFetch = config.fetch ?? fetch;
+  await config.beforeRequest?.();
   const started = performance.now();
   const record: CallRecord = {
     method: req.method,
@@ -74,7 +77,7 @@ export async function requestJson(
     const text = await res.text();
     let json: unknown;
     try {
-      json = text.length ? JSON.parse(text) : {};
+      json = text.length ? parseJsonSafe(text) : {};
     } catch {
       record.errorCode = `http_${res.status}`;
       record.response = { body: text.slice(0, 500) };
@@ -100,6 +103,26 @@ export async function requestJson(
     record.durationMs = Math.round(performance.now() - started);
     config.observer?.(record);
   }
+}
+
+/**
+ * JSON.parse that keeps integers beyond 2^53 as strings: TikTok Shop sends 19-digit ids as numbers in
+ * some payloads, and a plain parse would silently change them (uses JSON.parse source text access).
+ */
+export function parseJsonSafe(text: string): unknown {
+  return JSON.parse(text, (_key, value, context?: { source?: string }) =>
+    typeof value === "number" && !Number.isSafeInteger(value) && context?.source && /^-?\d+$/.test(context.source)
+      ? context.source
+      : value,
+  );
+}
+
+/** Whole rupiah from a marketplace amount (number or decimal string); null when absent or invalid. */
+export function toRupiah(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.round(n);
 }
 
 /** `Retry-After` in seconds or as an HTTP date. */

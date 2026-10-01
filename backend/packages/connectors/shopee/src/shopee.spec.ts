@@ -346,3 +346,180 @@ describe("Shopee push (Push Mechanism)", () => {
     expect(main?.eventId).toMatch(/^[0-9a-f]{64}$/);
   });
 });
+
+describe("Shopee catalog (v2.product)", () => {
+  const shop = { externalShopId: "1", shopCipher: null, accessToken: "t" };
+
+  it("pages items, repeats item_status, expands models into listings with attributes and stock", async () => {
+    const f = fakeFetch({
+      "GET /api/v2/product/get_item_list": (url) => {
+        expect(url.searchParams.getAll("item_status")).toEqual([
+          "NORMAL",
+          "BANNED",
+          "UNLIST",
+          "REVIEWING",
+          "SELLER_DELETE",
+          "SHOPEE_DELETE",
+        ]);
+        expect(url.searchParams.has("update_time_from")).toBe(false);
+        return {
+          error: "",
+          response: {
+            item: [
+              { item_id: 100, item_status: "NORMAL" },
+              { item_id: 200, item_status: "UNLIST" },
+              { item_id: 300, item_status: "SELLER_DELETE" },
+            ],
+            has_next_page: true,
+            next_offset: 3,
+          },
+        };
+      },
+      "GET /api/v2/product/get_item_base_info": (url) => {
+        expect(url.searchParams.get("item_id_list")).toBe("100,200");
+        return {
+          error: "",
+          response: {
+            item_list: [
+              {
+                item_id: 100,
+                item_name: "Kaos Polos",
+                item_sku: "KAOS",
+                item_status: "NORMAL",
+                has_model: true,
+                weight: "0.25",
+                image: { image_url_list: ["https://cf.shopee.co.id/file/kaos"] },
+                brand: { original_brand_name: "NoBrand" },
+              },
+              {
+                item_id: 200,
+                item_name: "Topi",
+                item_sku: "TOPI-01",
+                item_status: "UNLIST",
+                has_model: false,
+                weight: "0.1",
+                price_info: [{ current_price: 45000, original_price: 50000 }],
+                stock_info_v2: {
+                  summary_info: { total_available_stock: 7 },
+                  seller_stock: [{ location_id: "IDZ", stock: 7 }],
+                },
+              },
+            ],
+          },
+        };
+      },
+      "GET /api/v2/product/get_model_list": (url) => {
+        expect(url.searchParams.get("item_id")).toBe("100");
+        return {
+          error: "",
+          response: {
+            tier_variation: [
+              {
+                name: "Warna",
+                option_list: [{ option: "Hitam", image: { image_url: "https://cf.shopee.co.id/file/hitam" } }],
+              },
+              { name: "Ukuran", option_list: [{ option: "M" }, { option: "L" }] },
+            ],
+            model: [
+              {
+                model_id: 11,
+                model_sku: "KAOS-HTM-M",
+                tier_index: [0, 0],
+                model_status: "MODEL_NORMAL",
+                price_info: [{ current_price: 65000, original_price: 70000 }],
+                stock_info_v2: {
+                  summary_info: { total_available_stock: 12 },
+                  seller_stock: [{ location_id: "IDZ", stock: 12 }],
+                },
+              },
+              {
+                model_id: 12,
+                model_sku: "",
+                tier_index: [0, 1],
+                model_status: "MODEL_UNAVAILABLE",
+                price_info: [{ current_price: 65000 }],
+              },
+            ],
+          },
+        };
+      },
+    });
+    const page = await connector(f.fn).catalog.listListings(shop, {});
+    expect(page.nextCursor).toBe("3");
+    expect(page.deletedItemIds).toEqual(["300"]);
+    expect(
+      page.listings.map((l) => [
+        l.externalItemId,
+        l.externalVariantId,
+        l.sku,
+        l.variantName,
+        l.status,
+        l.price,
+        l.stock,
+      ]),
+    ).toEqual([
+      ["100", "11", "KAOS-HTM-M", "Hitam, M", "active", 65000, 12],
+      ["100", "12", null, "Hitam, L", "inactive", 65000, null],
+      ["200", "", "TOPI-01", null, "inactive", 45000, 7],
+    ]);
+    expect(page.listings[0]).toMatchObject({
+      attributes: { Warna: "Hitam", Ukuran: "M" },
+      imageUrl: "https://cf.shopee.co.id/file/hitam",
+      itemSku: "KAOS",
+      weightG: 250,
+      brand: null,
+      stockByWarehouse: { IDZ: 12 },
+    });
+  });
+
+  it("adds an update-time window for incremental pulls", async () => {
+    const f = fakeFetch({
+      "GET /api/v2/product/get_item_list": (url) => {
+        expect(Number(url.searchParams.get("update_time_from"))).toBe(1_790_000_000);
+        expect(url.searchParams.get("update_time_to")).toMatch(/^\d{10}$/);
+        return { error: "", response: { item: [], has_next_page: false } };
+      },
+    });
+    const page = await connector(f.fn).catalog.listListings(shop, { updatedSince: new Date(1_790_000_000_000) });
+    expect(page).toMatchObject({ listings: [], nextCursor: null });
+  });
+
+  it("unlists and relists items, reporting Shopee's per-item failures", async () => {
+    const f = fakeFetch({
+      "POST /api/v2/product/unlist_item": (_u, init) => {
+        expect(JSON.parse(String(init.body))).toEqual({
+          item_list: [
+            { item_id: 100, unlist: true },
+            { item_id: 200, unlist: true },
+          ],
+        });
+        return {
+          error: "",
+          response: {
+            success_list: [{ item_id: 100, unlist: true }],
+            failure_list: [{ item_id: 200, failed_reason: "Can't unlist item when item is under promotion" }],
+          },
+        };
+      },
+    });
+    expect(await connector(f.fn).catalog.setListingStatus(shop, ["100", "200"], false)).toEqual([
+      { externalItemId: "100", ok: true },
+      { externalItemId: "200", ok: false, error: "Can't unlist item when item is under promotion" },
+    ]);
+  });
+
+  it("turns banned, violation, and price pushes into listing changes", () => {
+    for (const code of [6, 16, 22]) {
+      const [e] = parseShopeePush(
+        Buffer.from(
+          `{"data":{"item_id":2500139861,"item_status":"BANNED"},"shop_id":727720655,"code":${code},"timestamp":1}`,
+        ),
+      );
+      expect(e).toMatchObject({
+        kind: "listing.changed",
+        externalShopIds: ["727720655"],
+        data: { externalItemId: "2500139861" },
+      });
+    }
+  });
+});

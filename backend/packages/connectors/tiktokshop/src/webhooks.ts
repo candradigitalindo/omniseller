@@ -1,6 +1,7 @@
 import {
   hmacSha256Hex,
   type NormalizedWebhookEvent,
+  parseJsonSafe,
   sha256Hex,
   signatureEquals,
   type WebhookEventKind,
@@ -31,19 +32,25 @@ export const TIKTOK_WEBHOOK_TOPICS = [
   "RETURN_STATUS_CHANGE",
   "PACKAGE_UPDATE",
   "RECIPIENT_ADDRESS_UPDATE",
+  "PRODUCT_STATUS_CHANGE",
+  "PRODUCT_AUDIT_STATUS_CHANGE",
 ] as const;
 
 /** Numeric `type` values confirmed on the topic reference pages. */
 const TYPE_TOPICS: Record<number, string> = {
   1: "ORDER_STATUS_CHANGE",
+  5: "PRODUCT_STATUS_CHANGE",
   6: "SELLER_DEAUTHORIZATION",
   7: "UPCOMING_AUTHORIZATION_EXPIRATION",
+  37: "PRODUCT_AUDIT_STATUS_CHANGE",
 };
 
 const TOPIC_KINDS: Record<string, WebhookEventKind> = {
   SELLER_DEAUTHORIZATION: "authorization.revoked",
   UPCOMING_AUTHORIZATION_EXPIRATION: "authorization.expiring",
   ORDER_STATUS_CHANGE: "order.status_changed",
+  PRODUCT_STATUS_CHANGE: "listing.changed",
+  PRODUCT_AUDIT_STATUS_CHANGE: "listing.changed",
 };
 
 interface TiktokWebhookBody {
@@ -58,7 +65,8 @@ interface TiktokWebhookBody {
 export function parseTiktokWebhook(rawBody: Buffer): NormalizedWebhookEvent[] {
   let body: TiktokWebhookBody;
   try {
-    body = JSON.parse(rawBody.toString("utf8")) as TiktokWebhookBody;
+    // product_id arrives as a 19-digit JSON number; parseJsonSafe keeps it exact.
+    body = parseJsonSafe(rawBody.toString("utf8")) as TiktokWebhookBody;
   } catch {
     return [];
   }
@@ -90,6 +98,10 @@ export function parseTiktokWebhook(rawBody: Buffer): NormalizedWebhookEvent[] {
     if (Number.isFinite(at) && at > 0) event.data.expiresAt = new Date(at * 1000);
   }
   if (kind === "authorization.revoked" && typeof data.message === "string") event.data.reason = data.message;
+  if (kind === "listing.changed") {
+    if (data.product_id !== undefined && data.product_id !== null) event.data.externalItemId = String(data.product_id);
+    if (typeof data.status === "string") event.data.status = data.status;
+  }
   if (kind === "order.status_changed") {
     if (data.order_id !== undefined) event.data.externalOrderId = String(data.order_id);
     if (typeof data.order_status === "string") event.data.status = data.order_status;

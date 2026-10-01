@@ -11,7 +11,7 @@ Marketplace yang didukung: Shopee dan TikTok Shop. Di Indonesia TikTok Shop dan 
 
 ## Service publik
 - `StoreAuthorizationService` (api): `start(ctx, {channel, storeId?})` mengembalikan `authorizeUrl`; `callback(ctx, {channel, state, code?, shopId?, mainAccountId?, error?})`; `get(ctx, id)`. Error: `channel.unsupported`, `channel.not_configured`, `store.not_found`, `store_authorization.invalid`, `store_authorization.not_found`.
-- `StoresService` (api dan worker): `list`, `get`, `update` (nama, gudang default, `syncMode`; `If-Match`), `disconnect`, `requestWarehouseSync`, `channelWarehouses`, `mapChannelWarehouse`; untuk worker: `markReauthRequired`, `noteAuthorizationExpiry`, `reevaluateStatus`. Error: `store.not_found`, `store.not_active`, `store.disconnected`, `store.unmapped_warehouses`, `store.live_mapping_required`, `channel_warehouse.not_found`, `channel_warehouse.marketplace_managed`, `row.stale`.
+- `StoresService` (api dan worker): `list`, `get`, `inScope`, `update` (nama, gudang default, `syncMode`; `If-Match`), `disconnect`, `requestWarehouseSync`, `channelWarehouses`, `mapChannelWarehouse`; untuk worker: `markReauthRequired`, `noteAuthorizationExpiry`, `reevaluateStatus`, `syncCursor`, `recordPull`. Error: `store.not_found`, `store.not_active`, `store.disconnected`, `store.unmapped_warehouses`, `store.live_mapping_required`, `channel_warehouse.not_found`, `channel_warehouse.marketplace_managed`, `row.stale`.
 - Hanya worker: `StoreConnectService.complete` (job `store.authorize`), `CredentialService` (`save`, `forShop`, `refresh`), `MarketplaceGateway.call` (satu-satunya jalan memanggil marketplace untuk toko), `ChannelSyncService` (`syncWarehouses`, `subscribeWebhooks`).
 
 ## Aturan
@@ -38,7 +38,7 @@ Marketplace yang didukung: Shopee dan TikTok Shop. Di Indonesia TikTok Shop dan 
 |---|---|---|
 | `store.authorize` | `mp.outbound` | `store.authorization_received` |
 | `store.warehouses_sync` | `mp.poll` | `store.connected`, `store.warehouses_sync_requested`, jadwal `mp.poll.warehouses` (6 jam) |
-| `store.webhooks_subscribe` | `mp.outbound` | `store.connected` (TikTok Shop; Shopee diatur per aplikasi) |
+| `store.webhooks_subscribe` | `mp.outbound` | `store.connected`, jadwal 6 jam agar toko lama mendapat topik baru (TikTok Shop; Shopee diatur per aplikasi) |
 | `store.token_refresh` | `mp.outbound` | jadwal `token.refresh_scan` (15 menit) |
 
 ## Endpoint
@@ -54,10 +54,11 @@ Marketplace yang didukung: Shopee dan TikTok Shop. Di Indonesia TikTok Shop dan 
 | GET | `/v1/stores/{id}/sync-jobs` | `settings:store` |
 
 ## Pengaturan di konsol marketplace
-- Shopee: daftarkan domain `PUBLIC_WEB_URL` sebagai Redirect URL Domain (callback `/integrasi/callback/shopee`), dan atur push ke `${PUBLIC_WEBHOOK_URL}/webhooks/shopee` untuk kode 1, 2, 3, 4, 5, 12 (`setShopeePushConfig` di paket connector).
+- Shopee: daftarkan domain `PUBLIC_WEB_URL` sebagai Redirect URL Domain (callback `/integrasi/callback/shopee`), dan atur push ke `${PUBLIC_WEBHOOK_URL}/webhooks/shopee` untuk kode 1, 2, 3, 4, 5, 6, 12, 16, 22 (`SHOPEE_SUBSCRIBED_PUSH_CODES`, `setShopeePushConfig` di paket connector).
 - TikTok Shop Partner Center: Redirect URL `${PUBLIC_WEB_URL}/integrasi/callback/tiktokshop`. Webhook per toko dipasang otomatis oleh `store.webhooks_subscribe`.
 
 ## Keputusan khusus modul
-- Impor awal produk dan pesanan 90 hari (FR-INT-04) menyusul bersama modul katalog dan pesanan sebagai konsumen `store.connected`.
+- Impor awal produk (FR-INT-04) dijalankan modul `catalog` sebagai konsumen `store.connected` (`listing.pull` penuh). Impor pesanan 90 hari menyusul bersama modul pesanan.
+- `sync_cursor` milik modul ini; modul lain membaca dan memajukannya lewat `StoresService.syncCursor` dan `recordPull` (resource `listings` juga mengisi `store.last_product_sync_at`).
 - Pemasangan dari TikTok Shop App Store (tanpa `state`) belum didukung; butuh aplikasi publik yang lolos review.
 - Peringatan email atau in-app saat koneksi terputus (FR-INT-08) menyusul bersama modul notifikasi sebagai konsumen `store.reauth_required`.
