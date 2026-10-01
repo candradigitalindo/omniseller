@@ -48,6 +48,11 @@ export class ConflictError extends DomainError {
   readonly status = 409;
 }
 
+/** A well-formed request that business rules refuse (the channel is not set up, the store is not active). */
+export class UnprocessableError extends DomainError {
+  readonly status = 422;
+}
+
 export class PreconditionError extends DomainError {
   readonly status = 412;
 }

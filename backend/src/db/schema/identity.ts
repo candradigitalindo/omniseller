@@ -1,15 +1,9 @@
 import { boolean, customType, inet, integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
-import { baseColumns, globalColumns, tstz, ulid } from "../columns";
+import { baseColumns, bytea, globalColumns, tstz, ulid } from "../columns";
 
 const citext = customType<{ data: string }>({
   dataType() {
     return "citext";
-  },
-});
-
-const bytea = customType<{ data: Buffer; driverData: Buffer }>({
-  dataType() {
-    return "bytea";
   },
 });
 

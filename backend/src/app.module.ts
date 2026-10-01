@@ -9,10 +9,18 @@ import type { Env } from "./config/env.schema";
 import { InfraModule } from "./infra/infra.module";
 import { AuditHttpModule } from "./modules/audit/audit.module";
 import { AuthHttpModule, AuthModule } from "./modules/auth/auth.module";
+import {
+  ChannelHttpModule,
+  ChannelModule,
+  ChannelWorkerModule,
+  ConnectorsModule,
+} from "./modules/channel/channel.module";
 import { IdentityHttpModule } from "./modules/identity/identity.http.module";
 import { IdentityModule } from "./modules/identity/identity.module";
+import { InventoryHttpModule, InventoryModule } from "./modules/inventory/inventory.module";
 import { NotificationModule } from "./modules/notification/notification.module";
 import { HealthController } from "./modules/platform/health.controller";
+import { SyncModule, WebhookHttpModule } from "./modules/sync/sync.module";
 import { SchedulerRunner } from "./scheduler/scheduler.runner";
 import { WorkerRunner } from "./worker/worker.runner";
 
@@ -32,7 +40,7 @@ const HTTP_PROVIDERS: Provider[] = [
 
 /**
  * One image, five process roles (backend doc 3.1). The role decides which modules load:
- * api       HTTP API: auth, identity, audit (more modules join as they are built)
+ * api       HTTP API: auth, identity, audit, stores and warehouses (more modules join as they are built)
  * webhook   HTTP webhook receiver only (verify, store, enqueue, reply)
  * worker    BullMQ processors and the services their handlers call
  * scheduler outbox relay, stock flush, partitions, periodic jobs
@@ -40,8 +48,13 @@ const HTTP_PROVIDERS: Provider[] = [
  */
 @Module({})
 export class AppModule {
-  static forEnv(env: Env): DynamicModule {
-    const imports = [ConfigModule.forEnv(env), InfraModule.forEnv(env)];
+  /**
+   * Test hooks: `fetch` points connectors at a fake marketplace without a network, `queuePrefix`
+   * keeps a test run's BullMQ keys apart from any other user of the same Redis.
+   */
+  static forEnv(env: Env, opts: { fetch?: typeof fetch; queuePrefix?: string } = {}): DynamicModule {
+    const imports = [ConfigModule.forEnv(env), InfraModule.forEnv(env, opts)];
+    const fetchImpl = opts.fetch;
     switch (env.APP_ROLE) {
       case "api":
         return {
@@ -49,22 +62,40 @@ export class AppModule {
           imports: [
             ...imports,
             { module: HttpModule, controllers: [HealthController] },
+            ConnectorsModule.forEnv(env, fetchImpl),
             AuthHttpModule,
             IdentityHttpModule,
             AuditHttpModule,
+            InventoryHttpModule,
+            ChannelHttpModule,
           ],
           providers: HTTP_PROVIDERS,
         };
       case "webhook":
         return {
           module: AppModule,
-          imports: [...imports, { module: HttpModule, controllers: [HealthController] }],
+          imports: [
+            ...imports,
+            { module: HttpModule, controllers: [HealthController] },
+            ConnectorsModule.forEnv(env, fetchImpl),
+            WebhookHttpModule,
+          ],
           providers: HTTP_PROVIDERS,
         };
       case "worker":
         return {
           module: AppModule,
-          imports: [...imports, NotificationModule.forWorker(env), IdentityModule, AuthModule],
+          imports: [
+            ...imports,
+            ConnectorsModule.forEnv(env, fetchImpl),
+            NotificationModule.forWorker(env),
+            IdentityModule,
+            AuthModule,
+            InventoryModule,
+            SyncModule,
+            ChannelModule,
+            ChannelWorkerModule.forEnv(env),
+          ],
           providers: [WorkerRunner],
         };
       case "scheduler":

@@ -11,3 +11,4 @@ export const REDIS_CACHE = Symbol("REDIS_CACHE");
 export const QUEUES = Symbol("QUEUES");
 export const JOB_REGISTRY = Symbol("JOB_REGISTRY");
 export const OUTBOX = Symbol("OUTBOX");
+export const TOKEN_VAULT = Symbol("TOKEN_VAULT");

@@ -47,7 +47,7 @@ class InfraShutdown implements OnApplicationShutdown {
 @Global()
 @Module({})
 export class InfraModule {
-  static forEnv(env: Env): DynamicModule {
+  static forEnv(env: Env, opts: { queuePrefix?: string } = {}): DynamicModule {
     const closers: (() => Promise<unknown>)[] = [];
     const providers: Provider[] = [];
     const exports: symbol[] = [REDIS_QUEUE, REDIS_CACHE, QUEUES, JOB_REGISTRY, OUTBOX, SESSIONS, RATE_LIMITER];
@@ -73,7 +73,7 @@ export class InfraModule {
     // BullMQ workers need maxRetriesPerRequest: null on their connection.
     const redisQueue = new Redis(env.REDIS_QUEUE_URL, { maxRetriesPerRequest: null, lazyConnect: true });
     const redisCache = new Redis(env.REDIS_CACHE_URL, { lazyConnect: true });
-    const queues = new QueueRegistry(redisQueue);
+    const queues = new QueueRegistry(redisQueue, opts.queuePrefix);
     const registry = new JobRegistry(JOB_DEFINITIONS);
     closers.push(
       () => queues.close(),

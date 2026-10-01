@@ -1,4 +1,6 @@
+import { CHANNEL_JOBS } from "../modules/channel/channel.jobs";
 import { IDENTITY_JOBS } from "../modules/identity/identity.jobs";
+import { SYNC_JOBS } from "../modules/sync/sync.jobs";
 import type { EventDef, JobDef } from "./define";
 
 /**
@@ -42,4 +44,4 @@ export class JobRegistry {
 }
 
 /** Registered jobs; each module appends its definitions here. */
-export const JOB_DEFINITIONS: readonly JobDef[] = [...IDENTITY_JOBS];
+export const JOB_DEFINITIONS: readonly JobDef[] = [...IDENTITY_JOBS, ...CHANNEL_JOBS, ...SYNC_JOBS];

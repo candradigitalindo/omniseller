@@ -1,5 +1,6 @@
 packages:
   - "packages/*"
+  - "packages/connectors/*"
 
 onlyBuiltDependencies:
   - "@swc/core"

@@ -4,8 +4,9 @@ import { logger } from "@omniseller/logging";
 import { Worker } from "bullmq";
 import type { Redis } from "ioredis";
 import { attachContext, runWithAmbient, systemContext } from "../common/context/request-context";
-import { JOB_REGISTRY, REDIS_QUEUE } from "../infra/tokens";
+import { JOB_REGISTRY, QUEUES, REDIS_QUEUE } from "../infra/tokens";
 import type { JobDeps } from "../jobs/define";
+import type { QueueRegistry } from "../jobs/queues";
 import type { JobRegistry } from "../jobs/registry";
 
 const log = logger.forModule("worker");
@@ -19,6 +20,7 @@ export class WorkerRunner implements OnApplicationBootstrap, OnApplicationShutdo
     @Inject(JOB_REGISTRY) private readonly registry: JobRegistry,
     @Inject(REDIS_QUEUE) private readonly connection: Redis,
     @Inject(ModuleRef) private readonly moduleRef: ModuleRef,
+    @Inject(QUEUES) private readonly queues: QueueRegistry,
   ) {}
 
   /** Handlers resolve the services they call from the Nest container (see JobDeps). */
@@ -52,7 +54,7 @@ export class WorkerRunner implements OnApplicationBootstrap, OnApplicationShutdo
             });
           });
         },
-        { connection: this.connection, concurrency: 10, prefix: "bull" },
+        { connection: this.connection, concurrency: 10, prefix: this.queues.prefix },
       );
       worker.on("failed", (job, err) => log.warn({ err, job_id: job?.id, queue }, "job failed"));
       this.workers.push(worker);

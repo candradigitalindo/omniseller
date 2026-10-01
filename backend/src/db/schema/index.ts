@@ -7,5 +7,6 @@ export * from "./identity";
 export * from "./inventory";
 export * from "./orders";
 export * from "./platform";
+export * from "./security";
 export * from "./status-transitions";
 export * from "./sync";

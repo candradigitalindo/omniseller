@@ -2,11 +2,11 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.0 |
+| Versi dokumen | 1.1 |
 | Tanggal | 30 September 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
-| Dokumen terkait | DOKUMEN-UI-UX.md versi 1.1 (sistem desain web, sumber token), DOKUMEN-SPESIFIKASI-APLIKASI.md versi 1.9, DOKUMEN-TEKNOLOGI.md versi 1.1 (React Native dengan Expo) |
+| Dokumen terkait | DOKUMEN-UI-UX.md versi 1.2 (sistem desain web, sumber token), DOKUMEN-SPESIFIKASI-APLIKASI.md versi 1.10, DOKUMEN-TEKNOLOGI.md versi 1.5 (React Native dengan Expo) |
 | Audiens | Alat desain AI, product designer, engineer mobile |
 
 > **Cara memakai dokumen ini di alat desain AI.** Tempel bagian 1 (brief induk mobile) sebagai konteks, lalu tempel blok "Prompt untuk AI" dari bagian 11 (aplikasi owner) atau bagian 12 (aplikasi gudang) per layar. Warna, tipografi, dan nama komponen mengikuti DOKUMEN-UI-UX.md; nilai yang paling sering dipakai diulang di bagian 5 agar dokumen ini cukup berdiri sendiri saat ditempel.
@@ -296,7 +296,7 @@ Format: **Tujuan**, **Isi**, **Aksi utama**, **Keadaan khusus**, **Prompt untuk 
 - **Isi**: bar atas dengan pemilih toko "Semua toko (5)" dan ikon cari serta lonceng; segmen "Ringkasan" dan "Tugas"; KPI dua kolom (Penjualan hari ini, Pesanan baru, Hampir terlambat, Laba perkiraan); kartu "Perlu tindakan" bertumpuk maksimal lima; grafik garis satu seri 7 hari dengan sakelar kanal sebagai chip; daftar "Status toko" dengan ikon kanal dan pil.
 - **Aksi utama**: bar bawah "Proses 86 pesanan baru".
 - **Keadaan khusus**: banner kuning "Mode uji berdampingan" atau merah "Toko Shopee perlu dihubungkan ulang" dengan tombol.
-- **Prompt untuk AI**: "Beranda aplikasi mobile owner, lebar 390. Bar atas: 'Semua toko (5)' dengan ikon panah, ikon cari dan lonceng berbadge. Segmen 'Ringkasan | Tugas (9)'. Empat kartu KPI dua kolom: 'Penjualan hari ini Rp 18.450.000, naik 12%', 'Pesanan baru 86', 'Hampir terlambat 7' pil kuning, 'Laba perkiraan Rp 4.120.000'. Kartu 'Perlu tindakan' berisi tiga baris dengan ikon dan tombol kecil. Grafik garis tipis 7 hari satu seri dengan chip 'Semua, Shopee, TikTok'. Daftar status toko. Bar bawah lengket tombol 'Proses 86 pesanan baru'. Navigasi bawah lima tab dengan Beranda aktif."
+- **Prompt untuk AI**: "Beranda aplikasi mobile owner, lebar 390. Bar atas: 'Semua toko (5)' dengan ikon panah, ikon cari dan lonceng berbadge. Segmen 'Ringkasan | Tugas (9)'. Empat kartu KPI dua kolom: 'Penjualan hari ini Rp 18.450.000, naik 12%', 'Pesanan baru 86', 'Hampir terlambat 7' pil kuning, 'Laba perkiraan Rp 4.120.000'. Kartu 'Perlu tindakan' berisi tiga baris dengan ikon dan tombol kecil. Grafik garis tipis 7 hari satu seri dengan chip 'Semua, Shopee, Tokopedia & Shop'. Daftar status toko. Bar bawah lengket tombol 'Proses 86 pesanan baru'. Navigasi bawah lima tab dengan Beranda aktif."
 
 #### M03 Tugas Hari Ini
 
@@ -320,7 +320,7 @@ Format: **Tujuan**, **Isi**, **Aksi utama**, **Keadaan khusus**, **Prompt untuk 
 
 #### M06 Filter Pesanan (lembar bawah)
 
-- **Prompt untuk AI**: "Lembar bawah filter: pegangan, judul 'Filter', kelompok chip 'Kanal: Shopee, TikTok Shop, Lazada, Blibli', 'Toko', 'Gudang', 'Kurir', sakelar 'Hanya COD' dan 'Hampir terlambat', preset tanggal 'Hari ini, 7 hari, 30 hari, Kustom', tombol lebar penuh 'Terapkan (86 pesanan)' dan teks 'Bersihkan'."
+- **Prompt untuk AI**: "Lembar bawah filter: pegangan, judul 'Filter', kelompok chip 'Kanal: Shopee, Tokopedia & Shop, Lazada, Blibli', 'Toko', 'Gudang', 'Kurir', sakelar 'Hanya COD' dan 'Hampir terlambat', preset tanggal 'Hari ini, 7 hari, 30 hari, Kustom', tombol lebar penuh 'Terapkan (86 pesanan)' dan teks 'Bersihkan'."
 
 #### M07 Chat: Daftar Percakapan
 
@@ -550,3 +550,4 @@ Sama dengan DOKUMEN-UI-UX.md bagian 18.3, ditambah: lokasi rak `A-01-03`, `B-04-
 | Versi | Tanggal | Perubahan | Penulis |
 |---|---|---|---|
 | 1.0 | 30 September 2026 | Dokumen awal: brief mobile, prinsip, perangkat, dua mode, sistem visual mobile, navigasi, komponen, pola interaksi, notifikasi, aksesibilitas, 20 layar owner dan 12 layar gudang dengan prompt, tablet, alur, kinerja, checklist | Candra Syahputra |
+| 1.1 | 1 Oktober 2026 | Kanal TikTok Shop dan Tokopedia tampil sebagai "Tokopedia & Shop" (PRD 5.6) | Candra Syahputra |

@@ -1,0 +1,284 @@
+import { Inject, Injectable } from "@nestjs/common";
+import type { RequestContext } from "../../common/context/request-context";
+import { ConflictError } from "../../common/errors/domain-errors";
+import { ENV } from "../../config/config.module";
+import type { Env } from "../../config/env.schema";
+import type { DbHandle, Tx } from "../../db/client";
+import type { StoreStatus } from "../../db/schema";
+import { withTenantTx } from "../../db/tenant-tx";
+import { DB_TENANT, OUTBOX } from "../../infra/tokens";
+import type { Outbox } from "../../outbox/outbox";
+import { WarehousesService } from "../inventory/warehouses.service";
+import {
+  channelWarehouseNotFound,
+  marketplaceManagedWarehouse,
+  STORE_STATUS_REASONS,
+  type StoreStatusReason,
+  storeAlreadyDisconnected,
+  storeNotActive,
+  storeNotFound,
+  storeUnmappedWarehouses,
+  warehouseNotFound,
+} from "./channel.errors";
+import {
+  storeDisconnected,
+  storeReauthRequired,
+  storeSyncModeChanged,
+  storeWarehousesSyncRequested,
+} from "./channel.events";
+import { ChannelRepository, type ChannelWarehouseRow, type CredentialMeta, type StoreRow } from "./channel.repository";
+import { CONNECTORS, type ConnectorRegistry, isSupportedChannel, MANIFESTS } from "./connector-registry";
+
+/** A store shows "token_expiring" this long before the seller's authorization ends (FR-INT-03). */
+export const AUTH_EXPIRY_WARNING_DAYS = 14;
+const USABLE: StoreStatus[] = ["active", "token_expiring"];
+
+export interface StoreView {
+  store: StoreRow;
+  credential: CredentialMeta | null;
+  unmappedWarehouses: number;
+}
+
+export function channelDisplayName(channel: string): string {
+  return isSupportedChannel(channel) ? MANIFESTS[channel].displayName : channel;
+}
+
+export function statusMessage(reason: string | null): string | null {
+  return reason && reason in STORE_STATUS_REASONS ? STORE_STATUS_REASONS[reason as StoreStatusReason] : null;
+}
+
+/** Origin of the web app in processes that have it (api, worker). */
+export function publicWebUrl(env: Env): string {
+  return "PUBLIC_WEB_URL" in env ? env.PUBLIC_WEB_URL : "";
+}
+
+/** active or token_expiring, from when the seller's authorization ends. */
+export function usableStatus(authorizationExpiresAt: Date | null, now = new Date()): "active" | "token_expiring" {
+  if (!authorizationExpiresAt) return "active";
+  const warnFrom = authorizationExpiresAt.getTime() - AUTH_EXPIRY_WARNING_DAYS * 86_400_000;
+  return now.getTime() >= warnFrom ? "token_expiring" : "active";
+}
+
+/**
+ * Connected stores (backend doc 7.8.2, PRD 6.1): what sellers see and change, and the status changes
+ * that webhooks and token refreshes cause. Every read respects the caller's store scope: a store
+ * outside it does not exist for that user.
+ */
+@Injectable()
+export class StoresService {
+  constructor(
+    @Inject(DB_TENANT) private readonly db: DbHandle,
+    @Inject(ChannelRepository) private readonly repo: ChannelRepository,
+    @Inject(OUTBOX) private readonly outbox: Outbox,
+    @Inject(WarehousesService) private readonly warehouses: WarehousesService,
+    @Inject(CONNECTORS) private readonly connectors: ConnectorRegistry,
+    @Inject(ENV) private readonly env: Env,
+  ) {}
+
+  inScope(ctx: RequestContext, storeId: string): boolean {
+    return ctx.storeScope === null || ctx.storeScope.has(storeId);
+  }
+
+  private async load(tx: Tx, ctx: RequestContext, id: string, forUpdate = false): Promise<StoreRow> {
+    if (!this.inScope(ctx, id)) throw storeNotFound();
+    const store = await this.repo.getStore(tx, id, forUpdate);
+    if (!store) throw storeNotFound();
+    return store;
+  }
+
+  private async view(tx: Tx, stores: StoreRow[]): Promise<StoreView[]> {
+    const creds = await this.repo.credentialMeta(
+      tx,
+      stores.map((s) => s.id),
+    );
+    const out: StoreView[] = [];
+    for (const store of stores) {
+      out.push({
+        store,
+        credential: creds.get(store.id) ?? null,
+        unmappedWarehouses: await this.repo.unmappedCount(tx, store.id),
+      });
+    }
+    return out;
+  }
+
+  async list(ctx: RequestContext): Promise<StoreView[]> {
+    return withTenantTx(this.db, ctx, async (tx) => this.view(tx, await this.repo.listStores(tx, ctx.storeScope)));
+  }
+
+  async get(ctx: RequestContext, id: string): Promise<StoreView> {
+    return withTenantTx(this.db, ctx, async (tx) => (await this.view(tx, [await this.load(tx, ctx, id)]))[0]!);
+  }
+
+  /**
+   * Name, default warehouse, and sync mode. `live` turns on stock push and order processing, so it
+   * needs a usable connection and every active seller warehouse mapped (FR-WHS-04).
+   */
+  async update(
+    ctx: RequestContext,
+    id: string,
+    patch: { name?: string; defaultWarehouseId?: string | null; syncMode?: "read_only" | "live" },
+    ifMatch?: number,
+  ): Promise<StoreView> {
+    return withTenantTx(this.db, ctx, async (tx) => {
+      const store = await this.load(tx, ctx, id, true);
+      if (patch.defaultWarehouseId && !(await this.warehouses.findActiveIn(tx, patch.defaultWarehouseId))) {
+        throw warehouseNotFound("defaultWarehouseId");
+      }
+      if (patch.syncMode === "live" && store.syncMode !== "live") {
+        if (!USABLE.includes(store.status)) throw storeNotActive();
+        const unmapped = await this.repo.unmappedCount(tx, id);
+        if (unmapped > 0) throw storeUnmappedWarehouses(unmapped);
+      }
+      const ok = await this.repo.updateStore(
+        tx,
+        id,
+        {
+          ...(patch.name !== undefined ? { name: patch.name } : {}),
+          ...(patch.defaultWarehouseId !== undefined ? { defaultWarehouseId: patch.defaultWarehouseId } : {}),
+          ...(patch.syncMode !== undefined ? { syncMode: patch.syncMode } : {}),
+        },
+        ifMatch,
+      );
+      if (!ok) throw new ConflictError("row.stale", "Data sudah diubah orang lain. Muat ulang lalu coba lagi.");
+      if (patch.syncMode !== undefined && patch.syncMode !== store.syncMode) {
+        await this.outbox.enqueue(tx, ctx, storeSyncModeChanged, { storeId: id, syncMode: patch.syncMode }, id);
+      }
+      return (await this.view(tx, [(await this.repo.getStore(tx, id))!]))[0]!;
+    });
+  }
+
+  /**
+   * Local disconnect (FR-INT-07): tokens are deleted at once, sync stops, history stays. Marketplaces
+   * keep the app authorized until the seller revokes it there; for Shopee the cancel link is returned.
+   */
+  async disconnect(ctx: RequestContext, id: string): Promise<{ view: StoreView; revokeUrl: string | null }> {
+    const view = await withTenantTx(this.db, ctx, async (tx) => {
+      const store = await this.load(tx, ctx, id, true);
+      if (store.status === "disconnected") throw storeAlreadyDisconnected();
+      await this.repo.deleteCredential(tx, id);
+      await this.repo.updateStore(tx, id, {
+        status: "disconnected",
+        statusReason: "disconnected_by_user",
+        statusChangedAt: new Date(),
+        disconnectedAt: new Date(),
+        syncMode: "read_only",
+      });
+      await this.outbox.enqueue(tx, ctx, storeDisconnected, { storeId: id, reason: "disconnected_by_user" }, id);
+      return (await this.view(tx, [(await this.repo.getStore(tx, id))!]))[0]!;
+    });
+    let revokeUrl: string | null = null;
+    if (isSupportedChannel(view.store.channel) && this.connectors.isConfigured(view.store.channel)) {
+      revokeUrl = this.connectors
+        .get(view.store.channel)
+        .auth.revokeUrl({ redirectUri: `${publicWebUrl(this.env)}/integrasi` });
+    }
+    return { view, revokeUrl };
+  }
+
+  async requestWarehouseSync(ctx: RequestContext, id: string): Promise<void> {
+    await withTenantTx(this.db, ctx, async (tx) => {
+      const store = await this.load(tx, ctx, id);
+      if (!USABLE.includes(store.status)) throw storeNotActive();
+      await this.outbox.enqueue(tx, ctx, storeWarehousesSyncRequested, { storeId: id }, id);
+    });
+  }
+
+  async channelWarehouses(ctx: RequestContext, storeId: string): Promise<ChannelWarehouseRow[]> {
+    return withTenantTx(this.db, ctx, async (tx) => {
+      await this.load(tx, ctx, storeId);
+      return this.repo.channelWarehouses(tx, storeId);
+    });
+  }
+
+  /**
+   * Maps a marketplace warehouse to one OmniSeller warehouse, or removes the mapping (FR-WHS-02).
+   * Removing a mapping of a live store would silently stop stock sync for part of it, so it is refused;
+   * pointing it at another warehouse is fine.
+   */
+  async mapChannelWarehouse(
+    ctx: RequestContext,
+    storeId: string,
+    channelWarehouseId: string,
+    warehouseId: string | null,
+  ): Promise<ChannelWarehouseRow> {
+    return withTenantTx(this.db, ctx, async (tx) => {
+      const store = await this.load(tx, ctx, storeId, true);
+      const cw = await this.repo.getChannelWarehouse(tx, storeId, channelWarehouseId, true);
+      if (!cw) throw channelWarehouseNotFound();
+      if (cw.kind === "fulfillment") throw marketplaceManagedWarehouse();
+      if (warehouseId === null) {
+        if (store.syncMode === "live" && cw.active) {
+          throw new ConflictError(
+            "store.live_mapping_required",
+            "Toko sedang sinkron stok. Ubah ke mode baca saja sebelum melepas pemetaan gudang.",
+          );
+        }
+        await this.repo.updateChannelWarehouse(tx, cw.id, { warehouseId: null, mappingStatus: "unmapped" });
+      } else {
+        if (!(await this.warehouses.findActiveIn(tx, warehouseId))) throw warehouseNotFound("warehouseId");
+        await this.repo.updateChannelWarehouse(tx, cw.id, { warehouseId, mappingStatus: "mapped" });
+      }
+      return (await this.repo.getChannelWarehouse(tx, storeId, channelWarehouseId))!;
+    });
+  }
+
+  // ---- status changes from webhooks and token refreshes (worker) ----
+
+  /**
+   * The seller must authorize again. Tokens are deleted: they no longer work, and TikTok Shop's
+   * disconnect guide asks for immediate removal.
+   */
+  async markReauthRequired(ctx: RequestContext, storeId: string, reason: StoreStatusReason): Promise<void> {
+    await withTenantTx(this.db, ctx, async (tx) => {
+      const store = await this.repo.getStore(tx, storeId, true);
+      if (!store || store.status === "disconnected") return;
+      if (store.status === "reauth_required" && store.statusReason === reason) return;
+      await this.repo.deleteCredential(tx, storeId);
+      await this.repo.updateStore(tx, storeId, {
+        status: "reauth_required",
+        statusReason: reason,
+        statusChangedAt: new Date(),
+      });
+      await this.outbox.enqueue(tx, ctx, storeReauthRequired, { storeId, reason }, storeId);
+    });
+  }
+
+  /** The marketplace announced when the seller's authorization ends. */
+  async noteAuthorizationExpiry(ctx: RequestContext, storeId: string, expiresAt: Date | undefined): Promise<void> {
+    await withTenantTx(this.db, ctx, async (tx) => {
+      const store = await this.repo.getStore(tx, storeId, true);
+      if (!store || !USABLE.includes(store.status)) return;
+      const at = expiresAt ?? store.authorizationExpiresAt;
+      const status = at ? usableStatus(at) : "token_expiring";
+      await this.repo.updateStore(tx, storeId, {
+        ...(expiresAt ? { authorizationExpiresAt: expiresAt } : {}),
+        ...(status !== store.status
+          ? {
+              status,
+              statusReason: status === "token_expiring" ? "authorization_expiring" : null,
+              statusChangedAt: new Date(),
+            }
+          : {}),
+      });
+    });
+  }
+
+  /** Re-evaluates active versus token_expiring from the stored authorization end (refresh scan). */
+  async reevaluateStatus(ctx: RequestContext, storeId: string): Promise<void> {
+    await withTenantTx(this.db, ctx, (tx) => this.refreshStatus(tx, ctx, storeId));
+  }
+
+  /** After a successful refresh: back to active (or token_expiring near the authorization's end). */
+  async refreshStatus(tx: Tx, _ctx: RequestContext, storeId: string): Promise<void> {
+    const store = await this.repo.getStore(tx, storeId, true);
+    if (!store || !USABLE.includes(store.status)) return;
+    const status = usableStatus(store.authorizationExpiresAt);
+    if (status === store.status) return;
+    await this.repo.updateStore(tx, storeId, {
+      status,
+      statusReason: status === "token_expiring" ? "authorization_expiring" : null,
+      statusChangedAt: new Date(),
+    });
+  }
+}

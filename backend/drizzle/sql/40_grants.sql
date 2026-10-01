@@ -43,6 +43,12 @@ REVOKE ALL ON TABLE store_credential FROM omniseller_api;
 GRANT SELECT (id, tenant_id, created_at, updated_at, row_version, store_id, dek_version,
               access_expires_at, refresh_expires_at, scopes, last_refreshed_at, refresh_fail_count)
   ON TABLE store_credential TO omniseller_api;
+-- Disconnecting a store deletes its tokens at once; deleting needs no read access to them.
+GRANT DELETE ON TABLE store_credential TO omniseller_api;
+
+-- Tenant data encryption keys (technology doc 19.3): created and unwrapped by the worker only.
+REVOKE ALL ON TABLE tenant_key FROM omniseller_api;
+REVOKE DELETE ON TABLE tenant_key FROM omniseller_worker;
 
 -- Stock: quantities only via apply_stock_movement / ensure_inventory (SECURITY DEFINER).
 REVOKE INSERT, UPDATE, DELETE ON TABLE inventory FROM omniseller_api, omniseller_worker;

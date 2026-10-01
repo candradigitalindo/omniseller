@@ -2,11 +2,11 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.1 |
+| Versi dokumen | 1.2 |
 | Tanggal | 30 September 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
-| Dokumen terkait | DOKUMEN-SPESIFIKASI-APLIKASI.md (PRD) versi 1.9, DOKUMEN-UI-UX-MOBILE.md versi 1.0 (aplikasi mobile), DOKUMEN-TEKNOLOGI.md versi 1.1, DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.0 |
+| Dokumen terkait | DOKUMEN-SPESIFIKASI-APLIKASI.md (PRD) versi 1.10, DOKUMEN-UI-UX-MOBILE.md versi 1.0 (aplikasi mobile), DOKUMEN-TEKNOLOGI.md versi 1.1, DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.0 |
 | Audiens | Alat desain AI (Canva AI, Figma AI, dan sejenisnya), product designer, engineer frontend |
 
 > **Cara memakai dokumen ini di alat desain AI.** Tempel bagian 1 (brief induk) lebih dulu sebagai konteks. Lalu tempel satu blok "Prompt untuk AI" dari bagian 14 untuk setiap layar yang ingin dibuat. Setiap prompt sudah memuat tata letak, komponen, contoh data, dan perilaku mobile, sehingga tidak perlu mengarang. Nilai warna, ukuran, dan nama komponen di bagian 4 sampai 8 adalah sumber kebenaran; bila alat desain menghasilkan sesuatu yang berbeda, dokumen ini yang benar.
@@ -40,7 +40,7 @@
 
 ### 1.1 Versi Bahasa Indonesia
 
-OmniSeller adalah aplikasi web dan mobile untuk pedagang Indonesia yang berjualan di banyak marketplace (Shopee, Tokopedia, TikTok Shop, Lazada, Blibli). Pengguna utama: pemilik toko dan admin yang belum tentu mahir teknologi, staf gudang yang bekerja cepat dengan pemindai barcode, dan tim layanan pelanggan. Aplikasi dipakai berjam-jam setiap hari, sehingga tampilan harus tenang, terang tetapi tidak menyilaukan, dengan satu warna utama biru laut yang tidak menjemukan, latar abu sangat muda, dan kartu putih dengan bayangan lembut. Gaya: modern, bersih, ramah, dan langsung dimengerti orang yang gagap teknologi. Setiap layar punya satu tujuan dan satu tombol utama yang jelas. Istilah teknis diganti kata sehari-hari (misalnya "Dana cair" bukan "settlement"). Status selalu ditampilkan sebagai pil berwarna dengan ikon dan teks, tidak pernah warna saja. Angka uang ditulis "Rp 1.250.000". Sidebar kiri dikelompokkan: Beranda, Penjualan, Katalog, Stok & Gudang, Keuangan, Analitik, Kampanye & Pelanggan, Pengaturan. Semua halaman responsif: di desktop memakai sidebar dan tabel, di tablet sidebar menjadi ikon, di ponsel memakai navigasi bawah lima tombol dan daftar kartu sebagai pengganti tabel. Tipografi Plus Jakarta Sans untuk judul dan Inter untuk teks serta angka. Sudut membulat 10 piksel untuk kartu dan 8 piksel untuk tombol. Ikon garis tipis (Lucide) ukuran 20 piksel. Grafik memakai garis tipis, bar ramping berujung membulat, satu sumbu, legenda selalu ada, dan warna kategori yang aman untuk buta warna.
+OmniSeller adalah aplikasi web dan mobile untuk pedagang Indonesia yang berjualan di banyak marketplace (Shopee, Tokopedia & Shop, Lazada, Blibli). Pengguna utama: pemilik toko dan admin yang belum tentu mahir teknologi, staf gudang yang bekerja cepat dengan pemindai barcode, dan tim layanan pelanggan. Aplikasi dipakai berjam-jam setiap hari, sehingga tampilan harus tenang, terang tetapi tidak menyilaukan, dengan satu warna utama biru laut yang tidak menjemukan, latar abu sangat muda, dan kartu putih dengan bayangan lembut. Gaya: modern, bersih, ramah, dan langsung dimengerti orang yang gagap teknologi. Setiap layar punya satu tujuan dan satu tombol utama yang jelas. Istilah teknis diganti kata sehari-hari (misalnya "Dana cair" bukan "settlement"). Status selalu ditampilkan sebagai pil berwarna dengan ikon dan teks, tidak pernah warna saja. Angka uang ditulis "Rp 1.250.000". Sidebar kiri dikelompokkan: Beranda, Penjualan, Katalog, Stok & Gudang, Keuangan, Analitik, Kampanye & Pelanggan, Pengaturan. Semua halaman responsif: di desktop memakai sidebar dan tabel, di tablet sidebar menjadi ikon, di ponsel memakai navigasi bawah lima tombol dan daftar kartu sebagai pengganti tabel. Tipografi Plus Jakarta Sans untuk judul dan Inter untuk teks serta angka. Sudut membulat 10 piksel untuk kartu dan 8 piksel untuk tombol. Ikon garis tipis (Lucide) ukuran 20 piksel. Grafik memakai garis tipis, bar ramping berujung membulat, satu sumbu, legenda selalu ada, dan warna kategori yang aman untuk buta warna.
 
 ### 1.2 English master prompt (untuk alat yang lebih baik memahami bahasa Inggris)
 
@@ -142,7 +142,7 @@ Pil status di mode gelap memakai latar transparan 16% dari warna semantiknya den
 - Warna utama dipakai untuk: tombol utama, tautan, item navigasi aktif, sakelar aktif, indikator langkah aktif, fokus. Tidak dipakai untuk latar area luas.
 - Warna semantik hanya untuk makna: hijau berarti selesai atau sehat, kuning berarti perlu perhatian, merah berarti terlambat, gagal, atau bahaya. Tidak pernah dipakai sebagai dekorasi.
 - Warna aksen ungu hanya untuk badge kampanye, promo, dan fitur AI. Ini membedakannya dari status.
-- Logo dan warna marketplace (oranye Shopee, hijau Tokopedia, hitam TikTok, biru Lazada, biru Blibli) hanya muncul sebagai ikon kanal 16 sampai 20 piksel di samping nama toko, tidak pernah mewarnai komponen OmniSeller.
+- Logo dan warna marketplace (oranye Shopee, logo "Tokopedia & Shop" untuk toko TikTok Shop dan Tokopedia, biru Lazada, biru Blibli) hanya muncul sebagai ikon kanal 16 sampai 20 piksel di samping nama toko, tidak pernah mewarnai komponen OmniSeller. Merek dan logo TikTok tidak dipakai di mana pun untuk pasar Indonesia, termasuk label dan invoice kustom; kanal itu selalu bernama "Tokopedia & Shop" (PRD 5.6).
 - Tidak ada gradien pada latar dan tombol. Gradien hanya boleh di ilustrasi keadaan kosong.
 - Tidak ada teks berwarna di atas latar berwarna cerah kecuali pasangan yang tercantum di 4.2.
 
@@ -509,7 +509,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **Aksi utama**: "Proses pesanan baru" (membuka L03 dengan filter Baru).
 - **Keadaan khusus**: belum ada toko terhubung menampilkan kartu besar "Hubungkan toko pertama Anda" dengan tiga langkah; mode uji berdampingan menampilkan banner kuning.
 - **Mobile**: KPI dua kolom, "Perlu tindakan" sebagai daftar vertikal, grafik disederhanakan menjadi satu seri total dengan sakelar kanal.
-- **Prompt untuk AI**: "Halaman beranda dasbor penjual multi-marketplace. Bar atas dengan pencarian, pemilih toko 'Semua toko (5)', lonceng. Baris pertama: judul 'Selamat pagi, Rina' dan pemilih rentang 'Hari ini'. Empat kartu KPI putih: 'Penjualan hari ini Rp 18.450.000, naik 12% vs kemarin', 'Pesanan baru 86', 'Hampir terlambat 7' dengan pil kuning, 'Laba bersih perkiraan Rp 4.120.000'. Di bawahnya baris 'Perlu tindakan' berisi kartu-kartu kecil: '7 pesanan harus dikirim sebelum 15.00' dengan tombol 'Proses', '3 produk stok menipis', '12 chat belum dibalas', 'Toko Shopee Utama perlu dihubungkan ulang' dengan pil merah. Grafik garis tipis penjualan 30 hari dengan empat seri Shopee, TikTok Shop, Lazada, Blibli, legenda di atas, label di ujung garis. Dua kartu bawah: bar mendatar 'Produk terlaris' lima produk, dan daftar 'Status toko' dengan ikon kanal dan pil status. Latar abu muda #F4F6F8, kartu putih, aksen biru laut #1E6B8C."
+- **Prompt untuk AI**: "Halaman beranda dasbor penjual multi-marketplace. Bar atas dengan pencarian, pemilih toko 'Semua toko (5)', lonceng. Baris pertama: judul 'Selamat pagi, Rina' dan pemilih rentang 'Hari ini'. Empat kartu KPI putih: 'Penjualan hari ini Rp 18.450.000, naik 12% vs kemarin', 'Pesanan baru 86', 'Hampir terlambat 7' dengan pil kuning, 'Laba bersih perkiraan Rp 4.120.000'. Di bawahnya baris 'Perlu tindakan' berisi kartu-kartu kecil: '7 pesanan harus dikirim sebelum 15.00' dengan tombol 'Proses', '3 produk stok menipis', '12 chat belum dibalas', 'Toko Shopee Utama perlu dihubungkan ulang' dengan pil merah. Grafik garis tipis penjualan 30 hari dengan empat seri Shopee, Tokopedia & Shop, Lazada, Blibli, legenda di atas, label di ujung garis. Dua kartu bawah: bar mendatar 'Produk terlaris' lima produk, dan daftar 'Status toko' dengan ikon kanal dan pil status. Latar abu muda #F4F6F8, kartu putih, aksen biru laut #1E6B8C."
 
 #### L02 Tugas Hari Ini
 
@@ -596,7 +596,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **Isi**: bar filter (pencarian, Kategori, Status, "Belum ada listing", "Stok menipis"); tabel: gambar, nama produk (jumlah varian di bawah), SKU induk mono, harga dasar, HPP, stok siap jual total, listing (ikon kanal dengan angka), status; baris dapat diperluas menampilkan varian.
 - **Aksi utama**: "Tambah produk" dengan menu: Manual, Impor Excel, Salin dari toko.
 - **Mobile**: kartu dengan gambar 56 px, nama, SKU, stok, ikon kanal.
-- **Prompt untuk AI**: "Halaman produk dengan tabel: gambar 40 px, 'Kaos Polos Cotton Combed 30s (6 varian)', SKU 'KAOS-POLOS', harga 'Rp 65.000', HPP 'Rp 35.000', stok siap jual '412', kolom listing berisi ikon Shopee 2, TikTok 1, Lazada 1, status pil hijau 'Aktif'. Tombol utama 'Tambah produk' dengan panah dropdown. Chip filter 'Stok menipis' aktif berlatar biru muda."
+- **Prompt untuk AI**: "Halaman produk dengan tabel: gambar 40 px, 'Kaos Polos Cotton Combed 30s (6 varian)', SKU 'KAOS-POLOS', harga 'Rp 65.000', HPP 'Rp 35.000', stok siap jual '412', kolom listing berisi ikon Shopee 2, Tokopedia & Shop 1, Lazada 1, status pil hijau 'Aktif'. Tombol utama 'Tambah produk' dengan panah dropdown. Chip filter 'Stok menipis' aktif berlatar biru muda."
 
 #### L14 Detail dan Edit Produk
 
@@ -610,12 +610,12 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **Tujuan**: memastikan setiap listing marketplace terhubung ke produk induk; ini langkah paling penting saat onboarding.
 - **Isi**: banner progres "412 dari 430 listing sudah terhubung"; tab "Belum terhubung (18)" dan "Semua"; tabel belum terhubung: gambar dan judul listing, toko, SKU di marketplace, kolom "Saran" berisi produk induk yang mirip dengan tombol "Hubungkan" (saran dari kesamaan SKU atau gambar, badge ungu bila dari AI), tombol "Cari manual", "Buat produk baru dari listing ini".
 - **Aksi utama**: "Terapkan semua saran (14)".
-- **Prompt untuk AI**: "Halaman pemetaan listing. Banner biru muda dengan bar progres '412 dari 430 listing terhubung (95%)'. Tabel 'Belum terhubung': thumbnail, 'Kaos Polos Premium Hitam L' dari TikTok Shop 'Toko Utama', SKU marketplace 'KP-HTM-L', kolom Saran menampilkan 'KAOS-POLOS-HTM-L, Kaos Polos Cotton 30s Hitam L' dengan badge ungu 'AI 92% mirip' dan tombol 'Hubungkan'. Tombol utama 'Terapkan semua saran (14)'."
+- **Prompt untuk AI**: "Halaman pemetaan listing. Banner biru muda dengan bar progres '412 dari 430 listing terhubung (95%)'. Tabel 'Belum terhubung': thumbnail, 'Kaos Polos Premium Hitam L' dari Tokopedia & Shop 'Toko Utama', SKU marketplace 'KP-HTM-L', kolom Saran menampilkan 'KAOS-POLOS-HTM-L, Kaos Polos Cotton 30s Hitam L' dengan badge ungu 'AI 92% mirip' dan tombol 'Hubungkan'. Tombol utama 'Terapkan semua saran (14)'."
 
 #### L16 Harga, L17 Promosi, L18 Naikkan Produk
 
 - **L16 Harga**: dua bagian: "Kalkulator harga" (input HPP, pilih toko, tabel biaya otomatis, target margin, hasil harga jual per kanal dengan posisi terhadap kompetitor bila riset aktif) dan "Ubah harga massal" (filter produk, aturan: naik atau turun persen atau nominal, pratinjau tabel sebelum dan sesudah, simulasi margin dengan peringatan merah bila di bawah margin minimum). Prompt: "Kalkulator harga: input 'HPP Rp 35.000', pilih 'Shopee Toko Utama', baris biaya 'Admin 4,5%, Layanan 2%, Gratis ongkir 4%', 'Target margin 25%', hasil besar 'Harga jual disarankan Rp 63.900', catatan 'Termurah di antara 4 kompetitor yang dipantau'."
-- **L17 Promosi**: kalender bulanan dengan blok promo per toko (warna aksen ungu), daftar promo aktif, tombol "Buat promo" membuka wizard (jenis, toko, produk, harga promo dengan cek margin per produk, periode, perpanjang otomatis). Prompt: "Kalender promosi bulan Oktober dengan blok ungu muda 'Flash sale 10.10 Shopee' dan 'Diskon TikTok 5 sampai 12 Okt'. Panel kanan daftar promo aktif dengan pil 'Berjalan'. Wizard buat promo tiga langkah dengan tabel produk yang menampilkan kolom 'Margin setelah promo' berwarna hijau atau merah."
+- **L17 Promosi**: kalender bulanan dengan blok promo per toko (warna aksen ungu), daftar promo aktif, tombol "Buat promo" membuka wizard (jenis, toko, produk, harga promo dengan cek margin per produk, periode, perpanjang otomatis). Prompt: "Kalender promosi bulan Oktober dengan blok ungu muda 'Flash sale 10.10 Shopee' dan 'Diskon Tokopedia & Shop 5 sampai 12 Okt'. Panel kanan daftar promo aktif dengan pil 'Berjalan'. Wizard buat promo tiga langkah dengan tabel produk yang menampilkan kolom 'Margin setelah promo' berwarna hijau atau merah."
 - **L18 Naikkan Produk**: daftar produk yang dijadwalkan per toko Shopee, sakelar aktif, keterangan "5 produk tiap 4 jam", kolom "Terakhir dinaikkan". Prompt: "Halaman sederhana: sakelar besar 'Naikkan produk otomatis: Aktif', teks 'Shopee mengizinkan 5 produk setiap 4 jam. 30 produk dalam daftar, bergilir 24 jam.' Tabel produk dengan kolom 'Terakhir dinaikkan 10.15' dan 'Giliran berikutnya 14.15'."
 
 ### 14.4 Stok dan Gudang
@@ -627,14 +627,14 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **Aksi utama**: "Sesuaikan stok" (dialog: gudang, jumlah baru atau selisih, alasan wajib dari daftar, catatan).
 - **Keadaan khusus**: siap jual negatif ditampilkan merah dengan ikon dan teks "Kelebihan jual 2".
 - **Mobile**: kartu SKU dengan angka siap jual besar dan tombol "Sesuaikan".
-- **Prompt untuk AI**: "Halaman stok. Empat KPI kecil. Tabel: SKU mono 'KAOS-POLOS-HTM-L', nama, kolom grup 'Gudang Jakarta' berisi 'Fisik 120, Dipesan 18, Cadangan 10, Siap jual 92' dengan siap jual tebal, kolom grup 'Gudang Surabaya', kolom 'Terkirim ke' berisi ikon Shopee hijau, TikTok hijau, Lazada merah dengan tooltip 'Gagal 2 kali, coba lagi 10.20'. Tombol utama 'Sesuaikan stok'. Satu baris dengan 'Siap jual -2' merah dan ikon peringatan."
+- **Prompt untuk AI**: "Halaman stok. Empat KPI kecil. Tabel: SKU mono 'KAOS-POLOS-HTM-L', nama, kolom grup 'Gudang Jakarta' berisi 'Fisik 120, Dipesan 18, Cadangan 10, Siap jual 92' dengan siap jual tebal, kolom grup 'Gudang Surabaya', kolom 'Terkirim ke' berisi ikon Shopee hijau, Tokopedia & Shop hijau, Lazada merah dengan tooltip 'Gagal 2 kali, coba lagi 10.20'. Tombol utama 'Sesuaikan stok'. Satu baris dengan 'Siap jual -2' merah dan ikon peringatan."
 
 #### L20 Gudang dan Pemetaan Gudang Marketplace
 
 - **Tujuan**: mengelola gudang fisik dan memastikan setiap gudang marketplace terpetakan.
 - **Isi**: kartu per gudang fisik (nama, alamat, default, jumlah SKU, kapasitas cut-off kurir); bagian "Gudang marketplace" berupa tabel: toko, nama gudang di marketplace, jenis (Milik sendiri, Dikelola marketplace), dipetakan ke (dropdown gudang fisik), status pil (Terpetakan, Belum, Dikelola marketplace); banner merah bila ada yang belum terpetakan: "Sinkron stok toko ini dijeda sampai semua gudang dipetakan".
 - **Aksi utama**: "Tambah gudang".
-- **Prompt untuk AI**: "Halaman gudang. Atas: dua kartu gudang 'Gudang Jakarta (default)' dan 'Gudang Surabaya'. Bawah: tabel 'Gudang marketplace' dengan baris 'Shopee Toko Utama, Gudang Sidoarjo, Milik sendiri, dipetakan ke [Gudang Surabaya], Terpetakan' dan baris 'Shopee Toko Utama, Dikelola Shopee, Dikelola marketplace, tidak perlu dipetakan'. Satu baris 'TikTok Shop, Warehouse Bandung, Belum dipetakan' dengan pil merah dan banner di atas tabel."
+- **Prompt untuk AI**: "Halaman gudang. Atas: dua kartu gudang 'Gudang Jakarta (default)' dan 'Gudang Surabaya'. Bawah: tabel 'Gudang marketplace' dengan baris 'Shopee Toko Utama, Gudang Sidoarjo, Milik sendiri, dipetakan ke [Gudang Surabaya], Terpetakan' dan baris 'Shopee Toko Utama, Dikelola Shopee, Dikelola marketplace, tidak perlu dipetakan'. Satu baris 'Tokopedia & Shop, Warehouse Bandung, Belum dipetakan' dengan pil merah dan banner di atas tabel."
 
 #### L21 Riwayat Stok, L22 Stock Opname, L23 Transfer Stok, L24 Pembelian dan Supplier
 
@@ -666,7 +666,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **Tujuan**: memahami penjualan per kanal, toko, produk, dan wilayah.
 - **Isi**: filter periode dan pembanding (vs periode sebelumnya); KPI (Omzet, Pesanan, Rata-rata nilai pesanan, Tingkat pembatalan); grafik garis omzet harian dengan pembanding garis putus-putus abu; tab: Per kanal (bar mendatar), Per produk (tabel dengan bar kecil), Per wilayah (tabel provinsi, bukan peta, dengan opsi peta bila tersedia), Per jam (peta panas 7 x 24 dengan skala biru).
 - **Aksi utama**: "Unduh laporan" (Excel, CSV) dan "Jadwalkan email".
-- **Prompt untuk AI**: "Halaman laporan penjualan. Baris filter 'Bulan ini vs bulan lalu'. Empat KPI dengan panah perubahan. Grafik garis omzet harian: garis biru tebal bulan ini, garis abu putus-putus bulan lalu, legenda di atas. Tab 'Per kanal' menampilkan bar mendatar ramping berujung membulat: Shopee Rp 210 juta, TikTok Shop Rp 150 juta, Lazada Rp 40 juta, Blibli Rp 12 juta dengan label angka di ujung bar. Tombol 'Lihat tabel' dan 'Unduh' di setiap grafik."
+- **Prompt untuk AI**: "Halaman laporan penjualan. Baris filter 'Bulan ini vs bulan lalu'. Empat KPI dengan panah perubahan. Grafik garis omzet harian: garis biru tebal bulan ini, garis abu putus-putus bulan lalu, legenda di atas. Tab 'Per kanal' menampilkan bar mendatar ramping berujung membulat: Shopee Rp 210 juta, Tokopedia & Shop Rp 150 juta, Lazada Rp 40 juta, Blibli Rp 12 juta dengan label angka di ujung bar. Tombol 'Lihat tabel' dan 'Unduh' di setiap grafik."
 
 #### L31 Laporan Stok, L32 Kesehatan Toko, L33 Kinerja Tim
 
@@ -677,7 +677,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 #### L34 Riset Produk, L35 Pantau Harga, L36 Kata Kunci dan Kompetitor
 
 - **Aturan tampilan riset**: setiap angka estimasi memakai label "perkiraan" dan ikon bantuan yang menjelaskan metode; badge sumber dan waktu pengambilan; tombol "Buka di sumber". Saat pertama kali dibuka: layar persetujuan risiko (bagian 15.5).
-- **L34 Riset Produk**: kotak pencarian kata kunci atau kategori dan pilih sumber; hasil tabel: thumbnail, judul, toko, harga, terjual tertera, perkiraan penjualan per bulan (dengan ikon bantuan), rating, skor peluang (tiga komponen tampil saat diperluas: permintaan, persaingan, margin memakai HPP Anda), tombol "Pantau" dan "Jadikan kandidat produk". Prompt: "Halaman riset produk. Kotak cari 'kaos polos' dengan chip sumber 'Shopee, TikTok Shop'. Tabel hasil: thumbnail, judul, 'Toko Kaos Murah, Jakarta Barat', harga 'Rp 45.000', terjual '12 rb', 'Perkiraan 1.200/bulan' dengan ikon tanda tanya, rating 4,8, kolom 'Skor peluang 78' berupa lingkaran kecil biru yang dapat diperluas menjadi tiga bar 'Permintaan tinggi, Persaingan sedang, Margin Anda 31%'. Badge kecil 'Diambil 2 jam lalu'."
+- **L34 Riset Produk**: kotak pencarian kata kunci atau kategori dan pilih sumber; hasil tabel: thumbnail, judul, toko, harga, terjual tertera, perkiraan penjualan per bulan (dengan ikon bantuan), rating, skor peluang (tiga komponen tampil saat diperluas: permintaan, persaingan, margin memakai HPP Anda), tombol "Pantau" dan "Jadikan kandidat produk". Prompt: "Halaman riset produk. Kotak cari 'kaos polos' dengan chip sumber 'Shopee, Tokopedia & Shop'. Tabel hasil: thumbnail, judul, 'Toko Kaos Murah, Jakarta Barat', harga 'Rp 45.000', terjual '12 rb', 'Perkiraan 1.200/bulan' dengan ikon tanda tanya, rating 4,8, kolom 'Skor peluang 78' berupa lingkaran kecil biru yang dapat diperluas menjadi tiga bar 'Permintaan tinggi, Persaingan sedang, Margin Anda 31%'. Badge kecil 'Diambil 2 jam lalu'."
 - **L35 Pantau Harga**: daftar SKU sendiri dengan kompetitor tertaut; per SKU: harga kita, termurah, median, posisi (pil "Termurah", "Di atas median", "Termahal"); detail: grafik garis riwayat 90 hari dengan garis kita tebal dan maksimal 4 kompetitor, peringatan aktif, aturan peringatan. Prompt: "Halaman pantau harga: tabel SKU dengan 'Harga kami Rp 65.000, termurah Rp 59.000, median Rp 66.500, posisi pil kuning Di atas median'. Panel detail: grafik garis riwayat harga 90 hari, garis biru tebal 'Kami', tiga garis tipis kompetitor dengan label di ujung, tanda peringatan kecil pada tanggal kompetitor turun harga."
 - **L36 Kata Kunci dan Kompetitor**: tab Kata kunci (tabel kata kunci: ukuran pasar pil Kecil, Sedang, Besar, rata harga, jumlah penjual, saran kata untuk judul); tab Toko kompetitor (kartu toko dengan garis waktu produk baru, dihapus, harga berubah). Prompt: "Tab kata kunci: tabel 'kaos polos pria, pasar Besar, rata Rp 52.000, 1.240 penjual', 'kaos oversize, pasar Sedang'. Kartu saran 'Tambahkan kata: oversize, cotton combed 30s ke judul 3 produk Anda'."
 
@@ -738,7 +738,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 
 #### L51 Bantuan dan Status Sistem, L52 Panel Notifikasi
 
-- **L51**: pencarian artikel bantuan, kartu topik populer, tombol "Chat dengan tim OmniSeller" (jam layanan tampil), status integrasi per marketplace (hijau, kuning, merah) dengan gangguan pihak ketiga ditandai, tautan halaman status publik. Prompt: "Halaman bantuan: kotak cari, grid kartu topik, kartu status 'Shopee: normal' hijau, 'TikTok Shop: gangguan dari pihak marketplace sejak 09.40' kuning."
+- **L51**: pencarian artikel bantuan, kartu topik populer, tombol "Chat dengan tim OmniSeller" (jam layanan tampil), status integrasi per marketplace (hijau, kuning, merah) dengan gangguan pihak ketiga ditandai, tautan halaman status publik. Prompt: "Halaman bantuan: kotak cari, grid kartu topik, kartu status 'Shopee: normal' hijau, 'Tokopedia & Shop: gangguan dari pihak marketplace sejak 09.40' kuning."
 - **L52**: popover dari lonceng 400 px: dikelompokkan Hari ini dan Sebelumnya, item kritis berikon merah, tombol "Tandai semua dibaca", tautan ke pengaturan. Mobile: halaman penuh.
 
 ---
@@ -906,7 +906,7 @@ Sebelum layar dinyatakan selesai:
 
 | Jenis | Contoh |
 |---|---|
-| Toko | Toko Utama (Shopee), Toko Utama (TikTok Shop), Lazada Store, Blibli Official, Cabang Surabaya (Shopee) |
+| Toko | Toko Utama (Shopee), Toko Utama (Tokopedia & Shop), Lazada Store, Blibli Official, Cabang Surabaya (Shopee) |
 | Produk | Kaos Polos Cotton Combed 30s Hitam L, Hijab Pashmina Ceruti Mocca, Charger USB-C 20W, Serum Wajah Niacinamide 30 ml, Sepatu Sneakers Putih 42 |
 | SKU | KAOS-POLOS-HTM-L, HJB-PSH-MOC, CHG-USBC-20W, SRM-NIA-30, SPT-SNK-PTH-42 |
 | Nomor pesanan | SP-2609-88123, TT-2609-40471, LZ-2609-11908 |
@@ -923,3 +923,4 @@ Sebelum layar dinyatakan selesai:
 |---|---|---|---|
 | 1.0 | 30 September 2026 | Dokumen awal: brief induk, prinsip, sistem warna terverifikasi, tipografi, tata letak responsif, struktur sidebar berkelompok, komponen, pola interaksi, aturan visualisasi data, 52 spesifikasi layar dengan prompt, alur kunci, mobile dan agen cetak, checklist | Candra Syahputra |
 | 1.1 | 30 September 2026 | Rujukan ke DOKUMEN-UI-UX-MOBILE.md di bagian 16 | Candra Syahputra |
+| 1.2 | 1 Oktober 2026 | Kanal TikTok Shop dan Tokopedia tampil sebagai "Tokopedia & Shop" di semua teks dan prompt, sesuai pedoman merek platform untuk pasar Indonesia (PRD 5.6) | Candra Syahputra |

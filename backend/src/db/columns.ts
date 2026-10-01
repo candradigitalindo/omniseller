@@ -14,6 +14,13 @@ export const ulid = customType<{ data: string; driverData: string }>({
   },
 });
 
+/** Binary data (encrypted tokens and keys). */
+export const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
+
 export const tstz = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
 
 /** Whole rupiah. pg returns int8 as a string; mode "number" converts and the int8 parser rejects unsafe values. */

@@ -13,7 +13,7 @@ Aplikasi manajemen penjualan multi-marketplace. Root repositori hanya berisi dok
 ## Struktur
 
 ```
-backend/     NestJS (api, webhook, worker, scheduler), migrasi SQL, paket shared dan logging
+backend/     NestJS (api, webhook, worker, scheduler), migrasi SQL, paket shared, logging, dan connector marketplace
 frontend/    Next.js (menyusul)
 mobile/      Expo (menyusul)
 ```
@@ -32,6 +32,8 @@ pnpm db:bootstrap              # membuat empat role basis data dan database
 pnpm db:migrate                # migrasi, fungsi, trigger, RLS, grant, seed, partisi
 pnpm dev                       # api :3000, webhook :3001, worker, scheduler
 ```
+
+Menghubungkan toko marketplace butuh kunci aplikasi dari Shopee Open Platform dan TikTok Shop Partner Center (`SHOPEE_*`, `TIKTOKSHOP_*` di `.env.local`; penjelasannya di `.env.example`). Tanpa kunci, marketplace itu tampil "belum dikonfigurasi". Push dan webhook hanya sampai ke mesin lokal lewat tunnel yang diarahkan ke port 3001 (`PUBLIC_WEBHOOK_URL`). Uji integrasi tidak butuh kunci sungguhan: memakai server marketplace tiruan.
 
 Pengujian:
 

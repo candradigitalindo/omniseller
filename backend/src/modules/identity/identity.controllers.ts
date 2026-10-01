@@ -2,8 +2,8 @@ import { Body, Controller, Delete, Get, HttpCode, Inject, Param, Patch, Post, Pu
 import { ApiTags } from "@nestjs/swagger";
 import { ZodResponse } from "nestjs-zod";
 import type { RequestContext } from "../../common/context/request-context";
-import { ValidationError } from "../../common/errors/domain-errors";
 import { Ctx, Isolation, RequirePermission } from "../../common/http/decorators";
+import { parseIfMatch } from "../../common/http/if-match";
 import type { AuthedRequest } from "../../common/http/request";
 import {
   ChangePasswordDto,
@@ -27,15 +27,6 @@ import {
 import { InvitationsService } from "./invitations.service";
 import { RolesService } from "./roles.service";
 import { UsersService } from "./users.service";
-
-/** If-Match: "<row_version>" (backend doc 8.8). Optional; malformed values are rejected. */
-function parseIfMatch(req: AuthedRequest): number | undefined {
-  const raw = req.header("if-match");
-  if (raw === undefined) return undefined;
-  const m = /^(?:W\/)?"?(\d+)"?$/.exec(raw.trim());
-  if (!m) throw new ValidationError([{ path: "If-Match", message: 'Harus berisi row_version, contoh "3".' }]);
-  return Number(m[1]);
-}
 
 @ApiTags("me")
 @Controller("v1/me")

@@ -3,6 +3,7 @@ import type { Redis } from "ioredis";
 
 /** Queues from technology doc 7.1. Names are constants, not configuration. */
 export const QUEUES = [
+  "webhook",
   "order.ingest",
   "stock.push",
   "mp.outbound",
@@ -31,7 +32,8 @@ export class QueueRegistry {
 
   constructor(
     private readonly connection: Redis,
-    private readonly prefix = "bull",
+    /** Key prefix of every queue; tests use a per-run prefix so runs never see each other's jobs. */
+    readonly prefix = "bull",
   ) {}
 
   get(name: string): Queue {

@@ -37,6 +37,8 @@ pnpm test:int            # needs TEST_PG_ADMIN_URL + TEST_REDIS_URL, or Docker f
 - `src/jobs/`: `defineEvent`, `defineJob`, `jobKey`, registry; a module's jobs live in `src/modules/<name>/<name>.jobs.ts` and are added to `jobs/registry.ts`; `src/scheduler/`: relay and loops
 - `src/common/security/`: passwords, secret tokens, Redis sessions, rate limiter; `src/modules/auth/auth.guard.ts`: the global guard that builds `RequestContext`
 - `packages/shared/src`: ULID, money, permissions, statuses; `packages/logging`: the logger
+- `packages/connectors/<marketplace>`: marketplace clients (no database); `src/modules/channel/marketplace-gateway.ts` is how the worker calls them
+- `test/setup/mock-marketplace.ts`: fake Shopee and TikTok Shop that enforce the documented signatures and token rules
 
 ## How to add things
 Module: section 15.4. Table: 15.5 (write the SQL migration first, then the Drizzle mirror). Endpoint: 15.6. Job: 15.7. Connector: 15.8. Event: 15.9.
@@ -48,6 +50,11 @@ NestJS injection always uses explicit `@Inject(TOKEN)`; do not rely on construct
 - Inside a Drizzle `sql` subquery, reference the outer table's columns fully qualified (`sql.raw('"user"."id"')`). In a single-table select Drizzle renders `${user.id}` as a bare `"id"`, which binds to the subquery's own table.
 - Raw `tx.execute(sql...)` returns `timestamptz` as strings; use the query builder when you need `Date`.
 - Endpoints that must work before a tenant is known (login, webhooks, token links) go through the `SECURITY DEFINER` lookups in `PreTenantLookup`, never around RLS.
+- Never hold a database transaction open across an HTTP call to a marketplace: the worker role ends sessions idle in a transaction after 10 seconds. Call marketplaces only through `MarketplaceGateway` (rate limit, sync log, token refresh); for a lock that must span the call use `withAdvisoryLock`.
+- Webhook signatures cover the exact raw body. The webhook process parses no JSON before verifying (`webhook/webhook-app.ts`); do not add a JSON body parser there.
+- `outbox.enqueue` writes nothing for an event that no job consumes yet, so a test cannot look for that event's row.
+- Tests that touch BullMQ use the run's prefix (`infra.keyPrefix`, passed by `startApi`, `startWorker`, `startWebhook`); jobs under the default `bull` prefix would reach any worker sharing the Redis.
+- In the Indonesian market the TikTok Shop channel is shown as "Tokopedia & Shop" (platform branding rule, PRD 5.6); the internal channel id stays `tiktokshop`.
 
 ## Definition of done
 Tests per section 13.3 (integration tests run as the application roles, never as a superuser), migration checklist 12.3, docs updated (module README and the backend doc section you touched), PR checklist 15.11.

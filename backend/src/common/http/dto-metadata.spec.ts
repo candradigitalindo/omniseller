@@ -5,12 +5,19 @@ import { describe, expect, it } from "vitest";
 import { AuditController } from "../../modules/audit/audit.module";
 import { AuthController } from "../../modules/auth/auth.controller";
 import {
+  ChannelsController,
+  StoreAuthorizationsController,
+  StoresController,
+} from "../../modules/channel/channel.controllers";
+import {
   InvitationsController,
   MeController,
   RolesController,
   UsersController,
 } from "../../modules/identity/identity.controllers";
+import { WarehousesController } from "../../modules/inventory/inventory.module";
 import { HealthController } from "../../modules/platform/health.controller";
+import { WebhooksController } from "../../modules/sync/webhooks.controller";
 
 /**
  * Guards the contract the validation pipe relies on: every @Body, @Query, and @Param parameter must
@@ -26,6 +33,11 @@ const CONTROLLERS = [
   RolesController,
   InvitationsController,
   AuditController,
+  ChannelsController,
+  StoreAuthorizationsController,
+  StoresController,
+  WarehousesController,
+  WebhooksController,
 ];
 
 /** Same test nestjs-zod's pipe applies (its helper is not exported from the package root). */

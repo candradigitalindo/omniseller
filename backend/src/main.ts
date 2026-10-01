@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import { SwaggerModule } from "@nestjs/swagger";
 import { configureLogger, logger, setLogContextProvider } from "@omniseller/logging";
 import { AppModule } from "./app.module";
@@ -7,6 +8,7 @@ import { logFields } from "./common/context/request-context";
 import { NestPinoLogger } from "./common/logging/nest-logger";
 import { parseEnv } from "./config/env.schema";
 import { buildOpenApiDocument } from "./openapi/document";
+import { configureWebhookApp } from "./webhook/webhook-app";
 
 /** Entry point for every process role; APP_ROLE picks the modules (backend doc 3.1). */
 async function bootstrap(): Promise<void> {
@@ -16,7 +18,12 @@ async function bootstrap(): Promise<void> {
   const log = logger.forModule("main");
 
   if (env.APP_ROLE === "api" || env.APP_ROLE === "webhook") {
-    const app = await NestFactory.create(AppModule.forEnv(env), { logger: new NestPinoLogger(), bodyParser: true });
+    const webhook = env.APP_ROLE === "webhook";
+    const app = await NestFactory.create<NestExpressApplication>(AppModule.forEnv(env), {
+      logger: new NestPinoLogger(),
+      bodyParser: !webhook,
+    });
+    if (webhook) configureWebhookApp(app);
     app.enableShutdownHooks();
     if (env.APP_ROLE === "api") {
       // The web app calls the API cross-origin with the session cookie (technology doc 5.3).

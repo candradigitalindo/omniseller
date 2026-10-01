@@ -51,6 +51,9 @@ describe("parseEnv", () => {
       APP_ROLE: "worker",
       DATABASE_URL_WORKER: "postgres://w@localhost/db",
       PUBLIC_WEB_URL: "http://localhost:3100",
+      PUBLIC_WEBHOOK_URL: "https://hooks.omniseller.id",
+      KMS_KEY_ID_TOKENS: "alias/omniseller-tokens",
+      AWS_REGION: "ap-southeast-3",
     };
     expect(() => parseEnv({ ...worker, NODE_ENV: "production", EMAIL_TRANSPORT: "log" })).toThrow(
       /only allowed when NODE_ENV=local/,
@@ -58,6 +61,54 @@ describe("parseEnv", () => {
     expect(() => parseEnv({ ...worker, NODE_ENV: "staging", EMAIL_TRANSPORT: "memory" })).toThrow(/NODE_ENV=test/);
     expect(() => parseEnv({ ...worker, NODE_ENV: "staging" })).toThrow(/SMTP_URL/);
     expect(parseEnv({ ...worker, NODE_ENV: "staging", SMTP_URL: "smtp://ses:587" }).APP_ROLE).toBe("worker");
+  });
+
+  it("guards marketplace token encryption and marketplace key pairs", () => {
+    const worker = {
+      ...common,
+      APP_ROLE: "worker",
+      DATABASE_URL_WORKER: "postgres://w@localhost/db",
+      PUBLIC_WEB_URL: "http://localhost:3100",
+      PUBLIC_WEBHOOK_URL: "https://hooks.omniseller.id",
+      EMAIL_TRANSPORT: "memory",
+    };
+    const key = Buffer.alloc(32, 7).toString("base64");
+    // aws_kms is the default and needs its key and region
+    expect(() => parseEnv(worker)).toThrow(/KMS_KEY_ID_TOKENS/);
+    expect(parseEnv({ ...worker, TOKEN_KEY_PROVIDER: "local", TOKEN_LOCAL_MASTER_KEY: key }).APP_ROLE).toBe("worker");
+    expect(() => parseEnv({ ...worker, TOKEN_KEY_PROVIDER: "local", TOKEN_LOCAL_MASTER_KEY: "c2hvcnQ=" })).toThrow(
+      /32 random bytes/,
+    );
+    expect(() =>
+      parseEnv({
+        ...worker,
+        NODE_ENV: "production",
+        EMAIL_TRANSPORT: "smtp",
+        SMTP_URL: "smtp://x",
+        TOKEN_KEY_PROVIDER: "local",
+        TOKEN_LOCAL_MASTER_KEY: key,
+      }),
+    ).toThrow(/use aws_kms/);
+    const local = { ...worker, TOKEN_KEY_PROVIDER: "local", TOKEN_LOCAL_MASTER_KEY: key };
+    expect(() => parseEnv({ ...local, SHOPEE_PARTNER_ID: "2001887" })).toThrow(/SHOPEE_PARTNER_KEY/);
+    expect(() => parseEnv({ ...local, TIKTOKSHOP_APP_KEY: "k" })).toThrow(/TIKTOKSHOP_APP_SECRET/);
+    // empty values in an env file mean "not set"
+    expect(parseEnv({ ...local, SHOPEE_PARTNER_ID: "", SHOPEE_PARTNER_KEY: "" }).APP_ROLE).toBe("worker");
+  });
+
+  it("gives the api process marketplace ids but never secrets", () => {
+    const env = parseEnv({
+      ...common,
+      APP_ROLE: "api",
+      DATABASE_URL: "postgres://a@localhost/db",
+      PUBLIC_WEB_URL: "http://localhost:3100",
+      SHOPEE_PARTNER_ID: "2001887",
+      SHOPEE_PARTNER_KEY: "must-not-appear",
+      TIKTOKSHOP_APP_SECRET: "must-not-appear",
+    });
+    expect(env).toMatchObject({ SHOPEE_PARTNER_ID: 2001887 });
+    expect(env).not.toHaveProperty("SHOPEE_PARTNER_KEY");
+    expect(env).not.toHaveProperty("TIKTOKSHOP_APP_SECRET");
   });
 
   it("rejects an unknown role with a readable message", () => {

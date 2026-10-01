@@ -1,12 +1,6 @@
 import type { Channel } from "@omniseller/shared";
-import { boolean, customType, integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
-import { baseColumns, tstz, ulid } from "../columns";
-
-const bytea = customType<{ data: Buffer; driverData: Buffer }>({
-  dataType() {
-    return "bytea";
-  },
-});
+import { boolean, integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
+import { baseColumns, bytea, tstz, ulid } from "../columns";
 
 export type StoreStatus = "connecting" | "active" | "token_expiring" | "reauth_required" | "disconnected";
 
@@ -25,6 +19,31 @@ export const store = pgTable("store", {
   lastOrderSyncAt: tstz("last_order_sync_at"),
   lastProductSyncAt: tstz("last_product_sync_at"),
   settings: jsonb("settings").$type<Record<string, unknown>>().notNull().default({}),
+  /** When the seller's authorization for OmniSeller ends (Shopee up to 365 days, TikTok Shop per grant). */
+  authorizationExpiresAt: tstz("authorization_expires_at"),
+  /** Machine code explaining the current status, e.g. `authorization_revoked`, `refresh_failed`. */
+  statusReason: text("status_reason"),
+  statusChangedAt: tstz("status_changed_at").notNull().defaultNow(),
+  /** Non-secret marketplace metadata (seller type, shop code, logo, fulfillment flag). */
+  marketplaceInfo: jsonb("marketplace_info").$type<Record<string, unknown>>().notNull().default({}),
+});
+
+export type StoreAuthorizationStatus = "pending" | "exchanging" | "succeeded" | "failed" | "expired";
+
+/** One connect or reconnect attempt: the OAuth state (hashed) and the outcome of the code exchange. */
+export const storeAuthorization = pgTable("store_authorization", {
+  ...baseColumns(),
+  channel: text("channel").$type<Channel>().notNull(),
+  storeId: ulid("store_id"),
+  requestedBy: ulid("requested_by"),
+  stateHash: text("state_hash").notNull(),
+  status: text("status").$type<StoreAuthorizationStatus>().notNull().default("pending"),
+  expiresAt: tstz("expires_at").notNull(),
+  callbackAt: tstz("callback_at"),
+  completedAt: tstz("completed_at"),
+  result: jsonb("result").$type<Record<string, unknown>>().notNull().default({}),
+  errorCode: text("error_code"),
+  errorMessage: text("error_message"),
 });
 
 /** Readable only by omniseller_worker (token columns); omniseller_api sees expiry metadata only. */
@@ -39,6 +58,8 @@ export const storeCredential = pgTable("store_credential", {
   scopes: text("scopes").array().notNull().default([]),
   lastRefreshedAt: tstz("last_refreshed_at"),
   refreshFailCount: integer("refresh_fail_count").notNull().default(0),
+  /** TikTok Shop shop_cipher; kept with the tokens so a disconnect removes both. */
+  shopCipher: text("shop_cipher"),
 });
 
 export const channelWarehouse = pgTable("channel_warehouse", {

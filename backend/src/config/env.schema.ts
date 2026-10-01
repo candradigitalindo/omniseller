@@ -27,18 +27,86 @@ const systemRoleDb = { DATABASE_URL_SYSTEM: z.url() };
 /** Origin of the web app: CORS allow-list for the API, and the base of links in emails. */
 const publicWebUrl = { PUBLIC_WEB_URL: z.url() };
 
+/**
+ * Public origin of the webhook process (https://hooks.omniseller.id). Shopee signs the full callback
+ * URL, and TikTok Shop shops are subscribed to `${PUBLIC_WEBHOOK_URL}/webhooks/tiktokshop`.
+ */
+const publicWebhookUrl = { PUBLIC_WEBHOOK_URL: z.url() };
+
+/**
+ * Marketplace apps (technology doc 26.2). A channel whose keys are absent is "not configured": the API
+ * lists it as unavailable and refuses to start a connection. Each process gets only what it uses:
+ * api builds authorization links (public ids only), webhook verifies signatures, worker calls the APIs.
+ */
+const shopeeLink = {
+  SHOPEE_PARTNER_ID: z.coerce.number().int().positive().optional(),
+  SHOPEE_AUTH_BASE_URL: z.url().default("https://open.shopee.com"),
+};
+const shopeeSecret = { SHOPEE_PARTNER_KEY: z.string().min(8).optional() };
+const shopeeApi = { SHOPEE_API_BASE_URL: z.url().default("https://partner.shopeemobile.com") };
+
+const tiktokLink = {
+  TIKTOKSHOP_SERVICE_ID: z.string().min(1).optional(),
+  TIKTOKSHOP_AUTHORIZE_URL: z.url().default("https://services.tiktokshop.com/open/authorize"),
+};
+const tiktokSecret = {
+  TIKTOKSHOP_APP_KEY: z.string().min(1).optional(),
+  TIKTOKSHOP_APP_SECRET: z.string().min(8).optional(),
+};
+const tiktokApi = {
+  TIKTOKSHOP_API_BASE_URL: z.url().default("https://open-api.tiktokglobalshop.com"),
+  TIKTOKSHOP_AUTH_BASE_URL: z.url().default("https://auth.tiktok-shops.com"),
+};
+
+/**
+ * Envelope encryption of marketplace tokens (technology doc 19.3). `aws_kms` wraps each tenant DEK
+ * with KMS_KEY_ID_TOKENS; `local` wraps it with a 32-byte master key and is refused outside local/test.
+ */
+const tokenKeys = {
+  TOKEN_KEY_PROVIDER: z.enum(["aws_kms", "local"]).default("aws_kms"),
+  TOKEN_LOCAL_MASTER_KEY: z.string().optional(),
+  KMS_KEY_ID_TOKENS: z.string().optional(),
+  AWS_REGION: z.string().optional(),
+};
+
+type Refinable = { NODE_ENV: string } & Record<string, unknown>;
+
+function bothOrNeither(e: Record<string, unknown>, a: string, b: string): boolean {
+  return (e[a] === undefined) === (e[b] === undefined);
+}
+
+function base64Key32(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  return Buffer.from(value, "base64").length === 32;
+}
+
 const apiEnv = base.extend({
   APP_ROLE: z.literal("api"),
   PORT: z.coerce.number().int().positive().default(3000),
   ...apiRoleDb,
   ...publicWebUrl,
+  ...shopeeLink,
+  ...tiktokLink,
 });
 
-const webhookEnv = base.extend({
-  APP_ROLE: z.literal("webhook"),
-  PORT: z.coerce.number().int().positive().default(3001),
-  ...apiRoleDb,
-});
+const webhookEnv = base
+  .extend({
+    APP_ROLE: z.literal("webhook"),
+    PORT: z.coerce.number().int().positive().default(3001),
+    ...apiRoleDb,
+    ...publicWebhookUrl,
+    SHOPEE_PARTNER_ID: shopeeLink.SHOPEE_PARTNER_ID,
+    ...shopeeSecret,
+    ...tiktokSecret,
+  })
+  .refine((e) => bothOrNeither(e, "SHOPEE_PARTNER_ID", "SHOPEE_PARTNER_KEY"), {
+    path: ["SHOPEE_PARTNER_KEY"],
+    message: "SHOPEE_PARTNER_ID and SHOPEE_PARTNER_KEY are set together",
+  })
+  .refine((e) => bothOrNeither(e, "TIKTOKSHOP_APP_KEY", "TIKTOKSHOP_APP_SECRET"), {
+    path: ["TIKTOKSHOP_APP_SECRET"],
+    message: "TIKTOKSHOP_APP_KEY and TIKTOKSHOP_APP_SECRET are set together",
+  });
 
 /**
  * Email (technology doc 13): SMTP everywhere real mail is sent (Mailpit locally, the Amazon SES SMTP
@@ -56,7 +124,35 @@ const workerEnv = base
     APP_ROLE: z.literal("worker"),
     ...workerRoleDb,
     ...publicWebUrl,
+    ...publicWebhookUrl,
     ...emailEnv,
+    ...shopeeLink,
+    ...shopeeSecret,
+    ...shopeeApi,
+    ...tiktokLink,
+    ...tiktokSecret,
+    ...tiktokApi,
+    ...tokenKeys,
+  })
+  .refine((e) => bothOrNeither(e, "SHOPEE_PARTNER_ID", "SHOPEE_PARTNER_KEY"), {
+    path: ["SHOPEE_PARTNER_KEY"],
+    message: "SHOPEE_PARTNER_ID and SHOPEE_PARTNER_KEY are set together",
+  })
+  .refine((e) => bothOrNeither(e, "TIKTOKSHOP_APP_KEY", "TIKTOKSHOP_APP_SECRET"), {
+    path: ["TIKTOKSHOP_APP_SECRET"],
+    message: "TIKTOKSHOP_APP_KEY and TIKTOKSHOP_APP_SECRET are set together",
+  })
+  .refine((e: Refinable) => e.TOKEN_KEY_PROVIDER !== "local" || e.NODE_ENV === "local" || e.NODE_ENV === "test", {
+    path: ["TOKEN_KEY_PROVIDER"],
+    message: "local is only allowed when NODE_ENV is local or test; use aws_kms",
+  })
+  .refine((e) => e.TOKEN_KEY_PROVIDER !== "local" || base64Key32(e.TOKEN_LOCAL_MASTER_KEY), {
+    path: ["TOKEN_LOCAL_MASTER_KEY"],
+    message: "required with TOKEN_KEY_PROVIDER=local: 32 random bytes, base64 (openssl rand -base64 32)",
+  })
+  .refine((e) => e.TOKEN_KEY_PROVIDER !== "aws_kms" || (!!e.KMS_KEY_ID_TOKENS && !!e.AWS_REGION), {
+    path: ["KMS_KEY_ID_TOKENS"],
+    message: "KMS_KEY_ID_TOKENS and AWS_REGION are required with TOKEN_KEY_PROVIDER=aws_kms",
   })
   .refine((e) => e.EMAIL_TRANSPORT !== "smtp" || !!e.SMTP_URL, {
     path: ["SMTP_URL"],
@@ -105,7 +201,9 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
   if (!role || !(APP_ROLES as readonly string[]).includes(role)) {
     throw new InvalidEnvError([`APP_ROLE must be one of ${APP_ROLES.join(", ")} (got ${role ?? "nothing"})`]);
   }
-  const result = envSchema.safeParse(source);
+  // An empty value in an env file means "not set" (optional marketplace keys, KMS outside AWS).
+  const present = Object.fromEntries(Object.entries(source).filter(([, v]) => v !== undefined && v !== ""));
+  const result = envSchema.safeParse(present);
   if (!result.success) {
     throw new InvalidEnvError(result.error.issues.map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`));
   }

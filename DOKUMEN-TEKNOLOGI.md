@@ -2,11 +2,11 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.4 |
+| Versi dokumen | 1.5 |
 | Tanggal | 1 Oktober 2026 |
 | Status | Keputusan final untuk implementasi |
 | Pemilik dokumen | Candra Syahputra |
-| Dokumen induk | DOKUMEN-SPESIFIKASI-APLIKASI.md versi 1.9 (PRD); rincian backend di DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.3 |
+| Dokumen induk | DOKUMEN-SPESIFIKASI-APLIKASI.md versi 1.10 (PRD); rincian backend di DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.4 |
 | Audiens | Tech lead, engineer backend, frontend, mobile, DevOps, QA |
 
 Dokumen ini menetapkan teknologi yang dipakai OmniSeller. Setiap lapisan memiliki **satu keputusan**, bukan daftar pilihan. Alasan dan konsekuensinya dicatat agar keputusan dapat ditinjau ulang dengan dasar yang jelas, bukan diganti karena selera. Perubahan keputusan hanya melalui ADR baru (bagian 25).
@@ -336,6 +336,7 @@ Tabel bervolume tinggi dipartisi **range pada kolom `id`** (ULID terurut waktu) 
 
 | Antrean | Isi | Konkurensi per worker | Percobaan ulang |
 |---|---|---|---|
+| `webhook` | Notifikasi marketplace yang sudah tersimpan di `webhook_inbox`, satu job per baris | 20 | 5 kali, backoff eksponensial mulai 2 detik |
 | `order.ingest` | Pesanan masuk dari webhook dan polling | 20 | 5 kali, backoff eksponensial mulai 2 detik |
 | `stock.push` | Dorong stok per (variant, warehouse) | 10 per toko melalui token bucket | 8 kali, backoff sampai 10 menit |
 | `mp.outbound` | Panggilan tulis ke marketplace (terima pesanan, atur kirim, ubah harga) | Dibatasi per toko | 5 kali |
@@ -372,8 +373,8 @@ Setiap marketplace adalah paket di `packages/connectors/<nama>` yang mengimpleme
 
 | Connector | Paket | Catatan implementasi |
 |---|---|---|
-| Shopee | `@omniseller/connector-shopee` | Tanda tangan HMAC-SHA256 per permintaan, access token 4 jam, webhook push, modul lengkap (produk, pesanan, logistik, pembayaran, promosi, retur, account health, chat, media, ads) |
-| TikTok Shop dan Tokopedia | `@omniseller/connector-tiktokshop` | Satu connector untuk kedua toko, webhook, modul affiliate dan analytics |
+| Shopee | `@omniseller/connector-shopee` (ada: otorisasi, info toko, gudang, push) | Open Platform v2. Tanda tangan HMAC-SHA256 dengan partner key atas `partner_id + path + timestamp [+ access_token + shop_id]`, cap waktu berlaku 5 menit. Tautan otorisasi baru `open.shopee.com/auth` dengan `state`. Access token 4 jam; refresh token 30 hari, sekali pakai per toko; izin seller maksimal 365 hari; akun utama bisa memberi beberapa toko sekaligus. Push diatur per aplikasi, ditandatangani HMAC atas `URL callback + "|" + body`. Modul berikutnya: produk, pesanan, logistik, pembayaran, promosi, retur, account health, chat, media, ads |
+| TikTok Shop dan Tokopedia | `@omniseller/connector-tiktokshop` (ada: otorisasi, toko, gudang termasuk FBT, webhook) | Satu connector untuk kedua toko: di Indonesia keduanya satu toko "Tokopedia & Shop" dengan TikTok Shop API, dan merek "TikTok" tidak boleh tampil di antarmuka pihak ketiga. API versi 202309: token di header `x-tts-access-token`, tanda tangan HMAC-SHA256 atas `secret + path + parameter terurut + body + secret`, `shop_cipher` untuk panggilan toko. Access token 7 hari; masa refresh token sama dengan masa izin seller. Webhook berlangganan per toko lewat Event API, ditandatangani HMAC atas `app_key + body`. Modul berikutnya: produk, pesanan, fulfillment, keuangan, retur, promosi, affiliate, analytics, layanan pelanggan |
 | Lazada | `@omniseller/connector-lazada` | LazOP 2.0, Lazada Push |
 | Blibli | `@omniseller/connector-blibli` | Seller API dan webhook |
 | Shopify, WooCommerce | `@omniseller/connector-shopify`, `-woocommerce` | Fase 2 |
@@ -383,20 +384,22 @@ Setiap marketplace adalah paket di `packages/connectors/<nama>` yang mengimpleme
 
 - Semua respons API disimpan mentah (payload) ke `sync_job` untuk debugging, dengan retensi 90 hari dan penyamaran field pribadi pembeli sebelum disimpan.
 - Setiap connector mendeklarasikan batas laju per toko dan per partner. Nilai dibaca dari konfigurasi, bukan ditulis mati.
-- Error diklasifikasikan: `Transient` (jaringan, 429, 5xx) diulang; `AuthExpired` memicu refresh token lalu ulang sekali; `Permanent` (400, data tidak valid, token dicabut) dilaporkan ke pengguna tanpa ulang.
+- Error diklasifikasikan: `Transient` (jaringan, 429, 5xx) diulang; `AuthExpired` memicu refresh token lalu ulang sekali; `AuthRevoked` (izin dicabut atau habis, toko dibekukan) membuat toko perlu diotorisasi ulang; `Permanent` (400, data tidak valid) dilaporkan ke pengguna tanpa ulang.
 - Pemetaan status pesanan per marketplace berada di tabel konfigurasi connector, bukan di kode inti.
 - Uji kontrak: setiap metode memiliki fixture respons nyata (teranonimkan) dan dijalankan terhadap sandbox setiap hari (PRD 13.3).
 
 ### 8.3 Webhook receiver
 
-- Proses `webhook` hanya melakukan: verifikasi tanda tangan, tulis ke `webhook_inbox` dengan constraint unik `(source, event_id)`, enqueue, balas 200. Tidak ada logika bisnis, tidak ada panggilan keluar. Target p95 di bawah 200 milidetik.
+- Proses `webhook` hanya melakukan: verifikasi tanda tangan atas body mentah, tulis ke `webhook_inbox` dengan constraint unik `(source, event_id)`, enqueue, balas 200 dengan body kosong. Tidak ada logika bisnis, tidak ada panggilan keluar. Target p95 di bawah 200 milidetik; Shopee menghitung gagal bila tidak dijawab dalam 3 detik.
+- Satu baris inbox per (notifikasi, toko), dirutekan ke tenant lewat fungsi `resolve_store`. Notifikasi untuk toko yang belum terhubung disimpan tanpa tenant dan dirutekan ulang oleh scheduler bila tokonya terhubung dalam 15 menit. Tanda tangan salah dijawab 401 tanpa disimpan.
 - Bila Redis tidak tersedia, receiver tetap menulis ke `webhook_inbox` dan membalas 200. Scheduler mengambil baris yang belum diproses setiap 30 detik. Tidak ada webhook yang hilang karena antrean mati.
 
 ### 8.4 Siklus token
 
 - Token disimpan terenkripsi (bagian 19.3). Hanya proses worker dan scheduler yang memiliki hak dekripsi.
-- Scheduler memperbarui token pada 80% masa hidup. Untuk Shopee (4 jam) berarti sekitar setiap 3 jam per toko, dengan jitter agar tidak serentak.
-- Refresh dilakukan di dalam transaksi yang mengunci baris `store_credential` toko itu, lalu memeriksa ulang masa berlaku, karena beberapa marketplace merotasi refresh token dan hanya menerima satu pemakaian.
+- Scheduler memeriksa setiap 15 menit dan memperbarui token yang melewati 80% masa hidupnya. Untuk Shopee (4 jam) berarti sekitar setiap 3 jam per toko; untuk TikTok Shop (7 hari) sekitar setiap 5,6 hari.
+- Refresh dikunci per toko dengan advisory lock PostgreSQL yang dipegang di luar transaksi, lalu masa berlaku diperiksa ulang sesudah kunci didapat (ADR-034). Refresh token Shopee hanya bisa dipakai sekali per toko dan TikTok Shop merotasinya, jadi dua refresh bersamaan akan mematikan koneksi.
+- Toko berstatus "token hampir kedaluwarsa" 14 hari sebelum izin seller berakhir, atau saat marketplace mengirim pemberitahuan (Shopee 7 hari sebelumnya, TikTok Shop 30 hari sebelumnya lalu setiap hari).
 - Kegagalan refresh tiga kali berturut menandai toko `reauth_required` dan mengirim notifikasi.
 
 ### 8.5 Polling cadangan
@@ -636,7 +639,7 @@ Alarm P1 masuk ke Better Stack on-call (telepon dan WhatsApp), alarm lain ke sal
 
 - Data at rest: RDS, EBS, dan ElastiCache terenkripsi dengan KMS.
 - Data in transit: TLS 1.2 minimum di edge, TLS antar layanan internal ke basis data dan Redis.
-- **Token marketplace dan rahasia tenant**: envelope encryption. Setiap tenant memiliki data encryption key (DEK) yang dienkripsi oleh KMS CMK. Token dienkripsi AES-256-GCM dengan DEK tenant, disimpan bersama nonce dan versi kunci. Rotasi CMK tahunan otomatis, rotasi DEK saat tenant meminta atau saat insiden.
+- **Token marketplace dan rahasia tenant** (sudah diimplementasikan, ADR-035): envelope encryption. Setiap tenant memiliki data encryption key (DEK) yang dienkripsi oleh KMS CMK. Token dienkripsi AES-256-GCM dengan DEK tenant, disimpan bersama nonce dan versi kunci. Rotasi CMK tahunan otomatis, rotasi DEK saat tenant meminta atau saat insiden.
 - Hanya proses `worker` dan `scheduler` yang memegang izin KMS. Proses `api` tidak memegang izin KMS sama sekali: redirect OAuth diterima `api`, kodenya diteruskan lewat outbox, dan job di worker yang menukarnya dengan token, mengenkripsi dengan DEK tenant, dan menyimpannya (ADR-029). Dengan envelope encryption, `api` memang tidak dapat mengenkripsi tanpa DEK plaintext, dan mendapatkan DEK berarti bisa mendekripsi.
 
 ### 19.4 Rantai pasok dan kode
@@ -829,6 +832,8 @@ Fase 2 menambah satu engineer backend (promosi, chat, kesehatan toko) dan satu e
 | ADR-031 | Id job BullMQ dengan pemisah `\|` dan kunci kejadian untuk aksi berulang | BullMQ 5 menolak `:` di id kustom; id kunci bisnis saja membuat dorongan stok atau harga kedua dalam satu jam dibuang diam-diam | Id lebih panjang; konvensi dijaga helper `jobKey()` |
 | ADR-032 | Satu folder per komponen di root repositori; backend di `backend/` sebagai workspace pnpm sendiri tanpa Turborepo | Root hanya berisi dokumen dan setiap komponen jelas batasnya; tiga paket kecil tidak butuh orkestrasi build | Berbagi `packages/shared` dengan frontend dan mobile belum otomatis; mekanismenya diputuskan saat frontend dimulai (menggeser workspace ke root, atau menerbitkan paket) |
 | ADR-033 | Izin dan cakupan pengguna dimuat ulang dari basis data setiap permintaan, bukan dibekukan di sesi | Mencabut peran, mengubah cakupan toko, atau menonaktifkan pengguna berlaku di permintaan berikutnya, tanpa menunggu sesi 30 hari habis dan tanpa daftar pencabutan | Satu query agregat per permintaan (indeks `(tenant_id, user_id)`); cache Redis pendek bisa ditambahkan bila terukur jadi beban |
+| ADR-034 | Refresh token marketplace dikunci dengan advisory lock PostgreSQL di luar transaksi, bukan kunci baris | Kunci baris menahan transaksi terbuka selama panggilan HTTP, padahal role worker memutus sesi yang diam di dalam transaksi lebih dari 10 detik; refresh token Shopee sekali pakai dan TikTok Shop berotasi | Satu koneksi pool dipegang selama refresh; kunci per toko lewat `hashtextextended` |
+| ADR-035 | DEK per tenant di tabel `tenant_key`, dibungkus KMS dengan encryption context `tenant_id`; token terikat ke toko dan jenisnya lewat AAD AES-GCM | Token yang disalin ke baris lain atau tenant lain tidak bisa dibuka; KMS dipanggil sekali per tenant per 10 menit berkat cache DEK | Rotasi DEK perlu enkripsi ulang semua kredensial tenant; penyedia `local` hanya untuk local dan test |
 
 ---
 
@@ -876,8 +881,11 @@ marketplace/
 | `REDIS_QUEUE_URL`, `REDIS_CACHE_URL` | semua | Dua instans |
 | `MEILISEARCH_URL`, `MEILISEARCH_KEY` | api, worker | |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_*` | api, worker | |
-| `KMS_KEY_ID_TOKENS` | worker, scheduler | Envelope encryption; tidak pernah diberikan ke api |
-| `SHOPEE_PARTNER_ID`, `SHOPEE_PARTNER_KEY` | webhook, worker, scheduler | Per marketplace, pola yang sama untuk TikTok Shop, Lazada, Blibli |
+| `TOKEN_KEY_PROVIDER`, `KMS_KEY_ID_TOKENS`, `AWS_REGION` | worker | Envelope encryption; tidak pernah diberikan ke api. `TOKEN_LOCAL_MASTER_KEY` hanya untuk local dan test |
+| `PUBLIC_WEBHOOK_URL` | webhook, worker | Origin publik proses webhook; Shopee menandatangani URL callback lengkap |
+| `SHOPEE_PARTNER_ID` (api, webhook, worker), `SHOPEE_PARTNER_KEY` (webhook, worker), `SHOPEE_API_BASE_URL`, `SHOPEE_AUTH_BASE_URL` | lihat kolom kiri | Kosong berarti marketplace belum dikonfigurasi |
+| `TIKTOKSHOP_SERVICE_ID` (api), `TIKTOKSHOP_APP_KEY`, `TIKTOKSHOP_APP_SECRET` (webhook, worker), `TIKTOKSHOP_AUTHORIZE_URL`, `TIKTOKSHOP_API_BASE_URL`, `TIKTOKSHOP_AUTH_BASE_URL` | lihat kolom kiri | Sama |
+| `LAZADA_*`, `BLIBLI_*` | webhook, worker | Per marketplace, pola yang sama untuk TikTok Shop, Lazada, Blibli |
 | `ANTHROPIC_API_KEY`, `VOYAGE_API_KEY` | worker | |
 | `XENDIT_SECRET_KEY`, `XENDIT_WEBHOOK_TOKEN` | api, webhook | |
 | `SES_REGION`, `EMAIL_FROM` | worker | |
@@ -914,47 +922,29 @@ Di aplikasi, helper `withTenantTx` membuka transaksi, menjalankan `set_config('a
 
 ### 26.4 Antarmuka connector (ringkas)
 
+Bagian yang sudah ada di `@omniseller/connector-core` (bagian lain ditambahkan bersama modul yang memakainya):
+
 ```ts
 export interface MarketplaceConnector {
-  readonly id: "shopee" | "tiktokshop" | "lazada" | "blibli" | "shopify" | "woocommerce";
-  readonly rateLimit: { perShopPerSecond: number; perPartnerPerSecond: number };
+  readonly manifest: ConnectorManifest; // id, displayName, shopRateLimit, accessTokenLifetimeSeconds, supportedRegions
 
   auth: {
-    buildAuthorizeUrl(state: string): string;
-    exchangeCode(code: string, shopHint?: string): Promise<TokenSet>;
-    refresh(tokens: TokenSet): Promise<TokenSet>;
+    authorizeUrl(input: { state: string; redirectUri: string }): string;
+    revokeUrl(input: { redirectUri: string }): string | null; // Shopee cancel_auth; TikTok Shop tidak punya
+    exchangeCode(input: { code: string; shopId?: string; mainAccountId?: string }): Promise<AuthorizationGrant>;
+    refresh(input: { refreshToken: string; externalShopId: string }): Promise<TokenSet>;
   };
+  shops: { describe(grant: AuthorizationGrant): Promise<ShopProfile[]> };
+  warehouses: { list(shop: ShopCredentials): Promise<MarketplaceWarehouse[]> };
   webhooks: {
-    verify(headers: Headers, rawBody: Buffer): boolean;
-    parse(rawBody: Buffer): NormalizedEvent[];
+    verify(req: { url: string; headers: Record<string, string | undefined>; rawBody: Buffer }): boolean;
+    parse(rawBody: Buffer): NormalizedWebhookEvent[];
+    subscribe?(shop: ShopCredentials, address: string): Promise<string[]>; // hanya bila langganan per toko
   };
-  catalog: {
-    listItems(ctx: ShopCtx, cursor?: string): Promise<Page<NormalizedListing>>;
-    updateStock(ctx: ShopCtx, updates: StockUpdate[]): Promise<Result[]>;
-    updatePrice(ctx: ShopCtx, updates: PriceUpdate[]): Promise<Result[]>;
-    setListingStatus(ctx: ShopCtx, ids: string[], active: boolean): Promise<Result[]>;
-  };
-  orders: {
-    list(ctx: ShopCtx, since: Date, cursor?: string): Promise<Page<NormalizedOrder>>;
-    get(ctx: ShopCtx, externalOrderId: string): Promise<NormalizedOrder>;
-    accept(ctx: ShopCtx, ids: string[]): Promise<Result[]>;
-    cancel(ctx: ShopCtx, id: string, reason: string): Promise<Result>;
-  };
-  fulfillment: {
-    arrangeShipment(ctx: ShopCtx, req: ShipmentRequest[]): Promise<Result[]>;
-    getLabel(ctx: ShopCtx, ids: string[]): Promise<LabelFile[]>;
-    track(ctx: ShopCtx, trackingNumber: string): Promise<TrackingStatus>;
-  };
-  warehouses: { list(ctx: ShopCtx): Promise<MarketplaceWarehouse[]> };
-  finance?: { settlements(ctx: ShopCtx, range: DateRange): Promise<SettlementLine[]> };
-  returns?: { list(ctx: ShopCtx, since: Date): Promise<ReturnRequest[]>; respond(ctx: ShopCtx, id: string, action: ReturnAction): Promise<Result> };
-  chat?: { threads(ctx: ShopCtx, since: Date): Promise<ChatThread[]>; send(ctx: ShopCtx, threadId: string, msg: OutboundMessage): Promise<Result> };
-  promotions?: { list(ctx: ShopCtx): Promise<Promotion[]>; upsert(ctx: ShopCtx, promo: PromotionInput): Promise<Result> };
-  health?: { metrics(ctx: ShopCtx): Promise<ShopHealth> };
 }
 ```
 
-Setiap metode opsional yang tidak didukung marketplace dibiarkan `undefined`, dan UI menyembunyikan fitur terkait untuk toko itu.
+Bagian berikutnya mengikuti modulnya: `catalog` (daftar listing, ubah stok, harga, status), `orders` (daftar, detail, terima, batal), `fulfillment` (atur kirim, label, lacak), lalu `finance`, `returns`, `chat`, `promotions`, `health` sebagai bagian opsional. Bagian opsional yang tidak didukung marketplace dibiarkan `undefined`, dan UI menyembunyikan fitur terkait untuk toko itu.
 
 ### 26.5 Referensi
 
@@ -971,3 +961,4 @@ Setiap metode opsional yang tidak didukung marketplace dibiarkan `undefined`, da
 | 1.2 | 30 September 2026 | Hasil implementasi fondasi backend: ADR-027 sampai ADR-031; ADR-004 dan ADR-023 disesuaikan; contoh grant kolom di 26.3 diperbaiki (versi lama tidak mencabut akses token); api tanpa KMS (19.3); kunci per toko saat refresh token (8.4); format `jobId` (7.1); variabel basis data per role (26.2); lima peran proses; sisa rujukan pg_partman dihapus; kunci `inventory` | Candra Syahputra |
 | 1.3 | 30 September 2026 | Struktur repositori per komponen: kode backend di `backend/`, root hanya dokumen; Turborepo tidak dipakai; ADR-032; struktur 26.1 dan lokasi pengujian disesuaikan | Candra Syahputra |
 | 1.4 | 1 Oktober 2026 | Hasil implementasi identitas dan autentikasi: email lewat SMTP SES dengan Nodemailer dari worker; token undangan dan atur ulang sandi acak dengan hash (bukan tautan bertanda tangan); penguncian dan batas laju di 5.3; ADR-033 (izin dimuat ulang per permintaan); tipe `tenant_id` di 5.4 disamakan dengan ADR-023 | Candra Syahputra |
+| 1.5 | 1 Oktober 2026 | Hasil implementasi koneksi toko: fakta API Shopee dan TikTok Shop diverifikasi terhadap dokumentasi resmi per Oktober 2026 (8.1); nama tampilan "Tokopedia & Shop"; antrean `webhook` (7.1); webhook receiver dan siklus token diperinci (8.3, 8.4); ADR-034 (advisory lock), ADR-035 (DEK per tenant dan AAD); variabel lingkungan marketplace dan enkripsi (26.2); antarmuka connector sesuai kode (26.4) | Candra Syahputra |

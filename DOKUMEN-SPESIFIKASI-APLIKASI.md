@@ -4,7 +4,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.9 |
+| Versi dokumen | 1.10 |
 | Tanggal | 30 September 2026 |
 | Status | Draft untuk review |
 | Pemilik dokumen | Candra Syahputra |
@@ -229,7 +229,7 @@ Menjadi pusat kendali operasional harian pedagang multi-kanal, sehingga pedagang
 |---|---|---|---|
 | Tier 1 (MVP) | Shopee | Produk, stok, pesanan, label, chat, settlement, retur | Volume tertinggi di Indonesia |
 | Tier 1 (MVP) | Tokopedia | Produk, stok, pesanan, label, chat, settlement | Tokopedia Open API lama telah dihentikan per 30 September 2025. Toko Tokopedia kini diintegrasikan melalui TikTok Shop Partner Center ("Tokopedia & Shop"), sehingga satu connector melayani keduanya |
-| Tier 1 (MVP) | TikTok Shop | Produk, stok, pesanan, label, chat, settlement, retur | Pertumbuhan tercepat, live commerce |
+| Tier 1 (MVP) | TikTok Shop | Produk, stok, pesanan, label, chat, settlement, retur | Pertumbuhan tercepat, live commerce. Di pasar Indonesia toko TikTok Shop dan Tokopedia adalah satu toko "Tokopedia & Shop"; antarmuka OmniSeller menampilkan kanal ini dengan nama dan logo "Tokopedia & Shop", tidak memakai merek TikTok (lihat 5.6) |
 | Tier 1 | Lazada | Produk, stok, pesanan, label, chat, settlement | |
 | Tier 1 | Blibli | Produk, stok, pesanan, label, promo seller, webhook | Blibli Seller API resmi tersedia di seller-api.blibli.com. Chat dan settlement diverifikasi saat implementasi |
 | Tier 2 | Zalora | Produk, stok, pesanan | Segmen fashion |
@@ -280,6 +280,7 @@ Kebutuhan rincinya ada di bagian 6.3.2.
 | Penghentian Tokopedia Open API (30 September 2025) | Semua integrasi Tokopedia berpindah ke TikTok Shop Partner Center | Satu connector untuk Tokopedia dan TikTok Shop. Tidak ada connector Tokopedia terpisah |
 | PMK 37/2025 (berlaku efektif 1 Agustus 2026) | Shopee, Tokopedia, Lazada, dan Blibli ditunjuk memungut PPh Pasal 22 sebesar 0,5% dari omzet seller. Seller orang pribadi dengan omzet sampai Rp500 juta setahun dikecualikan bila mengunggah surat pernyataan omzet. Seller dengan SKB (Surat Keterangan Bebas) juga dikecualikan. Bukti pemungutan per transaksi disalurkan melalui Coretax | Modul keuangan mencatat PPh 22 per pesanan, memantau omzet kumulatif mendekati ambang Rp500 juta, mengingatkan unggah surat pernyataan atau SKB di tiap marketplace, dan merekap bukti pemungutan untuk SPT |
 | Permendag 19/2026 (Juni 2026, menggantikan Permendag 31/2023) | Seller domestik wajib punya NIB (status "dalam proses legalisasi" maksimal 6 bulan). Marketplace wajib transparan soal biaya dan memberi tahu perubahan biaya. Label toko (official store, star seller, dan sejenisnya) diatur. Konten yang dibuat dengan AI wajib diberi keterangan. Perlindungan konsumen diperketat | Onboarding menyimpan NIB dan dokumen legalitas dengan pengingat. Tabel biaya marketplace bisa diperbarui dari pengumuman resmi. Setiap fitur AI yang menghasilkan konten menampilkan penanda "dibuat dengan bantuan AI" dan pengguna meninjau sebelum publikasi |
+| Pedoman merek "Tokopedia & Shop" (TikTok Shop Partner Center, pasar Indonesia) | Sesuai peraturan Indonesia, merek atau logo "TikTok" tidak boleh dipakai di layanan dan fitur pihak ketiga (antarmuka, label kirim kustom, invoice kustom); gantinya "Tokopedia & Shop". Label kirim kustom sebaiknya tanpa logo tambahan | Nama kanal, ikon, filter, laporan, label, dan invoice memakai "Tokopedia & Shop". Nama internal teknis tetap `tiktokshop` |
 | UU 27/2022 tentang Pelindungan Data Pribadi | Data pembeli adalah data pribadi | Retensi terbatas, akses berbasis peran, log audit (lihat bagian 12) |
 | Kewajiban PKP (omzet di atas Rp4,8 miliar) | Wajib menerbitkan e-Faktur melalui Coretax | Ekspor data penjualan dalam format siap unggah e-Faktur (fase lanjutan) |
 
@@ -1114,14 +1115,14 @@ erDiagram
 
 | Marketplace | Platform pengembang | Autentikasi | Push notifikasi | Catatan implementasi |
 |---|---|---|---|---|
-| Shopee | Shopee Open Platform (OpenAPI v2) | Partner ID + Partner Key, tanda tangan HMAC-SHA256 per permintaan, otorisasi toko oleh seller, access token berumur sekitar 4 jam dengan refresh token | Ya (webhook push untuk pesanan, chat, dan lainnya) | Modul mencakup shop, product, order, logistics, payment, discount, voucher, bundle deal, add-on deal, flash sale, returns, account health, chat, media space, ads. Butuh pendaftaran partner dan review aplikasi |
-| TikTok Shop dan Tokopedia | TikTok Shop Partner Center ("Tokopedia & Shop" untuk pasar Indonesia) | App Key + App Secret, otorisasi toko, access token dengan refresh | Ya | Satu connector untuk kedua toko. Modul: seller, product, order, fulfillment, logistics, finance, return & refund, promotion, affiliate seller, analytics, customer service, events. Gateway hanya menerima HTTPS |
+| Shopee | Shopee Open Platform (OpenAPI v2) | Partner ID + Partner Key, tanda tangan HMAC-SHA256 per permintaan, otorisasi toko oleh seller lewat tautan `open.shopee.com/auth` (akun toko atau akun utama yang memberi beberapa toko sekaligus), access token 4 jam, refresh token 30 hari yang hanya bisa dipakai sekali, izin seller maksimal 365 hari | Ya (webhook push untuk pesanan, chat, dan lainnya) | Modul mencakup shop, product, order, logistics, payment, discount, voucher, bundle deal, add-on deal, flash sale, returns, account health, chat, media space, ads. Butuh pendaftaran partner dan review aplikasi |
+| TikTok Shop dan Tokopedia | TikTok Shop Partner Center ("Tokopedia & Shop" untuk pasar Indonesia) | App Key + App Secret, otorisasi seller lewat `services.tiktokshop.com/open/authorize`, access token 7 hari, refresh token berlaku selama izin seller, `shop_cipher` per toko; seller lokal punya satu toko per otorisasi | Ya | Satu connector untuk kedua toko. Modul: seller, product, order, fulfillment, logistics, finance, return & refund, promotion, affiliate seller, analytics, customer service, events. Gateway hanya menerima HTTPS |
 | Lazada | Lazada Open Platform (LazOP 2.0) | App Key + App Secret, tanda tangan per permintaan, otorisasi seller | Ya (Lazada Push) | Modul: seller (termasuk metrik performa), product, media center (video), order, fulfillment, logistics, finance, return & refund (reverse order), instant messaging, product review, seller voucher, flexi combo, free shipping |
 | Blibli | Blibli Seller API (seller-api.blibli.com) | API key per seller | Ya (webhook) | Modul: product management, order management, seller promo, webhook. Chat, settlement, dan gudang daerah diverifikasi dengan tim Blibli |
 | Zalora | Seller Center API (berbasis platform e-commerce yang dipakai Zalora) | API key + user | Tidak / polling | Fase 2 |
 | Shopify / WooCommerce | REST/GraphQL API | OAuth / API key | Ya | Fase 2 |
 
-Semua detail teknis di atas wajib diverifikasi ulang terhadap dokumentasi resmi masing-masing marketplace pada saat implementasi, karena kebijakan API dapat berubah.
+Semua detail teknis di atas wajib diverifikasi ulang terhadap dokumentasi resmi masing-masing marketplace pada saat implementasi, karena kebijakan API dapat berubah. Baris Shopee dan TikTok Shop sudah diverifikasi terhadap dokumentasi resmi per Oktober 2026 saat koneksi toko diimplementasikan.
 
 ### 11.2 Matriks kapabilitas connector
 
@@ -1152,8 +1153,9 @@ Semua detail teknis di atas wajib diverifikasi ulang terhadap dokumentasi resmi 
 1. Seller melakukan otorisasi. Marketplace mengembalikan kode.
 2. Connector menukar kode dengan access token dan refresh token.
 3. Token disimpan terenkripsi bersama waktu kedaluwarsa.
-4. Scheduler memperbarui token sebelum kedaluwarsa (misalnya pada 80% masa hidup). Untuk Shopee, masa hidup access token hanya sekitar 4 jam, sehingga pembaruan berjalan beberapa kali sehari per toko dan harus tahan terhadap kegagalan sesaat.
-5. Jika refresh gagal, toko ditandai "perlu otorisasi ulang" dan pengguna diberi tahu.
+4. Scheduler memperbarui token pada 80% masa hidup. Untuk Shopee (access token 4 jam) pembaruan berjalan beberapa kali sehari per toko; untuk TikTok Shop (7 hari) sekitar sekali seminggu. Pembaruan harus tahan terhadap kegagalan sesaat dan tidak pernah berjalan dua kali bersamaan untuk toko yang sama, karena refresh token Shopee hanya bisa dipakai sekali.
+5. Jika refresh token ditolak marketplace atau refresh gagal tiga kali berturut, toko ditandai "perlu otorisasi ulang", token dihapus, dan pengguna diberi tahu.
+6. Izin seller punya masa berlaku (Shopee maksimal 365 hari, TikTok Shop sesuai pilihan seller). Toko tampil "token hampir kedaluwarsa" 14 hari sebelum izin berakhir atau saat marketplace mengirim pemberitahuan, dan pengguna diarahkan untuk otorisasi ulang tanpa memutus toko.
 
 ### 11.4 Penanganan batas permintaan dan error
 
@@ -1695,6 +1697,7 @@ Pengecualian: gangguan API marketplace, gangguan ekspedisi, dan keadaan kahar ti
 | 1.7 | 30 September 2026 | Rujukan ke DOKUMEN-ARSITEKTUR-BACKEND.md di 9.4 dan aturan integritas 10.3 (ULID, kunci asing komposit) | Candra Syahputra |
 | 1.8 | 30 September 2026 | Rujukan ke DOKUMEN-UI-UX.md di 9.4 | Candra Syahputra |
 | 1.9 | 30 September 2026 | Rujukan ke DOKUMEN-UI-UX-MOBILE.md di 9.4 | Candra Syahputra |
+| 1.10 | 1 Oktober 2026 | Hasil verifikasi dokumentasi resmi saat implementasi koneksi toko: pedoman merek "Tokopedia & Shop" (5.1, 5.6), rincian otorisasi dan token Shopee serta TikTok Shop (11.1), siklus token dan masa izin seller (11.3) | Candra Syahputra |
 
 ### 18.6 Referensi riset (diakses 30 September 2026)
 
