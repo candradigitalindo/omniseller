@@ -568,3 +568,181 @@ describe("TikTok Shop stock (Update Inventory 202309)", () => {
     ).rejects.toBeInstanceOf(AuthExpiredError);
   });
 });
+
+describe("TikTok Shop orders (Order API)", () => {
+  const shop = { externalShopId: "7494049642642441621", shopCipher: "ROW_cipher", accessToken: "TTP_access" };
+  const order = (id: string, extra: object = {}) => ({
+    id,
+    status: "AWAITING_SHIPMENT",
+    commerce_platform: "TOKOPEDIA",
+    fulfillment_type: "FULFILLMENT_BY_SELLER",
+    is_cod: false,
+    create_time: 1_790_000_000,
+    update_time: 1_790_000_900,
+    paid_time: 1_790_000_100,
+    rts_sla_time: 1_790_172_800,
+    user_id: "7021436810468230477",
+    buyer_message: "tolong cepat",
+    delivery_option_name: "Next Day",
+    warehouse_id: "7000000000000000001",
+    recipient_address: {
+      name: "Budi",
+      phone_number: "(+62)812****",
+      full_address: "Jl. Melati 2",
+      postal_code: "60111",
+      district_info: [
+        { address_level: "L0", address_name: "Indonesia" },
+        { address_level: "L1", address_name: "Jawa Timur" },
+        { address_level: "L2", address_name: "Surabaya" },
+        { address_level: "L3", address_name: "Gubeng" },
+      ],
+    },
+    payment: {
+      currency: "IDR",
+      sub_total: "90000",
+      shipping_fee: "10000",
+      seller_discount: "5000",
+      platform_discount: "5000",
+      total_amount: "100000",
+    },
+    line_items: [
+      {
+        id: "L1",
+        sku_id: "1729592969712207101",
+        product_id: "1729592969712207100",
+        seller_sku: "KAOS-M",
+        product_name: "Kaos",
+        sku_name: "Hitam, M",
+        original_price: "50000",
+        sale_price: "45000",
+        display_status: "AWAITING_SHIPMENT",
+      },
+      {
+        id: "L2",
+        sku_id: "1729592969712207101",
+        product_id: "1729592969712207100",
+        seller_sku: "KAOS-M",
+        product_name: "Kaos",
+        sku_name: "Hitam, M",
+        original_price: "50000",
+        sale_price: "45000",
+        display_status: "CANCELLED",
+      },
+    ],
+    ...extra,
+  });
+
+  it("searches by update time with page tokens and groups unit line items per SKU", async () => {
+    const calls: { url: URL; body: Record<string, unknown> }[] = [];
+    const f = fakeFetch({
+      "POST /order/202309/orders/search": (url, init) => {
+        calls.push({ url, body: JSON.parse(String(init.body)) });
+        return url.searchParams.get("page_token")
+          ? { code: 0, data: { orders: [], next_page_token: "" } }
+          : { code: 0, data: { orders: [order("576486316948490001")], next_page_token: "tok2" } };
+      },
+    });
+    const from = new Date("2026-09-01T00:00:00Z");
+    const to = new Date("2026-09-02T00:00:00Z");
+    const c = connector(f.fn).orders;
+    const page = await c.listOrders(shop, { by: "update_time", from, to });
+    expect(calls[0]!.body).toEqual({ update_time_ge: from.getTime() / 1000, update_time_lt: to.getTime() / 1000 });
+    expect(calls[0]!.url.searchParams.get("sort_field")).toBe("update_time");
+    expect(page.nextCursor).toBe("tok2");
+    expect((await c.listOrders(shop, { by: "update_time", from, to, cursor: "tok2" })).nextCursor).toBeNull();
+    const [o] = page.orders;
+    expect(o).toMatchObject({
+      externalOrderId: "576486316948490001",
+      state: "to_ship",
+      platform: "TOKOPEDIA",
+      fulfillment: "seller",
+      externalWarehouseId: "7000000000000000001",
+      shippingServiceType: "next_day",
+      subtotal: 90000,
+      shippingFeeBuyer: 10000,
+      discountTotal: 10000,
+      total: 100000,
+      buyerId: "7021436810468230477",
+      recipient: { name: "Budi", city: "Surabaya", province: "Jawa Timur", district: "Gubeng", postalCode: "60111" },
+    });
+    expect(o!.items).toEqual([
+      expect.objectContaining({
+        externalItemId: "1729592969712207100",
+        externalVariantId: "1729592969712207101",
+        sku: "KAOS-M",
+        quantity: 2,
+        cancelledQuantity: 1,
+        unitPrice: 45000,
+        lineTotal: 90000,
+        discount: 10000,
+      }),
+    ]);
+  });
+
+  it("reads details with the 202507 version, hides nothing it was not given, and maps every status", async () => {
+    const f = fakeFetch({
+      "GET /order/202507/orders": (url) => {
+        expect(url.searchParams.get("ids")).toBe("1,2,3,4");
+        return {
+          code: 0,
+          data: {
+            orders: [
+              order("1", { status: "ON_HOLD", recipient_address: undefined }),
+              order("2", { status: "AWAITING_COLLECTION" }),
+              order("3", { status: "CANCELLED", cancellation_initiator: "BUYER", cancel_reason: "Berubah pikiran" }),
+              order("4", { status: "IN_TRANSIT", fulfillment_type: "FULFILLMENT_BY_DILAYANI_TOKOPEDIA" }),
+            ],
+          },
+        };
+      },
+    });
+    const orders = await connector(f.fn).orders.getOrders(shop, ["1", "2", "3", "4"]);
+    expect(orders.map((o) => [o.state, o.recipientAvailable, o.fulfillment])).toEqual([
+      ["to_ship", false, "seller"],
+      ["seller_processing", true, "seller"],
+      ["cancelled", true, "seller"],
+      ["shipped", true, "marketplace"],
+    ]);
+    expect(orders[2]).toMatchObject({ cancelledBy: "buyer", cancelReason: "Berubah pikiran" });
+  });
+
+  it("offers the Indonesian seller cancel reasons per status and cancels with the reason code", async () => {
+    let body: unknown;
+    const f = fakeFetch({
+      "POST /return_refund/202602/cancellations": (_url, init) => {
+        body = JSON.parse(String(init.body));
+        return { code: 0, data: { cancel_id: "1", cancel_status: "CANCELLATION_REQUEST_SUCCESS" } };
+      },
+    });
+    const orders = connector(f.fn).orders;
+    expect(orders.cancelReasons("UNPAID").map((r) => r.code)).toContain(
+      "seller_cancel_unpaid_reason_buyer_hasnt_paid_within_time_allowed",
+    );
+    expect(orders.cancelReasons("AWAITING_SHIPMENT").map((r) => r.code)).toEqual([
+      "seller_cancel_reason_out_of_stock",
+      "seller_cancel_reason_wrong_price",
+    ]);
+    expect(orders.cancelReasons("IN_TRANSIT")).toEqual([]);
+    await orders.cancelOrder(shop, {
+      externalOrderId: "576486316948490001",
+      externalStatus: "AWAITING_SHIPMENT",
+      reason: "seller_cancel_reason_out_of_stock",
+    });
+    expect(body).toEqual({ order_id: "576486316948490001", cancel_reason: "seller_cancel_reason_out_of_stock" });
+  });
+
+  it("turns cancellation and address webhooks into order refreshes, keeping 19-digit ids", () => {
+    const events = parseTiktokWebhook(
+      Buffer.from(
+        '{"type":11,"tts_notification_id":"7327112393057371910","shop_id":"7494049642642441621","timestamp":1644412885,"data":{"order_id":576486316948490001,"cancellations_role":"BUYER","cancel_status":"CANCELLATION_REQUEST_PENDING"}}',
+      ),
+    );
+    expect(events[0]).toMatchObject({ kind: "order.status_changed", data: { externalOrderId: "576486316948490001" } });
+    const address = parseTiktokWebhook(
+      Buffer.from(
+        '{"type":3,"tts_notification_id":"7327112393057371911","shop_id":"1","timestamp":1,"data":{"order_id":"576486316948490002","update_time":1}}',
+      ),
+    );
+    expect(address[0]).toMatchObject({ kind: "order.status_changed", data: { externalOrderId: "576486316948490002" } });
+  });
+});

@@ -122,6 +122,8 @@ const storeSchema = z.object({
   lastTokenRefreshAt: iso.nullable(),
   tokenRefreshFailures: z.number().int(),
   unmappedWarehouses: z.number().int().describe("active marketplace warehouses without a mapping; stock sync needs 0"),
+  lastProductSyncAt: iso.nullable().describe("last finished listing pull"),
+  lastOrderSyncAt: iso.nullable().describe("last finished order pull; null while the first 90-day import runs"),
   marketplaceInfo: z.record(z.string(), z.unknown()),
   createdAt: iso,
 });
@@ -166,6 +168,8 @@ export function storeView(v: StoreView): z.infer<typeof storeSchema> {
     lastTokenRefreshAt: v.credential?.lastRefreshedAt?.toISOString() ?? null,
     tokenRefreshFailures: v.credential?.refreshFailCount ?? 0,
     unmappedWarehouses: v.unmappedWarehouses,
+    lastProductSyncAt: s.lastProductSyncAt?.toISOString() ?? null,
+    lastOrderSyncAt: s.lastOrderSyncAt?.toISOString() ?? null,
     marketplaceInfo: s.marketplaceInfo,
     createdAt: s.createdAt.toISOString(),
   };

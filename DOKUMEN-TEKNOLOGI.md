@@ -2,11 +2,11 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.7 |
+| Versi dokumen | 1.8 |
 | Tanggal | 1 Oktober 2026 |
 | Status | Keputusan final untuk implementasi |
 | Pemilik dokumen | Candra Syahputra |
-| Dokumen induk | DOKUMEN-SPESIFIKASI-APLIKASI.md versi 1.10 (PRD); rincian backend di DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.6 |
+| Dokumen induk | DOKUMEN-SPESIFIKASI-APLIKASI.md versi 1.10 (PRD); rincian backend di DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.7 |
 | Audiens | Tech lead, engineer backend, frontend, mobile, DevOps, QA |
 
 Dokumen ini menetapkan teknologi yang dipakai OmniSeller. Setiap lapisan memiliki **satu keputusan**, bukan daftar pilihan. Alasan dan konsekuensinya dicatat agar keputusan dapat ditinjau ulang dengan dasar yang jelas, bukan diganti karena selera. Perubahan keputusan hanya melalui ADR baru (bagian 25).
@@ -337,7 +337,7 @@ Tabel bervolume tinggi dipartisi **range pada kolom `id`** (ULID terurut waktu) 
 | Antrean | Isi | Konkurensi per worker | Percobaan ulang |
 |---|---|---|---|
 | `webhook` | Notifikasi marketplace yang sudah tersimpan di `webhook_inbox`, satu job per baris | 20 | 5 kali, backoff eksponensial mulai 2 detik |
-| `order.ingest` | Pesanan masuk dari webhook dan polling | 20 | 5 kali, backoff eksponensial mulai 2 detik |
+| `order.ingest` | Pekerjaan pesanan yang dipicu event: listing baru dipetakan, stok berubah (pesanan dari webhook dibaca di antrean `webhook`, polling dan impor di `mp.poll`) | 20 | 5 kali, backoff eksponensial mulai 2 detik |
 | `stock.push` | Dorong stok per batch (paling banyak 50 pasangan variant dan gudang satu tenant), penanda dirty, dan pemicu push ulang | 10 per worker; batas laju per toko diambil per permintaan HTTP | 8 kali, backoff eksponensial mulai 5 detik (sampai sekitar 10 menit) |
 | `mp.outbound` | Panggilan tulis ke marketplace (terima pesanan, atur kirim, ubah harga) | Dibatasi per toko | 5 kali |
 | `mp.poll` | Polling cadangan | 5 | 3 kali |
@@ -373,8 +373,8 @@ Setiap marketplace adalah paket di `packages/connectors/<nama>` yang mengimpleme
 
 | Connector | Paket | Catatan implementasi |
 |---|---|---|
-| Shopee | `@omniseller/connector-shopee` (ada: otorisasi, info toko, gudang, push, katalog, stok) | Open Platform v2. Tanda tangan HMAC-SHA256 dengan partner key atas `partner_id + path + timestamp [+ access_token + shop_id]`, cap waktu berlaku 5 menit. Tautan otorisasi baru `open.shopee.com/auth` dengan `state`. Access token 4 jam; refresh token 30 hari, sekali pakai per toko; izin seller maksimal 365 hari; akun utama bisa memberi beberapa toko sekaligus. Push diatur per aplikasi, ditandatangani HMAC atas `URL callback + "|" + body`; kode 6, 16, 22 untuk perubahan item. Katalog: `get_item_list` (100 per halaman, `item_status` dikirim berulang per nilai), `get_item_base_info` (50 item), `get_model_list`, `unlist_item` (50 item, hasil per item). Stok: `update_stock` satu item per panggilan dengan 1 sampai 50 model, hanya `seller_stock`; `location_id` harus mengikuti struktur stok item yang sudah ada (dengan atau tanpa lokasi); `failure_list` per model bisa datang bersama `error` tingkat atas; stok di bawah cadangan promosi dan item terhapus ditolak per model. Modul berikutnya: harga produk, pesanan, logistik, pembayaran, promosi, retur, account health, chat, media, ads |
-| TikTok Shop dan Tokopedia | `@omniseller/connector-tiktokshop` (ada: otorisasi, toko, gudang termasuk FBT, webhook, katalog, stok) | Satu connector untuk kedua toko: di Indonesia keduanya satu toko "Tokopedia & Shop" dengan TikTok Shop API, dan merek "TikTok" tidak boleh tampil di antarmuka pihak ketiga. API versi 202309: token di header `x-tts-access-token`, tanda tangan HMAC-SHA256 atas `secret + path + parameter terurut + body + secret`, `shop_cipher` untuk panggilan toko. Access token 7 hari; masa refresh token sama dengan masa izin seller. Webhook berlangganan per toko lewat Event API, ditandatangani HMAC atas `app_key + body`. Katalog: Search Products 202502 lalu Get Product 202309 per produk; satu produk bisa dijual di TikTok Shop dan Tokopedia dengan status masing-masing (`integrated_platform_statuses`); Activate/Deactivate 20 per panggilan berlaku untuk kedua platform. Id produk 19 digit melebihi presisi `number` JavaScript, sehingga JSON diurai dengan `parseJsonSafe` yang menyimpan bilangan bulat besar sebagai string. Stok: Update Inventory 202309 satu produk per panggilan; semua gudang setiap SKU wajib disertakan (12019028 bila kurang); kuantitas paling banyak 99.999 (dokumentasi menulis rentang 1 sampai 99.999, tetapi 0 tetap dikirim untuk stok habis seperti di Seller Center, dan penolakannya tercatat per SKU); gudang FBT dan Dilayani Tokopedia tidak bisa diubah; galat per SKU dan gudang ada di `data.errors` walaupun `code` 0. Webhook Inventory Changed By Shop (tipe 71) tersedia untuk mendeteksi perubahan stok di luar OmniSeller (FR-MIG-07, menyusul). Modul berikutnya: harga produk, pesanan, fulfillment, keuangan, retur, promosi, affiliate, analytics, layanan pelanggan |
+| Shopee | `@omniseller/connector-shopee` (ada: otorisasi, info toko, gudang, push, katalog, stok, pesanan) | Open Platform v2. Tanda tangan HMAC-SHA256 dengan partner key atas `partner_id + path + timestamp [+ access_token + shop_id]`, cap waktu berlaku 5 menit. Tautan otorisasi baru `open.shopee.com/auth` dengan `state`. Access token 4 jam; refresh token 30 hari, sekali pakai per toko; izin seller maksimal 365 hari; akun utama bisa memberi beberapa toko sekaligus. Push diatur per aplikasi, ditandatangani HMAC atas `URL callback + "|" + body`; kode 6, 16, 22 untuk perubahan item. Katalog: `get_item_list` (100 per halaman, `item_status` dikirim berulang per nilai), `get_item_base_info` (50 item), `get_model_list`, `unlist_item` (50 item, hasil per item). Stok: `update_stock` satu item per panggilan dengan 1 sampai 50 model, hanya `seller_stock`; `location_id` harus mengikuti struktur stok item yang sudah ada (dengan atau tanpa lokasi); `failure_list` per model bisa datang bersama `error` tingkat atas; stok di bawah cadangan promosi dan item terhapus ditolak per model. Pesanan: `get_order_list` paling lama 15 hari per permintaan dan 100 per halaman dengan cursor, `request_order_status_pending` untuk status PENDING; `get_order_detail` 50 pesanan, gudang per baris dari `product_location_id` (toko multi-gudang), jumlah aktif dan batal per baris; `cancel_order` sebelum dikirim dengan alasan `OUT_OF_STOCK` (menyebut item), `CUSTOMER_REQUEST`, `COD_NOT_SUPPORTED`. Modul berikutnya: harga produk, logistik, pembayaran, promosi, retur, account health, chat, media, ads |
+| TikTok Shop dan Tokopedia | `@omniseller/connector-tiktokshop` (ada: otorisasi, toko, gudang termasuk FBT, webhook, katalog, stok, pesanan) | Satu connector untuk kedua toko: di Indonesia keduanya satu toko "Tokopedia & Shop" dengan TikTok Shop API, dan merek "TikTok" tidak boleh tampil di antarmuka pihak ketiga. API versi 202309: token di header `x-tts-access-token`, tanda tangan HMAC-SHA256 atas `secret + path + parameter terurut + body + secret`, `shop_cipher` untuk panggilan toko. Access token 7 hari; masa refresh token sama dengan masa izin seller. Webhook berlangganan per toko lewat Event API, ditandatangani HMAC atas `app_key + body`. Katalog: Search Products 202502 lalu Get Product 202309 per produk; satu produk bisa dijual di TikTok Shop dan Tokopedia dengan status masing-masing (`integrated_platform_statuses`); Activate/Deactivate 20 per panggilan berlaku untuk kedua platform. Id produk 19 digit melebihi presisi `number` JavaScript, sehingga JSON diurai dengan `parseJsonSafe` yang menyimpan bilangan bulat besar sebagai string. Stok: Update Inventory 202309 satu produk per panggilan; semua gudang setiap SKU wajib disertakan (12019028 bila kurang); kuantitas paling banyak 99.999 (dokumentasi menulis rentang 1 sampai 99.999, tetapi 0 tetap dikirim untuk stok habis seperti di Seller Center, dan penolakannya tercatat per SKU); gudang FBT dan Dilayani Tokopedia tidak bisa diubah; galat per SKU dan gudang ada di `data.errors` walaupun `code` 0. Webhook Inventory Changed By Shop (tipe 71) tersedia untuk mendeteksi perubahan stok di luar OmniSeller (FR-MIG-07, menyusul). Pesanan: Search Orders 202309 mengembalikan pesanan lengkap, Get Order Detail kini versi 202507 (50 pesanan), satu baris per unit sehingga dikelompokkan per SKU, `commerce_platform` membedakan TikTok Shop dan Tokopedia, `fulfillment_type` FBT dan Dilayani Tokopedia, alamat disembunyikan saat UNPAID dan ON_HOLD; Cancel Order versi 202602 dengan alasan per status (daftar Indonesia); webhook tipe 1, 3, dan 11 membuat pesanan dibaca ulang. Modul berikutnya: harga produk, fulfillment, keuangan, retur, promosi, affiliate, analytics, layanan pelanggan |
 | Lazada | `@omniseller/connector-lazada` | LazOP 2.0, Lazada Push |
 | Blibli | `@omniseller/connector-blibli` | Seller API dan webhook |
 | Shopify, WooCommerce | `@omniseller/connector-shopify`, `-woocommerce` | Fase 2 |
@@ -406,7 +406,8 @@ Setiap marketplace adalah paket di `packages/connectors/<nama>` yang mengimpleme
 
 - Scheduler memakai BullMQ repeatable jobs: pesanan setiap 5 menit per toko, produk setiap 6 jam, settlement harian pukul 03.00 WIB, gudang marketplace setiap 6 jam.
 - Polling memakai cursor `updated_since` per toko yang disimpan di basis data (`sync_cursor`), sehingga tidak ada jendela yang terlewat saat proses mati. Cursor dimajukan ke waktu mulai tarikan hanya setelah tarikan selesai, dan tarikan berikutnya mundur 10 menit untuk menutup selisih jam.
-- Tarikan besar dipecah: maksimal 10 halaman per job, sisanya dilanjutkan job baru lewat outbox, sehingga restart hanya mengulang satu batch.
+- Tarikan besar dipecah: maksimal 10 halaman listing atau 5 halaman pesanan per job, sisanya dilanjutkan job baru lewat outbox, sehingga restart hanya mengulang satu batch.
+- Toko baru mengimpor pesanan 90 hari terakhir; polling pesanan setiap 5 menit membaca pesanan yang berubah sejak tarikan terakhir dan menangkap webhook yang terlewat.
 
 ---
 
@@ -939,6 +940,13 @@ export interface MarketplaceConnector {
   };
   shops: { describe(grant: AuthorizationGrant): Promise<ShopProfile[]> };
   warehouses: { list(shop: ShopCredentials): Promise<MarketplaceWarehouse[]> };
+  orders: {
+    // status dipetakan ke OrderState: unpaid | to_ship | seller_processing | shipped | delivered | completed | cancelled | returning
+    listOrders(shop: ShopCredentials, input: { by: "create_time" | "update_time"; from: Date; to: Date; cursor?: string | null }): Promise<OrderPage>;
+    getOrders(shop: ShopCredentials, externalOrderIds: string[]): Promise<NormalizedOrder[]>;
+    cancelReasons(externalStatus: string): CancelReason[]; // tanpa panggilan HTTP
+    cancelOrder(shop: ShopCredentials, input: { externalOrderId: string; externalStatus: string; reason: string; items?: StockLine[] }): Promise<void>;
+  };
   inventory: {
     // nilai absolut; setiap listing membawa semua lokasi stok penjualnya; hasil per listing (ok, error, retryable)
     updateStock(shop: ShopCredentials, updates: StockUpdate[]): Promise<StockUpdateResult[]>;
@@ -957,7 +965,7 @@ export interface MarketplaceConnector {
 }
 ```
 
-Bagian berikutnya mengikuti modulnya: `catalog` diperluas dengan ubah harga, `orders` (daftar, detail, terima, batal), `fulfillment` (atur kirim, label, lacak), lalu `finance`, `returns`, `chat`, `promotions`, `health` sebagai bagian opsional. Bagian opsional yang tidak didukung marketplace dibiarkan `undefined`, dan UI menyembunyikan fitur terkait untuk toko itu.
+Bagian berikutnya mengikuti modulnya: `catalog` diperluas dengan ubah harga, `fulfillment` (atur kirim, label, lacak), lalu `finance`, `returns`, `chat`, `promotions`, `health` sebagai bagian opsional. Bagian opsional yang tidak didukung marketplace dibiarkan `undefined`, dan UI menyembunyikan fitur terkait untuk toko itu.
 
 ### 26.5 Referensi
 
@@ -977,3 +985,4 @@ Bagian berikutnya mengikuti modulnya: `catalog` diperluas dengan ubah harga, `or
 | 1.5 | 1 Oktober 2026 | Hasil implementasi koneksi toko: fakta API Shopee dan TikTok Shop diverifikasi terhadap dokumentasi resmi per Oktober 2026 (8.1); nama tampilan "Tokopedia & Shop"; antrean `webhook` (7.1); webhook receiver dan siklus token diperinci (8.3, 8.4); ADR-034 (advisory lock), ADR-035 (DEK per tenant dan AAD); variabel lingkungan marketplace dan enkripsi (26.2); antarmuka connector sesuai kode (26.4) | Candra Syahputra |
 | 1.6 | 1 Oktober 2026 | Hasil implementasi katalog: API produk Shopee dan TikTok Shop per Oktober 2026 (8.1); token bucket per permintaan HTTP, bukan per job (7.1); cursor dan pemecahan tarikan (8.5); ekstensi `pg_trgm` (6.1); bagian `catalog` antarmuka connector (26.4) | Candra Syahputra |
 | 1.7 | 3 Oktober 2026 | Hasil implementasi push stok: fakta API stok Shopee dan TikTok Shop per Oktober 2026 (8.1); antrean `stock.push` per batch (7.1); ADR-036 (stok yang belum ditetapkan tidak didorong) dan ADR-037 (batch per tenant, kunci per varian); bagian `inventory` dan `maxStockQuantity` di antarmuka connector (26.4) | Candra Syahputra |
+| 1.8 | 3 Oktober 2026 | Hasil implementasi pesanan: fakta API pesanan Shopee dan TikTok Shop per Oktober 2026 (8.1); impor 90 hari dan polling 5 menit (8.5); isi antrean `order.ingest` (7.1); bagian `orders` antarmuka connector (26.4) | Candra Syahputra |

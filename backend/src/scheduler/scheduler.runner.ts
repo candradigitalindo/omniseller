@@ -10,7 +10,14 @@ import { DB_SYSTEM, JOB_REGISTRY, QUEUES, STOCK_DIRTY } from "../infra/tokens";
 import type { QueueRegistry } from "../jobs/queues";
 import type { JobRegistry } from "../jobs/registry";
 import type { StockDirtySet } from "../jobs/stock-dirty";
-import { scanTokenRefresh, scanWarehousePolls, sweepWebhookInbox, WAREHOUSE_POLL_SLOT_MS } from "./channel-scans";
+import {
+  ORDER_POLL_SLOT_MS,
+  scanOrderPolls,
+  scanTokenRefresh,
+  scanWarehousePolls,
+  sweepWebhookInbox,
+  WAREHOUSE_POLL_SLOT_MS,
+} from "./channel-scans";
 import { OutboxRelayRunner } from "./outbox-relay";
 import { flushStockDirty } from "./stock-flush";
 
@@ -52,6 +59,7 @@ export class SchedulerRunner implements OnApplicationBootstrap, OnApplicationShu
     this.every(TOKEN_REFRESH_SCAN_MS, "token.refresh_scan", () =>
       scanTokenRefresh(this.system, this.queues, this.registry),
     );
+    this.every(ORDER_POLL_SLOT_MS, "mp.poll.orders", () => scanOrderPolls(this.system, this.queues, this.registry));
     this.every(WAREHOUSE_POLL_SLOT_MS, "mp.poll.warehouses", () =>
       scanWarehousePolls(this.system, this.queues, this.registry),
     );

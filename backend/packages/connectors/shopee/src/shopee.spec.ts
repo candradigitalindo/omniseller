@@ -678,3 +678,190 @@ describe("Shopee stock (v2.product.update_stock)", () => {
     });
   });
 });
+
+describe("Shopee orders (v2.order)", () => {
+  const shop = { externalShopId: "1", shopCipher: null, accessToken: "t" };
+  const detail = (sn: string, extra: object = {}) => ({
+    order_sn: sn,
+    order_status: "READY_TO_SHIP",
+    currency: "IDR",
+    cod: true,
+    total_amount: 98000,
+    create_time: 1_790_000_000,
+    update_time: 1_790_000_600,
+    pay_time: 1_790_000_100,
+    ship_by_date: 1_790_172_800,
+    buyer_user_id: 77,
+    buyer_username: "dewi",
+    message_to_seller: "warna jangan salah",
+    shipping_carrier: "SPX Instant",
+    fulfillment_flag: "fulfilled_by_local_seller",
+    recipient_address: {
+      name: "Dewi",
+      phone: "6281****",
+      city: "Jakarta Barat",
+      state: "DKI Jakarta",
+      zipcode: "11470",
+      full_address: "Jl. Mawar 1",
+    },
+    item_list: [
+      {
+        item_id: 100,
+        item_name: "Kaos",
+        model_id: 11,
+        model_name: "Hitam,M",
+        model_sku: "KAOS-M",
+        model_quantity_purchased: 2,
+        model_original_price: 50000,
+        model_discounted_price: 45000,
+        product_location_id: "IDA",
+        cancelled_qty: 1,
+      },
+      // bundle deal: no per-item discounted price
+      {
+        item_id: 200,
+        item_name: "Topi",
+        model_id: 0,
+        item_sku: "TOPI",
+        model_quantity_purchased: 1,
+        model_original_price: 10000,
+        model_discounted_price: 0,
+      },
+    ],
+    ...extra,
+  });
+
+  it("walks a long range in 15-day windows and reads details 50 at a time", async () => {
+    const lists: URLSearchParams[] = [];
+    const details: string[] = [];
+    const f = fakeFetch({
+      "GET /api/v2/order/get_order_list": (url) => {
+        lists.push(url.searchParams);
+        const first = lists.length === 1;
+        return {
+          error: "",
+          response: {
+            order_list: first ? Array.from({ length: 60 }, (_, i) => ({ order_sn: `SN${i}` })) : [],
+            more: false,
+            next_cursor: "",
+          },
+        };
+      },
+      "GET /api/v2/order/get_order_detail": (url) => {
+        expect(url.searchParams.get("response_optional_fields")).toContain("item_list");
+        expect(url.searchParams.get("request_order_status_pending")).toBe("true");
+        const sns = url.searchParams.get("order_sn_list")!.split(",");
+        details.push(String(sns.length));
+        return { error: "", response: { order_list: sns.map((sn) => detail(sn)) } };
+      },
+    });
+    const from = new Date("2026-07-01T00:00:00Z");
+    const to = new Date("2026-08-10T00:00:00Z");
+    const c = connector(f.fn).orders;
+    let page = await c.listOrders(shop, { by: "create_time", from, to });
+    expect(page.orders).toHaveLength(60);
+    expect(details).toEqual(["50", "10"]);
+    const windows = [lists[0]!];
+    while (page.nextCursor) {
+      page = await c.listOrders(shop, { by: "create_time", from, to, cursor: page.nextCursor });
+      windows.push(lists.at(-1)!);
+    }
+    expect(windows.map((w) => w.get("time_range_field"))).toEqual(["create_time", "create_time", "create_time"]);
+    const spans = windows.map((w) => Number(w.get("time_to")) - Number(w.get("time_from")));
+    expect(Math.max(...spans)).toBeLessThanOrEqual(15 * 86_400);
+    expect(windows.at(-1)!.get("time_to")).toBe(String(to.getTime() / 1000));
+  });
+
+  it("normalizes status, items, warehouse per line, partial cancellation, and buyer data", async () => {
+    const f = fakeFetch({
+      "GET /api/v2/order/get_order_detail": () => ({
+        error: "",
+        response: {
+          order_list: [
+            detail("A"),
+            detail("B", { order_status: "IN_CANCEL" }),
+            detail("C", { order_status: "PENDING" }),
+            detail("D", { order_status: "TO_CONFIRM_RECEIVE" }),
+            detail("E", { order_status: "CANCELLED", cancel_by: "buyer", buyer_cancel_reason: "Ganti alamat" }),
+            detail("F", { order_status: "COMPLETED", fulfillment_flag: "fulfilled_by_shopee" }),
+          ],
+        },
+      }),
+    });
+    const orders = await connector(f.fn).orders.getOrders(shop, ["A", "B", "C", "D", "E", "F"]);
+    expect(orders.map((o) => [o.externalOrderId, o.state, o.cancelRequested, o.fulfillment])).toEqual([
+      ["A", "to_ship", false, "seller"],
+      ["B", "to_ship", true, "seller"],
+      ["C", "to_ship", false, "seller"],
+      ["D", "delivered", false, "seller"],
+      ["E", "cancelled", false, "seller"],
+      ["F", "completed", false, "marketplace"],
+    ]);
+    const a = orders[0]!;
+    expect(a).toMatchObject({
+      externalStatus: "READY_TO_SHIP",
+      isCod: true,
+      total: 98000,
+      subtotal: 100000,
+      discountTotal: 10000,
+      buyerId: "77",
+      buyerNote: "warna jangan salah",
+      shippingServiceType: "instant",
+      recipientAvailable: true,
+      recipient: { name: "Dewi", city: "Jakarta Barat", province: "DKI Jakarta", postalCode: "11470" },
+    });
+    expect(a.shipByAt?.toISOString()).toBe(new Date(1_790_172_800_000).toISOString());
+    expect(a.items).toEqual([
+      expect.objectContaining({
+        externalItemId: "100",
+        externalVariantId: "11",
+        sku: "KAOS-M",
+        quantity: 2,
+        cancelledQuantity: 1,
+        unitPrice: 45000,
+        discount: 10000,
+        externalWarehouseId: "IDA",
+      }),
+      expect.objectContaining({
+        externalItemId: "200",
+        externalVariantId: "",
+        sku: "TOPI",
+        unitPrice: 10000,
+        discount: 0,
+      }),
+    ]);
+    expect(orders[4]).toMatchObject({ cancelledBy: "buyer", cancelReason: "Ganti alamat" });
+  });
+
+  it("offers seller cancel reasons before shipping and names the items for out of stock", async () => {
+    const bodies: object[] = [];
+    const f = fakeFetch({
+      "POST /api/v2/order/cancel_order": (_url, init) => {
+        bodies.push(JSON.parse(String(init.body)));
+        return { error: "", response: { update_time: 1 } };
+      },
+    });
+    const orders = connector(f.fn).orders;
+    expect(orders.cancelReasons("READY_TO_SHIP").map((r) => r.code)).toEqual([
+      "OUT_OF_STOCK",
+      "CUSTOMER_REQUEST",
+      "COD_NOT_SUPPORTED",
+    ]);
+    expect(orders.cancelReasons("SHIPPED")).toEqual([]);
+    await orders.cancelOrder(shop, {
+      externalOrderId: "A",
+      externalStatus: "READY_TO_SHIP",
+      reason: "OUT_OF_STOCK",
+      items: [{ externalItemId: "100", externalVariantId: "11", quantity: 1 }],
+    });
+    await orders.cancelOrder(shop, {
+      externalOrderId: "B",
+      externalStatus: "READY_TO_SHIP",
+      reason: "CUSTOMER_REQUEST",
+    });
+    expect(bodies).toEqual([
+      { order_sn: "A", cancel_reason: "OUT_OF_STOCK", item_list: [{ item_id: 100, model_id: 11 }] },
+      { order_sn: "B", cancel_reason: "CUSTOMER_REQUEST" },
+    ]);
+  });
+});

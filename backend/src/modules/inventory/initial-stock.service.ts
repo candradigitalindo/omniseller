@@ -6,6 +6,7 @@ import { DB_TENANT } from "../../infra/tokens";
 import { dataOf, ListingsService } from "../catalog/listings.service";
 import { storeNotFound } from "../channel/channel.errors";
 import { StoresService } from "../channel/stores.service";
+import { ordersImporting } from "./inventory.errors";
 import { InventoryRepository } from "./inventory.repository";
 import { InventoryService } from "./inventory.service";
 import { stockKey } from "./stock-plan";
@@ -59,6 +60,8 @@ export class InitialStockService {
       if (!this.stores.inScope(ctx, storeId)) throw storeNotFound();
       const target = (await this.stores.stockTargetsIn(tx, [storeId])).get(storeId);
       if (!target) throw storeNotFound();
+      // open orders reserve stock as they are imported; counting before that would hold them twice
+      if (!target.store.lastOrderSyncAt) throw ordersImporting();
 
       const byExternal = new Map(target.warehouses.map((w) => [w.externalWarehouseId, w]));
       const sellers = target.warehouses.filter((w) => w.active && w.kind === "seller");

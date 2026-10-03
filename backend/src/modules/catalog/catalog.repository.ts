@@ -298,6 +298,20 @@ export class CatalogRepository {
     return forUpdate ? q.for("update") : q;
   }
 
+  /** Listings of a store by marketplace item and variant ids (order lines). */
+  async listingsByExternal(
+    tx: Tx,
+    storeId: string,
+    refs: { externalItemId: string; externalVariantId: string }[],
+  ): Promise<ListingRow[]> {
+    const itemIds = [...new Set(refs.map((r) => r.externalItemId).filter(Boolean))];
+    if (itemIds.length === 0) return [];
+    return tx
+      .select()
+      .from(channelListing)
+      .where(and(eq(channelListing.storeId, storeId), inArray(channelListing.externalItemId, itemIds)));
+  }
+
   /** Mapped listings that still exist at the marketplace, by variant and/or store (stock push). */
   async mappedListings(tx: Tx, filter: { variantIds?: string[]; storeId?: string }): Promise<ListingRow[]> {
     if (filter.variantIds && filter.variantIds.length === 0) return [];

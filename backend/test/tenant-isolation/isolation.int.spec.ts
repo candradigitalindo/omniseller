@@ -42,6 +42,7 @@ const PATH_PARAMS: Record<string, string> = {
   "{channelWarehouseId}": "channel_warehouse",
   "{variantId}": "variant",
   "{warehouseId}": "warehouse",
+  "{problemId}": "order_problem",
 };
 
 /** Bodies for mutating operations, keyed by operationId. `ids` holds A's fixture ids and B's own ids. */
@@ -82,6 +83,12 @@ const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: s
   StockRulesController_create: ({ a: ids }) => ({ storeId: ids.store!, mode: "all" }),
   StockRulesController_update: () => ({ value: 1 }),
   StockRulesController_remove: () => ({}),
+  OrdersController_accept: ({ a: ids }) => ({ orderIds: [ids.order!] }),
+  OrdersController_pack: ({ a: ids }) => ({ orderIds: [ids.order!] }),
+  OrdersController_sync: ({ a: ids }) => ({ storeId: ids.store! }),
+  OrdersController_cancel: () => ({ reason: "OUT_OF_STOCK" }),
+  OrdersController_note: () => ({ note: "Penyusup" }),
+  OrdersController_resolveProblem: () => ({}),
 };
 
 beforeAll(async () => {
@@ -133,6 +140,20 @@ beforeAll(async () => {
   const rule = await a.c.post("/v1/stock-allocation-rules", { storeId: fixtures.store!.id, mode: "all", buffer: 2 });
   expect(rule.status).toBe(201);
   fixtures.stock_rule = { id: rule.body.id };
+  await withTenantTx(h.worker, userCtx(tenantId), async (tx) => {
+    const orderId = newId();
+    await tx.execute(sql`INSERT INTO "order" (id, tenant_id, store_id, channel, external_order_id, external_status, status,
+                                               warehouse_id, ordered_at, total, source)
+                         VALUES (${orderId}, ${tenantId}, ${fixtures.store!.id}, 'shopee', 'A-0001', 'READY_TO_SHIP', 'problem',
+                                 ${fixtures.warehouse!.id}, now(), 50000, 'webhook')`);
+    await tx.execute(sql`INSERT INTO order_external_ref (id, tenant_id, store_id, external_order_id, order_id)
+                         VALUES (${newId()}, ${tenantId}, ${fixtures.store!.id}, 'A-0001', ${orderId})`);
+    const problemId = newId();
+    await tx.execute(sql`INSERT INTO order_problem (id, tenant_id, order_id, code, detail)
+                         VALUES (${problemId}, ${tenantId}, ${orderId}, 'high_value', '{}')`);
+    fixtures.order = { id: orderId };
+    fixtures.order_problem = { id: problemId };
+  });
   const started = await a.c.post("/v1/store-authorizations", { channel: "shopee" });
   expect(started.status).toBe(201);
   fixtures.store_authorization = { id: started.body.id };
@@ -246,6 +267,9 @@ describe("tenant isolation generated from openapi.json", () => {
       buffer: 2,
       value: 0,
     });
+    const order = (await a.c.get(`/v1/orders/${fixtures.order!.id}`)).body;
+    expect(order).toMatchObject({ status: "problem", internalNote: null });
+    expect(order.problems).toMatchObject([{ code: "high_value", resolvedAt: null }]);
     // B's callback attempt with A's state did not consume it
     expect((await a.c.get(`/v1/store-authorizations/${fixtures.store_authorization!.id}`)).body.status).toBe("pending");
   });

@@ -2,11 +2,11 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.6 |
+| Versi dokumen | 1.7 |
 | Tanggal | 1 Oktober 2026 |
-| Status | Keputusan final untuk implementasi; fondasi (bagian 4 sampai 9, 12, 13), identitas, autentikasi, dan audit (8.1, 8.10), koneksi toko Shopee dan Tokopedia & Shop (8.6, 8.11), katalog, listing, dan pemetaan SKU (7.8.3, 8.12), serta stok, penyesuaian, dan push stok ke marketplace (7.8.4, 8.13, 9.4, 10.6) sudah diimplementasikan di folder `backend/` |
+| Status | Keputusan final untuk implementasi; fondasi (bagian 4 sampai 9, 12, 13), identitas, autentikasi, dan audit (8.1, 8.10), koneksi toko Shopee dan Tokopedia & Shop (8.6, 8.11), katalog, listing, dan pemetaan SKU (7.8.3, 8.12), stok, penyesuaian, dan push stok ke marketplace (7.8.4, 8.13, 9.4), serta pesanan dari Shopee dan Tokopedia & Shop (7.8.6, 7.9, 8.14, 10.6) sudah diimplementasikan di folder `backend/` |
 | Pemilik dokumen | Candra Syahputra |
-| Dokumen terkait | DOKUMEN-SPESIFIKASI-APLIKASI.md (PRD) versi 1.10, DOKUMEN-TEKNOLOGI.md versi 1.7 |
+| Dokumen terkait | DOKUMEN-SPESIFIKASI-APLIKASI.md (PRD) versi 1.10, DOKUMEN-TEKNOLOGI.md versi 1.8 |
 | Audiens | Engineer backend, tech lead, QA, dan **agen AI** yang mengerjakan basis kode |
 
 > **Untuk agen AI yang membaca dokumen ini.** Bacalah bagian 2 terlebih dahulu. Bagian itu berisi kontrak kerja: invarian yang tidak boleh dilanggar, tempat setiap hal berada, dan urutan langkah untuk setiap jenis perubahan. Semua nama tabel, kolom, modul, antrean, dan perintah di dokumen ini adalah nama yang sebenarnya dipakai di repositori. Jangan menebak nama; cari di dokumen ini atau di kode.
@@ -164,14 +164,14 @@ Aturan lapisan:
 - Job handler memanggil service, bukan repository, agar aturan bisnis tidak diduplikasi.
 - Connector tidak tahu tentang basis data; menerima dan mengembalikan tipe ternormalisasi dari `packages/connectors/core`.
 
-### 3.3 Aliran data tulis (contoh: terima pesanan)
+### 3.3 Aliran data tulis (contoh: batalkan pesanan)
 
-1. `POST /v1/orders/:id/accept` masuk ke `OrderController.accept`.
-2. Guard memverifikasi sesi dan izin `order:accept` (8.1); pipe memvalidasi parameter.
-3. `OrderService.accept(ctx, id)` membuka `withTenantTx`, memuat pesanan dengan `FOR UPDATE`, memeriksa toko pesanan terhadap `ctx.storeScope`, memanggil `transition(order, 'ready_to_pack')`, menulis `order_event`, menulis `outbox_event{type:'order.accept_requested'}`, commit.
-4. Relay outbox memindahkan event ke antrean `mp.outbound` dengan `jobId = order.accept|<order_id>`.
-5. Job handler di worker memanggil `ConnectorRegistry.get(store).orders.accept(...)`, lalu `OrderService.markAccepted(...)` yang menulis `sync_job` dan event berikutnya.
-6. Socket.IO mengirim `order.updated` ke room tenant dari event yang sama.
+1. `POST /v1/orders/:id/cancel {reason}` masuk ke `OrdersController.cancel`.
+2. Guard memverifikasi sesi dan izin `order:cancel` (8.1); pipe memvalidasi parameter dan body.
+3. `OrdersService.requestCancel(ctx, id, reason)` membuka `withTenantTx`, memuat pesanan dengan `FOR UPDATE`, memeriksa toko dan gudang pesanan terhadap cakupan pengguna, memeriksa alasan terhadap daftar marketplace, menulis `outbox_event{type:'order.cancel_requested'}` dan `order_event{type:'cancel_requested'}`, commit, lalu menjawab 202.
+4. Relay outbox memindahkan event ke antrean `mp.outbound` dengan `jobId = order.cancel|<order_id>|<outbox_event_id>`.
+5. Job di worker memanggil marketplace lewat `MarketplaceGateway` (`orders.cancelOrder`), lalu membaca ulang pesanan; `OrderIntakeService` memindahkan status ke `cancelled` dan melepas reservasi stok di transaksi yang sama (8.14). Pelepasan stok menulis `inventory.changed`, yang mendorong stok baru ke semua toko (9.4).
+6. Socket.IO mengirim `order.updated` ke room tenant dari event yang sama (menyusul bersama frontend).
 
 ---
 
@@ -411,6 +411,7 @@ Semua kunci primer adalah **ULID**: 26 karakter Crockford base32 huruf besar, 48
 - Tidak ada kunci primer komposit. Tabel penghubung tetap memiliki `id` ULID ditambah batasan `UNIQUE` pada pasangan kolomnya.
 - Jangan membuat ULID di SQL selain dua pengecualian di atas. Bila migrasi backfill membutuhkan id, tulis skrip TypeScript di `tools/scripts/`.
 - `ulidSchema` (Zod) dipakai di semua DTO untuk parameter `:id`.
+- Rekaman yang waktunya berasal dari luar memakai `newIdAt(waktu)`: id pesanan dibuat dari waktu pesanan dibuat di marketplace, sehingga urutan id sama dengan urutan waktu pesanan (daftar pesanan cukup diurutkan per id) dan pesanan hasil impor 90 hari masuk partisi bulan pesanannya. Rekaman lain tetap `newId()`.
 
 ---
 
@@ -911,7 +912,13 @@ erDiagram
 | `risk_score` | `smallint` | NULL, CHECK `BETWEEN 0 AND 100` |
 | `problem_count` | `integer` | NOT NULL DEFAULT 0; dipelihara service |
 | `raw_payload_ref` | `text` | NULL; id `sync_job` atau `webhook_inbox` sebagai teks, tanpa FK karena retensinya lebih pendek |
-| Indeks | | `(tenant_id, status, ship_by_at)`; `(tenant_id, store_id, ordered_at DESC)`; `(tenant_id, tracking_number)`; `(tenant_id, warehouse_id, status)`; `(tenant_id, customer_id)` |
+| `external_updated_at` | `timestamptz` | NULL; waktu ubah marketplace dari snapshot yang tersimpan. Snapshot yang lebih tua (webhook terlambat, polling lambat) diabaikan (migrasi 0006) |
+| `platform` | `text` | NULL; asal pesanan pada toko multi-platform: TikTok Shop `commerce_platform` (`TIKTOK_SHOP`, `TOKOPEDIA`) |
+| `cancel_requested` | `boolean` | NOT NULL DEFAULT false; pembeli mengajukan pembatalan dan penjual harus menjawab (Shopee `IN_CANCEL`, TikTok Shop `is_buyer_request_cancel`) |
+| `external_buyer_id` | `text` | NULL; id pembeli di marketplace untuk pemeriksaan pesanan ganda; data pribadi, dianonimkan bersama kolom pembeli lain |
+| Indeks | | `(tenant_id, status, ship_by_at)`; `(tenant_id, store_id, ordered_at DESC)`; `(tenant_id, tracking_number)`; `(tenant_id, warehouse_id, status)`; `(tenant_id, customer_id)`; `(tenant_id, id DESC)`; `(tenant_id, status, id DESC)`; `(tenant_id, store_id, external_buyer_id)` parsial |
+
+Id pesanan dibuat dengan `newIdAt(ordered_at)` (6.3).
 
 **order_external_ref** (tidak dipartisi, tanpa `updated_at` dan `row_version`): `store_id → store` RESTRICT, `external_order_id text NOT NULL`, `order_id → order` CASCADE; UNIQUE `(store_id, external_order_id)` dan UNIQUE `(order_id)`. Ditulis dalam transaksi yang sama dengan `INSERT order`. Inilah yang membuat webhook duplikat tidak pernah menghasilkan pesanan ganda.
 
@@ -931,7 +938,11 @@ erDiagram
 | `reserved_qty` | `integer` | NOT NULL DEFAULT 0, CHECK `reserved_qty BETWEEN 0 AND qty` |
 | `shipped_qty` | `integer` | NOT NULL DEFAULT 0, CHECK `shipped_qty BETWEEN 0 AND qty` |
 | `returned_qty` | `integer` | NOT NULL DEFAULT 0, CHECK `returned_qty BETWEEN 0 AND shipped_qty` |
-| Indeks | | `(tenant_id, variant_id, id DESC)` |
+| `cancelled_qty` | `integer` | NOT NULL DEFAULT 0, CHECK `BETWEEN 0 AND qty`; unit yang dibatalkan sebagian di marketplace. CHECK `reserved_qty <= qty - cancelled_qty` |
+| `external_product_id`, `external_sku_id` | `text` | NULL; listing yang terjual (Shopee item dan model, TikTok Shop product dan SKU), untuk memasang varian setelah listing dipetakan |
+| Indeks | | `(tenant_id, variant_id, id DESC)`; `(tenant_id, external_product_id, external_sku_id)`; `(tenant_id, listing_id) WHERE variant_id IS NULL` |
+
+`external_item_id` adalah id baris pesanan yang stabil: Shopee `line_item_id` (atau item, model, dan grup promosi), TikTok Shop `sku_id` (satu baris TikTok Shop per unit dikelompokkan per SKU).
 
 **order_event** (partisi bulanan pada `id`, tanpa `updated_at` dan `row_version`): `order_id → order` CASCADE, `type text NOT NULL` (contoh `status_changed`, `problem_added`, `note_added`, `label_printed`, `packed`, `handed_over`), `from_status`, `to_status`, `actor_type text NOT NULL CHECK IN ('user','system','marketplace','device')`, `actor_id ulid`, `payload jsonb NOT NULL DEFAULT '{}'`; INDEX `(order_id, id)`.
 
@@ -1094,8 +1105,8 @@ Setiap tabel berstatus memiliki tabel transisi `<tabel>_status_transition (from_
 
 | Dari | Ke yang diizinkan | Efek stok (dilakukan service dalam transaksi yang sama) |
 |---|---|---|
-| `unpaid` | `new`, `cancelled` | Tidak ada |
-| `new` | `problem`, `ready_to_pack`, `cancelled`, `marketplace_fulfilled` | Masuk `new`: `order_reserve` per item dengan `variant_id` dan `warehouse_id` terisi |
+| `unpaid` | `new`, `cancelled` | Masuk `unpaid`: `order_reserve` per item dengan `variant_id` dan `warehouse_id` terisi. Marketplace sudah menahan stok untuk pesanan yang belum dibayar, jadi OmniSeller ikut menahan agar kanal lain tidak menjual unit yang sama |
+| `new` | `problem`, `ready_to_pack`, `cancelled`, `marketplace_fulfilled` | Masuk `new`: reservasi item yang belum direservasi |
 | `problem` | `new`, `ready_to_pack`, `cancelled` | Masuk `new` kembali: reservasi item yang belum direservasi |
 | `ready_to_pack` | `packed`, `problem`, `cancelled` | Tidak ada |
 | `packed` | `ready_to_ship`, `ready_to_pack`, `cancelled` | Tidak ada |
@@ -1107,7 +1118,9 @@ Setiap tabel berstatus memiliki tabel transisi `<tabel>_status_transition (from_
 | `marketplace_fulfilled` | `completed`, `cancelled`, `return_in_progress` | Tidak ada; stok dikelola marketplace |
 | `cancelled` | Tidak ada | Masuk `cancelled` dari status dengan reservasi: `order_release` untuk `reserved_qty` yang tersisa |
 
-`order.status` awal ditentukan dari status marketplace lewat tabel pemetaan connector. Pesanan dengan `fulfillment_mode = 'marketplace'` masuk sebagai `marketplace_fulfilled` dan tidak pernah menyentuh stok.
+`order.status` awal ditentukan dari status marketplace lewat pemetaan connector (8.14). Pesanan dengan `fulfillment_mode = 'marketplace'` masuk sebagai `marketplace_fulfilled` dan tidak pernah menyentuh stok.
+
+Efek stok dihitung ulang dari status setiap kali pesanan berubah (`itemStockPlan`): status tertahan (`unpaid` sampai `ready_to_ship`) mereservasi unit yang belum dibatalkan, dan pembatalan sebagian melepas sisanya; status terkirim mengeluarkan **hanya unit yang direservasi** (`order_ship`); `cancelled` melepas reservasi. Unit yang tidak pernah direservasi tidak menyentuh stok, termasuk pesanan yang pertama kali terlihat sudah dikirim (impor 90 hari): penjualan itu sudah tercermin di stok yang dihitung kemudian. Pengiriman yang lebih besar dari stok fisik tercatat mengeluarkan yang ada saja dan mencatat kekurangannya (`order_event` `stock_shortfall`, catatan mutasi).
 
 **Transisi yang dilaporkan marketplace.** Tabel transisi punya kolom `via`: `any` untuk langkah di sisi penjual, `marketplace` untuk fakta yang dilaporkan marketplace dan boleh melompati langkah penjual. Baris `marketplace` hanya berlaku bila transaksi berada di dalam `withStatusSource(tx, 'marketplace', ...)`. Ini diperlukan karena status internal tidak selalu berjalan lewat langkah kemas dan serah terima: di mode paralel migrasi (`store.sync_mode = 'read_only'`) semua pesanan diproses di aplikasi lama, dan pedagang solo boleh mencetak label tanpa scan (DOKUMEN-UI-UX 15.2). Tanpa lompatan ini, kabar "sudah dikirim" dari marketplace ditolak trigger dan `order_ship` tidak pernah terjadi, sehingga stok tertahan sebagai reservasi.
 
@@ -1299,7 +1312,7 @@ Toko baru selalu mulai dengan `sync_mode = 'read_only'`. Mengubahnya ke `live` m
 
 **Webhook.** `POST /webhooks/{channel}` di proses `webhook` membaca body mentah (`webhook/webhook-app.ts`), memverifikasi tanda tangan (Shopee: `Authorization` = HMAC-SHA256(partner_key, URL callback + "|" + body); TikTok Shop: HMAC-SHA256(app_secret, app_key + body)), lalu menyimpan satu baris `webhook_inbox` per (notifikasi, toko) dengan tenant hasil `resolve_store`, dan menambahkan job `webhook.process`. Jawaban selalu 200 dengan body kosong (Shopee mensyaratkannya dalam 3 detik; penambahan job dibatasi 1,5 detik). Tanda tangan salah dijawab 401 dan tidak disimpan. Id event: `tts_notification_id` untuk TikTok Shop, SHA-256 body untuk Shopee (pengulangan Shopee mengirim body yang sama).
 
-Job `webhook.process` menormalkan notifikasi dengan connector-nya lalu memanggil konsumen per jenis (`jobs/webhook-consumers.ts`): modul `channel` menangani `authorization.revoked` (Shopee kode 2, TikTok Shop `SELLER_DEAUTHORIZATION`) dan `authorization.expiring` (Shopee kode 12, TikTok Shop `UPCOMING_AUTHORIZATION_EXPIRATION`); modul `catalog` menangani `listing.changed` (8.12). Notifikasi pesanan disimpan dan ditandai tanpa konsumen sampai modul pesanan dibuat; impor awal 90 hari mengisi celahnya. Penerima webhook menyimpan body dengan `parseJsonSafe` agar id 19 digit tidak berubah.
+Job `webhook.process` menormalkan notifikasi dengan connector-nya lalu memanggil konsumen per jenis (`jobs/webhook-consumers.ts`): modul `channel` menangani `authorization.revoked` (Shopee kode 2, TikTok Shop `SELLER_DEAUTHORIZATION`) dan `authorization.expiring` (Shopee kode 12, TikTok Shop `UPCOMING_AUTHORIZATION_EXPIRATION`); modul `catalog` menangani `listing.changed` (8.12); modul `orders` menangani `order.status_changed` dan `order.tracking_updated` dengan membaca ulang pesanan (8.14): Shopee kode 3 dan 4, TikTok Shop tipe 1 (status), 3 (alamat diubah), dan 11 (status pembatalan). Penerima webhook menyimpan body dengan `parseJsonSafe` agar id 19 digit tidak berubah.
 
 ### 8.12 Katalog, listing, dan pemetaan SKU
 
@@ -1352,6 +1365,45 @@ Implementasi: modul `inventory` (`InventoryService`, `StockOverviewService`, `In
 - **Lokasi rak dan stok minimum** (`PUT /v1/inventory/{variantId}/warehouses/{warehouseId}`, FR-STK-07, 12): dua kolom yang boleh ditulis role aplikasi langsung; baris nol dibuat lebih dulu dengan `ensure_inventory`.
 - **Data varian.** Modul `inventory` membaca varian lewat view `catalog_variant_v` (`drizzle/sql/15_views.sql`) yang diekspor modul `catalog`: varian hidup beserta produk, HPP, dan gambar. View memakai `security_invoker`, sehingga RLS pemanggil berlaku pada tabel di bawahnya; daftar stok bisa difilter dan dipaginasi dalam satu query tanpa menyentuh tabel `variant` dan `product`.
 
+### 8.14 Pesanan
+
+Implementasi: modul `orders` (`OrderIntakeService`, `OrderSyncService`, `OrdersService`; keputusan murni di `order-plan.ts` dengan uji unit) dan bagian `orders` connector, diverifikasi terhadap dokumentasi resmi Shopee (`v2.order.get_order_list`, `get_order_detail`, `cancel_order`) dan TikTok Shop (Get Order List 202309, Get Order Detail 202507, Cancel Order 202602, Cancel reasons) per Oktober 2026. PRD FR-ORD-01, 02, 03, 05, 06, 07, 08, 10, 13, 14, 15, FR-INT-04, 05, FR-WHS-06, 09, 10, FR-RET-04, FR-MFS-03, FR-MIG-04, 05.
+
+**Masuknya pesanan.**
+
+| Jalur | Pemicu | Perilaku |
+|---|---|---|
+| Webhook | Shopee kode 3 dan 4; TikTok Shop tipe 1, 3, 11 | `webhook.process` membaca ulang pesanan itu (`getOrders`); diukur dengan proses sungguhan: pesanan terlihat 0,3 detik setelah notifikasi |
+| Polling | Jadwal `mp.poll.orders` setiap 5 menit, `POST /v1/orders/sync` | `order.pull` inkremental: pesanan yang berubah sejak awal tarikan terakhir dikurangi 10 menit (`sync_cursor` resource `orders`) |
+| Impor awal | `store.connected` | `order.pull` awal: pesanan yang dibuat 90 hari terakhir. Toko yang terhubung ulang melanjutkan dari cursor-nya |
+
+Tarikan berjalan paling banyak 5 halaman per job lalu dilanjutkan event `order.pull_requested`; selesai, `store.last_order_sync_at` diisi. Shopee dibaca per jendela 15 hari (batas `get_order_list`) dengan `request_order_status_pending`, detail 50 pesanan per panggilan. TikTok Shop dibaca dengan Search Orders yang langsung mengembalikan pesanan lengkap. Setiap pesanan diterapkan dalam transaksinya sendiri; pesanan baru yang bertabrakan (dua webhook bersamaan) gagal di `order_external_ref` lalu diulang sebagai pembaruan. Item yang belum punya listing (produk baru sejak tarikan listing terakhir) langsung dibaca lewat `ListingSyncService.refreshItems`, agar SKU-nya bisa dipetakan.
+
+**Status.** Connector memetakan status marketplace ke fakta (`OrderState`), lalu `order-plan.ts` menentukan status internal:
+
+| Fakta | Shopee | TikTok Shop | Status internal |
+|---|---|---|---|
+| `unpaid` | `UNPAID` | `UNPAID` | `unpaid` |
+| `to_ship` | `READY_TO_SHIP`, `PENDING`, `RETRY_SHIP`, `IN_CANCEL` | `ON_HOLD`, `AWAITING_SHIPMENT` | `new` (pesanan baru); pesanan lama tidak berubah |
+| `seller_processing` | `PROCESSED` | `AWAITING_COLLECTION`, `PARTIALLY_SHIPPING` | hanya `external_status` |
+| `shipped` | `SHIPPED` | `IN_TRANSIT` | `shipped` |
+| `delivered` | `TO_CONFIRM_RECEIVE` | `DELIVERED` | `delivered` |
+| `completed` | `COMPLETED` | `COMPLETED` | `completed` |
+| `cancelled` | `CANCELLED` | `CANCELLED` (webhook: `CANCEL`) | `cancelled` |
+| `returning` | `TO_RETURN` | (modul retur) | `return_in_progress` |
+
+Status hanya bergerak maju: snapshot yang lebih tua dari `external_updated_at` diabaikan, dan fakta yang tertinggal dari status tersimpan tidak menghasilkan langkah. Fakta yang melompati langkah penjual berjalan di `withStatusSource(tx, 'marketplace')` (7.9). Pesanan Dikelola Shopee, FBT, dan Dilayani Tokopedia (`fulfillment_mode = 'marketplace'`) menjadi `marketplace_fulfilled` tanpa efek stok (FR-MFS-03).
+
+**Gudang** (FR-WHS-06, 10). Gudang tiap baris berasal dari marketplace: Shopee `product_location_id` (toko multi-gudang), TikTok Shop `warehouse_id` pesanan. Gudang marketplace dipetakan ke gudang OmniSeller lewat `channel_warehouse`; toko dengan satu gudang penjual memakai gudang itu. Gudang yang belum dipetakan atau belum dikenal membuat masalah `unmapped_warehouse` dan tidak ada reservasi sampai dipetakan.
+
+**Masalah** (FR-ORD-06): `unmapped_sku` (baris tanpa varian; tetap terbuka setelah dikirim karena penjualannya tidak keluar dari stok), `unmapped_warehouse`, `insufficient_stock` (siap jual negatif setelah reservasi, hanya untuk stok yang sudah ditetapkan), `address_incomplete` (nama, telepon, atau alamat kosong, kecuali saat marketplace menyembunyikannya: TikTok Shop `UNPAID` dan `ON_HOLD`), `duplicate` (pembeli yang sama dengan isi pesanan yang sama dalam 24 jam), `high_value` (total Rp10.000.000 atau lebih). Masalah dibuka dan ditutup otomatis setiap kali pesanan dibaca, listing dipetakan (`order.listing_mapped`), atau stok berubah (`order.stock_recheck`); masalah yang ditutup penjual tidak dibuka lagi. Pesanan `new` dengan masalah terbuka menjadi `problem`, dan kembali `new` saat semuanya selesai.
+
+**Aksi penjual.** `POST /v1/orders/accept` (`new → ready_to_pack`) dan `POST /v1/orders/pack` (`ready_to_pack → packed`) memproses banyak pesanan dengan hasil per pesanan; ditolak untuk toko `read_only` (mode paralel: pesanan diproses di aplikasi lama, FR-MIG-05), pesanan bermasalah, pesanan marketplace, dan pesanan tanpa gudang. Id yang tidak ditemukan menggagalkan seluruh permintaan (404), seperti endpoint massal lain. Shopee dan TikTok Shop tidak punya API "terima pesanan"; mengatur pengiriman dan label menyusul di modul pengiriman. Pembatalan (`POST /v1/orders/{id}/cancel`, FR-ORD-13) memakai alasan yang berlaku untuk status marketplace saat itu (`GET /v1/orders/{id}/cancel-reasons`): Shopee `OUT_OF_STOCK` (dengan daftar item), `CUSTOMER_REQUEST`, `COD_NOT_SUPPORTED`; TikTok Shop Indonesia `seller_cancel_unpaid_reason_*` untuk `UNPAID` serta `seller_cancel_reason_out_of_stock` dan `seller_cancel_reason_wrong_price` untuk `ON_HOLD` dan `AWAITING_SHIPMENT` ("tidak dapat dikirim ke alamat" dicabut untuk Indonesia sejak 31 Agustus 2025, dan "stok habis" dihitung kesalahan penjual). Job `order.cancel` memanggil marketplace lalu membaca ulang pesanan; penolakan marketplace dicatat sebagai `order_event` `cancel_failed`.
+
+**Daftar dan detail.** `GET /v1/orders` menyaring per toko, kanal, status (beberapa sekaligus), tanggal, gudang, masalah, COD, dan batas kirim (`due=overdue|soon`), mencari nomor pesanan, resi, nama pembeli, SKU, atau nama produk, dan mengurutkan terbaru dulu atau `sort=ship_by` (yang paling mendesak dulu, cursor komposit). SLA (FR-ORD-07) dihitung saat dibaca dari `ship_by_at`: `overdue` (lewat), `warning` (6 jam atau kurang), `ok`. `GET /v1/orders/summary` memberi jumlah per status, `overdue`, `dueSoon`, dan COD yang belum diterima (FR-ORD-15). Detail memuat item dengan reservasi dan pengirimannya, jumlah uang, masalah, dan riwayat aktivitas (FR-ORD-14: `created`, `status_changed`, `problem_added`, `problem_resolved`, `cancel_requested`, `cancel_failed`, `note_changed`, `stock_shortfall`, dengan jenis dan id aktor). Telepon dan alamat pembeli hanya tampil untuk peran yang memproses pesanan (`order:accept`, `shipment:print`, atau `order:write`); peran lain melihat `addressHidden`. Pengguna dengan cakupan gudang hanya melihat pesanan gudangnya (FR-WHS-09).
+
+**Stok awal.** `POST /v1/inventory/initial-stock` menunggu impor pesanan toko selesai (`store.orders_importing`, 409), karena pesanan terbuka yang diimpor menahan stok dan `on_hand` dihitung dari stok marketplace ditambah reservasi itu (8.13).
+
 ---
 
 ## 9. Pekerjaan Latar dan Penjadwalan
@@ -1393,8 +1445,10 @@ BullMQ menolak job dengan `jobId` yang masih ada di antrean **atau yang sudah se
 
 | Job | Jenis | `jobId` |
 |---|---|---|
-| `order.ingest` | Sekali per event webhook | `order.ingest\|<store_id>\|<event_id>` |
-| `order.accept` | Sekali per entitas | `order.accept\|<order_id>` |
+| `order.pull` | Per kejadian | `order.pull\|<store_id>\|<outbox_event_id>` (impor awal, lanjutan, permintaan) atau `...\|o<slot 5 menit>` (jadwal) |
+| `order.cancel` | Per kejadian | `order.cancel\|<order_id>\|<outbox_event_id>` |
+| `order.listing_mapped` | Per kejadian | `order.listing_mapped\|<listing_id>\|<outbox_event_id>` |
+| `order.stock_recheck` | Per kejadian | `order.stock_recheck\|<tenant_id>\|<outbox_event_id>` |
 | `shipment.arrange` | Sekali per entitas | `shipment.arrange\|<shipment_id>` |
 | `label.fetch` | Sekali per entitas | `label.fetch\|<shipment_id>` |
 | `stock.push` | Per batch kejadian | `stock.push\|<tenant_id>\|<24 hex SHA-256 dari pasangan dan skor debounce batch>` (9.4) |
@@ -1413,7 +1467,6 @@ BullMQ menolak job dengan `jobId` yang masih ada di antrean **atau yang sudah se
 | `notify.send` | Sekali per notifikasi dan kanal | `notify.send\|<notification_id>\|<channel>` |
 | `ai.chat_suggest` | Sekali per pesan | `ai.chat_suggest\|<message_id>` |
 | `research.capture` | Sekali per jam | `research.capture\|<research_item_id>\|<yyyy-mm-dd-hh>` |
-| `mp.poll.orders` | Sekali per slot | `mp.poll.orders\|<store_id>\|<slot>` dengan `slot` = waktu dibulatkan 5 menit |
 
 Handler tetap memeriksa keadaan bisnis sebelum bertindak dan memuat ulang nilai terkini dari basis data, sehingga dua job untuk entitas yang sama selalu mengirim nilai terbaru.
 
@@ -1461,7 +1514,7 @@ Diukur dengan proses sungguhan (api, worker, scheduler) terhadap Shopee tiruan: 
 | `stock.dirty_flush` | Setiap 2 detik | tidak ada (hanya Redis) | Enqueue `stock.push` per batch (maksimal 50 kunci satu tenant) untuk kunci yang diam 5 detik (9.4) |
 | `webhook.inbox_sweep` | Setiap 30 detik | `system` | Enqueue ulang baris `webhook_inbox` yang belum diproses (maksimal 3 kali, 24 jam terakhir) untuk webhook yang diterima saat Redis mati; merutekan notifikasi yang tiba sebelum tokonya terhubung; menutup notifikasi toko tak dikenal setelah 15 menit (`unknown_shop`) |
 | `token.refresh_scan` | Setiap 15 menit | `system` untuk memilih, `worker` per toko | Job `store.token_refresh` untuk toko yang token aksesnya melewati 80% masa hidup atau izinnya berakhir dalam 14 hari |
-| `mp.poll.orders` | Setiap 5 menit per toko aktif | `worker` | Polling cadangan pesanan |
+| `mp.poll.orders` | Setiap 5 menit | `system` untuk memilih, `worker` per toko | Job `order.pull` inkremental untuk setiap toko aktif, termasuk toko baca saja (mode paralel tetap menerima pesanan dan menahan stok); menangkap pesanan yang webhook-nya terlewat (FR-INT-05) |
 | `mp.poll.products` | Setiap 6 jam, bersama `mp.poll.warehouses` | `system` untuk memilih, `worker` per toko | Job `listing.pull` inkremental untuk setiap toko aktif (8.12) |
 | `mp.poll.warehouses` | Setiap 6 jam | `system` untuk memilih, `worker` per toko | Job `store.warehouses_sync` untuk setiap toko aktif: gudang baru, gudang hilang (FR-WHS-10); juga `store.webhooks_subscribe` (topik baru untuk toko lama) dan `listing.pull` inkremental. Satu pemindaian (`scheduler/channel-scans.ts`), id job per slot 6 jam |
 | `settlement.pull` | Harian 03.00 WIB | `worker` | Tarik settlement |
@@ -1565,7 +1618,7 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `GET /v1/warehouses` | `inventory:read` | Gudang OmniSeller dalam cakupan gudang pengguna |
 | `GET /v1/channels` | `settings:store` | Marketplace yang didukung, nama tampilannya, dan apakah sudah dikonfigurasi |
 | `POST /v1/store-authorizations`, `POST /v1/store-authorizations/callback`, `GET /v1/store-authorizations/{id}` | `settings:store` | 8.11. Mulai (201 dengan `authorizeUrl`), callback (202), status |
-| `GET /v1/stores`, `GET /v1/stores/{id}` | Sesi | Toko dalam cakupan toko pengguna; status, alasan dan pesannya, masa izin, masa token, jumlah gudang belum terpetakan |
+| `GET /v1/stores`, `GET /v1/stores/{id}` | Sesi | Toko dalam cakupan toko pengguna; status, alasan dan pesannya, masa izin, masa token, jumlah gudang belum terpetakan, waktu tarikan listing dan pesanan terakhir (`lastOrderSyncAt` kosong selama impor 90 hari berjalan) |
 | `PATCH /v1/stores/{id}` | `settings:store` | Nama, gudang default, `syncMode`; `If-Match` |
 | `POST /v1/stores/{id}/disconnect` | `settings:store` | Hapus token, `read_only`, `disconnected`; mengembalikan `revokeUrl` (Shopee `cancel_auth`) |
 | `POST /v1/stores/{id}/warehouses/sync`, `GET /v1/stores/{id}/channel-warehouses`, `PUT /v1/stores/{id}/channel-warehouses/{channelWarehouseId}` | `settings:store` | Impor ulang gudang marketplace (202), daftar, pemetaan ke gudang OmniSeller (FR-WHS-02) |
@@ -1586,6 +1639,13 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `POST /v1/inventory/initial-stock` | `inventory:adjust` | Stok awal dari tarikan listing toko; `dryRun` untuk pratinjau |
 | `POST /v1/inventory/resync` | `settings:store` | Dorong ulang semua stok toko `live` (202); toko baca saja 409 `store.not_live` |
 | `GET/POST /v1/stock-allocation-rules`, `GET/PATCH/DELETE /v1/stock-allocation-rules/{id}` | `settings:store` | Aturan alokasi stok per toko (8.13); `PATCH` dengan `If-Match` |
+| `GET /v1/orders`, `GET /v1/orders/summary`, `GET /v1/orders/{id}` | `order:read` | 8.14. Antrean dengan filter, SLA, dan COD; penghitung tab; detail dengan riwayat |
+| `POST /v1/orders/accept` | `order:accept` | Terima banyak pesanan; hasil per pesanan |
+| `POST /v1/orders/pack` | `shipment:pack` | Tandai dikemas; hasil per pesanan |
+| `GET /v1/orders/{id}/cancel-reasons`, `POST /v1/orders/{id}/cancel` | `order:cancel` | Alasan dari marketplace; pembatalan lewat worker (202) |
+| `PUT /v1/orders/{id}/note` | `order:tag` | Catatan internal (204) |
+| `POST /v1/orders/{id}/problems/{problemId}/resolve` | `order:accept` | Tutup masalah; tidak dibuka lagi untuk pesanan itu |
+| `POST /v1/orders/sync` | `settings:store` | Baca ulang pesanan toko (202) |
 | `POST /webhooks/shopee`, `POST /webhooks/tiktokshop` | Tanda tangan marketplace | Proses `webhook`, di luar OpenAPI (8.11) |
 
 ---
@@ -1600,7 +1660,7 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `catalog` | `product`, `variant`, `product_image`, `bundle_component`, `channel_listing`; mengekspor view `catalog_variant_v`. Membaca toko dan `sync_cursor` lewat `StoresService` (milik `channel`) | `listing.pull_requested`, `listing.status_push_requested`, `listing.mapped`, `listing.unmapped`; menyusul `variant.price_changed`, `variant.cost_changed`, `listing.price_push_requested` | `store.connected`; webhook `listing.changed` | `listing.pull`, `listing.status_push`; menyusul `listing.price_push`, `listing.copy` |
 | `inventory` | `warehouse`, `inventory`, `stock_movement`, `stock_allocation_rule`, `listing_stock_state`, `stock_count`, `stock_count_line`, `stock_transfer`, `stock_transfer_line`, `campaign_stock_hold`. Membaca listing lewat `ListingsService`, toko dan gudang marketplace lewat `StoresService`, varian lewat view `catalog_variant_v`. `InventoryModule` (berkas `inventory-core.module.ts`) tidak mengimpor modul lain, karena `channel` bergantung padanya | `inventory.changed`, `stock.resync_requested`; menyusul `inventory.low_stock` | `listing.mapped`, `listing.unmapped`, `store.sync_mode_changed`, `channel_warehouse.changed`, `channel_warehouse.mapping_changed`; menyusul `order.status_changed`, `return.received`, `goods.received`, `campaign.started`, `campaign.ended` | `stock.mark_dirty`, `stock.push`, `stock.listing_mapped`, `stock.listing_unmapped`, `stock.store_resync` |
 | `purchasing` | `supplier`, `purchase_order`, `purchase_order_line`, `goods_receipt`, `goods_receipt_line`, `document_sequence` | `goods.received`, `purchase_order.status_changed` | `inventory.low_stock` | |
-| `orders` | `order`, `order_external_ref`, `order_item`, `order_event`, `order_problem`, `tag`, `order_tag`, `pick_wave` | `order.created`, `order.status_changed`, `order.problem_added`, `order.accept_requested`, `order.cancel_requested` | `webhook.received`, `shipment.status_changed`, `return.status_changed` | `order.ingest`, `order.accept`, `order.cancel`, `mp.poll.orders`, `order.auto_process` |
+| `orders` | `order`, `order_external_ref`, `order_item`, `order_event`, `order_problem`, `tag`, `order_tag`, `pick_wave`. Stok lewat `InventoryService.orderMovementsIn`, listing lewat `ListingsService`, toko lewat `StoresService` | `order.pull_requested`, `order.cancel_requested`; menyusul `order.created`, `order.status_changed` | `store.connected`, `listing.mapped`, `inventory.changed`; webhook `order.status_changed`, `order.tracking_updated`; menyusul `shipment.status_changed`, `return.status_changed` | `order.pull`, `order.cancel`, `order.listing_mapped`, `order.stock_recheck`; menyusul `order.auto_process` |
 | `fulfillment` | `shipment`, `shipment_package`, `print_job` | `shipment.status_changed`, `shipment.arrange_requested`, `label.ready`, `print.requested` | `order.status_changed` | `shipment.arrange`, `label.fetch`, `pdf.render`, `pick_list.render` |
 | `returns` | `return_request`, `return_item` | `return.status_changed`, `return.received` | `webhook.received`, `shipment.status_changed` | `return.pull`, `return.respond` |
 | `sync` | `webhook_inbox`, `sync_job`, `outbox_event` | | | `webhook.process` (antrean `webhook`); di scheduler: `outbox.relay`, `webhook.inbox_sweep` |
@@ -1690,7 +1750,7 @@ Role dan database dibuat di luar migrasi, karena role berlaku untuk seluruh klas
 - `test/setup/handles.ts`: `testHandles()` membuka pool `api`, `worker`, `system`, koneksi Redis, dan `raw(role)` untuk memeriksa hak akses di luar `withTenantTx`; semuanya ditutup otomatis di akhir file.
 - `test/setup/factories.ts`: `userCtx()`, `createTenant()`, `createWarehouse()`, `createProductWithVariant()`, `createStore()`, `createOrder()`, `applyMovement()`. Semua berjalan sebagai `omniseller_api` di dalam `withTenantTx`, sehingga factory sendiri membuktikan jalur normal lolos RLS. Factory lain (`createUser`, `createListing`) ditambahkan bersama modulnya.
 - `test/setup/app.ts`: `startApi(infra)` menjalankan aplikasi api penuh (guard, pipe, filter) di port acak; `startWorker(infra, system)` membangun container worker dengan email `memory`, dan `runOutbox(tenantId)` menjalankan handler job untuk baris outbox tenant itu secara langsung, tanpa relay dan tanpa menunggu. `client(app, ip)` memberi agen supertest dengan cookie dan IP sendiri; `signup()`, `uniqueEmail()`, `tokenFrom()` membantu alur e2e.
-- `test/setup/mock-marketplace.ts`: server `node:http` yang meniru Shopee Open Platform dan TikTok Shop Partner API sesuai dokumentasinya: memeriksa tanda tangan, jendela cap waktu, kode sekali pakai, refresh token Shopee sekali pakai per toko, refresh token TikTok Shop yang berotasi, dan `shop_cipher`. Katalog ikut ditiru: Shopee `get_item_list` (filter status berulang, jendela waktu), `get_item_base_info`, `get_model_list`, `unlist_item` (item terkunci menghasilkan kegagalan sebagian), dan TikTok Shop search 202502 (token halaman), detail produk, aktifkan dan nonaktifkan (mengubah status TikTok Shop dan Tokopedia). Stok juga ditiru sesuai aturan resminya: Shopee `update_stock` menjaga struktur lokasi item (`stockByLocation`, `""` untuk stok tanpa lokasi) dan menolak stok di bawah `reservedStock`; TikTok Shop Update Inventory mensyaratkan semua gudang SKU (12019028), membatasi 0 sampai 99.999, dan menolak gudang FBT per SKU. `startWorker` menyediakan `flushStock(tenantId)` yang menjalankan flush scheduler dan job `stock.push` di tempat tanpa masa tenang. Uji membangun toko lewat `addShopeeShop`/`addTiktokSeller` (dengan `items`/`products`), mendapatkan kode dari `shopeeCode`/`tiktokCode`, memaksa galat dengan `failNext`, dan menandatangani push dengan `signShopeePush`/`signTiktokWebhook`. `test/setup/app.ts` menyediakan `startApi`, `startWorker` (dengan `runOutbox` dan `runJob`), dan `startWebhook` yang diarahkan ke server ini, dengan prefix antrean BullMQ per run (`infra.keyPrefix`) agar job uji tidak pernah terlihat proses lain.
+- `test/setup/mock-marketplace.ts`: server `node:http` yang meniru Shopee Open Platform dan TikTok Shop Partner API sesuai dokumentasinya: memeriksa tanda tangan, jendela cap waktu, kode sekali pakai, refresh token Shopee sekali pakai per toko, refresh token TikTok Shop yang berotasi, dan `shop_cipher`. Katalog ikut ditiru: Shopee `get_item_list` (filter status berulang, jendela waktu), `get_item_base_info`, `get_model_list`, `unlist_item` (item terkunci menghasilkan kegagalan sebagian), dan TikTok Shop search 202502 (token halaman), detail produk, aktifkan dan nonaktifkan (mengubah status TikTok Shop dan Tokopedia). Stok juga ditiru sesuai aturan resminya: Shopee `update_stock` menjaga struktur lokasi item (`stockByLocation`, `""` untuk stok tanpa lokasi) dan menolak stok di bawah `reservedStock`; TikTok Shop Update Inventory mensyaratkan semua gudang SKU (12019028), membatasi 0 sampai 99.999, dan menolak gudang FBT per SKU. `startWorker` menyediakan `flushStock(tenantId)` yang menjalankan flush scheduler dan job `stock.push` di tempat tanpa masa tenang. Pesanan ditiru juga: Shopee `get_order_list` (jendela 15 hari ditegakkan, cursor), `get_order_detail` (paling banyak 50), `cancel_order` (status dan alasan diperiksa); TikTok Shop Search Orders 202309, Get Order Detail 202507, dan Cancel Order 202602 dengan alasan yang harus cocok dengan status (25001021). Uji menambah pesanan ke `orders` toko tiruan dan mengubah statusnya, lalu mengirim notifikasi bertanda tangan. Uji membangun toko lewat `addShopeeShop`/`addTiktokSeller` (dengan `items`/`products`), mendapatkan kode dari `shopeeCode`/`tiktokCode`, memaksa galat dengan `failNext`, dan menandatangani push dengan `signShopeePush`/`signTiktokWebhook`. `test/setup/app.ts` menyediakan `startApi`, `startWorker` (dengan `runOutbox` dan `runJob`), dan `startWebhook` yang diarahkan ke server ini, dengan prefix antrean BullMQ per run (`infra.keyPrefix`) agar job uji tidak pernah terlihat proses lain.
 - Fixture webhook nyata teranonimkan di `packages/connectors/<mp>/test/fixtures/webhooks/*.json`.
 
 ### 13.3 Aturan menulis tes
@@ -1819,7 +1879,7 @@ pnpm mock:webhook shopee order_created --store <store_id>   # kirim fixture webh
 ### 15.8 Menambah connector marketplace
 
 1. Buat paket `packages/connectors/<marketplace>/` dengan bentuk yang sama dengan `shopee` dan `tiktokshop`: `client.ts` (transport, tanda tangan, klasifikasi error ke empat jenis 8.6), `connector.ts` (`create<Marketplace>Connector`, manifest), `webhooks.ts` (verifikasi tanda tangan dan parser ke `NormalizedWebhookEvent`), dan uji unit. Uji tanda tangan memakai contoh resmi dari dokumentasi marketplace bila tersedia.
-2. Implementasikan `MarketplaceConnector` dari `@omniseller/connector-core`, termasuk `catalog` (8.12: status listing dipetakan ke enam nilai, satu `NormalizedListing` per varian, id item yang hilang dikembalikan sebagai `deletedItemIds`). Uraikan JSON dengan `parseJsonSafe`. Implementasikan `inventory.updateStock` (9.4: hasil per listing, `retryable` untuk kegagalan sementara, galat otorisasi dilempar) dan isi `maxStockQuantity` di manifest. Bagian yang belum dipakai modul mana pun tidak ditulis.
+2. Implementasikan `MarketplaceConnector` dari `@omniseller/connector-core`, termasuk `catalog` (8.12: status listing dipetakan ke enam nilai, satu `NormalizedListing` per varian, id item yang hilang dikembalikan sebagai `deletedItemIds`). Uraikan JSON dengan `parseJsonSafe`. Implementasikan `inventory.updateStock` (9.4: hasil per listing, `retryable` untuk kegagalan sementara, galat otorisasi dilempar) dan isi `maxStockQuantity` di manifest. Implementasikan `orders` (8.14): status dipetakan ke `OrderState`, kuantitas per baris (unit dipesan dan yang dibatalkan), gudang per baris atau pesanan, alasan batal per status. Bagian yang belum dipakai modul mana pun tidak ditulis.
 3. Isi manifest: nama tampilan untuk seller Indonesia, batas laju per toko, masa hidup token akses, region yang didukung.
 4. Daftarkan di `ConnectorRegistry.fromEnv` dan `MANIFESTS`, tambahkan kunci env per peran (5.2) dan `.env.example`, dan nilai `channel` ke CHECK lewat migrasi bila belum ada.
 5. Perluas `test/setup/mock-marketplace.ts` untuk marketplace baru dan tambahkan skenario e2e koneksi (tukar kode, refresh, webhook).
@@ -1877,7 +1937,7 @@ pnpm test:all             # semuanya, sama dengan CI
 | DLQ membesar | 1) `pnpm jobs:dlq --queue <nama>` untuk melihat error terbanyak. 2) Bila penyebabnya marketplace (5xx, 429), tunggu pulih lalu `pnpm jobs:retry --queue <nama> --all`. 3) Bila bug, perbaiki, deploy, lalu ulang. 4) Jangan buang job pesanan tanpa membuat `order_problem` |
 | Toko `reauth_required` | 1) Cek `store_credential.refresh_fail_count` dan `sync_job kind='auth.refresh'`. 2) Bila token dicabut seller, pengguna harus otorisasi ulang dari UI; tidak ada jalan pintas. 3) Setelah otorisasi ulang, `store.initial_import` tidak dijalankan ulang; polling menutup celah |
 | Partisi `DEFAULT` berisi baris | 1) Alarm `omniseller_partition_default_rows`. 2) Jalankan `pnpm ops:partition:maintain` untuk membuat partisi yang hilang. 3) Pindahkan baris: skrip `tools/scripts/repartition.ts` memindahkan dari `DEFAULT` ke partisi benar dalam batch |
-| Perlu memutar ulang satu webhook | `pnpm ops:webhook:replay --id <webhook_inbox.id>` mengenqueue ulang `order.ingest` dengan `jobId` yang sama; bila job lama masih tercatat selesai, tambahkan `--force` yang menambahkan suffix waktu |
+| Perlu memutar ulang satu webhook | `pnpm ops:webhook:replay --id <webhook_inbox.id>` mengenqueue ulang `webhook.process` dengan `jobId` yang sama (pesanan dibaca ulang dari marketplace, jadi pemutaran ulang aman); bila job lama masih tercatat selesai, tambahkan `--force` yang menambahkan suffix waktu |
 | Rollback rilis | 1) CodeDeploy: pilih revisi sebelumnya, atau otomatis oleh alarm. 2) Matikan feature flag terkait. 3) Migrasi tidak dibalik (expand and contract); bila migrasi menyebabkan masalah, tulis migrasi perbaikan |
 | Rotasi DEK tenant | `pnpm ops:crypto:rotate-dek --tenant <id>` mendekripsi dan mengenkripsi ulang semua `*_enc` tenant itu dalam batch, menaikkan `dek_version`; hanya dari proses `worker` |
 | Hapus tenant (permintaan resmi) | 1) `tenant.status = 'closing'` (baca saja 30 hari). 2) Ekspor penuh dan kirim ke owner. 3) `pnpm ops:tenant:purge --tenant <id> --confirm <slug>` dengan role `omniseller_system`, urutan dependensi dari `information_schema`, `app.stock_write` diaktifkan, `audit_log` diekspor sebelum dihapus |
@@ -1986,3 +2046,4 @@ Berkas `.env.example` adalah versi yang berlaku. Kunci dikelompokkan per peran p
 | 1.4 | 1 Oktober 2026 | Koneksi toko Shopee dan Tokopedia & Shop (TikTok Shop API) diimplementasikan sesuai dokumentasi resmi per Oktober 2026: paket `packages/connectors` (core, shopee, tiktokshop); alur 8.11 (state, callback lewat web app, penukaran kode di worker, akun utama Shopee, toko milik tenant lain, hubungkan ulang); `tenant_key`, `store_authorization`, kolom baru `store` dan `store_credential.shop_cipher` (migrasi 0003); grant `store_credential` dikoreksi (api tanpa INSERT/UPDATE, dengan DELETE); 8.6 ditulis ulang (gateway, advisory lock menggantikan kunci baris karena batas idle transaksi, empat jenis error, log sinkron); proses webhook dengan body mentah; job dan jadwal 9.2 dan 9.5; endpoint 10.6; peta modul 11; perlengkapan uji 13.2; langkah 15.8 | Candra Syahputra |
 | 1.5 | 1 Oktober 2026 | Katalog dan pemetaan SKU diimplementasikan sesuai dokumentasi resmi Shopee dan TikTok Shop per Oktober 2026 (8.12 baru): produk master dengan atribut, tarik listing penuh dan inkremental dengan lanjutan per 10 halaman, status `reviewing`, pemetaan otomatis per SKU, saran trigram, produk dari listing, aktif dan nonaktif di marketplace, impor dan ekspor CSV. Migrasi 0004: `pg_trgm`, `channel_listing.mapping_source` dan `mapped_at`, `product_image.source_url`, SKU unik tanpa membedakan huruf besar, indeks katalog, audit `product` (7.8.3). Batas laju per toko kini per permintaan HTTP, bukan per operasi; `parseJsonSafe` untuk id 19 digit (8.6, 8.11); job dan jadwal 9.2, 9.3, 9.5; endpoint 10.6; peta modul 11; mock katalog 13.2; langkah 15.8 | Candra Syahputra |
 | 1.6 | 3 Oktober 2026 | Stok dan push stok diimplementasikan sesuai dokumentasi resmi Shopee (`v2.product.update_stock`) dan TikTok Shop (Update Inventory 202309) per Oktober 2026: 8.13 baru (penyesuaian dengan alasan, kartu stok, daftar dan ringkasan stok dengan status push per toko, stok awal dari toko, aturan alokasi, lokasi rak); 9.4 ditulis ulang (batch per tenant, kunci per varian, stok yang belum ditetapkan tidak didorong, lokasi dari tarikan listing, satu gudang fisik tidak ditampilkan dua kali dalam satu listing, ulangan hanya untuk kegagalan sementara, pemicu pemetaan dan mode `live`). Migrasi 0005: `inventory.stock_set_at`, `listing_stock_state.last_attempt_at`; fungsi `confirm_stock`; view `catalog_variant_v` (`drizzle/sql/15_views.sql`). `listing_stock_state` pindah ke modul `inventory`; event `channel_warehouse.mapping_changed`. Job 9.2, jadwal 9.5, endpoint 10.6, peta modul 11, mock stok 13.2, langkah 15.8 | Candra Syahputra |
+| 1.7 | 3 Oktober 2026 | Pesanan diimplementasikan sesuai dokumentasi resmi Shopee dan TikTok Shop per Oktober 2026 (8.14 baru): webhook, polling 5 menit, impor 90 hari dengan lanjutan per 5 halaman, pemetaan status per marketplace, status hanya maju (snapshot lama diabaikan), gudang per baris dari marketplace (FR-WHS-06), masalah otomatis, terima dan kemas massal, pembatalan dengan alasan marketplace, catatan internal, riwayat aktivitas, SLA, ringkasan COD, alamat pembeli hanya untuk peran yang memproses pesanan. 7.9: pesanan `unpaid` ikut mereservasi stok; pengiriman hanya mengeluarkan unit yang direservasi; pembatalan sebagian melepas sisanya. Migrasi 0006: kolom `external_updated_at`, `platform`, `cancel_requested`, `external_buyer_id` di `order` dan `cancelled_qty`, `external_product_id`, `external_sku_id` di `order_item`. Id pesanan dari waktu pesanan (`newIdAt`, 6.3). Contoh 3.3 diganti pembatalan pesanan. Stok awal menunggu impor pesanan. Job 9.2, jadwal 9.5, endpoint 10.6, peta modul 11, mock pesanan 13.2, langkah 15.8 | Candra Syahputra |

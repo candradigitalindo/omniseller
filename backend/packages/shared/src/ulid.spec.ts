@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isUlid, newId, ULID_REGEX, ulidLowerBound, ulidTime } from "./ulid.js";
+import { isUlid, newId, newIdAt, ULID_REGEX, ulidLowerBound, ulidTime } from "./ulid.js";
 
 describe("ulid", () => {
   it("generates valid, strictly increasing ids within the same millisecond", () => {
@@ -33,5 +33,14 @@ describe("ulid", () => {
     expect(isUlid("01arz3ndektsv4rrffq69g5fav")).toBe(false);
     expect(isUlid("01ARZ3NDEKTSV4RRFFQ69G5FAI")).toBe(false);
     expect(isUlid("01ARZ3NDEKTSV4RRFFQ69G5FA")).toBe(false);
+  });
+
+  it("builds ids at a given moment that sort by that moment", () => {
+    const placed = new Date(Date.UTC(2026, 6, 15, 8, 30));
+    const id = newIdAt(placed);
+    expect(id).toMatch(ULID_REGEX);
+    expect(ulidTime(id).getTime()).toBe(placed.getTime());
+    expect(id < newIdAt(new Date(placed.getTime() + 1))).toBe(true);
+    expect(id > ulidLowerBound(new Date(Date.UTC(2026, 6, 1)))).toBe(true);
   });
 });

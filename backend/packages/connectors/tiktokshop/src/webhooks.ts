@@ -39,9 +39,13 @@ export const TIKTOK_WEBHOOK_TOPICS = [
 /** Numeric `type` values confirmed on the topic reference pages. */
 const TYPE_TOPICS: Record<number, string> = {
   1: "ORDER_STATUS_CHANGE",
+  3: "RECIPIENT_ADDRESS_UPDATE",
+  4: "PACKAGE_UPDATE",
   5: "PRODUCT_STATUS_CHANGE",
   6: "SELLER_DEAUTHORIZATION",
   7: "UPCOMING_AUTHORIZATION_EXPIRATION",
+  11: "CANCELLATION_STATUS_CHANGE",
+  12: "RETURN_STATUS_CHANGE",
   37: "PRODUCT_AUDIT_STATUS_CHANGE",
 };
 
@@ -49,6 +53,9 @@ const TOPIC_KINDS: Record<string, WebhookEventKind> = {
   SELLER_DEAUTHORIZATION: "authorization.revoked",
   UPCOMING_AUTHORIZATION_EXPIRATION: "authorization.expiring",
   ORDER_STATUS_CHANGE: "order.status_changed",
+  // a buyer cancellation request or an address change: the order is read again
+  CANCELLATION_STATUS_CHANGE: "order.status_changed",
+  RECIPIENT_ADDRESS_UPDATE: "order.status_changed",
   PRODUCT_STATUS_CHANGE: "listing.changed",
   PRODUCT_AUDIT_STATUS_CHANGE: "listing.changed",
 };

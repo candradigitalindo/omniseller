@@ -11,7 +11,7 @@ Marketplace yang didukung: Shopee dan TikTok Shop. Di Indonesia TikTok Shop dan 
 
 ## Service publik
 - `StoreAuthorizationService` (api): `start(ctx, {channel, storeId?})` mengembalikan `authorizeUrl`; `callback(ctx, {channel, state, code?, shopId?, mainAccountId?, error?})`; `get(ctx, id)`. Error: `channel.unsupported`, `channel.not_configured`, `store.not_found`, `store_authorization.invalid`, `store_authorization.not_found`.
-- `StoresService` (api dan worker): `list`, `listIn`, `get`, `inScope`, `stockTargetsIn` (toko beserta gudang marketplace, untuk modul inventory), `update` (nama, gudang default, `syncMode`; `If-Match`), `disconnect`, `requestWarehouseSync`, `channelWarehouses`, `mapChannelWarehouse`; untuk worker: `markReauthRequired`, `noteAuthorizationExpiry`, `reevaluateStatus`, `syncCursor`, `recordPull`. Error: `store.not_found`, `store.not_active`, `store.disconnected`, `store.unmapped_warehouses`, `store.live_mapping_required`, `channel_warehouse.not_found`, `channel_warehouse.marketplace_managed`, `row.stale`.
+- `StoresService` (api dan worker): `list`, `listIn`, `get`, `inScope`, `stockTargetsIn` (toko beserta gudang marketplace, untuk modul inventory), `update` (nama, gudang default, `syncMode`; `If-Match`), `disconnect`, `requestWarehouseSync`, `channelWarehouses`, `mapChannelWarehouse`; untuk worker: `markReauthRequired`, `noteAuthorizationExpiry`, `reevaluateStatus`, `syncCursor`, `recordPull` (resource `listings` atau `orders`; mengisi `last_product_sync_at` atau `last_order_sync_at`). Error: `store.not_found`, `store.not_active`, `store.disconnected`, `store.unmapped_warehouses`, `store.live_mapping_required`, `channel_warehouse.not_found`, `channel_warehouse.marketplace_managed`, `row.stale`.
 - Hanya worker: `StoreConnectService.complete` (job `store.authorize`), `CredentialService` (`save`, `forShop`, `refresh`), `MarketplaceGateway.call` (satu-satunya jalan memanggil marketplace untuk toko), `ChannelSyncService` (`syncWarehouses`, `subscribeWebhooks`).
 
 ## Aturan
@@ -58,7 +58,7 @@ Marketplace yang didukung: Shopee dan TikTok Shop. Di Indonesia TikTok Shop dan 
 - TikTok Shop Partner Center: Redirect URL `${PUBLIC_WEB_URL}/integrasi/callback/tiktokshop`. Webhook per toko dipasang otomatis oleh `store.webhooks_subscribe`.
 
 ## Keputusan khusus modul
-- Impor awal produk (FR-INT-04) dijalankan modul `catalog` sebagai konsumen `store.connected` (`listing.pull` penuh). Impor pesanan 90 hari menyusul bersama modul pesanan.
+- Impor awal produk (FR-INT-04) dijalankan modul `catalog` sebagai konsumen `store.connected` (`listing.pull` penuh), dan impor pesanan 90 hari oleh modul `orders` (`order.pull` awal).
 - `sync_cursor` milik modul ini; modul lain membaca dan memajukannya lewat `StoresService.syncCursor` dan `recordPull` (resource `listings` juga mengisi `store.last_product_sync_at`).
 - Pemasangan dari TikTok Shop App Store (tanpa `state`) belum didukung; butuh aplikasi publik yang lolos review.
 - Peringatan email atau in-app saat koneksi terputus (FR-INT-08) menyusul bersama modul notifikasi sebagai konsumen `store.reauth_required`.

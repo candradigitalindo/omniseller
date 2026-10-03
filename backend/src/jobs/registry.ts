@@ -2,6 +2,7 @@ import { CATALOG_JOBS } from "../modules/catalog/catalog.jobs";
 import { CHANNEL_JOBS } from "../modules/channel/channel.jobs";
 import { IDENTITY_JOBS } from "../modules/identity/identity.jobs";
 import { INVENTORY_JOBS } from "../modules/inventory/inventory.jobs";
+import { ORDER_JOBS } from "../modules/orders/orders.jobs";
 import { SYNC_JOBS } from "../modules/sync/sync.jobs";
 import type { EventDef, JobDef } from "./define";
 
@@ -51,5 +52,6 @@ export const JOB_DEFINITIONS: readonly JobDef[] = [
   ...CHANNEL_JOBS,
   ...CATALOG_JOBS,
   ...INVENTORY_JOBS,
+  ...ORDER_JOBS,
   ...SYNC_JOBS,
 ];

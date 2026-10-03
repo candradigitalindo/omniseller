@@ -27,6 +27,18 @@ const PERSONAL_KEYS = new Set([
   "first_name_local_script",
   "last_name_local_script",
   "email",
+  // order payloads (Shopee get_order_detail, TikTok Shop Get Order Detail)
+  "message_to_seller",
+  "dropshipper",
+  "dropshipper_phone",
+  "buyer_cpf_id",
+  "buyer_user_id",
+  "user_id",
+  "buyer_nickname",
+  "buyer_avatar",
+  "cpf",
+  "cpf_name",
+  "seller_note",
 ]);
 
 export const REDACTED = "[redacted]";

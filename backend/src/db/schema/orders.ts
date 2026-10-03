@@ -75,6 +75,12 @@ export const order = pgTable("order", {
   riskScore: smallint("risk_score"),
   problemCount: integer("problem_count").notNull().default(0),
   rawPayloadRef: text("raw_payload_ref"),
+  /** Marketplace update time of the stored snapshot; older snapshots are ignored. */
+  externalUpdatedAt: tstz("external_updated_at"),
+  /** TikTok Shop commerce_platform in Indonesia: TIKTOK_SHOP or TOKOPEDIA. */
+  platform: text("platform"),
+  cancelRequested: boolean("cancel_requested").notNull().default(false),
+  externalBuyerId: text("external_buyer_id"),
 });
 
 /** Enforces (store_id, external_order_id) uniqueness, which the partitioned order table cannot. */
@@ -102,6 +108,9 @@ export const orderItem = pgTable("order_item", {
   reservedQty: integer("reserved_qty").notNull().default(0),
   shippedQty: integer("shipped_qty").notNull().default(0),
   returnedQty: integer("returned_qty").notNull().default(0),
+  externalProductId: text("external_product_id"),
+  externalSkuId: text("external_sku_id"),
+  cancelledQty: integer("cancelled_qty").notNull().default(0),
 });
 
 export const orderEvent = pgTable("order_event", {

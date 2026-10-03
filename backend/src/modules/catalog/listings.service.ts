@@ -382,6 +382,18 @@ export class ListingsService {
     return this.repo.listingsByIds(tx, [...new Set(ids)]);
   }
 
+  // ---- for the orders module, inside its transaction ----
+
+  /** Listings of a store keyed `${externalItemId}|${externalVariantId}` (order lines to variants). */
+  async byExternalIn(
+    tx: Tx,
+    storeId: string,
+    refs: { externalItemId: string; externalVariantId: string }[],
+  ): Promise<Map<string, ListingRow>> {
+    const rows = await this.repo.listingsByExternal(tx, storeId, refs);
+    return new Map(rows.map((l) => [`${l.externalItemId}|${l.externalVariantId}`, l]));
+  }
+
   /** Pulls listings again: incremental by default, everything (and closing deleted ones) with `full`. */
   async requestPull(ctx: RequestContext, storeId: string, full: boolean): Promise<void> {
     const view = await this.stores.get(ctx, storeId);

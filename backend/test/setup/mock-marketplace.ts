@@ -50,11 +50,53 @@ export interface MockShopeeItem {
   reservedStock?: number;
 }
 
+/** A Shopee order as get_order_detail returns it; tests change fields to move it along. */
+export interface MockShopeeOrder {
+  order_sn: string;
+  order_status: string;
+  create_time: number;
+  update_time: number;
+  pay_time?: number;
+  ship_by_date?: number;
+  cod?: boolean;
+  total_amount?: number;
+  currency?: string;
+  buyer_user_id?: number;
+  buyer_username?: string;
+  message_to_seller?: string;
+  shipping_carrier?: string;
+  fulfillment_flag?: string;
+  recipient_address?: {
+    name?: string;
+    phone?: string;
+    city?: string;
+    state?: string;
+    zipcode?: string;
+    full_address?: string;
+  };
+  cancel_by?: string;
+  cancel_reason?: string;
+  item_list: {
+    item_id: number;
+    item_name: string;
+    item_sku?: string;
+    model_id: number;
+    model_name?: string;
+    model_sku?: string;
+    model_quantity_purchased: number;
+    model_original_price: number;
+    model_discounted_price: number;
+    product_location_id?: string;
+    cancelled_qty?: number;
+  }[];
+}
+
 export interface MockShopeeShop {
   shopId: string;
   name: string;
   region: string;
   items?: MockShopeeItem[];
+  orders?: MockShopeeOrder[];
   fulfillmentFlag?: string;
   /** "not_whitelisted" answers warehouse.error_not_in_whitelist, like a shop without multi-warehouse. */
   warehouses: "not_whitelisted" | { warehouse_id: number; warehouse_name: string; location_id: string }[];
@@ -78,12 +120,48 @@ export interface MockTiktokProduct {
   }[];
 }
 
+/** A TikTok Shop order as Get Order Detail returns it: one line item per unit. */
+export interface MockTiktokOrder {
+  id: string;
+  status: string;
+  create_time: number;
+  update_time: number;
+  paid_time?: number;
+  rts_sla_time?: number;
+  is_cod?: boolean;
+  commerce_platform?: string;
+  fulfillment_type?: string;
+  warehouse_id?: string;
+  user_id?: string;
+  buyer_message?: string;
+  delivery_option_name?: string;
+  shipping_provider?: string;
+  tracking_number?: string;
+  cancel_reason?: string;
+  cancellation_initiator?: string;
+  is_buyer_request_cancel?: boolean;
+  recipient_address?: { name?: string; phone_number?: string; full_address?: string; postal_code?: string };
+  payment?: { currency?: string; sub_total?: string; shipping_fee?: string; total_amount?: string };
+  line_items: {
+    id: string;
+    sku_id: string;
+    product_id: string;
+    seller_sku?: string;
+    product_name: string;
+    sku_name?: string;
+    sale_price: string;
+    original_price: string;
+    display_status?: string;
+  }[];
+}
+
 export interface MockTiktokShop {
   id: string;
   name: string;
   region: string;
   cipher: string;
   products?: MockTiktokProduct[];
+  orders?: MockTiktokOrder[];
   warehouses: { id: string; name: string; type: "SALES_WAREHOUSE" | "RETURN_WAREHOUSE"; is_default: boolean }[];
   fbt?: { fbt_warehouse_id: string; name: string; subscribed: boolean }[];
 }
@@ -434,6 +512,63 @@ export class MockMarketplace {
         }
         return ok({ response: { success_list, failure_list } });
       }
+      case "/api/v2/order/get_order_list": {
+        const field = q.time_range_field;
+        if (field !== "create_time" && field !== "update_time") {
+          return this.shopeeError("error_param", "time_range_field should be create_time or update_time", 400);
+        }
+        const from = Number(q.time_from);
+        const to = Number(q.time_to);
+        if (!(to > from) || to - from > 15 * 86_400) {
+          return this.shopeeError("error_param", "The time range should not be longer than 15 days.", 400);
+        }
+        const size = Number(q.page_size);
+        if (!(size >= 1 && size <= 100)) return this.shopeeError("error_param", "page_size should be [1,100]", 400);
+        const all = (shop.orders ?? [])
+          .filter((o) => o[field] >= from && o[field] <= to)
+          .sort((a, b) => a[field] - b[field]);
+        const offset = Number(q.cursor || 0);
+        const page = all.slice(offset, offset + size);
+        const more = offset + size < all.length;
+        return ok({
+          response: {
+            order_list: page.map((o) => ({ order_sn: o.order_sn, order_status: o.order_status })),
+            more,
+            next_cursor: more ? String(offset + size) : "",
+          },
+        });
+      }
+      case "/api/v2/order/get_order_detail": {
+        const sns = (q.order_sn_list ?? "").split(",").filter(Boolean);
+        if (sns.length < 1 || sns.length > 50)
+          return this.shopeeError("error_param", "order_sn_list should be [1,50]", 400);
+        return ok({ response: { order_list: (shop.orders ?? []).filter((o) => sns.includes(o.order_sn)) } });
+      }
+      case "/api/v2/order/cancel_order": {
+        const body = JSON.parse(call.body) as { order_sn: string; cancel_reason: string; item_list?: object[] };
+        const o = (shop.orders ?? []).find((x) => x.order_sn === body.order_sn);
+        if (!o) return this.shopeeError("error_not_found", "Wrong parameters, detail: order not found.", 200);
+        if (!["UNPAID", "PENDING", "READY_TO_SHIP", "PROCESSED", "RETRY_SHIP"].includes(o.order_status)) {
+          return this.shopeeError("order.error_limit", `Can not cancel this order: status ${o.order_status}`, 200);
+        }
+        if (
+          !["OUT_OF_STOCK", "CUSTOMER_REQUEST", "UNDELIVERABLE_AREA", "COD_NOT_SUPPORTED"].includes(body.cancel_reason)
+        ) {
+          return this.shopeeError("error_param", "Wrong parameters, detail: cancel_reason invalid.", 400);
+        }
+        if (body.cancel_reason === "OUT_OF_STOCK" && !body.item_list?.length) {
+          return this.shopeeError(
+            "error_param",
+            "Wrong parameters, detail: item_list is required for OUT_OF_STOCK.",
+            400,
+          );
+        }
+        o.order_status = "CANCELLED";
+        o.cancel_by = "seller";
+        o.cancel_reason = body.cancel_reason;
+        o.update_time = now();
+        return ok({ response: { update_time: o.update_time } });
+      }
       case "/api/v2/logistics/get_address_list":
         return ok({
           response: {
@@ -653,6 +788,52 @@ export class MockMarketplace {
           p.update_time = now();
         }
         return this.tiktokReply(0, "Success", { errors });
+      }
+      case "POST /order/202309/orders/search": {
+        const body = JSON.parse(call.body || "{}") as Record<string, number | undefined>;
+        const field =
+          body.create_time_ge !== undefined || body.create_time_lt !== undefined ? "create_time" : "update_time";
+        const ge = body[`${field}_ge`] ?? 0;
+        const lt = body[`${field}_lt`] ?? now() + 1;
+        const all = (shop.orders ?? [])
+          .filter((o) => o[field] >= ge && o[field] < lt)
+          .sort((a, b) => a[field] - b[field]);
+        const offset = Number(q.page_token ? Buffer.from(q.page_token, "base64url").toString() : 0);
+        const size = Number(q.page_size ?? 20);
+        if (!(size >= 1 && size <= 100)) return this.tiktokReply(36009001, "page_size must be within [1, 100]");
+        const page = all.slice(offset, offset + size);
+        return this.tiktokReply(0, "Success", {
+          total_count: all.length,
+          orders: page,
+          next_page_token: offset + size < all.length ? Buffer.from(String(offset + size)).toString("base64url") : "",
+        });
+      }
+      case "GET /order/202507/orders": {
+        const ids = (q.ids ?? "").split(",").filter(Boolean);
+        if (ids.length < 1 || ids.length > 50) return this.tiktokReply(36009001, "ids must contain 1 to 50 order ids");
+        return this.tiktokReply(0, "Success", { orders: (shop.orders ?? []).filter((o) => ids.includes(o.id)) });
+      }
+      case "POST /return_refund/202602/cancellations": {
+        const body = JSON.parse(call.body) as { order_id: string; cancel_reason: string };
+        const o = (shop.orders ?? []).find((x) => x.id === body.order_id);
+        if (!o) return this.tiktokReply(12052032, "The order does not exist");
+        const unpaid = [
+          "seller_cancel_unpaid_reason_out_of_stock",
+          "seller_cancel_unpaid_reason_wrong_price",
+          "seller_cancel_unpaid_reason_buyer_hasnt_paid_within_time_allowed",
+        ];
+        const paid = ["seller_cancel_reason_out_of_stock", "seller_cancel_reason_wrong_price"];
+        const allowed =
+          o.status === "UNPAID" ? unpaid : o.status === "ON_HOLD" || o.status === "AWAITING_SHIPMENT" ? paid : [];
+        if (!allowed.includes(body.cancel_reason)) return this.tiktokReply(25001021, "Reason not match order status");
+        o.status = "CANCELLED";
+        o.cancellation_initiator = "SELLER";
+        o.cancel_reason = body.cancel_reason;
+        o.update_time = now();
+        return this.tiktokReply(0, "Success", {
+          cancel_id: "4035319218955782461",
+          cancel_status: "CANCELLATION_REQUEST_SUCCESS",
+        });
       }
       case "GET /fbt/202409/merchants/onboarded_regions":
         return this.tiktokReply(0, "Success", shop.fbt ? { onboarded_regions: [{ region_code: "ID" }] } : {});

@@ -18,6 +18,11 @@ export const ruleDuplicate = () =>
     "Sudah ada aturan untuk toko, gudang marketplace, dan varian yang sama. Ubah aturan itu saja.",
   );
 export const ruleInvalid = (path: string, message: string) => new ValidationError([{ path, message }]);
+export const ordersImporting = () =>
+  new ConflictError(
+    "store.orders_importing",
+    "Pesanan toko ini masih diimpor. Tunggu sampai selesai agar stok untuk pesanan yang belum dikirim ikut dihitung.",
+  );
 export const storeNotLive = () =>
   new ConflictError(
     "store.not_live",

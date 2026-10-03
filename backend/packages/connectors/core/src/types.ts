@@ -139,6 +139,116 @@ export interface StockUpdateResult {
   retryable?: boolean;
 }
 
+/**
+ * Where an order stands at the marketplace, as facts the backend maps to its own statuses (backend doc
+ * 7.9). Seller-side progress (shipment arranged, waiting for pickup) is `seller_processing`; it only
+ * updates the marketplace status shown next to the internal one.
+ */
+export type OrderState =
+  | "unpaid"
+  | "to_ship"
+  | "seller_processing"
+  | "shipped"
+  | "delivered"
+  | "completed"
+  | "cancelled"
+  | "returning";
+
+export type ShippingServiceType = "regular" | "next_day" | "same_day" | "instant";
+
+/** One sellable line of an order: a listing (item and variant) with its quantity. */
+export interface NormalizedOrderItem {
+  /** Stable id of the line within the order (Shopee item:model:promotion group, TikTok Shop sku_id). */
+  externalLineId: string;
+  /** Listing item and variant, as in NormalizedListing ("" variant for items without variants). */
+  externalItemId: string;
+  externalVariantId: string;
+  sku: string | null;
+  title: string;
+  variantName: string | null;
+  imageUrl: string | null;
+  /** Units ordered. */
+  quantity: number;
+  /** Units of `quantity` cancelled since (partial cancellation); the rest is still to be fulfilled. */
+  cancelledQuantity: number;
+  /** Price per unit after discounts, whole rupiah. */
+  unitPrice: number;
+  /** Price per unit before discounts, when the marketplace gives it. */
+  originalUnitPrice: number | null;
+  /** Discount on the whole line. */
+  discount: number;
+  lineTotal: number;
+  /** Seller warehouse the line ships from, when the marketplace says (multi-warehouse shops). */
+  externalWarehouseId: string | null;
+}
+
+export interface NormalizedRecipient {
+  name: string | null;
+  phone: string | null;
+  fullAddress: string | null;
+  district: string | null;
+  city: string | null;
+  province: string | null;
+  postalCode: string | null;
+}
+
+export interface NormalizedOrder {
+  externalOrderId: string;
+  state: OrderState;
+  /** Marketplace status as received, shown to the seller next to the internal one. */
+  externalStatus: string;
+  /** Where the buyer ordered when one shop sells on several platforms (TikTok Shop or Tokopedia). */
+  platform: string | null;
+  /** `marketplace`: fulfilled from a marketplace warehouse (Dikelola Shopee, FBT, Dilayani Tokopedia). */
+  fulfillment: "seller" | "marketplace";
+  /** The buyer asked to cancel and the seller has to respond. */
+  cancelRequested: boolean;
+  isCod: boolean;
+  createdAt: Date;
+  /** Marketplace update time; a snapshot older than the stored one is ignored. */
+  updatedAt: Date;
+  paidAt: Date | null;
+  /** Ship-by deadline set by the marketplace. */
+  shipByAt: Date | null;
+  shippedAt: Date | null;
+  deliveredAt: Date | null;
+  cancelledAt: Date | null;
+  cancelledBy: "buyer" | "seller" | "marketplace" | "system" | null;
+  cancelReason: string | null;
+  buyerId: string | null;
+  buyerUsername: string | null;
+  /** False where the marketplace hides the address in this status (TikTok Shop UNPAID and ON_HOLD). */
+  recipientAvailable: boolean;
+  recipient: NormalizedRecipient | null;
+  buyerNote: string | null;
+  shippingProvider: string | null;
+  shippingService: string | null;
+  shippingServiceType: ShippingServiceType | null;
+  trackingNumber: string | null;
+  /** Order-level seller warehouse (TikTok Shop warehouse_id); lines may carry their own. */
+  externalWarehouseId: string | null;
+  currency: string;
+  subtotal: number;
+  discountTotal: number;
+  shippingFeeBuyer: number;
+  total: number;
+  items: NormalizedOrderItem[];
+}
+
+export interface OrderPage {
+  orders: NormalizedOrder[];
+  /** Opaque, pass back to get the next page; null when the time range is exhausted. */
+  nextCursor: string | null;
+}
+
+export interface CancelReason {
+  /** Marketplace reason code sent to the cancel API. */
+  code: string;
+  label: string;
+  /** The reason cancels per item (out of stock) and needs the items. */
+  needsItems: boolean;
+}
+
 export type WebhookEventKind =
   | "authorization.granted"
   | "authorization.revoked"
@@ -228,6 +338,31 @@ export interface MarketplaceConnector {
     getListings(shop: ShopCredentials, externalItemIds: string[]): Promise<ListingPage>;
     /** Activates or deactivates whole items; per-item results, partial success is normal. */
     setListingStatus(shop: ShopCredentials, externalItemIds: string[], active: boolean): Promise<ListingStatusResult[]>;
+  };
+
+  orders: {
+    /**
+     * One page of orders created (`by: "create_time"`) or updated (`by: "update_time"`) in [from, to).
+     * The connector splits ranges longer than the marketplace allows; the cursor carries its position.
+     */
+    listOrders(
+      shop: ShopCredentials,
+      input: { by: "create_time" | "update_time"; from: Date; to: Date; cursor?: string | null },
+    ): Promise<OrderPage>;
+    /** Current state of specific orders (after a webhook or a seller action). Unknown ids are left out. */
+    getOrders(shop: ShopCredentials, externalOrderIds: string[]): Promise<NormalizedOrder[]>;
+    /** Reasons a seller may give to cancel an order in this marketplace status (Indonesian market). */
+    cancelReasons(externalStatus: string): CancelReason[];
+    /** Seller cancellation. `items` (listing item and variant) for reasons that need them. */
+    cancelOrder(
+      shop: ShopCredentials,
+      input: {
+        externalOrderId: string;
+        externalStatus: string;
+        reason: string;
+        items?: { externalItemId: string; externalVariantId: string; quantity: number }[];
+      },
+    ): Promise<void>;
   };
 
   inventory: {

@@ -13,6 +13,7 @@ import type { JobRegistry } from "../jobs/registry";
 
 export const TOKEN_REFRESH_SLOT_MS = 15 * 60_000;
 export const WAREHOUSE_POLL_SLOT_MS = 6 * 3600_000;
+export const ORDER_POLL_SLOT_MS = 5 * 60_000;
 /** Pushes for shops OmniSeller does not know are kept this long, in case the shop is being connected. */
 const UNKNOWN_SHOP_GRACE = "15 minutes";
 
@@ -106,6 +107,31 @@ export async function scanTokenRefresh(
       "store.token_refresh",
       { storeId: r.store_id, tenantId: r.tenant_id },
       jobKey("store.token_refresh", r.store_id, slot),
+    );
+  }
+  return rows.length;
+}
+
+/**
+ * `mp.poll.orders` (every 5 min): an incremental order pull for every connected store, read-only ones
+ * included (parallel mode still receives orders and holds stock, FR-MIG-05). It catches what webhooks
+ * missed (FR-INT-05); one id per store per 5-minute slot.
+ */
+export async function scanOrderPolls(system: DbHandle, queues: QueueRegistry, registry: JobRegistry, now = new Date()) {
+  const rows = await withSystemTx(system, async (tx) => {
+    const r = await tx.execute<{ store_id: string; tenant_id: string }>(sql`
+      SELECT id AS store_id, tenant_id FROM store WHERE status IN ('active', 'token_expiring') ORDER BY id`);
+    return r.rows;
+  });
+  const slot = `o${Math.floor(now.getTime() / ORDER_POLL_SLOT_MS)}`;
+  for (const r of rows) {
+    await add(
+      queues,
+      registry,
+      "mp.poll",
+      "order.pull",
+      { storeId: r.store_id, tenantId: r.tenant_id, mode: "incremental" },
+      jobKey("order.pull", r.store_id, slot),
     );
   }
   return rows.length;

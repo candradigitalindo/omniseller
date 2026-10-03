@@ -29,6 +29,15 @@ export interface AdjustmentResult {
   movementId: string | null;
 }
 
+/** A reservation, release, or shipment of an order item (backend doc 7.9). */
+export interface OrderStockMove {
+  orderItemId: string;
+  variantId: string;
+  warehouseId: string;
+  type: "order_reserve" | "order_release" | "order_ship";
+  qty: number;
+}
+
 /** Establishes a quantity: lock, compute the difference, move or confirm. */
 export interface EstablishLine {
   variantId: string;
@@ -165,11 +174,80 @@ export class InventoryService {
   }
 
   /** Confirmations count too: they make stock eligible for push. */
-  private async changedIn(tx: Tx, ctx: RequestContext, results: AdjustmentResult[]): Promise<void> {
-    for (let i = 0; i < results.length; i += 500) {
-      const pairs = results.slice(i, i + 500).map((r) => ({ variantId: r.variantId, warehouseId: r.warehouseId }));
+  private async changedIn(
+    tx: Tx,
+    ctx: RequestContext,
+    changed: readonly { variantId: string; warehouseId: string }[],
+  ): Promise<void> {
+    for (let i = 0; i < changed.length; i += 500) {
+      const pairs = changed.slice(i, i + 500).map((r) => ({ variantId: r.variantId, warehouseId: r.warehouseId }));
       if (pairs.length > 0) await this.outbox.enqueue(tx, ctx, inventoryChanged, { pairs }, pairs[0]!.variantId);
     }
+  }
+
+  /**
+   * Order reservations, releases, and shipments inside the order's transaction. Rows are locked in a
+   * fixed order (variant, warehouse) so two orders never wait on each other. A release or shipment never
+   * takes more than the row holds; a shipment larger than the recorded stock means the recorded stock
+   * was too low, so it ships what is recorded and reports the missing units.
+   */
+  async orderMovementsIn(
+    tx: Tx,
+    ctx: RequestContext,
+    moves: OrderStockMove[],
+  ): Promise<{ shortfalls: { orderItemId: string; missing: number }[] }> {
+    const shortfalls: { orderItemId: string; missing: number }[] = [];
+    const changed = new Map<string, { variantId: string; warehouseId: string }>();
+    const ordered = [...moves]
+      .filter((m) => m.qty > 0)
+      .sort((a, b) => (a.variantId + a.warehouseId < b.variantId + b.warehouseId ? -1 : 1));
+    for (const m of ordered) {
+      let onHand = 0;
+      let reserved = m.qty;
+      let note: string | null = null;
+      if (m.type !== "order_reserve") {
+        const row = await this.repo.lockRow(tx, ctx.tenantId, m.variantId, m.warehouseId);
+        reserved = -Math.min(row.reserved, m.qty);
+        if (m.type === "order_ship") {
+          onHand = -Math.min(row.onHand, m.qty);
+          if (row.onHand < m.qty) {
+            shortfalls.push({ orderItemId: m.orderItemId, missing: m.qty - row.onHand });
+            note = `Stok fisik tercatat kurang ${m.qty - row.onHand} saat dikirim`;
+          }
+        }
+      }
+      if (onHand === 0 && reserved === 0) continue;
+      await this.repo.applyMovement(tx, {
+        tenantId: ctx.tenantId,
+        variantId: m.variantId,
+        warehouseId: m.warehouseId,
+        type: m.type,
+        onHand,
+        reserved,
+        referenceType: "order_item",
+        referenceId: m.orderItemId,
+        note,
+        actorUserId: ctx.actor.type === "user" ? ctx.actor.id : null,
+      });
+      changed.set(`${m.variantId}|${m.warehouseId}`, { variantId: m.variantId, warehouseId: m.warehouseId });
+    }
+    await this.changedIn(tx, ctx, [...changed.values()]);
+    return { shortfalls };
+  }
+
+  /** Available and established per (variant, warehouse), keyed `${variantId}|${warehouseId}`. */
+  async stockIn(
+    tx: Tx,
+    variantIds: string[],
+    warehouseIds: string[],
+  ): Promise<Map<string, { available: number; established: boolean }>> {
+    const rows = await this.repo.rows(tx, [...new Set(variantIds)], [...new Set(warehouseIds)]);
+    return new Map(
+      rows.map((r) => [
+        `${r.variantId}|${r.warehouseId}`,
+        { available: r.available ?? r.onHand - r.reserved - r.buffer, established: r.stockSetAt !== null },
+      ]),
+    );
   }
 
   /** Bin location and minimum stock of one variant in one warehouse (FR-STK-07, 12). */

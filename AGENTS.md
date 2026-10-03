@@ -14,7 +14,7 @@ Paths in the backend document are relative to `backend/`, and every `pnpm` comma
 - Side effects (marketplace, email, WhatsApp, AI) are emitted with `outbox.enqueue(tx, ctx, event, payload, aggregateId)` and executed by jobs. No `queue.add()` from services, no HTTP calls from the api process.
 - Job ids come from `jobKey(...)` (separator `|`; BullMQ rejects `:`). Actions that may recur for the same entity include the outbox event id or another occurrence key in the id.
 - Every tenant table: `ulid` id, `tenant_id`, `created_at`, `updated_at`, `row_version`; every FK to a tenant table is composite `(tenant_id, x_id)`; `ON DELETE SET NULL (x_id)` always names the column.
-- Money is bigint rupiah (`money()` column, `rupiah()` in code). Ids are ULID strings from `newId()`. Times are UTC `timestamptz`.
+- Money is bigint rupiah (`money()` column, `rupiah()` in code). Ids are ULID strings from `newId()` (records timed by a marketplace, such as orders: `newIdAt(time)`). Times are UTC `timestamptz`.
 - Buyer PII never appears in logs (use `logger` from `@omniseller/logging`, never `console`), in the research schema, or in AI prompts without scrubbing.
 - Schema changes follow expand-and-contract. Applied migrations are never edited.
 
@@ -56,6 +56,8 @@ NestJS injection always uses explicit `@Inject(TOKEN)`; do not rely on construct
 - Stock changes go through `InventoryService` (`adjust`, `establishIn`, later the order and return movements), which writes `inventory.changed` in the same transaction. A movement without that event never reaches the marketplaces.
 - Stock nobody has established (`inventory.stock_set_at` null) is never pushed (ADR-036). A count equal to the record must still be confirmed: a `set` adjustment with no difference calls `confirm_stock`.
 - `InventoryModule` lives in `inventory-core.module.ts` and must not import catalog or channel: channel imports it, and a cycle between module files hands Nest an undefined import ("Nest cannot create the ... module instance"). Features that need listings or stores go in `inventory.module.ts`.
+- Marketplace orders go through `OrderIntakeService.applyIn` only. It ignores snapshots older than `external_updated_at`, never moves a status backwards, and derives stock from the status (`itemStockPlan`): only reserved units ship. Order ids come from `newIdAt(ordered_at)`, not `newId()`.
+- Orders reserve stock even in read-only stores (parallel mode counts stock); only the push pauses there. Seller actions on orders (accept, pack, cancel) are refused for read-only stores.
 - Never hold a database transaction open across an HTTP call to a marketplace: the worker role ends sessions idle in a transaction after 10 seconds. Call marketplaces only through `MarketplaceGateway` (rate limit, sync log, token refresh); for a lock that must span the call use `withAdvisoryLock`.
 - Webhook signatures cover the exact raw body. The webhook process parses no JSON before verifying (`webhook/webhook-app.ts`); do not add a JSON body parser there.
 - `outbox.enqueue` writes nothing for an event that no job consumes yet, so a test cannot look for that event's row.

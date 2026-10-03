@@ -273,11 +273,20 @@ export class StoresService {
     return withTenantTx(this.db, ctx, (tx) => this.repo.syncCursor(tx, storeId, resource));
   }
 
-  /** Records a finished pull: its cursor and, for listings, `last_product_sync_at`. */
-  async recordPull(ctx: RequestContext, storeId: string, resource: "listings", cursor: string): Promise<void> {
+  /** Records a finished pull: its cursor and `last_product_sync_at` or `last_order_sync_at`. */
+  async recordPull(
+    ctx: RequestContext,
+    storeId: string,
+    resource: "listings" | "orders",
+    cursor: string,
+  ): Promise<void> {
     await withTenantTx(this.db, ctx, async (tx) => {
       await this.repo.advanceSyncCursor(tx, ctx.tenantId, storeId, resource, cursor);
-      await this.repo.updateStore(tx, storeId, { lastProductSyncAt: new Date() });
+      await this.repo.updateStore(
+        tx,
+        storeId,
+        resource === "listings" ? { lastProductSyncAt: new Date() } : { lastOrderSyncAt: new Date() },
+      );
     });
   }
 

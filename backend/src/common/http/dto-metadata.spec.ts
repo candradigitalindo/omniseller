@@ -21,6 +21,7 @@ import {
   StockRulesController,
   WarehousesController,
 } from "../../modules/inventory/inventory.controllers";
+import { OrdersController } from "../../modules/orders/orders.controllers";
 import { HealthController } from "../../modules/platform/health.controller";
 import { WebhooksController } from "../../modules/sync/webhooks.controller";
 
@@ -47,6 +48,7 @@ const CONTROLLERS = [
   WebhooksController,
   ProductsController,
   ListingsController,
+  OrdersController,
 ];
 
 /** Same test nestjs-zod's pipe applies (its helper is not exported from the package root). */

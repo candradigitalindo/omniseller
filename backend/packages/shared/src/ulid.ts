@@ -1,4 +1,4 @@
-import { decodeTime, encodeTime, monotonicFactory } from "ulid";
+import { decodeTime, encodeTime, monotonicFactory, ulid } from "ulid";
 import { z } from "zod";
 
 const generate = monotonicFactory();
@@ -9,6 +9,14 @@ export const ulidSchema = z.string().regex(ULID_REGEX, "invalid ULID");
 /** New monotonic ULID. The only way application code creates record ids. */
 export function newId(): string {
   return generate();
+}
+
+/**
+ * ULID for a record whose time comes from outside (a marketplace order placed at `at`): ids sort by
+ * that time and the record lands in the partition of that month. Not monotonic within a millisecond.
+ */
+export function newIdAt(at: Date): string {
+  return ulid(at.getTime());
 }
 
 export function isUlid(value: unknown): value is string {
