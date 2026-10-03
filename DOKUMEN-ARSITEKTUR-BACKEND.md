@@ -2,11 +2,11 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.8 |
-| Tanggal | 3 Oktober 2026 |
-| Status | Keputusan final untuk implementasi; fondasi (bagian 4 sampai 9, 12, 13), identitas, autentikasi, dan audit (8.1, 8.10), koneksi toko Shopee dan Tokopedia & Shop (8.6, 8.11), katalog, listing, dan pemetaan SKU (7.8.3, 8.12), stok, penyesuaian, dan push stok ke marketplace (7.8.4, 8.13, 9.4), pesanan dari Shopee dan Tokopedia & Shop (7.8.6, 7.9, 8.14, 10.6), serta pengiriman, label, pick list, dan peringatan batas kirim (8.15) sudah diimplementasikan di folder `backend/` |
+| Versi dokumen | 1.9 |
+| Tanggal | 4 Oktober 2026 |
+| Status | Keputusan final untuk implementasi; fondasi (bagian 4 sampai 9, 12, 13), identitas, autentikasi, dan audit (8.1, 8.10), koneksi toko Shopee dan Tokopedia & Shop (8.6, 8.11), katalog, listing, dan pemetaan SKU (7.8.3, 8.12), stok, penyesuaian, dan push stok ke marketplace (7.8.4, 8.13, 9.4), pesanan dari Shopee dan Tokopedia & Shop (7.8.6, 7.9, 8.14, 10.6), pengiriman, label, pick list, dan peringatan batas kirim (8.15), serta dasbor, notifikasi in-app, ekspor data penuh, dan audit aksi sensitif (8.16 sampai 8.18) sudah diimplementasikan di folder `backend/` |
 | Pemilik dokumen | Candra Syahputra |
-| Dokumen terkait | DOKUMEN-SPESIFIKASI-APLIKASI.md (PRD) versi 1.10, DOKUMEN-TEKNOLOGI.md versi 1.9 |
+| Dokumen terkait | DOKUMEN-SPESIFIKASI-APLIKASI.md (PRD) versi 1.10, DOKUMEN-TEKNOLOGI.md versi 1.10 |
 | Audiens | Engineer backend, tech lead, QA, dan **agen AI** yang mengerjakan basis kode |
 
 > **Untuk agen AI yang membaca dokumen ini.** Bacalah bagian 2 terlebih dahulu. Bagian itu berisi kontrak kerja: invarian yang tidak boleh dilanggar, tempat setiap hal berada, dan urutan langkah untuk setiap jenis perubahan. Semua nama tabel, kolom, modul, antrean, dan perintah di dokumen ini adalah nama yang sebenarnya dipakai di repositori. Jangan menebak nama; cari di dokumen ini atau di kode.
@@ -558,7 +558,7 @@ Aturan:
 | `enforce_status_transition('<tabel>')` | `BEFORE UPDATE OF status` | `order`, `shipment`, `sync_job`; nanti `return_request`, `purchase_order`, `stock_count`, `stock_transfer`, `migration_job` | Menolak transisi yang tidak ada di `<tabel>_status_transition`; mengisi `status_changed_at`. Nama tabel diberikan sebagai argumen trigger, karena pada tabel terpartisi `TG_TABLE_NAME` berisi nama partisi (`order_p202609`), bukan `order` |
 | `inventory_guard()` | `BEFORE INSERT OR UPDATE OR DELETE` | `inventory` | Menolak perubahan kolom jumlah (`on_hand`, `reserved`, `buffer`, `damaged`) dan penghapusan bila `app.stock_write` bukan `'on'`; kolom lain (`bin_location`, `min_stock`) boleh diubah |
 | `ensure_inventory(...)`, `apply_stock_movement(...)`, `confirm_stock(...)` | Fungsi `SECURITY DEFINER` | `inventory`, `stock_movement` | Satu-satunya jalur mengubah stok. Memeriksa bahwa tenant parameter sama dengan `app.tenant_id` (`TENANT_MISMATCH` bila tidak), mengunci baris, menolak hasil di bawah nol, dan mencatat saldo sesudahnya termasuk `buffer` (cadangan kampanye). Mutasi yang menetapkan jumlah (`adjustment`, `count_apply`, `migration_initial`) mengisi `inventory.stock_set_at`; `confirm_stock` mengisinya tanpa mutasi saat jumlah hasil hitung sama dengan catatan (9.4) |
-| `audit_row()` | `AFTER INSERT OR UPDATE OR DELETE`, `SECURITY DEFINER` | `variant` (harga, HPP, status), `channel_listing` (harga, status, pemetaan), `store` (status, mode sinkron, gudang default, nama), `role`, `role_permission`, `user_role`, `user_store_scope`, `user_warehouse_scope`, `channel_warehouse`, `stock_allocation_rule`; nanti `fee_schedule` | Menulis `audit_log` dengan `before`, `after`, `app.actor_type`, `app.actor_id`, `app.request_id`. Id baris dibuat `gen_ulid()` di basis data karena satu pernyataan dapat menyentuh banyak baris. Tabel yang sering disinkronkan memakai `WHEN` agar hanya perubahan kolom penting yang diaudit |
+| `audit_row()` | `AFTER INSERT OR UPDATE OR DELETE`, `SECURITY DEFINER` | `variant` (harga, HPP, status), `channel_listing` (harga, status, pemetaan), `store` (status, mode sinkron, gudang default, nama), `role`, `role_permission`, `user_role`, `user_store_scope`, `user_warehouse_scope`, `channel_warehouse`, `stock_allocation_rule`; aksi sensitif PRD FR-USR-04 (migrasi 0008): `stock_movement` jenis `adjustment`, `count_apply`, `migration_initial` (stok yang ditetapkan orang), `order_event` jenis `cancel_requested` (permintaan batal oleh penjual), `data_export` (permintaan dan setiap unduhan, 8.18); nanti `fee_schedule` | Menulis `audit_log` dengan `before`, `after`, `app.actor_type`, `app.actor_id`, `app.request_id`. Id baris dibuat `gen_ulid()` di basis data karena satu pernyataan dapat menyentuh banyak baris. Tabel yang sering disinkronkan memakai `WHEN` agar hanya perubahan kolom penting yang diaudit. Pada tabel terpartisi `TG_TABLE_NAME` adalah partisinya (`stock_movement_p202610`), jadi trigger-nya memberi nama tabel sebagai argumen (`audit_row('stock_movement')`) yang menjadi `entity_type` |
 | `audit_log_immutable()` | `BEFORE UPDATE OR DELETE` | `audit_log` | Menolak semua perubahan |
 | `outbox_notify()` | `AFTER INSERT FOR EACH STATEMENT` | `outbox_event` | `pg_notify('outbox', '')` agar relay bangun tanpa menunggu interval |
 | `resolve_store`, `auth_*` | Fungsi `SECURITY DEFINER` | | Pembacaan sebelum tenant diketahui (7.5) |
@@ -815,6 +815,7 @@ erDiagram
 | `bin_location` | `text` | NULL |
 | `min_stock` | `bigint` | NULL, CHECK `>= 0` |
 | `stock_set_at` | `timestamptz` | NULL; terakhir jumlahnya ditetapkan orang (penyesuaian, opname, stok awal, atau konfirmasi). Hanya ditulis fungsi stok; stok yang belum pernah ditetapkan tidak didorong ke marketplace (9.4) |
+| `stock_alert` | `text` | NULL CHECK IN (`low`, `out`); peringatan stok kritis yang sudah dikirim untuk varian di gudang ini (FR-NTF-01, 8.17, migrasi 0008). Dikosongkan saat stok pulih, sehingga penurunan berikutnya diumumkan lagi. Role aplikasi boleh mengubah kolom ini, `bin_location`, dan `min_stock`, tidak jumlahnya |
 | Batasan tabel | | UNIQUE `(tenant_id, variant_id, warehouse_id)` |
 
 **stock_movement** (partisi bulanan pada `id`)
@@ -917,7 +918,8 @@ erDiagram
 | `cancel_requested` | `boolean` | NOT NULL DEFAULT false; pembeli mengajukan pembatalan dan penjual harus menjawab (Shopee `IN_CANCEL`, TikTok Shop `is_buyer_request_cancel`) |
 | `external_buyer_id` | `text` | NULL; id pembeli di marketplace untuk pemeriksaan pesanan ganda; data pribadi, dianonimkan bersama kolom pembeli lain |
 | `sla_alert_level` | `text` | NULL CHECK IN (`warning`, `overdue`); peringatan batas kirim yang sudah dikirim untuk pesanan ini (FR-SHP-10, migrasi 0007) |
-| Indeks | | `(tenant_id, status, ship_by_at)`; `(tenant_id, store_id, ordered_at DESC)`; `(tenant_id, tracking_number)`; `(tenant_id, warehouse_id, status)`; `(tenant_id, customer_id)`; `(tenant_id, id DESC)`; `(tenant_id, status, id DESC)`; `(tenant_id, store_id, external_buyer_id)` parsial; `(tenant_id, ship_by_at)` parsial untuk status yang masih harus dikirim |
+| `notify_new` | `boolean` | NOT NULL DEFAULT false; pesanan menunggu ringkasan notifikasi pesanan baru berikutnya (FR-NTF-01, 8.17, migrasi 0008) |
+| Indeks | | `(tenant_id, status, ship_by_at)`; `(tenant_id, store_id, ordered_at DESC)`; `(tenant_id, tracking_number)`; `(tenant_id, warehouse_id, status)`; `(tenant_id, customer_id)`; `(tenant_id, id DESC)`; `(tenant_id, status, id DESC)`; `(tenant_id, store_id, external_buyer_id)` parsial; `(tenant_id, ship_by_at)` parsial untuk status yang masih harus dikirim; `(tenant_id)` parsial `WHERE notify_new` |
 
 Id pesanan dibuat dengan `newIdAt(ordered_at)` (6.3).
 
@@ -1103,7 +1105,7 @@ Semua tabel di skema `research`. `research_source` global. Tidak ada kunci asing
 | `campaign_plan` | `campaign_id`, `forecast jsonb`, `buffer_plan jsonb`, `staffing jsonb`, `status CHECK IN ('draft','ready','running','evaluated')`, `evaluation jsonb` | `campaign_id → campaign(id)` RESTRICT; UNIQUE `(tenant_id, campaign_id)` |
 | `courier_cutoff` | `warehouse_id`, `courier_code text`, `cutoff_time time`, `days_of_week smallint[]`, `active boolean` | → `warehouse` CASCADE; UNIQUE `(warehouse_id, courier_code)`; CHECK setiap elemen `days_of_week BETWEEN 0 AND 6` (fungsi) |
 | `operating_hours` | `name`, `schedule jsonb`, `valid_from date`, `valid_to date`, `is_default boolean` | UNIQUE parsial `(tenant_id) WHERE is_default` |
-| `notification` | `user_id` (satu baris per penerima; NULL berarti semua pengguna, belum dipakai), `kind text` (`order.sla`), `severity CHECK IN ('info','warning','critical')`, `title`, `body`, `data jsonb`, `channels_sent jsonb` (`{in_app: true}`), `read_at` | `user_id → user` CASCADE; INDEX `(tenant_id, user_id, read_at, id DESC)`; migrasi 0007. Hanya penerimanya yang membaca dan menandai (8.15) |
+| `notification` | `user_id` (satu baris per penerima; NULL berarti semua pengguna, belum dipakai), `kind text` (`order.new`, `order.sla`, `stock.critical`, `store.reauth_required`, `store.authorization_expiring`, `sync.stock_push_failed`, `export.ready`, `export.failed`; 8.17), `severity CHECK IN ('info','warning','critical')`, `title`, `body`, `data jsonb`, `channels_sent jsonb` (`{in_app: true}`), `read_at` | `user_id → user` CASCADE; INDEX `(tenant_id, user_id, read_at, id DESC)`; migrasi 0007. Hanya penerimanya yang membaca dan menandai (8.15) |
 | `notification_preference` | `user_id`, `kind text`, `in_app boolean`, `email boolean`, `whatsapp boolean` | → `user` CASCADE; UNIQUE `(user_id, kind)` |
 | `plan` (global) | `code text UNIQUE`, `name`, `limits jsonb` (toko, gudang, pesanan per bulan, pengguna, tautan riset, token AI), `features text[]`, `price_monthly bigint`, `active boolean` | |
 | `subscription` | `plan_id`, `status CHECK IN ('trialing','active','past_due','cancelled','expired')`, `current_period_start`, `current_period_end`, `xendit_customer_id text`, `xendit_plan_id text`, `cancel_at` | `plan_id → plan(id)` RESTRICT; UNIQUE parsial `(tenant_id) WHERE status IN ('trialing','active','past_due')` |
@@ -1114,6 +1116,7 @@ Semua tabel di skema `research`. `research_source` global. Tidak ada kunci asing
 | `ai_route_config` (global) | `route text UNIQUE`, `model text`, `effort text`, `prompt_version text`, `max_tokens integer`, `enabled boolean` | |
 | `ai_call_log` (partisi bulanan, tanpa `updated_at` dan `row_version`) | `route`, `model`, `prompt_version`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cost_micro_usd bigint`, `stop_reason text`, `latency_ms integer`, `reference_type`, `reference_id` | INDEX `(tenant_id, route, id DESC)` |
 | `ai_budget` | `period text`, `token_limit bigint`, `tokens_used bigint` | UNIQUE `(tenant_id, period)` |
+| `data_export` | `status` (7.9), `status_changed_at`, `file_object_id`, `size_bytes bigint CHECK (>= 0)`, `result jsonb` (`{files: [{name, rows}]}`), `error text`, `requested_by`, `finished_at`, `expires_at`, `download_count integer NOT NULL DEFAULT 0 CHECK (>= 0)`, `last_downloaded_at` | `file_object_id → file_object` SET NULL (`file_object_id`), `requested_by → user` SET NULL (`requested_by`); INDEX `(tenant_id, id DESC)`; UNIQUE parsial `(tenant_id) WHERE status IN ('queued','running')` (satu ekspor berjalan per bisnis); audit saat dibuat dan setiap `download_count` berubah; migrasi 0008 (8.18) |
 | `file_object` | `tenant_id` NULL untuk berkas sistem, `bucket text`, `object_key text`, `mime text`, `size_bytes bigint`, `sha256 text`, `purpose CHECK IN ('product_image','label','pick_list','export','import','settlement','tax_document','evidence','other')`, `expires_at`, `created_by` | UNIQUE `(bucket, object_key)`; CHECK `size_bytes > 0` |
 | `audit_log` (partisi bulanan, hanya tambah, tanpa `updated_at` dan `row_version`) | `actor_type CHECK IN ('user','system','api_key','device')`, `actor_id text`, `request_id text`, `action text`, `entity_type text`, `entity_id ulid`, `before jsonb`, `after jsonb`, `ip inet` | INDEX `(tenant_id, entity_type, entity_id, id DESC)`; trigger `audit_log_immutable`; id dari `gen_ulid()` (7.7); hanya ditulis trigger `audit_row` |
 
@@ -1159,6 +1162,8 @@ Aturan pemetaan status marketplace ke status internal:
 **shipment**: `pending → arranged → label_ready → packed → handed_over → in_transit → delivered`; dari `in_transit` boleh ke `failed`; `failed → rto_in_transit → rto_received`; `cancelled` dari `pending`, `arranged`, `label_ready`, `packed`. Via `marketplace`: `pending → label_ready`; `arranged`, `label_ready`, `packed` ke `in_transit` atau `delivered`; `handed_over` ke `delivered` atau `failed`; `in_transit → rto_in_transit`; `failed` ke `in_transit` atau `delivered` (pengiriman ulang); `pending` ke `in_transit` atau `delivered` (diatur di Seller Center, atau atur kirim yang belum terkonfirmasi di sini). Masuk `rto_received` memicu `return_request` berjenis `rto`. Pengiriman mengikuti pesanannya lewat `shipmentStepFor` (8.15).
 
 **document_job**: `queued → running → ready | failed`; `queued → failed`; `running → queued` (worker berhenti di tengah); `failed → queued`.
+
+**data_export**: `queued → running → ready | failed`; `queued → failed`. Tidak pernah diantrekan ulang: permintaan berikutnya membuat ekspor baru. Ekspor `queued` atau `running` yang tidak bergerak lebih dari 1 jam ditandai `failed` saat ada permintaan baru (8.18); job yang diserahkan BullMQ ke worker lain setelah worker pertama berhenti melanjutkan ekspor yang masih `running`.
 
 **return_request**: `requested → seller_review → accepted | rejected`; `accepted → in_transit → received → completed`; `rejected → disputed → accepted | completed`; `cancelled` dari `requested`, `seller_review`; `rto`: `requested → in_transit → received → completed`.
 
@@ -1469,6 +1474,73 @@ Label disimpan lewat `FilesService` di `shipment_package.label_file_id` (purpose
 
 Diukur dengan proses sungguhan (api, webhook, worker, scheduler) terhadap Shopee tiruan: label tersimpan 0,24 detik setelah `POST /v1/shipments/arrange`, PDF label A4 siap 0,24 detik setelah diminta, tanpa data pembeli di log.
 
+### 8.16 Dasbor utama
+
+Implementasi: modul `reporting` (`DashboardService`; keputusan murni di `dashboard-plan.ts` dengan uji unit, zona waktu di `common/time-zone.ts`). Modul ini tidak memiliki tabel: semua angka dibaca dalam satu transaksi lewat service modul pemiliknya, di dalam cakupan toko dan gudang pemanggil: `OrdersService` (`summaryIn`, `urgentIn`, `salesIn`, `salesByDayIn`, `topProductsIn`, `grossProfitIn`), `InventoryService` (`criticalIn`, `variantsIn`), `ListingsService.unmappedCountIn`, `StoresService.list`, dan `TenantsService.timezone`.
+
+`GET /v1/dashboard?range=today|7d|30d&storeId=` (`order:read`, layar L01, PRD FR-RPT-01):
+
+- **Periode** dihitung di zona waktu bisnis (`tenant.timezone`, `Asia/Jakarta` bila tidak diubah): `today` adalah hari ini sampai sekarang dibanding kemarin sampai jam yang sama; `7d` dan `30d` mencakup hari ini dan dibanding jumlah hari yang sama sebelumnya. Respons menyebut keempat batasnya (`period`).
+- **Penjualan** (`report:read`): pesanan yang bukan `unpaid` dan bukan `cancelled`, menurut `ordered_at`, jumlah `order.total`; perubahan persen satu desimal, `null` bila periode sebelumnya nol.
+- **Grafik** (`report:read`): penjualan harian 30 hari terakhir per marketplace (`to_char(ordered_at AT TIME ZONE tz)`; `GROUP BY` memakai posisi kolom karena zona waktu adalah parameter, dan setiap penyebutan parameter menjadi ekspresi lain bagi PostgreSQL).
+- **Produk terlaris** (`report:read`): 7 hari terakhir menurut unit (`qty - cancelled_qty`) per varian, baris yang belum terpetakan per SKU marketplace; nama dari `catalog_variant_v`.
+- **Laba kotor** (`finance:read`): total baris dikurangi `cost_price × unit` untuk baris yang variannya punya HPP; `costCoveragePct` adalah bagian penjualan yang HPP-nya diketahui. Biaya marketplace dan ongkir menyusul bersama modul keuangan.
+- **Pesanan**: jumlah per status (semua status, nol ikut), terlambat, jatuh tempo dalam 6 jam, COD yang belum cair, dan 5 pesanan paling mendesak beserta SLA.
+- **Stok kritis** (`inventory:read`): stok yang sudah ditetapkan (`stock_set_at`) dengan `available <= 0` atau `<= min_stock`, varian aktif; jumlah (`count(*) OVER ()`) dan 5 teratas.
+- **Toko**: kesehatan setiap toko yang tidak diputus (`storeHealth`): `problem` bila harus dihubungkan ulang; `attention` bila izin segera berakhir, impor 90 hari masih berjalan, pesanan terakhir tersinkron lebih dari 30 menit lalu, ada gudang marketplace yang belum dipetakan, atau mode baca saja; selain itu `healthy`.
+- **Perlu tindakan** (`tasksFrom`): pesanan jatuh tempo (kritis bila ada yang terlambat), toko yang harus dihubungkan ulang, pesanan bermasalah, stok kritis, pesanan baru, listing yang belum terpetakan (`catalog:read`), urut dari yang paling mendesak.
+
+Bagian yang izinnya tidak dimiliki pengguna bernilai `null`. `storeId` di luar cakupan pemanggil memberi 404. Belum di-cache; DOKUMEN-TEKNOLOGI 7.2 menyiapkan cache 30 detik per pengguna bila beban menuntut. Diukur dengan proses sungguhan: 26 ms.
+
+### 8.17 Notifikasi in-app
+
+Notifikasi ditulis di transaksi modul yang memutuskan, lewat `NotificationInboxService` (modul `notification`, tabel `notification`, satu baris per penerima; API baca di 8.15). `notifyScopedIn(tx, ctx, izin, items, build)` memilih pengguna aktif yang memegang izin itu (`UsersService.recipientsIn`), lalu membuat satu notifikasi per pengguna dari item yang masuk cakupan toko dan gudangnya (aturan yang sama dengan daftar pesanan, `inScope`). Pengguna yang tidak melihat satu item pun tidak menerima apa-apa.
+
+| Jenis (`kind`) | Kapan | Penerima | Ditulis oleh |
+|---|---|---|---|
+| `order.new` | Ringkasan setiap 5 menit: pesanan penjual yang baru perlu diproses, per toko | `order:accept` | Scheduler `order.new_scan`, job `order.new_notice` (antrean `notify`, `OrderAlertsService.notifyNewOrders`) |
+| `order.sla` | Batas kirim 6 jam lagi, lalu lewat (8.15) | `shipment:arrange` | Job `order.sla_alert` |
+| `stock.critical` | Stok varian di sebuah gudang memburuk ke menipis (`available <= min_stock`) atau habis (`available <= 0`), sekali per tingkat | `inventory:adjust`, cakupan gudang | Job `inventory.stock_alert` dari event `inventory.changed` (`StockAlertsService`) |
+| `store.reauth_required` | Toko harus dihubungkan ulang | `settings:store`, cakupan toko | Job `store.reauth_notice` dari event `store.reauth_required` (`ChannelAlertsService`) |
+| `store.authorization_expiring` | Toko masuk `token_expiring` (izin berakhir dalam 14 hari) | `settings:store`, cakupan toko | Job `store.expiry_notice` dari event `store.authorization_expiring` |
+| `sync.stock_push_failed` | Marketplace menolak stok listing dengan galat yang tidak diulang (misalnya stok di bawah cadangan promo), sekali per rangkaian penolakan | `settings:store`, cakupan toko | Job `stock.push` (`StockPushService.announceRefusals`) |
+| `export.ready`, `export.failed` | Ekspor data penuh selesai atau gagal (8.18) | Peminta | Job `export.render` |
+
+Aturannya:
+
+- **Pesanan baru.** `order.notify_new` diisi saat pesanan pertama kali perlu penjual: pesanan penjual yang masuk berstatus `new` setelah impor 90 hari tokonya selesai (`store.last_order_sync_at` terisi), atau pesanan `unpaid` yang menjadi `new`. Job mengunci pesanan bertanda (`FOR UPDATE SKIP LOCKED`, 500 per job), mengosongkan tandanya, lalu memberi tahu hanya pesanan toko `live` yang masih `new` atau `problem`: di mode paralel penjual masih bekerja di aplikasi lama.
+- **Stok kritis.** `inventory.stock_alert` menyimpan tingkat yang sudah diumumkan. Notifikasi hanya saat tingkatnya memburuk (tidak ada, menipis, habis); membaik ke menipis tidak diumumkan, dan pulih di atas minimum mengosongkan tanda sehingga penurunan berikutnya diumumkan lagi. Stok yang belum pernah ditetapkan tidak diumumkan (ADR-036).
+- **Penolakan stok.** `recordPush` mengembalikan baris yang baru ditolak (`push_fail_count` menjadi 1, galat tidak diulang); penolakan berikutnya untuk listing yang sama tidak diumumkan lagi sampai pernah berhasil.
+- Notifikasi toko tidak dikirim bila toko sudah dihubungkan ulang sebelum job berjalan.
+
+Email dan WhatsApp per preferensi menyusul bersama pengaturan notifikasi (L44).
+
+### 8.18 Ekspor data penuh
+
+Implementasi: modul `exports` (`ExportsService` di api, `ExportRenderService` di worker), `common/csv.ts` (penulis CSV), `common/export-sheet.ts` (`ExportSheet`), dan `exportSheets()` di service setiap modul pemilik data. PRD FR-MIG-09: ekspor seluruh data bisnis kapan saja, tanpa biaya.
+
+- `POST /v1/exports` (202) membuat `data_export` (`queued`) dan event `export.requested`. Satu ekspor berjalan per bisnis (indeks unik parsial): permintaan kedua mendapat ekspor yang sama. Ekspor yang tidak bergerak lebih dari 1 jam ditandai `failed` dan diganti ekspor baru. `GET /v1/exports` (20 terakhir), `GET /v1/exports/{id}`, `GET /v1/exports/{id}/download` (`attachment; filename="omniseller-ekspor-<tanggal lokal>.zip"`: redirect ke tautan R2 10 menit, atau berkasnya untuk penyimpanan lokal; 409 `export.not_ready`, 404 `export.expired`).
+- Izin `data:export` (Owner; Admin tidak secara bawaan) dan tanpa batasan toko atau gudang (403 `export.scope_limited`), karena ZIP berisi data semua toko dan gudang. Permintaan dan setiap unduhan tercatat di `audit_log` beserta pelakunya (`download_count`).
+- Job `export.render` (antrean `export`, satu job per worker) mengambil semua sheet, membacanya dalam **satu transaksi `REPEATABLE READ READ ONLY`** (`withTenantTx(..., { snapshot: true })`) sehingga semua berkas menggambarkan saat yang sama, per halaman 2.000 baris dengan keyset `id` (setiap query pendek, di bawah `statement_timeout` 5 detik), dan menulis setiap sheet ke berkas CSV di direktori sementara (`writeCsvFile`). Berkas digabung menjadi ZIP dengan yazl (streaming, ZIP64), `README.txt` di depan (isi, format, arti kode status), lalu diunggah dengan `FilesService.saveFile` (`FileStorage.putFile` mengalirkan berkas dari disk; tidak ada transaksi terbuka selama unggahan) sebagai `file_object` purpose `export` yang kedaluwarsa 7 hari. Peminta mendapat notifikasi `export.ready`. Tidak ada yang ditahan di memori selain satu halaman baris.
+
+| Berkas | Pemilik sheet | Isi |
+|---|---|---|
+| `toko.csv` | `channel` (`StoresService`) | Toko, termasuk yang sudah diputus |
+| `gudang.csv` | `inventory` (`WarehousesService`) | Gudang, termasuk yang sudah dihapus |
+| `produk.csv` | `catalog` (`ProductTransferService`) | Kolom templat impor produk (8.12), jadi bisa diimpor ulang |
+| `listing.csv` | `catalog` (`ListingsService`) | Listing marketplace beserta varian yang dipetakan |
+| `stok.csv` | `inventory` (`InventoryService`) | Stok per varian dan gudang |
+| `mutasi_stok.csv` | `inventory` | Kartu stok, urut waktu, dengan nama pelaku |
+| `pesanan.csv` | `orders` (`OrdersService`) | Nilai, pembeli, alamat kirim, kurir, waktu tiap tahap |
+| `item_pesanan.csv` | `orders` | Baris barang per pesanan |
+| `pengiriman.csv` | `fulfillment` (`FulfillmentService`) | Kurir, resi, cara serah, waktu tiap tahap |
+
+Keuangan (penarikan dana, biaya marketplace) dan pelanggan masuk saat modulnya ada. **Tabel baru yang berisi data bisnis tenant mendapat `ExportSheet` di service pemiliknya dan didaftarkan di `ExportRenderService.sheets()`**; tanpa itu ekspor diam-diam tidak memuatnya. Sheet hanya membaca tabel modulnya sendiri dan view yang diekspor; nama toko, kode gudang, dan nama pengguna datang dari `ExportLookups` yang dibaca sekali.
+
+**Format CSV** (`common/csv.ts`, juga dipakai ekspor produk): pemisah `;`, UTF-8 dengan BOM, CRLF, kutip RFC 4180; waktu ISO 8601 di zona waktu bisnis beserta selisihnya (`2026-10-03T14:15:00+07:00`); uang rupiah bilangan bulat; ya/tidak sebagai `ya` dan `tidak`. Teks yang diawali `=`, `+`, `-`, `@`, tab, atau CR diberi awalan `'` agar spreadsheet tidak menjalankannya sebagai rumus (nama dan catatan pembeli datang dari luar); impor produk membuang awalan itu lagi.
+
+Diukur dengan proses sungguhan (antrean `export` BullMQ): ekspor bisnis kecil siap 0,28 detik setelah diminta.
+
 ---
 
 ## 9. Pekerjaan Latar dan Penjadwalan
@@ -1515,6 +1587,10 @@ BullMQ menolak job dengan `jobId` yang masih ada di antrean **atau yang sudah se
 | `order.listing_mapped` | Per kejadian | `order.listing_mapped\|<listing_id>\|<outbox_event_id>` |
 | `order.stock_recheck` | Per kejadian | `order.stock_recheck\|<tenant_id>\|<outbox_event_id>` |
 | `order.sla_alert` | Per slot | `order.sla_alert\|<tenant_id>\|a<slot 5 menit>` |
+| `order.new_notice` | Per slot | `order.new_notice\|<tenant_id>\|n<slot 5 menit>` |
+| `inventory.stock_alert` | Per kejadian | `inventory.stock_alert\|<tenant_id>\|<outbox_event_id>` |
+| `store.reauth_notice`, `store.expiry_notice` | Per kejadian | `store.reauth_notice\|<store_id>\|<outbox_event_id>` |
+| `export.render` | Sekali per ekspor | `export.render\|<data_export_id>` |
 | `shipment.arrange` | Per kejadian | `shipment.arrange\|<store_id>\|<outbox_event_id>` |
 | `label.fetch` | Per kejadian | `label.fetch\|<shipment_id pertama>\|<outbox_event_id>` |
 | `document.render` | Sekali per dokumen | `document.render\|<document_job_id>` |
@@ -1592,7 +1668,8 @@ Diukur dengan proses sungguhan (api, worker, scheduler) terhadap Shopee tiruan: 
 | `promo.auto_renew` | Setiap jam | `worker` | Perpanjang promo yang berakhir |
 | `campaign.tick` | Setiap 10 menit | `system` | Aktifkan mode kampanye, cadangan stok |
 | `order.sla_scan` | Setiap 5 menit | `system` untuk memilih, `worker` per tenant | Job `order.sla_alert` untuk tenant yang punya pesanan dengan batas kirim 6 jam lagi atau lewat dan belum diperingatkan pada tingkat itu (FR-SHP-10, 8.15; `scheduler/order-scans.ts`). Status SLA di layar dihitung saat dibaca dari `ship_by_at`, tidak disimpan |
-| `files.cleanup_scan` | Setiap jam | `system` untuk memilih, `worker` per tenant | Job `files.cleanup_expired` untuk tenant dengan label atau dokumen kedaluwarsa (8.15) |
+| `order.new_scan` | Setiap 5 menit | `system` untuk memilih, `worker` per tenant | Job `order.new_notice` untuk tenant yang punya pesanan menunggu notifikasi pesanan baru (`order.notify_new`, 8.17) |
+| `files.cleanup_scan` | Setiap jam | `system` untuk memilih, `worker` per tenant | Job `files.cleanup_expired` untuk tenant dengan label, dokumen, atau ekspor kedaluwarsa (8.15, 8.18) |
 | `partition.maintain` | Saat scheduler mulai dan setiap 6 jam | `system` | `maintain_partitions(now())`; pelepasan partisi kedaluwarsa menyusul bersama job arsip |
 | `retention.run` | Harian 02.00 WIB | `system` | Hapus `webhook_inbox` lebih dari 30 hari, `outbox_event` terkirim lebih dari 7 hari, anonimkan pembeli sesuai kebijakan, ringkas `research_snapshot` |
 | `research.collect` | Setiap 6 jam per tautan pantauan | `worker` | Pengumpulan riset |
@@ -1666,7 +1743,10 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `inventory:read`, `inventory:adjust`, `inventory:count`, `inventory:transfer` | Stok |
 | `catalog:write`, `catalog:publish`, `catalog:map` | Katalog |
 | `price:write`, `promo:write` | Harga dan promosi |
-| `finance:read`, `finance:reconcile`, `finance:export` | Keuangan |
+| `finance:read`, `finance:reconcile`, `finance:export` | Keuangan; `finance:read` juga membuka laba kotor di dasbor (8.16) |
+| `report:read` | Penjualan, grafik, dan produk terlaris di `GET /v1/dashboard` (8.16) |
+| `data:export` | `/v1/exports*`: ekspor seluruh data bisnis (8.18). Hanya Owner secara bawaan; peran bawaan Owner selalu memegang semua izin, termasuk yang ditambahkan kemudian (seed) |
+| `audit:read` | `GET /v1/audit-logs` |
 | `chat:read`, `chat:write`, `chat:assign` | Chat |
 | `settings:store`, `settings:warehouse`, `settings:user`, `settings:billing` | Pengaturan |
 | `research:read`, `research:write` | Riset |
@@ -1722,7 +1802,10 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `POST /v1/documents`, `GET /v1/documents/{id}` | `shipment:print` | Label dalam satu PDF (thermal atau A4) atau pick list, dibuat worker (202); status dan `downloadUrl` |
 | `POST /v1/pick-lists` | `shipment:print` | Pick list sebagai data: per gudang, urut rak |
 | `GET /v1/files/{id}/download` | `shipment:print` | PDF label atau dokumen: redirect ke tautan R2 10 menit, atau berkasnya (penyimpanan lokal) |
-| `GET /v1/notifications`, `GET /v1/notifications/unread-count`, `POST /v1/notifications/read` | Masuk saja (milik sendiri) | Notifikasi in-app pengguna (FR-NTF-01) |
+| `GET /v1/notifications`, `GET /v1/notifications/unread-count`, `POST /v1/notifications/read` | Masuk saja (milik sendiri) | Notifikasi in-app pengguna (FR-NTF-01, 8.17) |
+| `GET /v1/dashboard` | `order:read` | 8.16. `range` `today`, `7d`, `30d`; `storeId`; bagian tanpa izin bernilai `null` |
+| `POST /v1/exports`, `GET /v1/exports`, `GET /v1/exports/{id}` | `data:export`, tanpa batasan toko atau gudang | 8.18. Ekspor seluruh data ke ZIP berisi CSV, dibuat worker (202); satu yang berjalan per bisnis |
+| `GET /v1/exports/{id}/download` | `data:export` | ZIP: redirect ke tautan R2 10 menit, atau berkasnya (penyimpanan lokal); setiap unduhan diaudit |
 | `POST /webhooks/shopee`, `POST /webhooks/tiktokshop` | Tanda tangan marketplace | Proses `webhook`, di luar OpenAPI (8.11) |
 
 ---
@@ -1750,9 +1833,10 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `research` | Semua tabel skema `research` | `research.alert` | | `research.capture`, `research.summarize`, `research.parser_check` |
 | `migration` | `migration_job`, `migration_row_error` | `migration.finished`, `store.cutover` | | `migration.validate`, `migration.import` |
 | `campaign` | `campaign`, `campaign_plan`, `courier_cutoff`, `operating_hours` | `campaign.started`, `campaign.ended` | | `campaign.tick`, `campaign.evaluate` |
-| `notification` | `notification`; `notification_preference` menyusul. `NotificationInboxService` (api dan worker) menulis notifikasi in-app di transaksi modul lain; `EmailSender` (`smtp`, `log`, `memory`) dan templat email hanya di worker | | Menyusul: hampir semua event fakta | Menyusul `notify.send` |
+| `notification` | `notification`; `notification_preference` menyusul. `NotificationInboxService` (`notifyIn`, `notifyScopedIn`; api dan worker) menulis notifikasi in-app di transaksi modul yang memutuskan (8.17); `EmailSender` (`smtp`, `log`, `memory`) dan templat email hanya di worker | | Tidak langsung: job modul pemilik keputusan (`order.new_notice`, `order.sla_alert`, `inventory.stock_alert`, `store.reauth_notice`, `store.expiry_notice`, `export.render`) | Menyusul `notify.send` |
 | `billing` | `plan`, `subscription`, `invoice`, `usage_counter` | `subscription.changed`, `usage.limit_reached` | `order.created` (meter) | `billing.usage_close`, `billing.xendit_webhook` |
-| `reporting` | Tidak memiliki tabel; membaca lintas modul lewat view yang dibuat modul pemilik | | | `report.scheduled_email` |
+| `reporting` | Tidak memiliki tabel. `DashboardService` (8.16) membaca lewat service modul pemilik dan view yang diekspornya | | | Menyusul `report.scheduled_email` |
+| `exports` | `data_export`. `ExportsService` (api) dan `ExportRenderService` (worker) membaca data lewat `exportSheets()` setiap modul pemilik dan menyimpan ZIP lewat `FilesService` (8.18) | `export.requested` | `export.requested` | `export.render` (antrean `export`) |
 | `ai` | `ai_route_config`, `ai_call_log`, `ai_budget` | `ai.budget_exhausted` | | `ai.*` |
 | `files` | `file_object`. `FilesService` (simpan, baca, unduh, hapus kedaluwarsa) di atas `FileStorage` (`r2` atau `local`) | | | `files.cleanup_expired` |
 | `audit` | `audit_log` (ditulis trigger `audit_row()`, dibaca `GET /v1/audit-logs`) | | | `audit.export_monthly` |
@@ -1829,6 +1913,7 @@ Role dan database dibuat di luar migrasi, karena role berlaku untuk seluruh klas
 - `test/setup/app.ts`: `startApi(infra)` menjalankan aplikasi api penuh (guard, pipe, filter) di port acak; `startWorker(infra, system)` membangun container worker dengan email `memory`, dan `runOutbox(tenantId)` menjalankan handler job untuk baris outbox tenant itu secara langsung, tanpa relay dan tanpa menunggu. `client(app, ip)` memberi agen supertest dengan cookie dan IP sendiri; `signup()`, `uniqueEmail()`, `tokenFrom()` membantu alur e2e.
 - `test/setup/mock-marketplace.ts`: server `node:http` yang meniru Shopee Open Platform dan TikTok Shop Partner API sesuai dokumentasinya: memeriksa tanda tangan, jendela cap waktu, kode sekali pakai, refresh token Shopee sekali pakai per toko, refresh token TikTok Shop yang berotasi, dan `shop_cipher`. Katalog ikut ditiru: Shopee `get_item_list` (filter status berulang, jendela waktu), `get_item_base_info`, `get_model_list`, `unlist_item` (item terkunci menghasilkan kegagalan sebagian), dan TikTok Shop search 202502 (token halaman), detail produk, aktifkan dan nonaktifkan (mengubah status TikTok Shop dan Tokopedia). Stok juga ditiru sesuai aturan resminya: Shopee `update_stock` menjaga struktur lokasi item (`stockByLocation`, `""` untuk stok tanpa lokasi) dan menolak stok di bawah `reservedStock`; TikTok Shop Update Inventory mensyaratkan semua gudang SKU (12019028), membatasi 0 sampai 99.999, dan menolak gudang FBT per SKU. `startWorker` menyediakan `flushStock(tenantId)` yang menjalankan flush scheduler dan job `stock.push` di tempat tanpa masa tenang. Pesanan ditiru juga: Shopee `get_order_list` (jendela 15 hari ditegakkan, cursor), `get_order_detail` (paling banyak 50), `cancel_order` (status dan alasan diperiksa); TikTok Shop Search Orders 202309, Get Order Detail 202507, dan Cancel Order 202602 dengan alasan yang harus cocok dengan status (25001021). Uji menambah pesanan ke `orders` toko tiruan dan mengubah statusnya, lalu mengirim notifikasi bertanda tangan. Pengiriman ditiru (8.15): Shopee satu paket `OFG<order_sn>` per pesanan di `get_order_detail`, `get_mass_shipping_parameter` dan `mass_ship_order` (paling banyak 50, kanal dan gudang diperiksa, alamat dan slot pickup harus dari daftar), `get_shipping_parameter`, `ship_order`, `update_shipping_order`, resi yang terlambat sebanyak `shopeeTrackingDelay` panggilan, dokumen (parameter, buat dengan resi yang cocok, hasil, unduh PDF), dan penolakan paket lewat `shopeeRefuse`; TikTok Shop paket `PKG<id>` di Get Order Detail, slot serah terima, Ship Package (slot harus terbuka, `SELLER` butuh resi), dan URL label `/tts-docs/<id>.pdf` tanpa tanda tangan. Uji membangun toko lewat `addShopeeShop`/`addTiktokSeller` (dengan `items`/`products`), mendapatkan kode dari `shopeeCode`/`tiktokCode`, memaksa galat dengan `failNext`, dan menandatangani push dengan `signShopeePush`/`signTiktokWebhook`. `test/setup/app.ts` menyediakan `startApi`, `startWorker` (dengan `runOutbox` dan `runJob`), dan `startWebhook` yang diarahkan ke server ini, dengan prefix antrean BullMQ per run (`infra.keyPrefix`) agar job uji tidak pernah terlihat proses lain. Api dan worker uji memakai `FILE_STORAGE=local` di `.local/test-files/<prefix>`. Server uji mendengarkan di `127.0.0.1` (`listenOnLoopback`) sebelum supertest memakainya: bila dibiarkan, server terikat ke `::` di port acak, dan di macOS program lain (misalnya helper editor) bisa memegang port yang sama di `127.0.0.1`, sehingga permintaan uji sesekali sampai ke program itu. `runOutbox(tenantId, { failures })` mengumpulkan job yang gagal dengan sengaja (label belum siap) dan melanjutkan, seperti BullMQ yang mengulangnya nanti. Rentang id toko marketplace per file uji tidak boleh tumpang tindih, karena `store (channel, external_shop_id)` unik global.
 - Fixture webhook nyata teranonimkan di `packages/connectors/<mp>/test/fixtures/webhooks/*.json`.
+- Berkas ZIP (ekspor data) dibaca di uji dengan `fflate` (dependensi dev); `TextDecoder` membuang BOM kecuali diberi `ignoreBOM: true`.
 
 ### 13.3 Aturan menulis tes
 
@@ -1928,11 +2013,12 @@ pnpm mock:webhook shopee order_created --store <store_id>   # kirim fixture webh
 3. Tambahkan `CHECK` untuk setiap domain nilai (status, jumlah, rentang) dan `UNIQUE` untuk setiap identitas bisnis.
 4. Bila tabel berstatus: buat tabel `<tabel>_status_transition` (dengan kolom `via`) di migrasi, seed transisinya di `90_seeds.sql`, pasang trigger `enforce_status_transition('<tabel>')` di `20_triggers.sql`, dan tambahkan ke 7.9.
 5. Bila tabel besar: `PARTITION BY RANGE (id)` dengan partisi `DEFAULT`, dan tambahkan ke `partition_targets()` (7.6).
-6. Bila tabel sensitif: pasang trigger `audit_row` di `20_triggers.sql`. Bila butuh hak lebih sempit dari CRUD baku: tambahkan pengecualian di `40_grants.sql`.
-7. Tulis cermin Drizzle di `src/db/schema/<domain>.ts` dengan `baseColumns()`, `ulid()`, `money()`.
-8. `pnpm db:migrate && pnpm test:schema`.
-9. Tambahkan factory di `test/setup/factories.ts`.
-10. Perbarui 7.8 dokumen ini.
+6. Bila tabel sensitif: pasang trigger `audit_row` di `20_triggers.sql` (pada tabel terpartisi dengan nama tabel sebagai argumen, `audit_row('<tabel>')`). Bila butuh hak lebih sempit dari CRUD baku: tambahkan pengecualian di `40_grants.sql`.
+7. Bila tabel berisi data bisnis tenant: tambahkan `ExportSheet` di service pemiliknya dan daftarkan di `ExportRenderService.sheets()` (8.18).
+8. Tulis cermin Drizzle di `src/db/schema/<domain>.ts` dengan `baseColumns()`, `ulid()`, `money()`.
+9. `pnpm db:migrate && pnpm test:schema`.
+10. Tambahkan factory di `test/setup/factories.ts`.
+11. Perbarui 7.8 dokumen ini.
 
 ### 15.6 Menambah endpoint
 
@@ -2125,3 +2211,4 @@ Berkas `.env.example` adalah versi yang berlaku. Kunci dikelompokkan per peran p
 | 1.6 | 3 Oktober 2026 | Stok dan push stok diimplementasikan sesuai dokumentasi resmi Shopee (`v2.product.update_stock`) dan TikTok Shop (Update Inventory 202309) per Oktober 2026: 8.13 baru (penyesuaian dengan alasan, kartu stok, daftar dan ringkasan stok dengan status push per toko, stok awal dari toko, aturan alokasi, lokasi rak); 9.4 ditulis ulang (batch per tenant, kunci per varian, stok yang belum ditetapkan tidak didorong, lokasi dari tarikan listing, satu gudang fisik tidak ditampilkan dua kali dalam satu listing, ulangan hanya untuk kegagalan sementara, pemicu pemetaan dan mode `live`). Migrasi 0005: `inventory.stock_set_at`, `listing_stock_state.last_attempt_at`; fungsi `confirm_stock`; view `catalog_variant_v` (`drizzle/sql/15_views.sql`). `listing_stock_state` pindah ke modul `inventory`; event `channel_warehouse.mapping_changed`. Job 9.2, jadwal 9.5, endpoint 10.6, peta modul 11, mock stok 13.2, langkah 15.8 | Candra Syahputra |
 | 1.7 | 3 Oktober 2026 | Pesanan diimplementasikan sesuai dokumentasi resmi Shopee dan TikTok Shop per Oktober 2026 (8.14 baru): webhook, polling 5 menit, impor 90 hari dengan lanjutan per 5 halaman, pemetaan status per marketplace, status hanya maju (snapshot lama diabaikan), gudang per baris dari marketplace (FR-WHS-06), masalah otomatis, terima dan kemas massal, pembatalan dengan alasan marketplace, catatan internal, riwayat aktivitas, SLA, ringkasan COD, alamat pembeli hanya untuk peran yang memproses pesanan. 7.9: pesanan `unpaid` ikut mereservasi stok; pengiriman hanya mengeluarkan unit yang direservasi; pembatalan sebagian melepas sisanya. Migrasi 0006: kolom `external_updated_at`, `platform`, `cancel_requested`, `external_buyer_id` di `order` dan `cancelled_qty`, `external_product_id`, `external_sku_id` di `order_item`. Id pesanan dari waktu pesanan (`newIdAt`, 6.3). Contoh 3.3 diganti pembatalan pesanan. Stok awal menunggu impor pesanan. Job 9.2, jadwal 9.5, endpoint 10.6, peta modul 11, mock pesanan 13.2, langkah 15.8 | Candra Syahputra |
 | 1.8 | 3 Oktober 2026 | Pengiriman diimplementasikan sesuai dokumentasi resmi Shopee dan TikTok Shop per Oktober 2026 (8.15 baru): atur pickup atau drop-off massal (Shopee `mass_ship_order` per kanal dan gudang, TikTok Shop Ship Package dengan slot), label per paket disimpan privat 30 hari, label dalam satu PDF thermal 100 x 150 mm atau A4 isi empat mengikuti urutan pick list, pick list per gudang urut rak, pengiriman mengikuti status pesanan (`order.status_changed`), peringatan batas kirim sebagai notifikasi in-app. Migrasi 0007: kolom `shipment.arranged_at`, `last_error`, indeks unik pengiriman hidup per pesanan, `order.sla_alert_level`, tabel `document_job` (mesin status baru) dan `notification`. Transisi pengiriman `pending → in_transit, delivered` via marketplace. Modul `files` (R2, MinIO, atau direktori lokal), endpoint 10.6, job 9.2, jadwal 9.5 (`order.sla_scan` menggantikan `sla.refresh`), peta modul 11, perlengkapan uji 13.2 (server uji di 127.0.0.1), 5.4 MinIO |
+| 1.9 | 4 Oktober 2026 | Sisa MVP-1 diimplementasikan: dasbor utama (8.16 baru, `GET /v1/dashboard`: penjualan hari ini, 7, atau 30 hari dibanding periode sebelumnya di zona waktu bisnis, pesanan per status dan yang mendesak, grafik 30 hari per marketplace, produk terlaris, laba kotor dari HPP, stok kritis, kesehatan toko, daftar "Perlu tindakan"; bagian mengikuti izin); notifikasi in-app (8.17 baru: pesanan baru per ringkasan 5 menit, stok kritis sekali per tingkat, toko perlu dihubungkan ulang atau izin segera berakhir, stok ditolak marketplace, ekspor selesai; penerima per izin dan cakupan toko dan gudang lewat `notifyScopedIn`); ekspor data penuh (8.18 baru: sembilan CSV dalam ZIP dari satu snapshot `REPEATABLE READ READ ONLY`, sheet milik modul pemilik data, yazl, unggahan berkas dari disk, kedaluwarsa 7 hari, izin `data:export` untuk Owner); audit aksi sensitif PRD FR-USR-04 (penyesuaian stok, permintaan batal, ekspor dan unduhannya). Migrasi 0008: `inventory.stock_alert`, `order.notify_new`, tabel `data_export` dengan mesin status (7.9). `audit_row()` menerima nama tabel untuk tabel terpartisi; penulis CSV bersama dengan pengaman rumus (`common/csv.ts`); `withTenantTx` dengan opsi snapshot; antrean `export` dan konkurensi per antrean; job dan jadwal 9.2, 9.5; izin 10.5; endpoint 10.6; peta modul 11; langkah 15.5 | Candra Syahputra |

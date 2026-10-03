@@ -3,13 +3,14 @@ import { isConnectorError, type StockUpdateResult, TransientConnectorError } fro
 import { logger } from "@omniseller/logging";
 import { newId } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
-import type { DbHandle } from "../../db/client";
+import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, STOCK_DIRTY } from "../../infra/tokens";
 import type { StockDirtySet, StockPair } from "../../jobs/stock-dirty";
 import { dataOf, ListingsService } from "../catalog/listings.service";
 import { MarketplaceGateway } from "../channel/marketplace-gateway";
-import { StoresService } from "../channel/stores.service";
+import { type StockTarget, StoresService } from "../channel/stores.service";
+import { NotificationInboxService } from "../notification/inbox.service";
 import { describeSyncError } from "../sync/connector-calls";
 import { InventoryRepository, type PushResultRow } from "./inventory.repository";
 import { toPlanStore, toRule } from "./stock-inputs";
@@ -47,6 +48,7 @@ export class StockPushService {
     @Inject(StoresService) private readonly stores: StoresService,
     @Inject(MarketplaceGateway) private readonly gateway: MarketplaceGateway,
     @Inject(STOCK_DIRTY) private readonly dirty: StockDirtySet,
+    @Inject(NotificationInboxService) private readonly inbox: NotificationInboxService,
   ) {}
 
   async push(ctx: RequestContext, marks: StockPair[], queueJobId?: string): Promise<PushSummary> {
@@ -140,6 +142,7 @@ export class StockPushService {
                 listingId: p.listing.id,
                 channelWarehouseId: t.channelWarehouseId,
                 ok: a.ok,
+                retryable: !a.ok && !!a.retryable,
                 quantity: t.quantity,
                 error: a.ok ? null : (a.error ?? "Gagal mengirim stok."),
               });
@@ -148,7 +151,10 @@ export class StockPushService {
         }),
       );
       if (results.length > 0) {
-        await withTenantTx(this.db, ctx, (tx) => this.repo.recordPush(tx, ctx.tenantId, results, new Date()));
+        await withTenantTx(this.db, ctx, async (tx) => {
+          const refused = await this.repo.recordPush(tx, ctx.tenantId, results, new Date());
+          await this.announceRefusals(tx, ctx, refused, data.targets);
+        });
       }
       log.info({ ...summary, job_id: queueJobId }, "stock push finished");
       if (retry) {
@@ -206,5 +212,37 @@ export class StockPushService {
         retryable,
       }));
     }
+  }
+
+  /**
+   * Listings the marketplace refused for the first time in a row (stock under a promotion's reserve,
+   * item deleted, warehouse incomplete): one notification per person who manages stores
+   * (`settings:store`) and sees the store (FR-NTF-01 "sinkronisasi gagal"). Retries are not announced.
+   */
+  private async announceRefusals(
+    tx: Tx,
+    ctx: RequestContext,
+    refused: PushResultRow[],
+    targets: Map<string, StockTarget>,
+  ): Promise<void> {
+    if (refused.length === 0) return;
+    const storeOf = new Map<string, string>();
+    for (const [storeId, t] of targets) for (const w of t.warehouses) storeOf.set(w.id, storeId);
+    const items = refused
+      .map((r) => ({ ...r, storeId: storeOf.get(r.channelWarehouseId) ?? null }))
+      .filter((r) => r.storeId !== null);
+    await this.inbox.notifyScopedIn(tx, ctx, "settings:store", items, (theirs) => {
+      const listings = [...new Set(theirs.map((t) => t.listingId))];
+      const stores = [...new Set(theirs.map((t) => targets.get(t.storeId!)?.store.name ?? "Toko"))];
+      return {
+        kind: "sync.stock_push_failed",
+        severity: "warning",
+        title: `Stok ${listings.length} listing ditolak marketplace`,
+        body: `${stores.join(", ")}: ${theirs[0]!.error ?? "Gagal mengirim stok."}`,
+        data: {
+          listings: theirs.slice(0, 50).map((t) => ({ listingId: t.listingId, storeId: t.storeId, error: t.error })),
+        },
+      };
+    });
   }
 }

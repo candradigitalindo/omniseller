@@ -1,6 +1,8 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { RequestContext } from "../../common/context/request-context";
+import type { CsvValue } from "../../common/csv";
 import { DomainError, type FieldIssue } from "../../common/errors/domain-errors";
+import type { ExportSheet } from "../../common/export-sheet";
 import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
@@ -76,40 +78,59 @@ export class ProductTransferService {
 
   async exportCsv(ctx: RequestContext): Promise<string> {
     return withTenantTx(this.db, ctx, async (tx) => {
-      const rows: (string | number | null)[][] = [[...PRODUCT_COLUMNS]];
-      let before: string | undefined;
-      for (;;) {
-        const page = await this.repo.listProducts(tx, {}, before, 500);
-        const batch = page.slice(0, 500);
-        const views = await this.products.view(tx, batch);
-        for (const v of views.sort((a, b) => a.product.sku.localeCompare(b.product.sku))) {
-          for (const variant of v.variants) {
-            rows.push([
-              v.product.sku,
-              v.product.name,
-              v.product.description,
-              v.product.brand,
-              v.product.categoryPath,
-              variant.sku,
-              variant.name,
-              formatAttributes(variant.attributes),
-              variant.barcode,
-              variant.basePrice,
-              variant.costPrice,
-              variant.weightG,
-              variant.lengthMm,
-              variant.widthMm,
-              variant.heightMm,
-              variant.status === "active" ? "aktif" : "arsip",
-              v.imageUrls.join(IMAGE_SEPARATOR),
-            ]);
-          }
-        }
-        if (page.length <= 500) break;
-        before = batch[batch.length - 1]!.id;
-      }
+      const rows: CsvValue[][] = [[...PRODUCT_COLUMNS]];
+      for await (const page of this.productPages(tx)) rows.push(...page);
       return toCsv(rows);
     });
+  }
+
+  /** produk.csv of the full data export (FR-MIG-09): the template's columns, so it imports again. */
+  exportSheets(): ExportSheet[] {
+    return [
+      {
+        file: "produk.csv",
+        description: "Produk dan varian dengan kolom templat impor produk; berkas ini bisa diimpor ulang.",
+        columns: PRODUCT_COLUMNS,
+        pages: (tx) => this.productPages(tx),
+      },
+    ];
+  }
+
+  /** One page per 500 products, products by SKU within a page, one row per variant. */
+  private async *productPages(tx: Tx): AsyncIterable<CsvValue[][]> {
+    let before: string | undefined;
+    for (;;) {
+      const page = await this.repo.listProducts(tx, {}, before, 500);
+      const batch = page.slice(0, 500);
+      const views = await this.products.view(tx, batch);
+      const rows: CsvValue[][] = [];
+      for (const v of views.sort((a, b) => a.product.sku.localeCompare(b.product.sku))) {
+        for (const variant of v.variants) {
+          rows.push([
+            v.product.sku,
+            v.product.name,
+            v.product.description,
+            v.product.brand,
+            v.product.categoryPath,
+            variant.sku,
+            variant.name,
+            formatAttributes(variant.attributes),
+            variant.barcode,
+            variant.basePrice,
+            variant.costPrice,
+            variant.weightG,
+            variant.lengthMm,
+            variant.widthMm,
+            variant.heightMm,
+            variant.status === "active" ? "aktif" : "arsip",
+            v.imageUrls.join(IMAGE_SEPARATOR),
+          ]);
+        }
+      }
+      yield rows;
+      if (page.length <= 500) return;
+      before = batch[batch.length - 1]!.id;
+    }
   }
 
   async importCsv(ctx: RequestContext, content: string, dryRun: boolean): Promise<ImportSummary> {

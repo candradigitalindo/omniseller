@@ -16,6 +16,7 @@ import {
   ChannelWorkerModule,
   ConnectorsModule,
 } from "./modules/channel/channel.module";
+import { ExportsHttpModule, ExportsWorkerModule } from "./modules/exports/exports.module";
 import { FilesHttpModule, FilesModule } from "./modules/files/files.module";
 import {
   FulfillmentHttpModule,
@@ -28,6 +29,7 @@ import { InventoryHttpModule, InventoryModule, InventoryWorkerModule } from "./m
 import { NotificationHttpModule, NotificationModule } from "./modules/notification/notification.module";
 import { OrdersHttpModule, OrdersModule, OrdersWorkerModule } from "./modules/orders/orders.module";
 import { HealthController } from "./modules/platform/health.controller";
+import { ReportingHttpModule } from "./modules/reporting/reporting.module";
 import { SyncModule, WebhookHttpModule } from "./modules/sync/sync.module";
 import { SchedulerRunner } from "./scheduler/scheduler.runner";
 import { WorkerRunner } from "./worker/worker.runner";
@@ -83,6 +85,8 @@ export class AppModule {
             FilesHttpModule,
             FulfillmentHttpModule,
             NotificationHttpModule,
+            ReportingHttpModule,
+            ExportsHttpModule,
           ],
           providers: HTTP_PROVIDERS,
         };
@@ -118,6 +122,7 @@ export class AppModule {
             FilesModule.forEnv(env),
             FulfillmentModule,
             FulfillmentWorkerModule,
+            ExportsWorkerModule,
           ],
           providers: [WorkerRunner],
         };

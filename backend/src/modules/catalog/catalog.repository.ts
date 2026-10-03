@@ -1,6 +1,22 @@
 import { Injectable } from "@nestjs/common";
 import { newId } from "@omniseller/shared";
-import { and, asc, count, desc, eq, ilike, inArray, isNotNull, isNull, lt, ne, or, type SQL, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gt,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  ne,
+  or,
+  type SQL,
+  sql,
+} from "drizzle-orm";
 import type { Tx } from "../../db/client";
 import {
   channelListing,
@@ -233,6 +249,22 @@ export class CatalogRepository {
       .where(and(inArray(channelListing.variantId, variantIds), ne(channelListing.status, "deleted")))
       .groupBy(channelListing.variantId);
     return new Map(rows.map((r) => [r.variantId!, Number(r.n)]));
+  }
+
+  /** Live listings without a variant (not deleted), in these stores or all. */
+  async unmappedCount(tx: Tx, scope: ReadonlySet<string> | null): Promise<number> {
+    if (scope && scope.size === 0) return 0;
+    const [r] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(channelListing)
+      .where(
+        and(
+          scope ? inArray(channelListing.storeId, [...scope]) : undefined,
+          ne(channelListing.status, "deleted"),
+          isNull(channelListing.variantId),
+        ),
+      );
+    return r?.n ?? 0;
   }
 
   async listListings(
@@ -476,5 +508,32 @@ export class CatalogRepository {
       .from(variant)
       .innerJoin(product, eq(product.id, variant.productId))
       .where(inArray(variant.id, ids));
+  }
+
+  /** Listings in id order with the mapped variant's SKU (full data export, FR-MIG-09). */
+  async listingsPage(tx: Tx, after: string | undefined, limit: number) {
+    return tx
+      .select({
+        id: channelListing.id,
+        storeId: channelListing.storeId,
+        externalItemId: channelListing.externalItemId,
+        externalVariantId: channelListing.externalVariantId,
+        externalSku: channelListing.externalSku,
+        title: channelListing.title,
+        price: channelListing.price,
+        originalPrice: channelListing.originalPrice,
+        status: channelListing.status,
+        stockAtChannel: channelListing.stockAtChannel,
+        variantId: channelListing.variantId,
+        mappingSource: channelListing.mappingSource,
+        mappedAt: channelListing.mappedAt,
+        lastPulledAt: channelListing.lastPulledAt,
+        sku: variant.sku,
+      })
+      .from(channelListing)
+      .leftJoin(variant, eq(variant.id, channelListing.variantId))
+      .where(after ? gt(channelListing.id, after) : undefined)
+      .orderBy(asc(channelListing.id))
+      .limit(limit);
   }
 }

@@ -1,4 +1,5 @@
 import { type DynamicModule, Global, Module } from "@nestjs/common";
+import { IdentityModule } from "../identity/identity.module";
 import { createEmailSender, EMAIL_SENDER } from "./email";
 import { NotificationsController } from "./inbox.controller";
 import { InboxRepository } from "./inbox.repository";
@@ -18,7 +19,11 @@ export class NotificationModule {
 }
 
 /** In-app notifications (api and worker): other modules write them, users read their own. */
-@Module({ providers: [InboxRepository, NotificationInboxService], exports: [NotificationInboxService] })
+@Module({
+  imports: [IdentityModule],
+  providers: [InboxRepository, NotificationInboxService],
+  exports: [NotificationInboxService],
+})
 export class NotificationInboxModule {}
 
 @Module({ imports: [NotificationInboxModule], controllers: [NotificationsController] })

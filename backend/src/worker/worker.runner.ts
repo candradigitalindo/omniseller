@@ -6,7 +6,7 @@ import type { Redis } from "ioredis";
 import { attachContext, runWithAmbient, systemContext } from "../common/context/request-context";
 import { JOB_REGISTRY, QUEUES, REDIS_QUEUE } from "../infra/tokens";
 import type { JobDeps } from "../jobs/define";
-import type { QueueRegistry } from "../jobs/queues";
+import { isQueueName, QUEUE_CONCURRENCY, type QueueRegistry } from "../jobs/queues";
 import type { JobRegistry } from "../jobs/registry";
 
 const log = logger.forModule("worker");
@@ -54,7 +54,11 @@ export class WorkerRunner implements OnApplicationBootstrap, OnApplicationShutdo
             });
           });
         },
-        { connection: this.connection, concurrency: 10, prefix: this.queues.prefix },
+        {
+          connection: this.connection,
+          concurrency: isQueueName(queue) ? QUEUE_CONCURRENCY[queue] : 10,
+          prefix: this.queues.prefix,
+        },
       );
       worker.on("failed", (job, err) => log.warn({ err, job_id: job?.id, queue }, "job failed"));
       this.workers.push(worker);

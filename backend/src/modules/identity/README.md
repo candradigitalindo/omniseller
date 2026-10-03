@@ -12,7 +12,9 @@ Tenant (bisnis), pengguna, peran bawaan, cakupan toko dan gudang, serta undangan
 - `UsersService.loadPrincipal(tenantId, userId)`: identitas, izin, dan cakupan; dipakai `AuthGuard` di setiap permintaan.
 - `UsersService.list | get | update | setRoles | setScopes | changeOwnPassword(ctx, ...)`. Error: `user.not_found`, `user.cannot_disable_self`, `role.last_owner`, `role.privilege_escalation`, `row.stale`.
 - `UsersService.recordLoginSuccess | recordLoginFailure | resetPassword`: hanya untuk modul auth.
-- `UsersService.recipientsIn(tx, permission)`: pengguna aktif dengan izin itu beserta cakupan toko dan gudangnya; penerima peringatan (modul orders, FR-SHP-10).
+- `UsersService.recipientsIn(tx, permission)`: pengguna aktif dengan izin itu beserta cakupan toko dan gudangnya; penerima notifikasi (`notifyScopedIn`, backend doc 8.17).
+- `UsersService.namesIn(tx)`: nama semua pengguna, termasuk yang dinonaktifkan (kolom pelaku di ekspor data).
+- `TenantsService.timezone(ctx)`, `TenantsService.profile(ctx)`: zona waktu bisnis (arti "hari ini" di dasbor) dan nama bisnis.
 - `RolesService.list | permissions(ctx)`.
 - `InvitationsService.invite | resend | revoke | list(ctx, ...)`, `inspect(token)`, `accept(token, input)`, `send(ctx, invitationId)` (job). Error: `user.email_taken`, `invitation.already_open`, `invitation.not_found`, `invitation.invalid`.
 - `PreTenantLookup`: pembungkus fungsi `SECURITY DEFINER` (`auth_login_candidates`, `auth_resolve_invitation`, `auth_resolve_password_reset`), satu-satunya bacaan di luar `withTenantTx` (backend doc 7.5).

@@ -2,13 +2,14 @@ import { Inject, Injectable } from "@nestjs/common";
 import type { CancelReason } from "@omniseller/connector-core";
 import { newId, type OrderStatus } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
+import { EXPORT_PAGE_SIZE, type ExportSheet, keysetPages } from "../../common/export-sheet";
 import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
 import { storeNotFound } from "../channel/channel.errors";
 import { CONNECTORS, type ConnectorRegistry } from "../channel/connector-registry";
-import { StoresService } from "../channel/stores.service";
+import { channelDisplayName, StoresService } from "../channel/stores.service";
 import { OrderIntakeService } from "./order-intake.service";
 import { SLA_WARNING_MS } from "./order-plan";
 import { cancelReasonInvalid, orderNotCancellable, orderNotFound, problemNotFound } from "./orders.errors";
@@ -164,17 +165,63 @@ export class OrdersService {
 
   /** Tab counters and the numbers of the order dashboard (FR-ORD-07, 15). */
   async summary(ctx: RequestContext, filter: Pick<OrderListFilter, "storeId" | "warehouseId">) {
-    return withTenantTx(this.db, ctx, async (tx) => {
-      const f = { ...filter, ...this.scope(ctx) };
-      const now = Date.now();
-      const [statuses, overdue, dueSoon, cod] = await Promise.all([
-        this.repo.statusCounts(tx, f),
-        this.repo.dueCount(tx, f, new Date(now)),
-        this.repo.dueCount(tx, f, new Date(now + SLA_WARNING_MS)),
-        this.repo.codOutstanding(tx, f),
-      ]);
-      return { statuses, overdue, dueSoon, codOutstanding: cod };
-    });
+    return withTenantTx(this.db, ctx, (tx) => this.summaryIn(tx, ctx, filter));
+  }
+
+  async summaryIn(tx: Tx, ctx: RequestContext, filter: Pick<OrderListFilter, "storeId" | "warehouseId">) {
+    const f = { ...filter, ...this.scope(ctx) };
+    const now = Date.now();
+    const [statuses, overdue, dueSoon, cod] = await Promise.all([
+      this.repo.statusCounts(tx, f),
+      this.repo.dueCount(tx, f, new Date(now)),
+      this.repo.dueCount(tx, f, new Date(now + SLA_WARNING_MS)),
+      this.repo.codOutstanding(tx, f),
+    ]);
+    return { statuses, overdue, dueSoon, codOutstanding: cod };
+  }
+
+  // ---- figures for the dashboard (reporting, FR-RPT-01): the caller's transaction and scope ----
+
+  salesIn(tx: Tx, ctx: RequestContext, filter: { storeId?: string | undefined }, from: Date, to: Date) {
+    return this.repo.sales(tx, { ...filter, ...this.scope(ctx) }, from, to);
+  }
+
+  salesByDayIn(
+    tx: Tx,
+    ctx: RequestContext,
+    filter: { storeId?: string | undefined },
+    from: Date,
+    to: Date,
+    timezone: string,
+  ) {
+    return this.repo.salesByDay(tx, { ...filter, ...this.scope(ctx) }, from, to, timezone);
+  }
+
+  topProductsIn(
+    tx: Tx,
+    ctx: RequestContext,
+    filter: { storeId?: string | undefined },
+    from: Date,
+    to: Date,
+    limit: number,
+  ) {
+    return this.repo.topProducts(tx, { ...filter, ...this.scope(ctx) }, from, to, limit);
+  }
+
+  grossProfitIn(tx: Tx, ctx: RequestContext, filter: { storeId?: string | undefined }, from: Date, to: Date) {
+    return this.repo.grossProfit(tx, { ...filter, ...this.scope(ctx) }, from, to);
+  }
+
+  /** The most urgent orders still to ship: past or within 6 hours of the ship-by deadline. */
+  async urgentIn(tx: Tx, ctx: RequestContext, filter: { storeId?: string | undefined }, limit: number) {
+    const rows = await this.repo.list(
+      tx,
+      { ...filter, ...this.scope(ctx), dueBefore: new Date(Date.now() + SLA_WARNING_MS) },
+      "ship_by",
+      undefined,
+      limit,
+    );
+    return rows.slice(0, limit);
   }
 
   async get(ctx: RequestContext, id: string): Promise<OrderView & { events: OrderEventRow[] }> {
@@ -344,5 +391,172 @@ export class OrdersService {
     await withTenantTx(this.db, ctx, (tx) =>
       this.outbox.enqueue(tx, ctx, orderPullRequested, { storeId, mode: "incremental" }, storeId),
     );
+  }
+
+  // ---- full data export (FR-MIG-09) ----
+
+  /** Marketplace order numbers and stores of these orders, for other modules' export sheets. */
+  async refsIn(tx: Tx, ids: string[]): Promise<Map<string, { externalOrderId: string; storeId: string }>> {
+    return new Map((await this.repo.refs(tx, [...new Set(ids)])).map((r) => [r.id, r]));
+  }
+
+  exportSheets(): ExportSheet[] {
+    return [
+      {
+        file: "pesanan.csv",
+        description: "Pesanan dari semua toko dengan nilai, pembeli, alamat kirim, dan waktu tiap tahap.",
+        columns: [
+          "id",
+          "toko",
+          "marketplace",
+          "platform",
+          "no_pesanan",
+          "status",
+          "status_label",
+          "status_marketplace",
+          "pemenuhan",
+          "gudang",
+          "dipesan_pada",
+          "dibayar_pada",
+          "kirim_paling_lambat",
+          "dikirim_pada",
+          "diterima_pada",
+          "selesai_pada",
+          "dibatalkan_pada",
+          "dibatalkan_oleh",
+          "alasan_batal",
+          "cod",
+          "dropship",
+          "subtotal",
+          "diskon",
+          "voucher_penjual",
+          "ongkir_pembeli",
+          "total",
+          "mata_uang",
+          "nama_pembeli",
+          "username_pembeli",
+          "telepon_pembeli",
+          "nama_penerima",
+          "telepon_penerima",
+          "alamat",
+          "kecamatan",
+          "kota",
+          "provinsi",
+          "kode_pos",
+          "kurir",
+          "layanan_kurir",
+          "no_resi",
+          "catatan_pembeli",
+          "catatan_internal",
+          "sumber",
+          "id_toko",
+        ],
+        pages: (tx, l) =>
+          keysetPages(
+            (after) => this.repo.ordersPage(tx, after, EXPORT_PAGE_SIZE),
+            (rows) =>
+              rows.map((o) => {
+                const a = o.shippingAddress ?? {};
+                return [
+                  o.id,
+                  l.storeName(o.storeId),
+                  channelDisplayName(o.channel),
+                  o.platform,
+                  o.externalOrderId,
+                  o.status,
+                  orderStatusLabel(o.status),
+                  o.externalStatus,
+                  o.fulfillmentMode,
+                  l.warehouseCode(o.warehouseId),
+                  o.orderedAt,
+                  o.paidAt,
+                  o.shipByAt,
+                  o.shippedAt,
+                  o.deliveredAt,
+                  o.completedAt,
+                  o.cancelledAt,
+                  o.cancelledBy,
+                  o.cancelReason,
+                  o.isCod,
+                  o.isDropship,
+                  o.subtotal,
+                  o.discountTotal,
+                  o.voucherSeller,
+                  o.shippingFeeBuyer,
+                  o.total,
+                  o.currency,
+                  o.buyerName,
+                  o.buyerUsername,
+                  o.buyerPhone,
+                  a.name,
+                  a.phone,
+                  a.line1,
+                  a.district,
+                  a.city,
+                  a.province,
+                  a.postalCode,
+                  o.shippingProvider,
+                  o.shippingService,
+                  o.trackingNumber,
+                  o.buyerNote,
+                  o.internalNote,
+                  o.source,
+                  o.storeId,
+                ];
+              }),
+          ),
+      },
+      {
+        file: "item_pesanan.csv",
+        description: "Baris barang tiap pesanan; hubungkan ke pesanan.csv lewat id_pesanan.",
+        columns: [
+          "no_pesanan",
+          "toko",
+          "sku_marketplace",
+          "judul",
+          "sku_varian",
+          "jumlah",
+          "dibatalkan",
+          "dikirim",
+          "diretur",
+          "harga_satuan",
+          "diskon",
+          "total_baris",
+          "gudang",
+          "id_produk_marketplace",
+          "id_sku_marketplace",
+          "id_item_marketplace",
+          "id_pesanan",
+          "id_varian",
+          "id",
+        ],
+        pages: (tx, l) =>
+          keysetPages(
+            (after) => this.repo.itemsPage(tx, after, EXPORT_PAGE_SIZE),
+            (rows) =>
+              rows.map((i) => [
+                i.externalOrderId,
+                l.storeName(i.storeId),
+                i.skuSnapshot,
+                i.titleSnapshot,
+                i.sku,
+                i.qty,
+                i.cancelledQty,
+                i.shippedQty,
+                i.returnedQty,
+                i.unitPrice,
+                i.discount,
+                i.lineTotal,
+                l.warehouseCode(i.warehouseId),
+                i.externalProductId,
+                i.externalSkuId,
+                i.externalItemId,
+                i.orderId,
+                i.variantId,
+                i.id,
+              ]),
+          ),
+      },
+    ];
   }
 }

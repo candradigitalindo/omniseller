@@ -4,13 +4,14 @@ import type { DbHandle } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
 import { StoresService } from "../channel/stores.service";
-import { UsersService } from "../identity/users.service";
-import { type NewNotification, NotificationInboxService } from "../notification/inbox.service";
+import { NotificationInboxService } from "../notification/inbox.service";
 import { type SlaAlertLevel, slaAlertDue } from "./order-plan";
 import { type OrderRow, OrdersRepository } from "./orders.repository";
 
 /** Orders taken per scan; the rest waits for the next scan five minutes later. */
 const BATCH = 500;
+/** Statuses in which a new order still waits for the seller when its notification goes out. */
+const STILL_NEW = new Set(["new", "problem"]);
 
 /**
  * Ship-by alerts (PRD FR-SHP-10): orders still to ship that crossed 6 hours left, or the deadline, since
@@ -24,9 +25,45 @@ export class OrderAlertsService {
     @Inject(DB_TENANT) private readonly db: DbHandle,
     @Inject(OrdersRepository) private readonly repo: OrdersRepository,
     @Inject(StoresService) private readonly stores: StoresService,
-    @Inject(UsersService) private readonly users: UsersService,
     @Inject(NotificationInboxService) private readonly inbox: NotificationInboxService,
   ) {}
+
+  /**
+   * New orders since the last notification (PRD FR-NTF-01), one digest per person who processes orders
+   * (`order:accept`) with the orders of their stores and warehouses. Orders handled before the digest
+   * (accepted, cancelled) and stores in read-only mode are left out.
+   */
+  async notifyNewOrders(ctx: RequestContext): Promise<{ orders: number; notified: number }> {
+    return withTenantTx(this.db, ctx, async (tx) => {
+      const pending = await this.repo.pendingNewNotices(tx, BATCH);
+      if (pending.length === 0) return { orders: 0, notified: 0 };
+      await this.repo.clearNewNotices(
+        tx,
+        pending.map((o) => o.id),
+      );
+      const targets = await this.stores.stockTargetsIn(tx, [...new Set(pending.map((o) => o.storeId))]);
+      const fresh = pending
+        .filter((o) => STILL_NEW.has(o.status) && targets.get(o.storeId)?.store.syncMode === "live")
+        .map((o) => ({ o, storeId: o.storeId, warehouseId: o.warehouseId }));
+      const notified = await this.inbox.notifyScopedIn(tx, ctx, "order:accept", fresh, (theirs) => {
+        const perStore = new Map<string, number>();
+        for (const t of theirs) perStore.set(t.storeId, (perStore.get(t.storeId) ?? 0) + 1);
+        const named = [...perStore].map(([id, n]) => `${targets.get(id)?.store.name ?? "Toko"} ${n}`);
+        return {
+          kind: "order.new",
+          severity: "info",
+          title: `${theirs.length} pesanan baru`,
+          body: `${named.join(", ")}.`,
+          data: {
+            count: theirs.length,
+            orderIds: theirs.slice(0, 50).map((t) => t.o.id),
+            stores: [...perStore].map(([storeId, count]) => ({ storeId, count })),
+          },
+        };
+      });
+      return { orders: fresh.length, notified };
+    });
+  }
 
   async alertDue(ctx: RequestContext, now = new Date()): Promise<{ orders: number; notified: number }> {
     return withTenantTx(this.db, ctx, async (tx) => {
@@ -38,21 +75,13 @@ export class OrderAlertsService {
         due.push({ o, level });
       }
       const stores = await this.stores.stockTargetsIn(tx, [...new Set(due.map((d) => d.o.storeId))]);
-      const live = due.filter((d) => stores.get(d.o.storeId)?.store.syncMode === "live");
-      if (live.length === 0) return { orders: due.length, notified: 0 };
-
-      const notes: NewNotification[] = [];
-      for (const r of await this.users.recipientsIn(tx, "shipment:arrange")) {
-        const theirs = live.filter(
-          (d) =>
-            (r.storeScope === null || r.storeScope.includes(d.o.storeId)) &&
-            (r.warehouseScope === null || (d.o.warehouseId !== null && r.warehouseScope.includes(d.o.warehouseId))),
-        );
-        if (theirs.length === 0) continue;
+      const live = due
+        .filter((d) => stores.get(d.o.storeId)?.store.syncMode === "live")
+        .map((d) => ({ ...d, storeId: d.o.storeId, warehouseId: d.o.warehouseId }));
+      const notified = await this.inbox.notifyScopedIn(tx, ctx, "shipment:arrange", live, (theirs) => {
         const overdue = theirs.filter((d) => d.level === "overdue").length;
         const warning = theirs.length - overdue;
-        notes.push({
-          userId: r.id,
+        return {
           kind: "order.sla",
           severity: overdue > 0 ? "critical" : "warning",
           title: `${theirs.length} pesanan harus segera dikirim`,
@@ -63,10 +92,9 @@ export class OrderAlertsService {
             .filter(Boolean)
             .join(", ")}.`,
           data: { overdue, warning, orderIds: theirs.slice(0, 50).map((d) => d.o.id) },
-        });
-      }
-      await this.inbox.notifyIn(tx, ctx, notes);
-      return { orders: due.length, notified: notes.length };
+        };
+      });
+      return { orders: due.length, notified };
     });
   }
 }

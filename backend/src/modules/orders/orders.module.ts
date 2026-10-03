@@ -1,7 +1,6 @@
 import { Module } from "@nestjs/common";
 import { CatalogModule, CatalogWorkerModule } from "../catalog/catalog.module";
 import { ChannelModule } from "../channel/channel.module";
-import { IdentityModule } from "../identity/identity.module";
 import { InventoryModule } from "../inventory/inventory-core.module";
 import { NotificationInboxModule } from "../notification/notification.module";
 import { SyncModule } from "../sync/sync.module";
@@ -20,15 +19,7 @@ export class OrdersModule {}
 
 /** Worker only: reading orders from marketplaces and cancelling there (MarketplaceGateway), ship-by alerts. */
 @Module({
-  imports: [
-    OrdersModule,
-    ChannelModule,
-    CatalogModule,
-    CatalogWorkerModule,
-    SyncModule,
-    IdentityModule,
-    NotificationInboxModule,
-  ],
+  imports: [OrdersModule, ChannelModule, CatalogModule, CatalogWorkerModule, SyncModule, NotificationInboxModule],
   providers: [OrderSyncService, OrderAlertsService],
   exports: [OrderSyncService, OrderAlertsService],
 })

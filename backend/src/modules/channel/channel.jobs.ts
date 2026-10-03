@@ -4,7 +4,14 @@ import { defineJob } from "../../jobs/define";
 import { jobKey } from "../../jobs/job-id";
 import type { WebhookConsumers } from "../sync/webhook-consumer";
 import type { StoreStatusReason } from "./channel.errors";
-import { storeAuthorizationReceived, storeConnected, storeWarehousesSyncRequested } from "./channel.events";
+import {
+  storeAuthorizationExpiring,
+  storeAuthorizationReceived,
+  storeConnected,
+  storeReauthRequired,
+  storeWarehousesSyncRequested,
+} from "./channel.events";
+import { ChannelAlertsService } from "./channel-alerts.service";
 import { ChannelSyncService } from "./channel-sync.service";
 import { CredentialService } from "./credential.service";
 import { StoreConnectService } from "./store-connect.service";
@@ -75,11 +82,39 @@ export const storeTokenRefreshJob = defineJob({
   },
 });
 
+/** FR-NTF-01: the store must be authorized again; the people who manage it are told. */
+export const storeReauthNoticeJob = defineJob({
+  queue: "notify",
+  name: "store.reauth_notice",
+  schema: z.object({ storeId: ulidSchema, reason: z.string() }),
+  triggeredBy: [storeReauthRequired],
+  options: { attempts: 3, backoff: { type: "exponential", delay: 5_000 } },
+  jobId: (p, meta) => jobKey("store.reauth_notice", p.storeId, meta.eventId ?? "direct"),
+  handler: async (p, run) => {
+    await run.deps.resolve(ChannelAlertsService).reauthRequired(run.ctx, p.storeId, p.reason);
+  },
+});
+
+/** FR-NTF-01: the seller's authorization ends soon. */
+export const storeExpiryNoticeJob = defineJob({
+  queue: "notify",
+  name: "store.expiry_notice",
+  schema: z.object({ storeId: ulidSchema, expiresAt: z.iso.datetime().nullable() }),
+  triggeredBy: [storeAuthorizationExpiring],
+  options: { attempts: 3, backoff: { type: "exponential", delay: 5_000 } },
+  jobId: (p, meta) => jobKey("store.expiry_notice", p.storeId, meta.eventId ?? "direct"),
+  handler: async (p, run) => {
+    await run.deps.resolve(ChannelAlertsService).authorizationExpiring(run.ctx, p.storeId, p.expiresAt);
+  },
+});
+
 export const CHANNEL_JOBS = [
   storeAuthorizeJob,
   storeWarehousesSyncJob,
   storeWebhooksSubscribeJob,
   storeTokenRefreshJob,
+  storeReauthNoticeJob,
+  storeExpiryNoticeJob,
 ];
 
 /** Shopee authorize_type values of a code 2 push, and TikTok Shop's deauthorization message. */

@@ -8,7 +8,7 @@ Pengiriman pesanan marketplace (PRD 6.5: FR-SHP-01, 02, 06; FR-ORD-08, FR-WHS-08
 - Pesanan lewat `OrdersService` (`requireVisible`, `readIn`, `accept`, `idsByExternalIn`) dan `OrderIntakeService` (`advanceIn`, `recordIn`, `setShippingIn`); lokasi rak dan nama varian lewat `InventoryService.pickInfoIn`; nama gudang lewat `WarehousesService`; berkas lewat `FilesService`.
 
 ## Service publik
-- `FulfillmentService` (api): `arrange`, `requestLabels`, `shipmentsOf`, `requestDocument`, `document`, `pickList`.
+- `FulfillmentService` (api dan worker): `arrange`, `requestLabels`, `shipmentsOf`, `requestDocument`, `document`, `pickList`, `exportSheets` (`pengiriman.csv` ekspor data penuh, backend doc 8.18; nomor pesanan lewat `OrdersService.refsIn`).
 - `PickListBuilder` (api dan worker): `buildIn`.
 - Hanya worker: `FulfillmentWorkerService` (`arrange`, `fetchLabels`, `followOrder`, `labelsForOrders`) dan `DocumentRenderService` (`render`). Marketplace selalu lewat `MarketplaceGateway`, di luar transaksi.
 

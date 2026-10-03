@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { Tx } from "../../db/client";
 import { documentJob, shipment, shipmentPackage } from "../../db/schema";
 
@@ -92,5 +92,15 @@ export class FulfillmentRepository {
 
   async updateDocument(tx: Tx, id: string, patch: Partial<typeof documentJob.$inferInsert>): Promise<void> {
     if (Object.keys(patch).length > 0) await tx.update(documentJob).set(patch).where(eq(documentJob.id, id));
+  }
+
+  /** Shipments in id order (full data export, FR-MIG-09). */
+  async shipmentsPage(tx: Tx, after: string | undefined, limit: number): Promise<ShipmentRow[]> {
+    return tx
+      .select()
+      .from(shipment)
+      .where(after ? gt(shipment.id, after) : undefined)
+      .orderBy(asc(shipment.id))
+      .limit(limit);
   }
 }

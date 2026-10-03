@@ -4,9 +4,11 @@ import { TokenVault } from "../../common/security/token-vault";
 import type { Env, EnvFor } from "../../config/env.schema";
 import { TOKEN_VAULT } from "../../infra/tokens";
 import { InventoryModule } from "../inventory/inventory-core.module";
+import { NotificationInboxModule } from "../notification/notification.module";
 import { SyncModule } from "../sync/sync.module";
 import { ChannelsController, StoreAuthorizationsController, StoresController } from "./channel.controllers";
 import { ChannelRepository } from "./channel.repository";
+import { ChannelAlertsService } from "./channel-alerts.service";
 import { ChannelSyncService } from "./channel-sync.service";
 import { CONNECTORS, ConnectorRegistry } from "./connector-registry";
 import { CredentialService } from "./credential.service";
@@ -51,11 +53,17 @@ export function keyProviderFor(env: EnvFor<"worker">): KeyProvider {
 @Module({})
 export class ChannelWorkerModule {
   static forEnv(env: EnvFor<"worker">): DynamicModule {
-    const services = [CredentialService, MarketplaceGateway, StoreConnectService, ChannelSyncService];
+    const services = [
+      CredentialService,
+      MarketplaceGateway,
+      StoreConnectService,
+      ChannelSyncService,
+      ChannelAlertsService,
+    ];
     return {
       global: true,
       module: ChannelWorkerModule,
-      imports: [ChannelModule, SyncModule, InventoryModule],
+      imports: [ChannelModule, SyncModule, InventoryModule, NotificationInboxModule],
       providers: [{ provide: TOKEN_VAULT, useValue: new TokenVault(keyProviderFor(env)) }, ...services],
       exports: [TOKEN_VAULT, ...services],
     };

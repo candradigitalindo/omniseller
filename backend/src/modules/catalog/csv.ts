@@ -1,10 +1,11 @@
+import { unguardCell } from "../../common/csv";
+
 /**
  * CSV for product import and export (FR-PRD-04). RFC 4180 quoting; the delimiter is detected from the
- * header (Excel with Indonesian regional settings writes `;`, others `,`). Export writes `;`, a UTF-8
- * BOM, and CRLF so Excel in Indonesia opens it in columns with the right characters.
+ * header (Excel with Indonesian regional settings writes `;`, others `,`). Export uses the shared
+ * writer (`common/csv.ts`: `;`, a UTF-8 BOM, CRLF, formula guard); import drops the guard again.
  */
-/** UTF-8 byte order mark: makes Excel read the file as UTF-8. */
-const BOM = String.fromCharCode(0xfeff);
+export { toCsv } from "../../common/csv";
 
 export function detectDelimiter(text: string): "," | ";" {
   const firstLine = text.slice(0, Math.max(0, text.indexOf("\n")) || text.length);
@@ -36,11 +37,11 @@ export function parseCsv(input: string): string[][] {
     }
     if (c === '"' && field === "") quoted = true;
     else if (c === delimiter) {
-      row.push(field);
+      row.push(unguardCell(field));
       field = "";
     } else if (c === "\n" || c === "\r") {
       if (c === "\r" && text[i + 1] === "\n") i++;
-      row.push(field);
+      row.push(unguardCell(field));
       rows.push(row);
       row = [];
       field = "";
@@ -49,21 +50,10 @@ export function parseCsv(input: string): string[][] {
     }
   }
   if (field !== "" || row.length > 0) {
-    row.push(field);
+    row.push(unguardCell(field));
     rows.push(row);
   }
   return rows.filter((r) => r.some((cell) => cell.trim() !== ""));
-}
-
-function quote(value: string, delimiter: string): string {
-  return /["\r\n]/.test(value) || value.includes(delimiter) ? `"${value.replace(/"/g, '""')}"` : value;
-}
-
-export function toCsv(rows: (string | number | null | undefined)[][], delimiter = ";"): string {
-  const body = rows.map((r) =>
-    r.map((v) => quote(v === null || v === undefined ? "" : String(v), delimiter)).join(delimiter),
-  );
-  return `${BOM}${body.join("\r\n")}\r\n`;
 }
 
 /** "65000", "65.000", "65,000", "Rp 65.000" -> 65000. Decimals are refused: prices are whole rupiah. */

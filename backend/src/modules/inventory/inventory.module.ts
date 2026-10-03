@@ -1,10 +1,12 @@
 import { Module } from "@nestjs/common";
 import { CatalogModule } from "../catalog/catalog.module";
 import { ChannelModule } from "../channel/channel.module";
+import { NotificationInboxModule } from "../notification/notification.module";
 import { AllocationRulesService } from "./allocation-rules.service";
 import { InitialStockService } from "./initial-stock.service";
 import { InventoryController, StockRulesController, WarehousesController } from "./inventory.controllers";
 import { InventoryModule } from "./inventory-core.module";
+import { StockAlertsService } from "./stock-alerts.service";
 import { StockOverviewService } from "./stock-overview.service";
 import { StockPushService } from "./stock-push.service";
 import { StockTriggersService } from "./stock-triggers.service";
@@ -19,9 +21,9 @@ export class InventoryStockModule {}
 
 /** The stock pusher and its triggers: worker only, marketplaces are called through MarketplaceGateway. */
 @Module({
-  imports: [InventoryModule, CatalogModule, ChannelModule],
-  providers: [StockPushService, StockTriggersService],
-  exports: [StockPushService, StockTriggersService],
+  imports: [InventoryModule, CatalogModule, ChannelModule, NotificationInboxModule],
+  providers: [StockPushService, StockTriggersService, StockAlertsService],
+  exports: [StockPushService, StockTriggersService, StockAlertsService],
 })
 export class InventoryWorkerModule {}
 

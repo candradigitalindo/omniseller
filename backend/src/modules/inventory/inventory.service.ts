@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { StockAdjustmentReason, StockMovementType } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
+import { EXPORT_PAGE_SIZE, type ExportSheet, keysetPages } from "../../common/export-sheet";
 import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, OUTBOX } from "../../infra/tokens";
@@ -8,6 +9,7 @@ import type { Outbox } from "../../outbox/outbox";
 import { duplicateLine, stockInsufficient, variantNotFound, warehouseNotFound } from "./inventory.errors";
 import { inventoryChanged } from "./inventory.events";
 import { InventoryRepository, type MovementRow, type StockSummary, type VariantInfo } from "./inventory.repository";
+import { alertWorsened, type StockAlert, stockAlertOf } from "./stock-plan";
 import { WarehousesService, type WarehouseView } from "./warehouses.service";
 
 export interface AdjustmentLine {
@@ -250,6 +252,63 @@ export class InventoryService {
     );
   }
 
+  /** Critical stock in the caller's warehouses (dashboard, FR-RPT-01), with warehouse names. */
+  async criticalIn(tx: Tx, ctx: RequestContext, limit: number) {
+    const warehouses = await this.warehousesIn(tx, ctx);
+    const found = await this.repo.critical(
+      tx,
+      warehouses.map((w) => w.id),
+      limit,
+    );
+    const names = new Map(warehouses.map((w) => [w.id, w.name]));
+    return { count: found.count, items: found.items.map((i) => ({ ...i, warehouse: names.get(i.warehouseId) ?? "" })) };
+  }
+
+  /** Variant names and SKUs from the catalog view, for other modules' lists. */
+  variantsIn(tx: Tx, variantIds: string[]): Promise<Map<string, VariantInfo>> {
+    return this.repo.variants(tx, [...new Set(variantIds)]);
+  }
+
+  /**
+   * Stock alert levels of these pairs after a change (FR-NTF-01): the stored level follows the stock, and
+   * the pairs whose level got worse than the one already sent are returned for a notification. Archived
+   * variants are not alerted.
+   */
+  async stockAlertsIn(
+    tx: Tx,
+    pairs: { variantId: string; warehouseId: string }[],
+  ): Promise<
+    { variant: VariantInfo; warehouseId: string; level: StockAlert; available: number; minStock: number | null }[]
+  > {
+    const variantIds = [...new Set(pairs.map((p) => p.variantId))];
+    const wanted = new Set(pairs.map((p) => `${p.variantId}|${p.warehouseId}`));
+    const rows = (await this.repo.rows(tx, variantIds, [...new Set(pairs.map((p) => p.warehouseId))])).filter((r) =>
+      wanted.has(`${r.variantId}|${r.warehouseId}`),
+    );
+    const variants = await this.repo.variants(tx, variantIds);
+    const out: {
+      variant: VariantInfo;
+      warehouseId: string;
+      level: StockAlert;
+      available: number;
+      minStock: number | null;
+    }[] = [];
+    for (const r of rows) {
+      const variant = variants.get(r.variantId);
+      const available = r.available ?? r.onHand - r.reserved - r.buffer;
+      const level =
+        variant && variant.variantStatus === "active" && variant.productStatus === "active"
+          ? stockAlertOf({ available, minStock: r.minStock, established: r.stockSetAt !== null })
+          : null;
+      if (level === r.stockAlert) continue;
+      await this.repo.setStockAlert(tx, r.id, level);
+      if (variant && level && alertWorsened(r.stockAlert, level)) {
+        out.push({ variant, warehouseId: r.warehouseId, level, available, minStock: r.minStock });
+      }
+    }
+    return out;
+  }
+
   /**
    * What a picker needs per (variant, warehouse) (FR-SHP-02): the bin location, keyed
    * `${variantId}|${warehouseId}`, and the variant's SKU and names.
@@ -305,5 +364,112 @@ export class InventoryService {
         (await this.warehousesIn(tx, ctx, warehouseId)).map((w) => w.id),
       ),
     );
+  }
+
+  // ---- full data export (FR-MIG-09) ----
+
+  exportSheets(): ExportSheet[] {
+    return [
+      {
+        file: "stok.csv",
+        description: "Stok per varian dan gudang pada saat ekspor dibuat.",
+        columns: [
+          "gudang",
+          "sku_varian",
+          "nama_produk",
+          "nama_varian",
+          "stok_fisik",
+          "dipesan",
+          "penyangga",
+          "rusak",
+          "tersedia",
+          "stok_minimum",
+          "lokasi_rak",
+          "stok_ditetapkan_pada",
+          "diperbarui_pada",
+          "id_varian",
+          "id_gudang",
+        ],
+        pages: (tx, l) =>
+          keysetPages(
+            (after) => this.repo.stockPage(tx, after, EXPORT_PAGE_SIZE),
+            (rows) =>
+              rows.map((r) => [
+                l.warehouseCode(r.warehouseId),
+                r.sku,
+                r.productName,
+                r.variantName,
+                r.onHand,
+                r.reserved,
+                r.buffer,
+                r.damaged,
+                r.available,
+                r.minStock,
+                r.binLocation,
+                r.stockSetAt,
+                r.updatedAt,
+                r.variantId,
+                r.warehouseId,
+              ]),
+          ),
+      },
+      {
+        file: "mutasi_stok.csv",
+        description: "Setiap perubahan stok (kartu stok), urut waktu.",
+        columns: [
+          "waktu",
+          "gudang",
+          "sku_varian",
+          "nama_produk",
+          "nama_varian",
+          "jenis",
+          "perubahan_fisik",
+          "perubahan_dipesan",
+          "perubahan_rusak",
+          "perubahan_penyangga",
+          "fisik_sesudah",
+          "dipesan_sesudah",
+          "rusak_sesudah",
+          "penyangga_sesudah",
+          "alasan",
+          "catatan",
+          "jenis_referensi",
+          "id_referensi",
+          "oleh",
+          "id",
+          "id_varian",
+          "id_gudang",
+        ],
+        pages: (tx, l) =>
+          keysetPages(
+            (after) => this.repo.movementsPage(tx, after, EXPORT_PAGE_SIZE),
+            (rows) =>
+              rows.map((m) => [
+                m.createdAt,
+                l.warehouseCode(m.warehouseId),
+                m.sku,
+                m.productName,
+                m.variantName,
+                m.type,
+                m.onHandDelta,
+                m.reservedDelta,
+                m.damagedDelta,
+                m.bufferDelta,
+                m.onHandAfter,
+                m.reservedAfter,
+                m.damagedAfter,
+                m.bufferAfter,
+                m.reason,
+                m.note,
+                m.referenceType,
+                m.referenceId,
+                l.userName(m.actorUserId),
+                m.id,
+                m.variantId,
+                m.warehouseId,
+              ]),
+          ),
+      },
+    ];
   }
 }

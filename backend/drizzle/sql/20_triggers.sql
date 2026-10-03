@@ -24,6 +24,8 @@ SELECT ensure_trigger('shipment', 'status_transition_trg',
   'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON shipment FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''shipment'')');
 SELECT ensure_trigger('sync_job', 'status_transition_trg',
   'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON sync_job FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''sync_job'')');
+SELECT ensure_trigger('data_export', 'status_transition_trg',
+  'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON data_export FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''data_export'')');
 SELECT ensure_trigger('document_job', 'status_transition_trg',
   'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON document_job FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''document_job'')');
 
@@ -67,6 +69,24 @@ BEGIN
       format('CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OR DELETE ON %I FOR EACH ROW EXECUTE FUNCTION audit_row()', t));
   END LOOP;
 END $$;
+
+-- PRD FR-USR-04: stock set by people (adjustment, count, initial stock), order cancellations asked by a
+-- seller, and full data exports (requested and downloaded). Order movements (reserve, release, ship)
+-- are in stock_movement only. Both tables are partitioned, so the triggers name the table.
+SELECT ensure_trigger('stock_movement', 'audit_manual_trg',
+  'CREATE TRIGGER audit_manual_trg AFTER INSERT ON stock_movement FOR EACH ROW
+     WHEN (NEW.type IN (''adjustment'', ''count_apply'', ''migration_initial''))
+     EXECUTE FUNCTION audit_row(''stock_movement'')');
+SELECT ensure_trigger('order_event', 'audit_cancel_trg',
+  'CREATE TRIGGER audit_cancel_trg AFTER INSERT ON order_event FOR EACH ROW
+     WHEN (NEW.type = ''cancel_requested'')
+     EXECUTE FUNCTION audit_row(''order_event'')');
+SELECT ensure_trigger('data_export', 'audit_insert_trg',
+  'CREATE TRIGGER audit_insert_trg AFTER INSERT ON data_export FOR EACH ROW EXECUTE FUNCTION audit_row()');
+SELECT ensure_trigger('data_export', 'audit_download_trg',
+  'CREATE TRIGGER audit_download_trg AFTER UPDATE ON data_export FOR EACH ROW
+     WHEN (OLD.download_count IS DISTINCT FROM NEW.download_count)
+     EXECUTE FUNCTION audit_row()');
 
 SELECT ensure_trigger('audit_log', 'audit_log_immutable_trg',
   'CREATE TRIGGER audit_log_immutable_trg BEFORE UPDATE OR DELETE ON audit_log FOR EACH ROW EXECUTE FUNCTION audit_log_immutable()');

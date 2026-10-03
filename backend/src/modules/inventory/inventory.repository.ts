@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type { StockMovementType } from "@omniseller/shared";
 import { newId } from "@omniseller/shared";
-import { and, asc, desc, eq, ilike, inArray, isNotNull, lt, or, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ilike, inArray, isNotNull, lt, or, type SQL, sql } from "drizzle-orm";
 import type { Tx } from "../../db/client";
 import {
   catalogVariantV,
@@ -57,6 +57,8 @@ export interface PushResultRow {
   listingId: string;
   channelWarehouseId: string;
   ok: boolean;
+  /** A temporary failure (busy, rate limit, network); BullMQ sends it again. */
+  retryable: boolean;
   quantity: number;
   error: string | null;
 }
@@ -134,6 +136,65 @@ export class InventoryRepository {
       .where(and(eq(inventory.variantId, variantId), eq(inventory.warehouseId, warehouseId)))
       .returning();
     return row!;
+  }
+
+  /**
+   * Critical stock in these warehouses (dashboard, FR-RPT-01): established stock of live variants that
+   * ran out or is at or under its minimum; the most urgent first, with the total count.
+   */
+  async critical(
+    tx: Tx,
+    warehouseIds: string[],
+    limit: number,
+  ): Promise<{
+    count: number;
+    items: {
+      variantId: string;
+      warehouseId: string;
+      sku: string;
+      productName: string;
+      variantName: string;
+      available: number;
+      minStock: number | null;
+    }[];
+  }> {
+    if (warehouseIds.length === 0) return { count: 0, items: [] };
+    const r = await tx.execute<{
+      variant_id: string;
+      warehouse_id: string;
+      sku: string;
+      product_name: string;
+      variant_name: string;
+      available: string;
+      min_stock: string | null;
+      total: string;
+    }>(sql`
+      SELECT i.variant_id, i.warehouse_id, v.sku, v.product_name, v.variant_name, i.available, i.min_stock,
+             count(*) OVER () AS total
+        FROM inventory i
+        JOIN catalog_variant_v v ON v.variant_id = i.variant_id
+       WHERE i.warehouse_id IN (${list(warehouseIds)})
+         AND i.stock_set_at IS NOT NULL
+         AND v.variant_status = 'active' AND v.product_status = 'active'
+         AND (i.available <= 0 OR (i.min_stock IS NOT NULL AND i.available <= i.min_stock))
+       ORDER BY i.available, v.sku
+       LIMIT ${limit}`);
+    return {
+      count: Number(r.rows[0]?.total ?? 0),
+      items: r.rows.map((x) => ({
+        variantId: x.variant_id,
+        warehouseId: x.warehouse_id,
+        sku: x.sku,
+        productName: x.product_name,
+        variantName: x.variant_name,
+        available: Number(x.available),
+        minStock: x.min_stock === null ? null : Number(x.min_stock),
+      })),
+    };
+  }
+
+  async setStockAlert(tx: Tx, id: string, level: "low" | "out" | null): Promise<void> {
+    await tx.update(inventory).set({ stockAlert: level }).where(eq(inventory.id, id));
   }
 
   // ---- variants (catalog view) ----
@@ -285,7 +346,8 @@ export class InventoryRepository {
    * Records what the marketplace answered. Success stores the pushed quantity and clears the error;
    * failure keeps the last good quantity and counts the failure.
    */
-  async recordPush(tx: Tx, tenantId: string, results: PushResultRow[], at: Date): Promise<void> {
+  /** Records push results; returns the listings the marketplace refused for the first time in a row. */
+  async recordPush(tx: Tx, tenantId: string, results: PushResultRow[], at: Date): Promise<PushResultRow[]> {
     const ok = results.filter((r) => r.ok);
     const failed = results.filter((r) => !r.ok);
     if (ok.length > 0) {
@@ -316,7 +378,7 @@ export class InventoryRepository {
         });
     }
     if (failed.length > 0) {
-      await tx
+      const counted = await tx
         .insert(listingStockState)
         .values(
           failed.map((r) => ({
@@ -336,8 +398,22 @@ export class InventoryRepository {
             lastError: sql`excluded.last_error`,
             pushFailCount: sql`${listingStockState.pushFailCount} + 1`,
           },
+        })
+        .returning({
+          listingId: listingStockState.listingId,
+          channelWarehouseId: listingStockState.channelWarehouseId,
+          pushFailCount: listingStockState.pushFailCount,
         });
+      return failed.filter(
+        (r) =>
+          !r.retryable &&
+          counted.some(
+            (c) =>
+              c.listingId === r.listingId && c.channelWarehouseId === r.channelWarehouseId && c.pushFailCount === 1,
+          ),
+      );
     }
+    return [];
   }
 
   /** Forgets what was pushed, so the next push sends every value again (store goes live, remap). */
@@ -352,5 +428,65 @@ export class InventoryRepository {
   async deleteStates(tx: Tx, listingIds: string[]): Promise<void> {
     if (listingIds.length === 0) return;
     await tx.delete(listingStockState).where(inArray(listingStockState.listingId, listingIds));
+  }
+
+  // ---- full data export (FR-MIG-09): keyset pages in id order ----
+
+  async stockPage(tx: Tx, after: string | undefined, limit: number) {
+    return tx
+      .select({
+        id: inventory.id,
+        variantId: inventory.variantId,
+        warehouseId: inventory.warehouseId,
+        onHand: inventory.onHand,
+        reserved: inventory.reserved,
+        buffer: inventory.buffer,
+        damaged: inventory.damaged,
+        available: inventory.available,
+        minStock: inventory.minStock,
+        binLocation: inventory.binLocation,
+        stockSetAt: inventory.stockSetAt,
+        updatedAt: inventory.updatedAt,
+        sku: catalogVariantV.sku,
+        productName: catalogVariantV.productName,
+        variantName: catalogVariantV.variantName,
+      })
+      .from(inventory)
+      .leftJoin(catalogVariantV, eq(catalogVariantV.variantId, inventory.variantId))
+      .where(after ? gt(inventory.id, after) : undefined)
+      .orderBy(asc(inventory.id))
+      .limit(limit);
+  }
+
+  async movementsPage(tx: Tx, after: string | undefined, limit: number) {
+    return tx
+      .select({
+        id: stockMovement.id,
+        createdAt: stockMovement.createdAt,
+        variantId: stockMovement.variantId,
+        warehouseId: stockMovement.warehouseId,
+        type: stockMovement.type,
+        onHandDelta: stockMovement.onHandDelta,
+        reservedDelta: stockMovement.reservedDelta,
+        damagedDelta: stockMovement.damagedDelta,
+        bufferDelta: stockMovement.bufferDelta,
+        onHandAfter: stockMovement.onHandAfter,
+        reservedAfter: stockMovement.reservedAfter,
+        damagedAfter: stockMovement.damagedAfter,
+        bufferAfter: stockMovement.bufferAfter,
+        referenceType: stockMovement.referenceType,
+        referenceId: stockMovement.referenceId,
+        reason: stockMovement.reason,
+        note: stockMovement.note,
+        actorUserId: stockMovement.actorUserId,
+        sku: catalogVariantV.sku,
+        productName: catalogVariantV.productName,
+        variantName: catalogVariantV.variantName,
+      })
+      .from(stockMovement)
+      .leftJoin(catalogVariantV, eq(catalogVariantV.variantId, stockMovement.variantId))
+      .where(after ? gt(stockMovement.id, after) : undefined)
+      .orderBy(asc(stockMovement.id))
+      .limit(limit);
   }
 }

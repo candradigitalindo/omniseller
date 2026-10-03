@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   type AllocationRule,
+  alertWorsened,
   allocate,
   type PlanChannelWarehouse,
   type PlanListing,
@@ -8,6 +9,7 @@ import {
   type PlanStore,
   planStockPush,
   resolveRule,
+  stockAlertOf,
   stockKey,
 } from "./stock-plan";
 
@@ -215,5 +217,29 @@ describe("planStockPush (backend doc 9.4)", () => {
   it("pushes 0 for oversold stock instead of a negative number", () => {
     const out = plan({ stock: { [stockKey("V1", "W1")]: { available: -2 } } })[0] as PlannedPush;
     expect(out.update.warehouses[0]!.quantity).toBe(0);
+  });
+});
+
+describe("stock alerts (FR-NTF-01)", () => {
+  it("is out when nothing is sellable and low at or under the minimum", () => {
+    expect(stockAlertOf({ available: 0, minStock: 5, established: true })).toBe("out");
+    expect(stockAlertOf({ available: -2, minStock: null, established: true })).toBe("out");
+    expect(stockAlertOf({ available: 5, minStock: 5, established: true })).toBe("low");
+    expect(stockAlertOf({ available: 6, minStock: 5, established: true })).toBeNull();
+    expect(stockAlertOf({ available: 3, minStock: null, established: true })).toBeNull();
+  });
+
+  it("says nothing about stock nobody established (ADR-036)", () => {
+    expect(stockAlertOf({ available: 0, minStock: 5, established: false })).toBeNull();
+  });
+
+  it("alerts only when the level gets worse than the one already sent", () => {
+    expect(alertWorsened(null, "low")).toBe(true);
+    expect(alertWorsened(null, "out")).toBe(true);
+    expect(alertWorsened("low", "out")).toBe(true);
+    expect(alertWorsened("low", "low")).toBe(false);
+    expect(alertWorsened("out", "low")).toBe(false);
+    expect(alertWorsened("out", null)).toBe(false);
+    expect(alertWorsened(null, null)).toBe(false);
   });
 });

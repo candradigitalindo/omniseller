@@ -33,7 +33,7 @@ export class FilesController {
       return;
     }
     res.setHeader("content-type", target.mime);
-    res.setHeader("content-disposition", `inline; filename="${target.filename}"`);
+    res.setHeader("content-disposition", `${target.disposition}; filename="${target.filename}"`);
     res.send(Buffer.from(target.bytes));
   }
 }

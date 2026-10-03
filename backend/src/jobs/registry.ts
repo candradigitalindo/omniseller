@@ -1,5 +1,6 @@
 import { CATALOG_JOBS } from "../modules/catalog/catalog.jobs";
 import { CHANNEL_JOBS } from "../modules/channel/channel.jobs";
+import { EXPORT_JOBS } from "../modules/exports/exports.jobs";
 import { FILES_JOBS } from "../modules/files/files.jobs";
 import { FULFILLMENT_JOBS } from "../modules/fulfillment/fulfillment.jobs";
 import { IDENTITY_JOBS } from "../modules/identity/identity.jobs";
@@ -56,6 +57,7 @@ export const JOB_DEFINITIONS: readonly JobDef[] = [
   ...INVENTORY_JOBS,
   ...ORDER_JOBS,
   ...FULFILLMENT_JOBS,
+  ...EXPORT_JOBS,
   ...FILES_JOBS,
   ...SYNC_JOBS,
 ];

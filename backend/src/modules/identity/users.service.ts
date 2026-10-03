@@ -46,6 +46,11 @@ export class UsersService {
     return this.repo.usersWithPermission(tx, permission);
   }
 
+  /** Names of every user, disabled ones included (who changed what, in the full data export). */
+  async namesIn(tx: Tx): Promise<Map<string, string>> {
+    return new Map((await this.repo.userNames(tx)).map((u) => [u.id, u.name]));
+  }
+
   async list(ctx: RequestContext, cursor: string | undefined, limit: number) {
     const rows = await withTenantTx(this.db, ctx, (tx) => this.repo.listUserViews(tx, decodeCursor(cursor), limit));
     return page(rows, limit);

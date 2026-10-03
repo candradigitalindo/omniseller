@@ -14,12 +14,21 @@ import {
   lt,
   lte,
   ne,
+  notInArray,
   or,
   type SQL,
   sql,
 } from "drizzle-orm";
 import type { Tx } from "../../db/client";
-import { type OrderProblemCode, order, orderEvent, orderExternalRef, orderItem, orderProblem } from "../../db/schema";
+import {
+  catalogVariantV,
+  type OrderProblemCode,
+  order,
+  orderEvent,
+  orderExternalRef,
+  orderItem,
+  orderProblem,
+} from "../../db/schema";
 import { HOLD_STATUSES, SLA_WARNING_MS, TO_SHIP_STATUSES } from "./order-plan";
 
 export type OrderRow = typeof order.$inferSelect;
@@ -46,6 +55,9 @@ export interface OrderListFilter {
 }
 
 export type OrderSort = "newest" | "ship_by";
+
+/** Not sales: unpaid orders may never be paid, cancelled ones were not sold. */
+const NOT_SALES: OrderStatus[] = ["unpaid", "cancelled"];
 
 /** Keyset position for the ship-by sort. */
 export interface ShipByCursor {
@@ -134,6 +146,21 @@ export class OrdersRepository {
       .orderBy(asc(order.shipByAt))
       .limit(limit)
       .for("update", { skipLocked: true });
+  }
+
+  /** Orders waiting for the new-order notification (FR-NTF-01), locked, skipping rows another job holds. */
+  async pendingNewNotices(tx: Tx, limit: number): Promise<OrderRow[]> {
+    return tx
+      .select()
+      .from(order)
+      .where(eq(order.notifyNew, true))
+      .orderBy(asc(order.id))
+      .limit(limit)
+      .for("update", { skipLocked: true });
+  }
+
+  async clearNewNotices(tx: Tx, ids: string[]): Promise<void> {
+    if (ids.length > 0) await tx.update(order).set({ notifyNew: false }).where(inArray(order.id, ids));
   }
 
   // ---- problems ----
@@ -318,6 +345,106 @@ export class OrdersRepository {
     return r?.n ?? 0;
   }
 
+  // ---- sales (dashboard, FR-RPT-01) ----
+
+  /** Orders that count as sales: paid and not cancelled, by order time. */
+  private sold(f: OrderListFilter, from: Date, to: Date): SQL | undefined {
+    return and(this.where({ ...f, from, to }), notInArray(o.status, NOT_SALES));
+  }
+
+  async sales(tx: Tx, f: OrderListFilter, from: Date, to: Date): Promise<{ orders: number; revenue: number }> {
+    const [r] = await tx
+      .select({ n: sql<number>`count(*)::int`, revenue: sql<string>`coalesce(sum(${o.total}), 0)::bigint` })
+      .from(o)
+      .where(this.sold(f, from, to));
+    return { orders: r?.n ?? 0, revenue: Number(r?.revenue ?? 0) };
+  }
+
+  /** Sales per local day and channel (the dashboard chart). */
+  async salesByDay(
+    tx: Tx,
+    f: OrderListFilter,
+    from: Date,
+    to: Date,
+    timezone: string,
+  ): Promise<{ day: string; channel: string; orders: number; revenue: number }[]> {
+    const day = sql<string>`to_char(${o.orderedAt} AT TIME ZONE ${timezone}, 'YYYY-MM-DD')`;
+    const rows = await tx
+      .select({
+        day,
+        channel: o.channel,
+        n: sql<number>`count(*)::int`,
+        revenue: sql<string>`coalesce(sum(${o.total}), 0)::bigint`,
+      })
+      .from(o)
+      .where(this.sold(f, from, to))
+      // by position: the time zone is a parameter, so each mention of `day` would be another expression
+      .groupBy(sql`1`, o.channel)
+      .orderBy(sql`1`);
+    return rows.map((r) => ({ day: r.day, channel: r.channel, orders: r.n, revenue: Number(r.revenue) }));
+  }
+
+  /**
+   * Best sellers by units: lines of mapped variants per variant, unmapped lines per marketplace SKU.
+   * Revenue is the lines' total after discounts.
+   */
+  async topProducts(
+    tx: Tx,
+    f: OrderListFilter,
+    from: Date,
+    to: Date,
+    limit: number,
+  ): Promise<{ variantId: string | null; sku: string; title: string; units: number; revenue: number }[]> {
+    const unmappedSku = sql`CASE WHEN ${orderItem.variantId} IS NULL THEN ${orderItem.skuSnapshot} END`;
+    const units = sql<number>`sum(${orderItem.qty} - ${orderItem.cancelledQty})::int`;
+    const rows = await tx
+      .select({
+        variantId: orderItem.variantId,
+        sku: sql<string>`min(${orderItem.skuSnapshot})`,
+        title: sql<string>`min(${orderItem.titleSnapshot})`,
+        units,
+        revenue: sql<string>`coalesce(sum(${orderItem.lineTotal}), 0)::bigint`,
+      })
+      .from(orderItem)
+      .innerJoin(o, and(eq(o.tenantId, orderItem.tenantId), eq(o.id, orderItem.orderId)))
+      .where(this.sold(f, from, to))
+      .groupBy(orderItem.variantId, unmappedSku)
+      .orderBy(desc(units), desc(sql`sum(${orderItem.lineTotal})`))
+      .limit(limit);
+    return rows
+      .filter((r) => r.units > 0)
+      .map((r) => ({ variantId: r.variantId, sku: r.sku, title: r.title, units: r.units, revenue: Number(r.revenue) }));
+  }
+
+  /**
+   * Gross profit of the goods sold: line totals minus the variants' cost price (HPP), for lines whose
+   * variant has one; `costedRevenue` is the part of the revenue that has a known cost.
+   */
+  async grossProfit(
+    tx: Tx,
+    f: OrderListFilter,
+    from: Date,
+    to: Date,
+  ): Promise<{ revenue: number; costedRevenue: number; profit: number }> {
+    const open = sql`(${orderItem.qty} - ${orderItem.cancelledQty})`;
+    const costed = sql`${catalogVariantV.costPrice} > 0`;
+    const [r] = await tx
+      .select({
+        revenue: sql<string>`coalesce(sum(${orderItem.lineTotal}), 0)::bigint`,
+        costedRevenue: sql<string>`coalesce(sum(${orderItem.lineTotal}) FILTER (WHERE ${costed}), 0)::bigint`,
+        profit: sql<string>`coalesce(sum(${orderItem.lineTotal} - ${catalogVariantV.costPrice} * ${open}) FILTER (WHERE ${costed}), 0)::bigint`,
+      })
+      .from(orderItem)
+      .innerJoin(o, and(eq(o.tenantId, orderItem.tenantId), eq(o.id, orderItem.orderId)))
+      .leftJoin(catalogVariantV, eq(catalogVariantV.variantId, orderItem.variantId))
+      .where(this.sold(f, from, to));
+    return {
+      revenue: Number(r?.revenue ?? 0),
+      costedRevenue: Number(r?.costedRevenue ?? 0),
+      profit: Number(r?.profit ?? 0),
+    };
+  }
+
   /** COD orders whose money has not come in yet: not cancelled, not completed (FR-ORD-15). */
   async codOutstanding(tx: Tx, f: OrderListFilter): Promise<{ orders: number; total: number }> {
     const open: OrderStatus[] = [...HOLD_STATUSES, "shipped", "delivered"];
@@ -326,5 +453,55 @@ export class OrdersRepository {
       .from(o)
       .where(and(this.where({ ...f, statuses: open }), eq(o.isCod, true), ne(o.status, "unpaid")));
     return { orders: r?.n ?? 0, total: Number(r?.total ?? 0) };
+  }
+
+  // ---- full data export (FR-MIG-09): keyset pages in id order ----
+
+  async ordersPage(tx: Tx, after: string | undefined, limit: number): Promise<OrderRow[]> {
+    return tx
+      .select()
+      .from(o)
+      .where(after ? gt(o.id, after) : undefined)
+      .orderBy(asc(o.id))
+      .limit(limit);
+  }
+
+  async itemsPage(tx: Tx, after: string | undefined, limit: number) {
+    return tx
+      .select({
+        id: orderItem.id,
+        orderId: orderItem.orderId,
+        externalOrderId: o.externalOrderId,
+        storeId: o.storeId,
+        externalItemId: orderItem.externalItemId,
+        externalProductId: orderItem.externalProductId,
+        externalSkuId: orderItem.externalSkuId,
+        skuSnapshot: orderItem.skuSnapshot,
+        titleSnapshot: orderItem.titleSnapshot,
+        variantId: orderItem.variantId,
+        sku: catalogVariantV.sku,
+        qty: orderItem.qty,
+        cancelledQty: orderItem.cancelledQty,
+        shippedQty: orderItem.shippedQty,
+        returnedQty: orderItem.returnedQty,
+        unitPrice: orderItem.unitPrice,
+        discount: orderItem.discount,
+        lineTotal: orderItem.lineTotal,
+        warehouseId: orderItem.warehouseId,
+      })
+      .from(orderItem)
+      .innerJoin(o, and(eq(o.tenantId, orderItem.tenantId), eq(o.id, orderItem.orderId)))
+      .leftJoin(catalogVariantV, eq(catalogVariantV.variantId, orderItem.variantId))
+      .where(after ? gt(orderItem.id, after) : undefined)
+      .orderBy(asc(orderItem.id))
+      .limit(limit);
+  }
+
+  async refs(tx: Tx, ids: string[]): Promise<{ id: string; externalOrderId: string; storeId: string }[]> {
+    if (ids.length === 0) return [];
+    return tx
+      .select({ id: o.id, externalOrderId: o.externalOrderId, storeId: o.storeId })
+      .from(o)
+      .where(inArray(o.id, ids));
   }
 }

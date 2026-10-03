@@ -83,6 +83,8 @@ export const order = pgTable("order", {
   externalBuyerId: text("external_buyer_id"),
   /** Ship-by alerts already sent (FR-SHP-10). */
   slaAlertLevel: text("sla_alert_level").$type<"warning" | "overdue">(),
+  /** Waits for the next new-order notification (FR-NTF-01). */
+  notifyNew: boolean("notify_new").notNull().default(false),
 });
 
 /** Enforces (store_id, external_order_id) uniqueness, which the partitioned order table cannot. */

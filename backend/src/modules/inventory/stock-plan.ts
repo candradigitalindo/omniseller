@@ -232,3 +232,26 @@ function planListing(listing: PlanListing, input: PlanInput, stateOf: Map<string
     targets: [...perWarehouse].map(([channelWarehouseId, qty]) => ({ channelWarehouseId, quantity: qty })),
   };
 }
+
+export type StockAlert = "low" | "out";
+const ALERT_RANK: Record<StockAlert, number> = { low: 1, out: 2 };
+
+/**
+ * Stock alert of one variant in one warehouse (PRD FR-NTF-01): `out` when nothing is sellable, `low` at
+ * or under the minimum the seller set. Stock nobody established says nothing (ADR-036).
+ */
+export function stockAlertOf(s: {
+  available: number;
+  minStock: number | null;
+  established: boolean;
+}): StockAlert | null {
+  if (!s.established) return null;
+  if (s.available <= 0) return "out";
+  if (s.minStock !== null && s.available <= s.minStock) return "low";
+  return null;
+}
+
+/** An alert is sent when the level gets worse than the one already sent (none, low, out). */
+export function alertWorsened(sent: StockAlert | null, now: StockAlert | null): boolean {
+  return now !== null && ALERT_RANK[now] > (sent ? ALERT_RANK[sent] : 0);
+}

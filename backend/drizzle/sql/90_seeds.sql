@@ -48,9 +48,18 @@ SELECT gen_ulid(), p.code, split_part(p.code, ':', 1), p.description
     ('settings:billing', 'Kelola langganan dan profil bisnis'),
     ('research:read', 'Lihat riset pasar'),
     ('research:write', 'Kelola riset pasar'),
-    ('audit:read', 'Lihat log audit')
+    ('audit:read', 'Lihat log audit'),
+    ('data:export', 'Ekspor seluruh data bisnis')
   ) AS p(code, description)
 ON CONFLICT (code) DO UPDATE SET description = EXCLUDED.description, module = EXCLUDED.module;
+
+-- The built-in Owner role of every business holds every permission, including ones added after the
+-- business was created (data:export in 0008).
+INSERT INTO role_permission (id, tenant_id, role_id, permission_id)
+SELECT gen_ulid(), r.tenant_id, r.id, p.id
+  FROM role r CROSS JOIN permission p
+ WHERE r.is_system AND r.name = 'Owner'
+ON CONFLICT (role_id, permission_id) DO NOTHING;
 
 -- Order status machine (backend doc 7.9).
 -- 'any': seller-side steps and cancellations. 'marketplace': facts reported by the marketplace
@@ -151,6 +160,18 @@ SELECT gen_ulid(), t.f, t.t, 'any'
     ('running', 'failed'),
     ('running', 'queued'),
     ('failed', 'queued')
+  ) AS t(f, t)
+ON CONFLICT (from_status, to_status) DO NOTHING;
+
+-- Full data export (backend doc 8.18): rendered once by the worker. A failed or stuck export is not
+-- queued again: the next request starts a new one.
+INSERT INTO data_export_status_transition (id, from_status, to_status, via)
+SELECT gen_ulid(), t.f, t.t, 'any'
+  FROM (VALUES
+    ('queued', 'running'),
+    ('queued', 'failed'),
+    ('running', 'ready'),
+    ('running', 'failed')
   ) AS t(f, t)
 ON CONFLICT (from_status, to_status) DO NOTHING;
 

@@ -36,6 +36,7 @@ export const PERMISSIONS = {
   "research:read": "Lihat riset pasar",
   "research:write": "Kelola riset pasar",
   "audit:read": "Lihat log audit",
+  "data:export": "Ekspor seluruh data bisnis",
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -49,7 +50,8 @@ export function isPermission(value: string): value is Permission {
 /** Built-in roles copied into every tenant at creation (PRD 4.3). */
 export const SYSTEM_ROLES: Record<string, readonly Permission[]> = {
   Owner: PERMISSION_CODES,
-  Admin: PERMISSION_CODES.filter((p) => p !== "settings:billing" && p !== "settings:user"),
+  // the full export holds every buyer's data: the Owner's call by default (FR-MIG-09)
+  Admin: PERMISSION_CODES.filter((p) => p !== "settings:billing" && p !== "settings:user" && p !== "data:export"),
   Gudang: [
     "order:read",
     "shipment:print",

@@ -1,4 +1,5 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, resolve, sep } from "node:path";
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -14,10 +15,20 @@ export const FILE_STORAGE = Symbol("FILE_STORAGE");
 export interface FileStorage {
   readonly bucket: string;
   put(key: string, bytes: Uint8Array, mime: string): Promise<void>;
+  /** Uploads a file from disk without reading it into memory (the full data export). */
+  putFile(key: string, path: string, mime: string): Promise<void>;
   get(key: string): Promise<Uint8Array>;
   delete(key: string): Promise<void>;
   /** A short-lived link the browser downloads from directly; null where the api serves the file itself. */
-  signedUrl(key: string, opts: { filename: string; mime: string; ttlSeconds: number }): Promise<string | null>;
+  signedUrl(key: string, opts: SignedUrlOptions): Promise<string | null>;
+}
+
+export interface SignedUrlOptions {
+  filename: string;
+  mime: string;
+  ttlSeconds: number;
+  /** `inline` opens PDFs in the browser; `attachment` saves the file (ZIP). Default inline. */
+  disposition?: "inline" | "attachment";
 }
 
 /** Files in a directory (local and test only): the api reads them back for downloads. */
@@ -39,6 +50,12 @@ export class LocalFileStorage implements FileStorage {
     const p = this.path(key);
     await mkdir(dirname(p), { recursive: true });
     await writeFile(p, bytes);
+  }
+
+  async putFile(key: string, path: string, _mime?: string): Promise<void> {
+    const p = this.path(key);
+    await mkdir(dirname(p), { recursive: true });
+    await copyFile(path, p);
   }
 
   async get(key: string): Promise<Uint8Array> {
@@ -68,11 +85,28 @@ export class R2FileStorage implements FileStorage {
       credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
       // R2 and MinIO both serve path-style requests; MinIO serves nothing else
       forcePathStyle: true,
+      // Checksums only where S3 requires them: the SDK default (CRC32 in an aws-chunked trailer) is not
+      // what R2 documents, and a streamed upload (putFile) must reach storage as the file's exact bytes
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
     });
   }
 
   async put(key: string, bytes: Uint8Array, mime: string): Promise<void> {
     await this.s3.send(new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: bytes, ContentType: mime }));
+  }
+
+  async putFile(key: string, path: string, mime: string): Promise<void> {
+    const { size } = await stat(path);
+    await this.s3.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: createReadStream(path),
+        ContentLength: size,
+        ContentType: mime,
+      }),
+    );
   }
 
   async get(key: string): Promise<Uint8Array> {
@@ -85,14 +119,14 @@ export class R2FileStorage implements FileStorage {
     await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
   }
 
-  signedUrl(key: string, opts: { filename: string; mime: string; ttlSeconds: number }): Promise<string> {
+  signedUrl(key: string, opts: SignedUrlOptions): Promise<string> {
     return getSignedUrl(
       this.s3,
       new GetObjectCommand({
         Bucket: this.bucket,
         Key: key,
         ResponseContentType: opts.mime,
-        ResponseContentDisposition: `inline; filename="${opts.filename}"`,
+        ResponseContentDisposition: `${opts.disposition ?? "inline"}; filename="${opts.filename}"`,
       }),
       { expiresIn: opts.ttlSeconds },
     );

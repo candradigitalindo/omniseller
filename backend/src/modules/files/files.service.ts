@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
+import { stat } from "node:fs/promises";
 import { Inject, Injectable } from "@nestjs/common";
 import { newId } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
@@ -24,7 +26,21 @@ export interface SaveFileInput {
   createdBy?: string | null;
 }
 
-export type DownloadTarget = { url: string } | { bytes: Uint8Array; mime: string; filename: string };
+export type DownloadTarget =
+  | { url: string }
+  | { bytes: Uint8Array; mime: string; filename: string; disposition: "inline" | "attachment" };
+
+export interface DownloadOptions {
+  /** Name the browser saves the file as; `<purpose>-<id>.<ext>` otherwise. */
+  filename?: string;
+  disposition?: "inline" | "attachment";
+}
+
+async function sha256File(path: string): Promise<string> {
+  const hash = createHash("sha256");
+  for await (const chunk of createReadStream(path)) hash.update(chunk as Buffer);
+  return hash.digest("hex");
+}
 
 /**
  * Private files (backend doc 8.15, module `files`): bytes in R2 (MinIO or a directory locally), one
@@ -58,6 +74,28 @@ export class FilesService {
     );
   }
 
+  /** Like `save`, for a file on disk that is streamed to storage (the full data export). */
+  async saveFile(ctx: RequestContext, input: Omit<SaveFileInput, "bytes"> & { path: string }): Promise<FileRow> {
+    const id = newId();
+    const key = `t/${ctx.tenantId}/${input.purpose}/${id}.${input.ext}`;
+    const [{ size }, sha256] = await Promise.all([stat(input.path), sha256File(input.path)]);
+    await this.storage.putFile(key, input.path, input.mime);
+    return withTenantTx(this.db, ctx, (tx) =>
+      this.repo.insert(tx, {
+        id,
+        tenantId: ctx.tenantId,
+        bucket: this.storage.bucket,
+        objectKey: key,
+        mime: input.mime,
+        sizeBytes: size,
+        sha256,
+        purpose: input.purpose,
+        expiresAt: input.expiresAt,
+        createdBy: input.createdBy ?? null,
+      }),
+    );
+  }
+
   /** Contents of a file of this tenant, or null when it is gone. */
   async read(ctx: RequestContext, id: string): Promise<Uint8Array | null> {
     const row = await withTenantTx(this.db, ctx, (tx) => this.repo.get(tx, id));
@@ -65,20 +103,27 @@ export class FilesService {
   }
 
   /** A signed link (R2), or the bytes for the api to send (local storage). Other purposes are not found. */
-  async download(ctx: RequestContext, id: string, purposes: readonly FilePurpose[]): Promise<DownloadTarget> {
+  async download(
+    ctx: RequestContext,
+    id: string,
+    purposes: readonly FilePurpose[],
+    opts: DownloadOptions = {},
+  ): Promise<DownloadTarget> {
     const row = await withTenantTx(this.db, ctx, (tx) => this.repo.get(tx, id));
     if (!row || !purposes.includes(row.purpose) || (row.expiresAt && row.expiresAt <= new Date())) {
       throw fileNotFound();
     }
     const ext = row.objectKey.slice(row.objectKey.lastIndexOf(".") + 1);
-    const filename = `${row.purpose.replace("_", "-")}-${row.id.toLowerCase()}.${ext}`;
+    const filename = opts.filename ?? `${row.purpose.replace("_", "-")}-${row.id.toLowerCase()}.${ext}`;
+    const disposition = opts.disposition ?? "inline";
     const url = await this.storage.signedUrl(row.objectKey, {
       filename,
       mime: row.mime,
       ttlSeconds: DOWNLOAD_TTL_SECONDS,
+      disposition,
     });
     if (url) return { url };
-    return { bytes: await this.storage.get(row.objectKey), mime: row.mime, filename };
+    return { bytes: await this.storage.get(row.objectKey), mime: row.mime, filename, disposition };
   }
 
   /** Deletes this tenant's expired files: the object, then the row (rows pointing at it lose the link). */

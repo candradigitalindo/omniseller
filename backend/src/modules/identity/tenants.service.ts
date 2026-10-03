@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import { newId, SYSTEM_ROLES } from "@omniseller/shared";
-import { systemContext } from "../../common/context/request-context";
+import { type RequestContext, systemContext } from "../../common/context/request-context";
 import { findPgError } from "../../common/errors/problem";
 import { hashPassword } from "../../common/security/password";
 import type { DbHandle } from "../../db/client";
@@ -47,6 +47,17 @@ export class TenantsService {
     @Inject(DB_TENANT) private readonly db: DbHandle,
     @Inject(IdentityRepository) private readonly repo: IdentityRepository,
   ) {}
+
+  /** The business's time zone (Asia/Jakarta unless set): what "today" means in reports. */
+  async timezone(ctx: RequestContext): Promise<string> {
+    return (await this.profile(ctx)).timezone;
+  }
+
+  /** Name and time zone of the caller's business. */
+  async profile(ctx: RequestContext): Promise<{ name: string; timezone: string }> {
+    const t = await withTenantTx(this.db, ctx, (tx) => this.repo.getTenant(tx, ctx.tenantId));
+    return { name: t?.name ?? "", timezone: t?.timezone ?? "Asia/Jakarta" };
+  }
 
   async signup(input: SignupInput): Promise<{ tenantId: string; userId: string }> {
     const passwordHash = await hashPassword(input.password); // slow; never inside a transaction

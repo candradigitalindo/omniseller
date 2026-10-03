@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { RequestContext } from "../../common/context/request-context";
 import { ConflictError } from "../../common/errors/domain-errors";
+import { type ExportSheet, singlePage } from "../../common/export-sheet";
 import { ENV } from "../../config/config.module";
 import type { Env } from "../../config/env.schema";
 import type { DbHandle, Tx } from "../../db/client";
@@ -22,6 +23,7 @@ import {
 } from "./channel.errors";
 import {
   channelWarehouseMappingChanged,
+  storeAuthorizationExpiring,
   storeDisconnected,
   storeReauthRequired,
   storeSyncModeChanged,
@@ -328,6 +330,15 @@ export class StoresService {
             }
           : {}),
       });
+      if (status === "token_expiring" && store.status !== "token_expiring") {
+        await this.outbox.enqueue(
+          tx,
+          ctx,
+          storeAuthorizationExpiring,
+          { storeId, expiresAt: at?.toISOString() ?? null },
+          storeId,
+        );
+      }
     });
   }
 
@@ -337,7 +348,7 @@ export class StoresService {
   }
 
   /** After a successful refresh: back to active (or token_expiring near the authorization's end). */
-  async refreshStatus(tx: Tx, _ctx: RequestContext, storeId: string): Promise<void> {
+  async refreshStatus(tx: Tx, ctx: RequestContext, storeId: string): Promise<void> {
     const store = await this.repo.getStore(tx, storeId, true);
     if (!store || !USABLE.includes(store.status)) return;
     const status = usableStatus(store.authorizationExpiresAt);
@@ -347,5 +358,65 @@ export class StoresService {
       statusReason: status === "token_expiring" ? "authorization_expiring" : null,
       statusChangedAt: new Date(),
     });
+    if (status === "token_expiring") {
+      await this.outbox.enqueue(
+        tx,
+        ctx,
+        storeAuthorizationExpiring,
+        { storeId, expiresAt: store.authorizationExpiresAt?.toISOString() ?? null },
+        storeId,
+      );
+    }
+  }
+
+  // ---- full data export (FR-MIG-09) ----
+
+  /** Every store of the tenant, disconnected ones included: names for the other export sheets. */
+  async namesIn(tx: Tx): Promise<Map<string, string>> {
+    return new Map((await this.repo.listStores(tx, null)).map((s) => [s.id, s.name]));
+  }
+
+  exportSheets(): ExportSheet[] {
+    return [
+      {
+        file: "toko.csv",
+        description: "Toko marketplace yang pernah dihubungkan, termasuk yang sudah diputus.",
+        columns: [
+          "id",
+          "marketplace",
+          "nama_toko",
+          "id_toko_marketplace",
+          "wilayah",
+          "status",
+          "mode_sinkron",
+          "gudang_bawaan",
+          "terhubung_pada",
+          "diputus_pada",
+          "izin_berakhir_pada",
+          "pesanan_tersinkron_pada",
+          "produk_tersinkron_pada",
+          "dibuat_pada",
+        ],
+        pages: (tx, l) =>
+          singlePage(async () =>
+            (await this.repo.listStores(tx, null)).map((s) => [
+              s.id,
+              channelDisplayName(s.channel),
+              s.name,
+              s.externalShopId,
+              s.region,
+              s.status,
+              s.syncMode,
+              l.warehouseCode(s.defaultWarehouseId),
+              s.connectedAt,
+              s.disconnectedAt,
+              s.authorizationExpiresAt,
+              s.lastOrderSyncAt,
+              s.lastProductSyncAt,
+              s.createdAt,
+            ]),
+          ),
+      },
+    ];
   }
 }

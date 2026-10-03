@@ -13,8 +13,25 @@ export const QUEUES = [
   "ai",
   "research",
   "settlement",
+  "export",
 ] as const;
 export type QueueName = (typeof QUEUES)[number];
+
+/** Jobs one worker process runs at once, per queue (technology doc 7.1). */
+export const QUEUE_CONCURRENCY: Record<QueueName, number> = {
+  webhook: 20,
+  "order.ingest": 20,
+  "stock.push": 10,
+  "mp.outbound": 10,
+  "mp.poll": 5,
+  pdf: 4,
+  notify: 20,
+  ai: 5,
+  research: 5,
+  settlement: 2,
+  // a full data export holds one snapshot transaction and a temporary directory for minutes
+  export: 1,
+};
 
 export function isQueueName(value: string): value is QueueName {
   return (QUEUES as readonly string[]).includes(value);

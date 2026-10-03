@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import type { HandoverMethod } from "@omniseller/connector-core";
 import { newId } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
+import { EXPORT_PAGE_SIZE, type ExportSheet, keysetPages } from "../../common/export-sheet";
 import type { DbHandle } from "../../db/client";
 import type { DocumentKind } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
@@ -199,5 +200,67 @@ export class FulfillmentService {
   ): Promise<{ sections: PickListSection[]; missing: { orderId: string; code: string; message: string }[] }> {
     await this.orders.requireVisible(ctx, orderIds);
     return withTenantTx(this.db, ctx, (tx) => this.pickLists.buildIn(tx, [...new Set(orderIds)]));
+  }
+
+  // ---- full data export (FR-MIG-09) ----
+
+  exportSheets(): ExportSheet[] {
+    return [
+      {
+        file: "pengiriman.csv",
+        description: "Pengiriman pesanan: kurir, nomor resi, cara serah, dan waktu tiap tahap.",
+        columns: [
+          "no_pesanan",
+          "toko",
+          "status",
+          "kurir",
+          "layanan",
+          "no_resi",
+          "cara_serah",
+          "jumlah_paket",
+          "diatur_pada",
+          "dikemas_pada",
+          "diserahkan_pada",
+          "diterima_pada",
+          "gagal_pada",
+          "alasan_gagal",
+          "ongkir_aktual",
+          "id_pesanan",
+          "id",
+        ],
+        pages: (tx, l) =>
+          keysetPages(
+            (after) => this.repo.shipmentsPage(tx, after, EXPORT_PAGE_SIZE),
+            async (rows) => {
+              const refs = await this.orders.refsIn(
+                tx,
+                rows.map((s) => s.orderId),
+              );
+              return rows.map((s) => {
+                const ref = refs.get(s.orderId);
+                return [
+                  ref?.externalOrderId,
+                  l.storeName(ref?.storeId ?? null),
+                  s.status,
+                  s.provider,
+                  s.service,
+                  s.trackingNumber,
+                  s.pickupType,
+                  s.packageCount,
+                  s.arrangedAt,
+                  s.packedAt,
+                  s.handedOverAt,
+                  s.deliveredAt,
+                  s.failedAt,
+                  s.failedReason,
+                  s.shippingCostActual,
+                  s.orderId,
+                  s.id,
+                ];
+              });
+            },
+          ),
+      },
+    ];
   }
 }

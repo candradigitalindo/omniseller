@@ -37,6 +37,13 @@ export const storeReauthRequired = defineEvent({
   schema: z.object({ storeId: ulidSchema, reason: z.string() }),
 });
 
+/** The seller's authorization ends soon: the store shows "token_expiring" (FR-INT-03). */
+export const storeAuthorizationExpiring = defineEvent({
+  type: "store.authorization_expiring",
+  aggregate: "store",
+  schema: z.object({ storeId: ulidSchema, expiresAt: z.iso.datetime().nullable() }),
+});
+
 export const storeWarehousesSyncRequested = defineEvent({
   type: "store.warehouses_sync_requested",
   aggregate: "store",

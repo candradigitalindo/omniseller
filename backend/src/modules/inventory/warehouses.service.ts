@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import type { RequestContext } from "../../common/context/request-context";
+import { type ExportSheet, singlePage } from "../../common/export-sheet";
 import type { DbHandle, Tx } from "../../db/client";
 import { warehouse } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
@@ -78,5 +79,38 @@ export class WarehousesService {
       .from(warehouse)
       .where(and(eq(warehouse.id, id), eq(warehouse.active, true), isNull(warehouse.deletedAt)));
     return row;
+  }
+
+  // ---- full data export (FR-MIG-09) ----
+
+  /** Every warehouse, deleted ones included: codes for the other export sheets. */
+  async codesIn(tx: Tx): Promise<Map<string, string>> {
+    const rows = await tx.select({ id: warehouse.id, code: warehouse.code }).from(warehouse);
+    return new Map(rows.map((r) => [r.id, r.code]));
+  }
+
+  exportSheets(): ExportSheet[] {
+    return [
+      {
+        file: "gudang.csv",
+        description: "Gudang OmniSeller, termasuk yang sudah dihapus.",
+        columns: ["id", "kode", "nama", "alamat", "gudang_utama", "aktif", "dihapus_pada", "dibuat_pada"],
+        pages: (tx) =>
+          singlePage(async () =>
+            (await tx.select().from(warehouse).orderBy(asc(warehouse.code))).map((w) => [
+              w.id,
+              w.code,
+              w.name,
+              Object.values(w.address)
+                .filter((v) => typeof v === "string" && v.trim() !== "")
+                .join(", "),
+              w.isDefault,
+              w.active,
+              w.deletedAt,
+              w.createdAt,
+            ]),
+          ),
+      },
+    ];
   }
 }

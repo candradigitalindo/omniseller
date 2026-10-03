@@ -217,11 +217,14 @@ END $$;
 ------------------------------------------------------------------------------------------------
 -- Audit. Ids come from gen_ulid() here: one statement can touch many rows, so an id handed in
 -- from the application per statement would collide. Actor comes from withTenantTx settings.
+-- On a partitioned table TG_TABLE_NAME is the partition (stock_movement_p202610): its triggers
+-- pass the table's own name as TG_ARGV[0], which becomes entity_type.
 ------------------------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION audit_row() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
+  v_entity     text := coalesce(TG_ARGV[0], TG_TABLE_NAME);
   v_actor_type text := coalesce(nullif(current_setting('app.actor_type', true), ''), 'system');
   v_actor_id   text := nullif(current_setting('app.actor_id', true), '');
   v_request_id text := nullif(current_setting('app.request_id', true), '');
@@ -241,7 +244,7 @@ BEGIN
     v_actor_type := 'system';
   END IF;
   INSERT INTO audit_log (id, tenant_id, actor_type, actor_id, request_id, action, entity_type, entity_id, before, after)
-  VALUES (gen_ulid(), v_tenant_id, v_actor_type, v_actor_id, v_request_id, lower(TG_OP), TG_TABLE_NAME, v_entity_id, v_before, v_after);
+  VALUES (gen_ulid(), v_tenant_id, v_actor_type, v_actor_id, v_request_id, lower(TG_OP), v_entity, v_entity_id, v_before, v_after);
   RETURN NULL; -- AFTER trigger
 END $$;
 

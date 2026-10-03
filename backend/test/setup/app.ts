@@ -19,6 +19,7 @@ import type { StockDirtySet } from "../../src/jobs/stock-dirty";
 import { AuthModule } from "../../src/modules/auth/auth.module";
 import { CatalogModule, CatalogWorkerModule } from "../../src/modules/catalog/catalog.module";
 import { ChannelModule, ChannelWorkerModule, ConnectorsModule } from "../../src/modules/channel/channel.module";
+import { ExportsWorkerModule } from "../../src/modules/exports/exports.module";
 import { FilesModule } from "../../src/modules/files/files.module";
 import { FulfillmentModule, FulfillmentWorkerModule } from "../../src/modules/fulfillment/fulfillment.module";
 import { IdentityModule } from "../../src/modules/identity/identity.module";
@@ -140,6 +141,7 @@ export async function startWorker(infra: TestInfra, system: DbHandle, opts: { ma
       FilesModule.forEnv(env),
       FulfillmentModule,
       FulfillmentWorkerModule,
+      ExportsWorkerModule,
     ],
   }).compile();
   const ctx = await moduleRef.init();

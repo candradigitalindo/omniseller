@@ -1,11 +1,33 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { newId } from "@omniseller/shared";
+import { newId, type Permission } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
 import type { DbHandle, Tx } from "../../db/client";
 import type { NotificationSeverity } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
+import { UsersService } from "../identity/users.service";
 import { InboxRepository, type NotificationRow } from "./inbox.repository";
+
+/** What a notification is about, for the recipient's store and warehouse scope; undefined = not limited. */
+export interface ScopedItem {
+  storeId?: string | null;
+  warehouseId?: string | null;
+}
+
+type Recipient = { storeScope: string[] | null; warehouseScope: string[] | null };
+
+/** Same rule as the order list: a scoped user sees an item only when its store and warehouse are in scope. */
+export function inScope(r: Recipient, item: ScopedItem): boolean {
+  const store =
+    item.storeId === undefined ||
+    r.storeScope === null ||
+    (item.storeId !== null && r.storeScope.includes(item.storeId));
+  const warehouse =
+    item.warehouseId === undefined ||
+    r.warehouseScope === null ||
+    (item.warehouseId !== null && r.warehouseScope.includes(item.warehouseId));
+  return store && warehouse;
+}
 
 export interface NewNotification {
   userId: string;
@@ -27,6 +49,7 @@ export class NotificationInboxService {
   constructor(
     @Inject(DB_TENANT) private readonly db: DbHandle,
     @Inject(InboxRepository) private readonly repo: InboxRepository,
+    @Inject(UsersService) private readonly users: UsersService,
   ) {}
 
   async notifyIn(tx: Tx, ctx: RequestContext, notifications: NewNotification[]): Promise<void> {
@@ -44,6 +67,29 @@ export class NotificationInboxService {
         channelsSent: { in_app: true },
       })),
     );
+  }
+
+  /**
+   * One notification per active user holding `permission`, built from the items in that user's store
+   * and warehouse scope; users who see none of the items get nothing. Returns the notifications written.
+   */
+  async notifyScopedIn<T extends ScopedItem>(
+    tx: Tx,
+    ctx: RequestContext,
+    permission: Permission,
+    items: T[],
+    build: (theirs: T[]) => Omit<NewNotification, "userId"> | null,
+  ): Promise<number> {
+    if (items.length === 0) return 0;
+    const notes: NewNotification[] = [];
+    for (const r of await this.users.recipientsIn(tx, permission)) {
+      const theirs = items.filter((i) => inScope(r, i));
+      if (theirs.length === 0) continue;
+      const n = build(theirs);
+      if (n) notes.push({ ...n, userId: r.id });
+    }
+    await this.notifyIn(tx, ctx, notes);
+    return notes.length;
   }
 
   async list(

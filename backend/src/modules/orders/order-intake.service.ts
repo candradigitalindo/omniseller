@@ -145,6 +145,10 @@ export class OrderIntakeService {
         ...(step.to === "cancelled" && !current.cancelledAt ? { cancelledAt: at } : {}),
         ...(step.to === "shipped" && !current.shippedAt ? { shippedAt: at } : {}),
         ...(step.to === "delivered" && !current.deliveredAt ? { deliveredAt: at } : {}),
+        // paid now: a new order for the seller (FR-NTF-01)
+        ...(step.to === "new" && current.status === "unpaid" && current.fulfillmentMode === "seller"
+          ? { notifyNew: true }
+          : {}),
       };
       const write = () => this.repo.update(tx, current.id, patch);
       if (step.via === "marketplace" || actor.type === "marketplace") await withStatusSource(tx, "marketplace", write);
@@ -282,6 +286,8 @@ export class OrderIntakeService {
         warehouseId: orderPlace.warehouseId,
         orderedAt: snap.createdAt,
         completedAt: status === "completed" ? snap.updatedAt : null,
+        // the 90-day import is history, not news: only orders after it are announced (FR-NTF-01)
+        notifyNew: fulfillment === "seller" && status === "new" && store.lastOrderSyncAt !== null,
         source: meta.source,
         rawPayloadRef: meta.rawRef ?? null,
         ...fields,

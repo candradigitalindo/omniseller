@@ -11,9 +11,10 @@ Produk master dan variannya, listing marketplace, dan pemetaan keduanya (PRD 6.2
 ## Service publik
 - `ProductsService` (api dan worker): `list`, `get`, `create`, `update` (`If-Match`), `remove`, `addVariant`, `updateVariant`; versi `...In(tx, ...)` untuk dipakai di transaksi lain (impor CSV, produk dari listing). Error: `product.not_found`, `variant.not_found`, `catalog.sku_taken`, `catalog.barcode_taken`, `product.has_listings`, `row.stale`, validasi atribut (422).
 - `ListingsService` (api dan worker): `list`, `get`, `unmappedWithSuggestions`, `map`, `autoMap`, `autoMapIn`, `createProductsFromListings`, `requestStatus`, `requestPull`. Error: `listing.not_found`, `listing.store_not_active`, `store.not_found`, varian tidak tersedia (422).
-- `ProductTransferService` (api): `exportCsv`, `importCsv(ctx, content, dryRun)`.
+- `ProductTransferService` (api dan worker): `exportCsv`, `importCsv(ctx, content, dryRun)`, `exportSheets` (`produk.csv` ekspor data penuh, backend doc 8.18).
 - Hanya worker: `ListingSyncService` (`pull`, `apply`, `refreshItems`, `pushStatus`); semua panggilan marketplace lewat `MarketplaceGateway.call`.
 - Untuk modul inventory, di dalam transaksinya: `ListingsService.mappedForVariantsIn`, `mappedInStoreIn`, `listingsByIdsIn`.
+- Untuk dasbor dan ekspor: `ListingsService.unmappedCountIn` (listing belum terpetakan dalam cakupan toko), `ListingsService.exportSheets` (`listing.csv`).
 
 ## Aturan
 - SKU produk dan SKU varian unik per bisnis tanpa membedakan huruf besar dan spasi tepi (`lower(btrim(sku))`, indeks unik migrasi 0004), sama dengan aturan pencocokan listing. Barcode unik persis.
@@ -56,7 +57,7 @@ Satu job `listing.pull` membaca maksimal 10 halaman (`PAGES_PER_JOB`). Tarikan i
 | POST | `/v1/listings/status` | `catalog:publish` |
 
 ## Format CSV
-Kolom: `sku_produk`, `nama_produk`, `deskripsi`, `merek`, `kategori`, `sku_varian`, `nama_varian`, `atribut` (`Warna=Hitam; Ukuran=M`), `barcode`, `harga_jual`, `hpp`, `berat_gram`, `panjang_mm`, `lebar_mm`, `tinggi_mm`, `status` (`aktif`, `arsip`), `gambar` (URL dipisah ` | `). Satu baris per varian. Ekspor: pemisah `;`, UTF-8 dengan BOM, CRLF. Impor: `;` atau `,`, maksimal 10.000 baris, semua atau tidak sama sekali, kesalahan di `rows.<baris>.<kolom>`.
+Kolom: `sku_produk`, `nama_produk`, `deskripsi`, `merek`, `kategori`, `sku_varian`, `nama_varian`, `atribut` (`Warna=Hitam; Ukuran=M`), `barcode`, `harga_jual`, `hpp`, `berat_gram`, `panjang_mm`, `lebar_mm`, `tinggi_mm`, `status` (`aktif`, `arsip`), `gambar` (URL dipisah ` | `). Satu baris per varian. Ekspor: penulis bersama `common/csv.ts` (pemisah `;`, UTF-8 dengan BOM, CRLF, `'` di depan teks yang diawali `=`, `+`, `-`, `@`, tab, atau CR agar spreadsheet tidak menjalankannya sebagai rumus). Impor: `;` atau `,`, awalan `'` itu dibuang lagi, maksimal 10.000 baris, semua atau tidak sama sekali, kesalahan di `rows.<baris>.<kolom>`. Berkas `produk.csv` di ekspor data penuh memakai kolom yang sama, jadi bisa diimpor ulang.
 
 ## Keputusan khusus modul
 - Gambar disimpan sebagai URL (`product_image.source_url`) sampai pipeline berkas menyalinnya ke `file_object`.

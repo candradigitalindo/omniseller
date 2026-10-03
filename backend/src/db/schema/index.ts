@@ -3,6 +3,7 @@ export * from "./billing";
 export * from "./catalog";
 export * from "./channel";
 export * from "./crm";
+export * from "./exports";
 export * from "./identity";
 export * from "./inventory";
 export * from "./notification";

@@ -91,7 +91,26 @@ export const orderSlaAlertJob = defineJob({
   },
 });
 
-export const ORDER_JOBS = [orderPullJob, orderCancelJob, orderListingMappedJob, orderStockRecheckJob, orderSlaAlertJob];
+/** FR-NTF-01: new orders since the last digest, from the scheduler every 5 minutes for tenants with some. */
+export const orderNewNoticeJob = defineJob({
+  queue: "notify",
+  name: "order.new_notice",
+  schema: z.object({ slot: z.string().min(1) }),
+  options: { attempts: 3, backoff: { type: "exponential", delay: 10_000 } },
+  jobId: (p) => jobKey("order.new_notice", p.tenantId, p.slot),
+  handler: async (_p, run) => {
+    await run.deps.resolve(OrderAlertsService).notifyNewOrders(run.ctx);
+  },
+});
+
+export const ORDER_JOBS = [
+  orderPullJob,
+  orderCancelJob,
+  orderListingMappedJob,
+  orderStockRecheckJob,
+  orderSlaAlertJob,
+  orderNewNoticeJob,
+];
 
 /** Order notifications: the order is read again from the marketplace (FR-ORD-01). */
 const refresh: NonNullable<WebhookConsumers["order.status_changed"]>[number] = async (run, event) => {

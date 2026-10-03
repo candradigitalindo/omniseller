@@ -53,6 +53,32 @@ export async function scanSlaAlerts(system: DbHandle, queues: QueueRegistry, reg
   return rows.length;
 }
 
+/** `order.new_scan` (every 5 min, FR-NTF-01): tenants with orders waiting for the new-order digest. */
+export async function scanNewOrderNotices(
+  system: DbHandle,
+  queues: QueueRegistry,
+  registry: JobRegistry,
+  now = new Date(),
+) {
+  const rows = await withSystemTx(system, async (tx) => {
+    const r = await tx.execute<{ tenant_id: string }>(sql`
+      SELECT DISTINCT tenant_id FROM "order" WHERE notify_new LIMIT 2000`);
+    return r.rows;
+  });
+  const slot = `n${Math.floor(now.getTime() / SLA_ALERT_SLOT_MS)}`;
+  for (const r of rows) {
+    await add(
+      registry,
+      queues,
+      "notify",
+      "order.new_notice",
+      { tenantId: r.tenant_id, slot },
+      jobKey("order.new_notice", r.tenant_id, slot),
+    );
+  }
+  return rows.length;
+}
+
 /** `files.cleanup_scan` (hourly): tenants with expired labels or documents get a cleanup job. */
 export async function scanExpiredFiles(
   system: DbHandle,

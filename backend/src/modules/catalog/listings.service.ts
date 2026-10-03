@@ -1,5 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { RequestContext } from "../../common/context/request-context";
+import { EXPORT_PAGE_SIZE, type ExportSheet, keysetPages } from "../../common/export-sheet";
 import type { DbHandle, Tx } from "../../db/client";
 import type { ListingStatus } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
@@ -385,6 +386,11 @@ export class ListingsService {
   // ---- for the orders module, inside its transaction ----
 
   /** Listings of a store keyed `${externalItemId}|${externalVariantId}` (order lines to variants). */
+  /** Listings still to connect to a product, in the caller's stores (dashboard task). */
+  unmappedCountIn(tx: Tx, ctx: RequestContext): Promise<number> {
+    return this.repo.unmappedCount(tx, ctx.storeScope);
+  }
+
   async byExternalIn(
     tx: Tx,
     storeId: string,
@@ -401,6 +407,58 @@ export class ListingsService {
     await withTenantTx(this.db, ctx, (tx) =>
       this.outbox.enqueue(tx, ctx, listingPullRequested, { storeId, mode: full ? "full" : "incremental" }, storeId),
     );
+  }
+
+  // ---- full data export (FR-MIG-09) ----
+
+  exportSheets(): ExportSheet[] {
+    return [
+      {
+        file: "listing.csv",
+        description: "Listing di marketplace beserta varian OmniSeller yang dipetakan.",
+        columns: [
+          "toko",
+          "id_produk_marketplace",
+          "id_varian_marketplace",
+          "sku_marketplace",
+          "judul",
+          "harga",
+          "harga_asli",
+          "stok_di_marketplace",
+          "status",
+          "sku_varian",
+          "sumber_pemetaan",
+          "dipetakan_pada",
+          "ditarik_pada",
+          "id",
+          "id_toko",
+          "id_varian",
+        ],
+        pages: (tx, l) =>
+          keysetPages(
+            (after) => this.repo.listingsPage(tx, after, EXPORT_PAGE_SIZE),
+            (rows) =>
+              rows.map((r) => [
+                l.storeName(r.storeId),
+                r.externalItemId,
+                r.externalVariantId,
+                r.externalSku,
+                r.title,
+                r.price,
+                r.originalPrice,
+                r.stockAtChannel,
+                r.status,
+                r.sku,
+                r.mappingSource,
+                r.mappedAt,
+                r.lastPulledAt,
+                r.id,
+                r.storeId,
+                r.variantId,
+              ]),
+          ),
+      },
+    ];
   }
 }
 

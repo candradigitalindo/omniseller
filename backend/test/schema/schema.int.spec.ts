@@ -1,4 +1,5 @@
 import {
+  DATA_EXPORT_STATUSES,
   DOCUMENT_JOB_STATUSES,
   ORDER_STATUSES,
   PERMISSION_CODES,
@@ -196,6 +197,7 @@ describe("schema conventions", () => {
     expect(await check("shipment")).toEqual([...SHIPMENT_STATUSES].sort());
     expect(await check("sync_job")).toEqual([...SYNC_JOB_STATUSES].sort());
     expect(await check("document_job")).toEqual([...DOCUMENT_JOB_STATUSES].sort());
+    expect(await check("data_export")).toEqual([...DATA_EXPORT_STATUSES].sort());
   });
 
   it("every transition uses known statuses", async () => {
@@ -204,6 +206,7 @@ describe("schema conventions", () => {
       ["shipment_status_transition", SHIPMENT_STATUSES],
       ["sync_job_status_transition", SYNC_JOB_STATUSES],
       ["document_job_status_transition", DOCUMENT_JOB_STATUSES],
+      ["data_export_status_transition", DATA_EXPORT_STATUSES],
     ] as const) {
       const rows = await q<{ from_status: string; to_status: string }>(`SELECT from_status, to_status FROM ${table}`);
       expect(rows.length).toBeGreaterThan(0);
@@ -223,7 +226,7 @@ describe("schema conventions", () => {
     const rows = await q<{ tbl: string; def: string }>(`
       SELECT c.relname AS tbl, pg_get_triggerdef(t.oid) AS def FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
        WHERE t.tgname = 'status_transition_trg' AND NOT c.relispartition ORDER BY 1`);
-    expect(rows.map((r) => r.tbl)).toEqual(["document_job", "order", "shipment", "sync_job"]);
+    expect(rows.map((r) => r.tbl)).toEqual(["data_export", "document_job", "order", "shipment", "sync_job"]);
     for (const r of rows) expect(r.def).toContain(`enforce_status_transition('${r.tbl}')`);
   });
 });

@@ -167,6 +167,12 @@ beforeAll(async () => {
                          VALUES (${documentId}, ${tenantId}, 'labels', 'queued',
                                  ${JSON.stringify({ orderIds: [orderId], format: "thermal" })}::jsonb, ${fileId}, ${a.me.user.id})`);
     fixtures.document = { id: documentId };
+    // a full data export being made (the worker is not running here)
+    const exportId = newId();
+    await tx.execute(
+      sql`INSERT INTO data_export (id, tenant_id, requested_by) VALUES (${exportId}, ${tenantId}, ${a.me.user.id})`,
+    );
+    fixtures.data_export = { id: exportId };
   });
   const started = await a.c.post("/v1/store-authorizations", { channel: "shopee" });
   expect(started.status).toBe(201);
@@ -257,6 +263,19 @@ describe("tenant isolation generated from openapi.json", () => {
     expect(results.filter((r) => !r.ok)).toEqual([]);
   });
 
+  it("aggregates count only the caller's own tenant", async () => {
+    const mine = (await a.c.get("/v1/dashboard")).body;
+    expect(mine.orders.statuses.problem).toBe(1);
+    expect(mine.tasks.map((t: { kind: string }) => t.kind)).toContain("orders_problem");
+    const theirs = await b.c.get("/v1/dashboard");
+    expect(theirs.status).toBe(200);
+    expect(Object.values(theirs.body.orders.statuses).every((n) => n === 0)).toBe(true);
+    expect(theirs.body.sales).toMatchObject({ orders: 0, revenue: 0 });
+    expect(theirs.body.urgentOrders).toEqual([]);
+    expect(theirs.body.stores).toEqual([]);
+    expect(theirs.body.tasks).toEqual([]);
+  });
+
   it("tenant A's resources are still intact afterwards", async () => {
     const res = await a.c.get(`/v1/users/${a.me.user.id}`);
     expect(res.status).toBe(200);
@@ -289,6 +308,10 @@ describe("tenant isolation generated from openapi.json", () => {
       orderCount: 1,
     });
     expect((await a.c.get(`/v1/orders/${fixtures.order!.id}/shipments`)).body.items).toEqual([]);
+    expect((await a.c.get(`/v1/exports/${fixtures.data_export!.id}`)).body).toMatchObject({
+      status: "queued",
+      downloadCount: 0,
+    });
     // B's callback attempt with A's state did not consume it
     expect((await a.c.get(`/v1/store-authorizations/${fixtures.store_authorization!.id}`)).body.status).toBe("pending");
   });

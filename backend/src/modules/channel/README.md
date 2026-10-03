@@ -11,8 +11,8 @@ Marketplace yang didukung: Shopee dan TikTok Shop. Di Indonesia TikTok Shop dan 
 
 ## Service publik
 - `StoreAuthorizationService` (api): `start(ctx, {channel, storeId?})` mengembalikan `authorizeUrl`; `callback(ctx, {channel, state, code?, shopId?, mainAccountId?, error?})`; `get(ctx, id)`. Error: `channel.unsupported`, `channel.not_configured`, `store.not_found`, `store_authorization.invalid`, `store_authorization.not_found`.
-- `StoresService` (api dan worker): `list`, `listIn`, `get`, `inScope`, `stockTargetsIn` (toko beserta gudang marketplace, untuk modul inventory), `update` (nama, gudang default, `syncMode`; `If-Match`), `disconnect`, `requestWarehouseSync`, `channelWarehouses`, `mapChannelWarehouse`; untuk worker: `markReauthRequired`, `noteAuthorizationExpiry`, `reevaluateStatus`, `syncCursor`, `recordPull` (resource `listings` atau `orders`; mengisi `last_product_sync_at` atau `last_order_sync_at`). Error: `store.not_found`, `store.not_active`, `store.disconnected`, `store.unmapped_warehouses`, `store.live_mapping_required`, `channel_warehouse.not_found`, `channel_warehouse.marketplace_managed`, `row.stale`.
-- Hanya worker: `StoreConnectService.complete` (job `store.authorize`), `CredentialService` (`save`, `forShop`, `refresh`), `MarketplaceGateway.call` (satu-satunya jalan memanggil marketplace untuk toko), `ChannelSyncService` (`syncWarehouses`, `subscribeWebhooks`).
+- `StoresService` (api dan worker): `list`, `listIn`, `get`, `inScope`, `stockTargetsIn` (toko beserta gudang marketplace, untuk modul inventory), `update` (nama, gudang default, `syncMode`; `If-Match`), `disconnect`, `requestWarehouseSync`, `channelWarehouses`, `mapChannelWarehouse`; untuk worker: `markReauthRequired`, `noteAuthorizationExpiry`, `reevaluateStatus`, `syncCursor`, `recordPull` (resource `listings` atau `orders`; mengisi `last_product_sync_at` atau `last_order_sync_at`); untuk ekspor data (backend doc 8.18): `namesIn`, `exportSheets` (`toko.csv`). Error: `store.not_found`, `store.not_active`, `store.disconnected`, `store.unmapped_warehouses`, `store.live_mapping_required`, `channel_warehouse.not_found`, `channel_warehouse.marketplace_managed`, `row.stale`.
+- Hanya worker: `StoreConnectService.complete` (job `store.authorize`), `CredentialService` (`save`, `forShop`, `refresh`), `MarketplaceGateway.call` (satu-satunya jalan memanggil marketplace untuk toko), `ChannelSyncService` (`syncWarehouses`, `subscribeWebhooks`), `ChannelAlertsService` (`reauthRequired`, `authorizationExpiring`: notifikasi in-app ke pengguna dengan `settings:store` yang melihat toko itu, backend doc 8.17).
 
 ## Aturan
 - `api` tidak pernah memanggil marketplace dan tidak bisa membaca atau menulis token. Kode otorisasi lewat outbox ke worker (ADR-029).
@@ -21,7 +21,7 @@ Marketplace yang didukung: Shopee dan TikTok Shop. Di Indonesia TikTok Shop dan 
 - Hanya toko region `ID` yang dihubungkan; toko region lain dari akun utama Shopee dicatat `skipped`.
 - Token disegel AES-256-GCM dengan DEK tenant dan AAD `<tenant>:store:<id>:access|refresh`. Refresh di bawah advisory lock per toko; token akses di-refresh pada 80% masa hidupnya.
 - Status `reauth_required` menghapus token seketika. Penyebab: notifikasi pencabutan, refresh token ditolak, tiga kegagalan refresh berturut, toko dibekukan.
-- Status `token_expiring` 14 hari sebelum izin seller berakhir atau saat marketplace mengirim pemberitahuan.
+- Status `token_expiring` 14 hari sebelum izin seller berakhir atau saat marketplace mengirim pemberitahuan. Masuk `token_expiring` menulis event `store.authorization_expiring`; masuk `reauth_required` menulis `store.reauth_required`. Keduanya menjadi notifikasi in-app, kecuali toko sudah pulih saat job berjalan.
 - Toko baru selalu `read_only`. `live` butuh toko aktif dan semua gudang penjual aktif terpetakan; melepas pemetaan toko `live` ditolak.
 - Pemetaan otomatis saat impor gudang: bila toko hanya punya satu gudang penjual, atau bisnis hanya punya satu gudang aktif, gudang marketplace yang belum terpetakan diarahkan ke gudang default toko.
 
@@ -30,7 +30,7 @@ Marketplace yang didukung: Shopee dan TikTok Shop. Di Indonesia TikTok Shop dan 
 - `marketplace_info` (diisi saat terhubung, hanya baca): Shopee `status`, `is_cb`, `is_sip`, `merchant_id`, `fulfillment_flag`, `authorized_at`, `logo`, `main_account_id`, `merchant_ids`; TikTok Shop `seller_type`, `shop_code`, `open_id`, `seller_name`, `seller_base_region`.
 
 ## Event
-- Diterbitkan: `store.authorization_received`, `store.connected`, `store.disconnected`, `store.reauth_required`, `store.warehouses_sync_requested`, `channel_warehouse.changed`, `channel_warehouse.mapping_changed` (pemetaan gudang marketplace berubah), `store.sync_mode_changed`. Pusher stok (modul inventory) mengonsumsi tiga yang terakhir.
+- Diterbitkan: `store.authorization_received`, `store.connected`, `store.disconnected`, `store.reauth_required`, `store.warehouses_sync_requested`, `channel_warehouse.changed`, `channel_warehouse.mapping_changed` (pemetaan gudang marketplace berubah), `store.sync_mode_changed`, `store.authorization_expiring`. Pusher stok (modul inventory) mengonsumsi `channel_warehouse.changed`, `channel_warehouse.mapping_changed`, dan `store.sync_mode_changed`; `store.reauth_required` dan `store.authorization_expiring` menjadi notifikasi.
 - Dikonsumsi dari webhook (`jobs/webhook-consumers.ts`): `authorization.revoked`, `authorization.expiring`.
 
 ## Job
@@ -40,6 +40,8 @@ Marketplace yang didukung: Shopee dan TikTok Shop. Di Indonesia TikTok Shop dan 
 | `store.warehouses_sync` | `mp.poll` | `store.connected`, `store.warehouses_sync_requested`, jadwal `mp.poll.warehouses` (6 jam) |
 | `store.webhooks_subscribe` | `mp.outbound` | `store.connected`, jadwal 6 jam agar toko lama mendapat topik baru (TikTok Shop; Shopee diatur per aplikasi) |
 | `store.token_refresh` | `mp.outbound` | jadwal `token.refresh_scan` (15 menit) |
+| `store.reauth_notice` | `notify` | `store.reauth_required` |
+| `store.expiry_notice` | `notify` | `store.authorization_expiring` |
 
 ## Endpoint
 | Metode | Path | Izin |

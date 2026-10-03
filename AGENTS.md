@@ -39,6 +39,8 @@ pnpm test:int            # needs TEST_PG_ADMIN_URL + TEST_REDIS_URL, or Docker f
 - `packages/shared/src`: ULID, money, permissions, statuses; `packages/logging`: the logger
 - `packages/connectors/<marketplace>`: marketplace clients (no database); `src/modules/channel/marketplace-gateway.ts` is how the worker calls them
 - `src/modules/files/`: private files (`FilesService`, `FileStorage`: R2, MinIO via `R2_ENDPOINT`, or a local directory in local/test); `src/modules/fulfillment/pdf.ts`: PDFs with pdf-lib and the bundled Noto Sans in `assets/fonts`
+- `src/modules/reporting/`: the home dashboard (no tables; reads through the owning modules' services); `src/modules/exports/`: the full data export (ZIP of CSVs); `src/modules/notification/inbox.service.ts`: in-app notifications (`notifyScopedIn`)
+- `src/common/csv.ts`: CSV for spreadsheets; `src/common/time-zone.ts`: dates in the business's time zone; `src/common/export-sheet.ts`: `ExportSheet`, one per exported table
 - `test/setup/mock-marketplace.ts`: fake Shopee and TikTok Shop that enforce the documented signatures and token rules, including order packages, arranging shipment, tracking numbers, and label PDFs
 
 ## How to add things
@@ -70,6 +72,12 @@ NestJS injection always uses explicit `@Inject(TOKEN)`; do not rely on construct
 - Marketplace shop ids in e2e files must not overlap between files (`let shopSeq` per file): `store (channel, external_shop_id)` is unique across tenants and the files share one database.
 - Tests that touch BullMQ use the run's prefix (`infra.keyPrefix`, passed by `startApi`, `startWorker`, `startWebhook`); jobs under the default `bull` prefix would reach any worker sharing the Redis.
 - In the Indonesian market the TikTok Shop channel is shown as "Tokopedia & Shop" (platform branding rule, PRD 5.6); the internal channel id stays `tiktokshop`.
+- On a partitioned table `TG_TABLE_NAME` is the partition (`stock_movement_p202610`). Audit triggers there pass the table name: `audit_row('stock_movement')`; otherwise `audit_log.entity_type` holds the partition and nobody finds the entry.
+- A Drizzle `sql` fragment with a parameter (`AT TIME ZONE ${tz}`) used in SELECT, GROUP BY, and ORDER BY binds a new parameter each time, and Postgres treats them as different expressions (42803). Group and order by position (`` sql`1` ``).
+- A table holding tenant business data needs an `ExportSheet` in its owning service, listed in `ExportRenderService.sheets()`. Without one the full export (FR-MIG-09) silently leaves it out.
+- CSV meant for spreadsheets goes through `common/csv.ts` (`;`, BOM, CRLF, a `'` before text starting with `=`, `+`, `-`, `@`): buyer names and notes are written by strangers.
+- Notifications go through `NotificationInboxService.notifyScopedIn`: recipients are users holding the permission, and each hears only about stores and warehouses in their scope.
+- Keep `requestChecksumCalculation: "WHEN_REQUIRED"` on the S3 client (`files/file-storage.ts`): with the SDK default a streamed upload reaches storage `aws-chunked` with a CRC32 trailer, which R2 does not document.
 
 ## Definition of done
 Tests per section 13.3 (integration tests run as the application roles, never as a superuser), migration checklist 12.3, docs updated (module README and the backend doc section you touched), PR checklist 15.11.

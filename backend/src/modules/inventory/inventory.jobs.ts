@@ -10,6 +10,7 @@ import {
   storeSyncModeChanged,
 } from "../channel/channel.events";
 import { inventoryChanged, stockResyncRequested } from "./inventory.events";
+import { StockAlertsService } from "./stock-alerts.service";
 import { StockPushService } from "./stock-push.service";
 import { StockTriggersService } from "./stock-triggers.service";
 
@@ -25,6 +26,19 @@ export const stockMarkDirtyJob = defineJob({
   jobId: (p, meta) => jobKey("stock.mark_dirty", p.tenantId, meta.eventId ?? "direct"),
   handler: async (p, run) => {
     await run.deps.resolve(StockTriggersService).markPairs(run.ctx, p.pairs);
+  },
+});
+
+/** Stock changed: variants that ran out or fell to their minimum are announced (FR-NTF-01). */
+export const stockAlertJob = defineJob({
+  queue: "notify",
+  name: "inventory.stock_alert",
+  schema: z.object({ pairs: z.array(pair).min(1).max(500) }),
+  triggeredBy: [inventoryChanged],
+  options: { attempts: 3, backoff: { type: "exponential", delay: 5_000 } },
+  jobId: (p, meta) => jobKey("inventory.stock_alert", p.tenantId, meta.eventId ?? "direct"),
+  handler: async (p, run) => {
+    await run.deps.resolve(StockAlertsService).check(run.ctx, p.pairs);
   },
 });
 
@@ -99,6 +113,7 @@ export const stockStoreResyncJob = defineJob({
 
 export const INVENTORY_JOBS = [
   stockMarkDirtyJob,
+  stockAlertJob,
   stockPushJob,
   stockListingMappedJob,
   stockListingUnmappedJob,

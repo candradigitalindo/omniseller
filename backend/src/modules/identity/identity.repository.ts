@@ -256,6 +256,11 @@ export class IdentityRepository {
     return row?.n ?? 0;
   }
 
+  /** Every user of the tenant, disabled ones included. */
+  async userNames(tx: Tx): Promise<{ id: string; name: string }[]> {
+    return tx.select({ id: user.id, name: user.name }).from(user);
+  }
+
   /** Active users holding a permission, with their store and warehouse scopes (recipients of alerts). */
   async usersWithPermission(
     tx: Tx,
