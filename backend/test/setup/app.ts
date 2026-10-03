@@ -19,6 +19,8 @@ import type { StockDirtySet } from "../../src/jobs/stock-dirty";
 import { AuthModule } from "../../src/modules/auth/auth.module";
 import { CatalogModule, CatalogWorkerModule } from "../../src/modules/catalog/catalog.module";
 import { ChannelModule, ChannelWorkerModule, ConnectorsModule } from "../../src/modules/channel/channel.module";
+import { FilesModule } from "../../src/modules/files/files.module";
+import { FulfillmentModule, FulfillmentWorkerModule } from "../../src/modules/fulfillment/fulfillment.module";
 import { IdentityModule } from "../../src/modules/identity/identity.module";
 import { InventoryModule, InventoryWorkerModule } from "../../src/modules/inventory/inventory.module";
 import { EMAIL_SENDER, type MemoryEmailSender } from "../../src/modules/notification/email";
@@ -27,6 +29,7 @@ import { OrdersModule, OrdersWorkerModule } from "../../src/modules/orders/order
 import { SyncModule } from "../../src/modules/sync/sync.module";
 import { STOCK_PUSH_BATCH } from "../../src/scheduler/stock-flush";
 import { configureWebhookApp } from "../../src/webhook/webhook-app";
+import { testFilesDir } from "./files-dir";
 import type { TestInfra } from "./global-setup";
 import { type MockMarketplace, SHOPEE, TIKTOK } from "./mock-marketplace";
 
@@ -34,6 +37,15 @@ export const WEB_URL = "http://localhost:3100";
 export const WEBHOOK_URL = "https://hooks.omniseller.test";
 /** Development-only master key for the local token key provider (test/local only). */
 export const TEST_TOKEN_KEY = Buffer.alloc(32, 42).toString("base64");
+
+/**
+ * Listens on 127.0.0.1 before supertest sees the server. Left to supertest, the server binds `::` on a
+ * random port, and on macOS another program may hold the same port on 127.0.0.1 (editor helpers do),
+ * so supertest's request to 127.0.0.1 would reach that program instead.
+ */
+export async function listenOnLoopback(app: INestApplication): Promise<void> {
+  await app.listen(0, "127.0.0.1");
+}
 
 /** Marketplace settings pointing every connector at the fake marketplace (none when it is absent). */
 function marketplaceEnv(mock: MockMarketplace | undefined, role: "api" | "webhook" | "worker"): Record<string, string> {
@@ -73,6 +85,8 @@ export async function startApi(
     REDIS_QUEUE_URL: infra.redisUrl,
     REDIS_CACHE_URL: infra.redisUrl,
     PUBLIC_WEB_URL: WEB_URL,
+    FILE_STORAGE: "local",
+    FILE_STORAGE_LOCAL_DIR: testFilesDir(infra.keyPrefix),
     ...marketplaceEnv(opts.marketplace, "api"),
   });
   const moduleRef = await Test.createTestingModule({
@@ -80,7 +94,7 @@ export async function startApi(
   }).compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({ logger: false });
   configureApiApp(app);
-  await app.init();
+  await listenOnLoopback(app);
   return app;
 }
 
@@ -101,6 +115,8 @@ export async function startWorker(infra: TestInfra, system: DbHandle, opts: { ma
     EMAIL_TRANSPORT: "memory",
     TOKEN_KEY_PROVIDER: "local",
     TOKEN_LOCAL_MASTER_KEY: TEST_TOKEN_KEY,
+    FILE_STORAGE: "local",
+    FILE_STORAGE_LOCAL_DIR: testFilesDir(infra.keyPrefix),
     ...marketplaceEnv(opts.marketplace, "worker"),
   });
   if (env.APP_ROLE !== "worker") throw new Error("unreachable");
@@ -121,6 +137,9 @@ export async function startWorker(infra: TestInfra, system: DbHandle, opts: { ma
       InventoryWorkerModule,
       OrdersModule,
       OrdersWorkerModule,
+      FilesModule.forEnv(env),
+      FulfillmentModule,
+      FulfillmentWorkerModule,
     ],
   }).compile();
   const ctx = await moduleRef.init();
@@ -128,7 +147,14 @@ export async function startWorker(infra: TestInfra, system: DbHandle, opts: { ma
   const deps = { resolve: <T>(token: abstract new (...args: never[]) => T) => ctx.get(token, { strict: false }) };
   const email = ctx.get<MemoryEmailSender>(EMAIL_SENDER);
 
-  async function runOutbox(tenantId: string): Promise<string[]> {
+  /**
+   * `failures`: collect handler errors and go on, as BullMQ would retry those jobs later (tests run the
+   * job again themselves); without it the first error is thrown.
+   */
+  async function runOutbox(
+    tenantId: string,
+    opts: { failures?: { job: string; error: unknown }[] } = {},
+  ): Promise<string[]> {
     const rows = await system.db.execute<{
       id: string;
       queue: string;
@@ -144,12 +170,17 @@ export async function startWorker(infra: TestInfra, system: DbHandle, opts: { ma
       const def = registry.get(row.queue, row.job_name);
       if (!def) continue;
       const payload = def.schema.parse(row.payload) as object;
-      await def.handler({ ...payload, tenantId } as never, {
-        ctx: systemContext(tenantId, { requestId: newId() }),
-        jobId: row.job_id,
-        attemptsMade: 0,
-        deps,
-      });
+      try {
+        await def.handler({ ...payload, tenantId } as never, {
+          ctx: systemContext(tenantId, { requestId: newId() }),
+          jobId: row.job_id,
+          attemptsMade: 0,
+          deps,
+        });
+      } catch (error) {
+        if (!opts.failures) throw error;
+        opts.failures.push({ job: row.job_name, error });
+      }
       await system.db.execute(sql`UPDATE outbox_event SET published_at = now() WHERE id = ${row.id}`);
       ran.push(row.job_name);
     }
@@ -216,7 +247,7 @@ export async function startWebhook(infra: TestInfra, opts: { marketplace?: MockM
   }).compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({ logger: false, bodyParser: false });
   configureWebhookApp(app);
-  await app.init();
+  await listenOnLoopback(app);
   return app;
 }
 

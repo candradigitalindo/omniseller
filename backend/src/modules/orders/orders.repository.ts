@@ -20,7 +20,7 @@ import {
 } from "drizzle-orm";
 import type { Tx } from "../../db/client";
 import { type OrderProblemCode, order, orderEvent, orderExternalRef, orderItem, orderProblem } from "../../db/schema";
-import { HOLD_STATUSES, TO_SHIP_STATUSES } from "./order-plan";
+import { HOLD_STATUSES, SLA_WARNING_MS, TO_SHIP_STATUSES } from "./order-plan";
 
 export type OrderRow = typeof order.$inferSelect;
 export type OrderItemRow = typeof orderItem.$inferSelect;
@@ -111,6 +111,29 @@ export class OrdersRepository {
 
   async events(tx: Tx, orderId: string): Promise<OrderEventRow[]> {
     return tx.select().from(orderEvent).where(eq(orderEvent.orderId, orderId)).orderBy(asc(orderEvent.id));
+  }
+
+  /**
+   * Seller orders still to ship whose ship-by alert is due (FR-SHP-10): 6 hours or less left without an
+   * alert, or past the deadline without the overdue one. Locked, skipping rows another scan holds.
+   */
+  async dueForAlert(tx: Tx, now: Date, limit: number): Promise<OrderRow[]> {
+    const soon = new Date(now.getTime() + SLA_WARNING_MS);
+    return tx
+      .select()
+      .from(order)
+      .where(
+        and(
+          inArray(order.status, [...TO_SHIP_STATUSES]),
+          eq(order.fulfillmentMode, "seller"),
+          isNotNull(order.shipByAt),
+          lte(order.shipByAt, soon),
+          or(isNull(order.slaAlertLevel), and(eq(order.slaAlertLevel, "warning"), lte(order.shipByAt, now))),
+        ),
+      )
+      .orderBy(asc(order.shipByAt))
+      .limit(limit)
+      .for("update", { skipLocked: true });
   }
 
   // ---- problems ----

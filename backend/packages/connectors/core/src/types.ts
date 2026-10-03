@@ -182,6 +182,61 @@ export interface NormalizedOrderItem {
   externalWarehouseId: string | null;
 }
 
+/**
+ * Where a marketplace package stands (backend doc 8.15). An order ships as one or more packages.
+ * - waiting: not ready to ship (unpaid, COD screening, held by the marketplace)
+ * - ready: the seller can arrange the shipment now
+ * - arranged: pickup or drop-off is arranged; the label can be printed
+ * - shipped: the courier has the parcel
+ * - delivered
+ * - cancelled: it will not ship (order cancelled, shipment cancelled)
+ * - failed: pickup or delivery failed, or the parcel was lost
+ */
+export type PackageState = "waiting" | "ready" | "arranged" | "shipped" | "delivered" | "cancelled" | "failed";
+
+export interface NormalizedPackage {
+  /** Shopee package_number, TikTok Shop package id; "" for a Shopee order without a package number. */
+  externalPackageId: string;
+  state: PackageState;
+  /** Marketplace package status, as received. */
+  externalStatus: string;
+  trackingNumber: string | null;
+  shippingProvider: string | null;
+  /** Order lines in the package (NormalizedOrderItem.externalLineId) and their units. */
+  items: { externalLineId: string; quantity: number }[];
+}
+
+export type HandoverMethod = "pickup" | "dropoff";
+
+export interface ArrangedPackage {
+  externalPackageId: string;
+  ok: boolean;
+  /** Arranged before this call (in Seller Center or by an earlier attempt); counts as arranged. */
+  alreadyArranged?: boolean;
+  /** Start of the pickup slot the marketplace booked, when it gives one. */
+  pickupAt?: Date | null;
+  code?: string;
+  message?: string;
+}
+
+export interface ArrangeResult {
+  externalOrderId: string;
+  packages: ArrangedPackage[];
+  /** Nothing of the order could be arranged (not found, nothing ready); packages is empty then. */
+  error?: { code: string; message: string };
+}
+
+export interface PackageRef {
+  externalOrderId: string;
+  /** "" for a Shopee order without a package number. */
+  externalPackageId: string;
+}
+
+export type LabelResult =
+  | { ref: PackageRef; state: "ready"; pdf: Uint8Array; trackingNumber: string | null }
+  | { ref: PackageRef; state: "pending"; trackingNumber: string | null; message: string }
+  | { ref: PackageRef; state: "failed"; code: string; message: string };
+
 export interface NormalizedRecipient {
   name: string | null;
   phone: string | null;
@@ -233,6 +288,8 @@ export interface NormalizedOrder {
   shippingFeeBuyer: number;
   total: number;
   items: NormalizedOrderItem[];
+  /** How the order ships; empty when the marketplace does not say. */
+  packages: NormalizedPackage[];
 }
 
 export interface OrderPage {
@@ -255,6 +312,7 @@ export type WebhookEventKind =
   | "authorization.expiring"
   | "order.status_changed"
   | "order.tracking_updated"
+  | "shipment.document_ready"
   | "listing.changed"
   | "other";
 
@@ -272,6 +330,9 @@ export interface NormalizedWebhookEvent {
     expiresAt?: Date;
     reason?: string;
     externalOrderId?: string;
+    /** Several orders at once (TikTok Shop package updates: combined or split packages). */
+    externalOrderIds?: string[];
+    externalPackageId?: string;
     externalItemId?: string;
     status?: string;
   };
@@ -363,6 +424,25 @@ export interface MarketplaceConnector {
         items?: { externalItemId: string; externalVariantId: string; quantity: number }[];
       },
     ): Promise<void>;
+  };
+
+  fulfillment: {
+    /**
+     * Arranges the shipment of the orders' packages that are ready (FR-SHP-06): pickup, at the pickup
+     * address of the package's warehouse and the slot the marketplace recommends (else the earliest),
+     * or drop-off at a courier point. Results per order and package; partial success is normal.
+     * Packages arranged earlier (in Seller Center) count as arranged.
+     */
+    arrange(
+      shop: ShopCredentials,
+      input: { externalOrderIds: string[]; method: HandoverMethod },
+    ): Promise<ArrangeResult[]>;
+    /**
+     * Shipping labels of arranged packages as PDF, one result per package: ready with the file,
+     * pending while the courier assigns the tracking number or the marketplace renders the label, or
+     * failed. Labels carry buyer data: callers store them privately and never log them.
+     */
+    labels(shop: ShopCredentials, refs: PackageRef[]): Promise<LabelResult[]>;
   };
 
   inventory: {

@@ -5,6 +5,8 @@ import type { RequestContext } from "../../common/context/request-context";
 import type { Tx } from "../../db/client";
 import type { OrderProblemCode } from "../../db/schema";
 import { withStatusSource } from "../../db/tenant-tx";
+import { OUTBOX } from "../../infra/tokens";
+import type { Outbox } from "../../outbox/outbox";
 import { ListingsService } from "../catalog/listings.service";
 import type { ChannelWarehouseRow } from "../channel/channel.repository";
 import type { StockTarget } from "../channel/stores.service";
@@ -19,6 +21,7 @@ import {
   type StatusStep,
   statusSteps,
 } from "./order-plan";
+import { orderStatusChanged } from "./orders.events";
 import { type OrderItemRow, type OrderRow, OrdersRepository } from "./orders.repository";
 
 export interface IntakeResult {
@@ -35,7 +38,7 @@ interface Placement {
   managed: boolean;
 }
 
-type Actor = { type: "marketplace" | "user" | "system"; id: string | null };
+export type Actor = { type: "marketplace" | "user" | "system"; id: string | null };
 
 const MARKETPLACE: Actor = { type: "marketplace", id: null };
 
@@ -71,6 +74,7 @@ export class OrderIntakeService {
     @Inject(OrdersRepository) private readonly repo: OrdersRepository,
     @Inject(InventoryService) private readonly inventory: InventoryService,
     @Inject(ListingsService) private readonly listings: ListingsService,
+    @Inject(OUTBOX) private readonly outbox: Outbox,
   ) {}
 
   /** Warehouse of a line (FR-WHS-06): the marketplace's warehouse, else the shop's only seller warehouse. */
@@ -150,9 +154,59 @@ export class OrderIntakeService {
         toStatus: step.to,
         payload,
       });
+      await this.outbox.enqueue(
+        tx,
+        ctx,
+        orderStatusChanged,
+        { orderId: current.id, from: current.status, to: step.to, actorType: actor.type, actorId: actor.id },
+        current.id,
+      );
       current = { ...current, ...patch };
     }
     return current;
+  }
+
+  /**
+   * A seller-side step requested by another module (fulfillment: packed to ready to ship once the label
+   * is ready). Nothing happens unless the order is still in one of `from`.
+   */
+  async advanceIn(
+    tx: Tx,
+    ctx: RequestContext,
+    orderId: string,
+    from: readonly OrderStatus[],
+    to: OrderStatus,
+    actor: Actor,
+    payload: Record<string, unknown> = {},
+  ): Promise<boolean> {
+    const o = await this.repo.get(tx, orderId, true);
+    if (!o || !from.includes(o.status)) return false;
+    await this.stepIn(tx, ctx, o, [{ to, via: "any" }], actor, payload);
+    return true;
+  }
+
+  /** History entries written by other modules (fulfillment: shipment arranged, label printed). */
+  async recordIn(
+    tx: Tx,
+    ctx: RequestContext,
+    orderId: string,
+    type: string,
+    actor: Actor,
+    payload: Record<string, unknown> = {},
+  ): Promise<void> {
+    await this.event(tx, ctx, orderId, type, actor, { payload });
+  }
+
+  /** Courier and tracking number learned from the shipment (Shopee gives the number only to logistics APIs). */
+  async setShippingIn(
+    tx: Tx,
+    orderId: string,
+    info: { trackingNumber?: string | null; shippingProvider?: string | null },
+  ): Promise<void> {
+    await this.repo.update(tx, orderId, {
+      ...(info.trackingNumber ? { trackingNumber: info.trackingNumber } : {}),
+      ...(info.shippingProvider ? { shippingProvider: info.shippingProvider } : {}),
+    });
   }
 
   async applyIn(

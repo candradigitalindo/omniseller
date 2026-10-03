@@ -132,9 +132,27 @@ SELECT gen_ulid(), t.f, t.t, t.v
     ('handed_over', 'failed', 'marketplace'),
     ('in_transit', 'rto_in_transit', 'marketplace'),
     ('failed', 'in_transit', 'marketplace'),
-    ('failed', 'delivered', 'marketplace')
+    ('failed', 'delivered', 'marketplace'),
+    -- arranged outside OmniSeller (Seller Center), or the arrangement never confirmed here: the
+    -- courier's pickup and the delivery still move the shipment
+    ('pending', 'in_transit', 'marketplace'),
+    ('pending', 'delivered', 'marketplace')
   ) AS t(f, t, v)
 ON CONFLICT (from_status, to_status) DO UPDATE SET via = EXCLUDED.via;
+
+-- Printable documents (backend doc 8.15): rendered once; a failed one may be queued again, and a job
+-- whose worker stopped mid-render goes back to the queue.
+INSERT INTO document_job_status_transition (id, from_status, to_status, via)
+SELECT gen_ulid(), t.f, t.t, 'any'
+  FROM (VALUES
+    ('queued', 'running'),
+    ('queued', 'failed'),
+    ('running', 'ready'),
+    ('running', 'failed'),
+    ('running', 'queued'),
+    ('failed', 'queued')
+  ) AS t(f, t)
+ON CONFLICT (from_status, to_status) DO NOTHING;
 
 INSERT INTO sync_job_status_transition (id, from_status, to_status, via)
 SELECT gen_ulid(), t.f, t.t, 'any'

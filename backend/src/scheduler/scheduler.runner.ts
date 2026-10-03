@@ -18,6 +18,7 @@ import {
   sweepWebhookInbox,
   WAREHOUSE_POLL_SLOT_MS,
 } from "./channel-scans";
+import { FILE_CLEANUP_SLOT_MS, SLA_ALERT_SLOT_MS, scanExpiredFiles, scanSlaAlerts } from "./order-scans";
 import { OutboxRelayRunner } from "./outbox-relay";
 import { flushStockDirty } from "./stock-flush";
 
@@ -62,6 +63,10 @@ export class SchedulerRunner implements OnApplicationBootstrap, OnApplicationShu
     this.every(ORDER_POLL_SLOT_MS, "mp.poll.orders", () => scanOrderPolls(this.system, this.queues, this.registry));
     this.every(WAREHOUSE_POLL_SLOT_MS, "mp.poll.warehouses", () =>
       scanWarehousePolls(this.system, this.queues, this.registry),
+    );
+    this.every(SLA_ALERT_SLOT_MS, "order.sla_scan", () => scanSlaAlerts(this.system, this.queues, this.registry));
+    this.every(FILE_CLEANUP_SLOT_MS, "files.cleanup_scan", () =>
+      scanExpiredFiles(this.system, this.queues, this.registry),
     );
     log.info("scheduler started");
   }

@@ -5,6 +5,7 @@ export * from "./channel";
 export * from "./crm";
 export * from "./identity";
 export * from "./inventory";
+export * from "./notification";
 export * from "./orders";
 export * from "./platform";
 export * from "./security";

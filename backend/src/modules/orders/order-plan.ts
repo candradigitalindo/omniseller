@@ -267,3 +267,22 @@ export function slaOf(
   const remainingMs = shipByAt.getTime() - now.getTime();
   return { state: remainingMs <= 0 ? "overdue" : remainingMs <= SLA_WARNING_MS ? "warning" : "ok", remainingMs };
 }
+
+export type SlaAlertLevel = "warning" | "overdue";
+
+/**
+ * The ship-by alert an order should have had by now (FR-SHP-10): warning at 6 hours or less, overdue
+ * once the deadline passed. Null when no alert is due or the order already had this one; an order
+ * alerted as warning is alerted again when it becomes overdue.
+ */
+export function slaAlertDue(
+  shipByAt: Date | null,
+  status: OrderStatus,
+  sent: SlaAlertLevel | null,
+  now = new Date(),
+): SlaAlertLevel | null {
+  const sla = slaOf(shipByAt, status, now);
+  if (!sla || sla.state === "ok") return null;
+  if (sla.state === "overdue") return sent === "overdue" ? null : "overdue";
+  return sent === null ? "warning" : null;
+}

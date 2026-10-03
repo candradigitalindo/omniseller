@@ -89,6 +89,10 @@ const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: s
   OrdersController_cancel: () => ({ reason: "OUT_OF_STOCK" }),
   OrdersController_note: () => ({ note: "Penyusup" }),
   OrdersController_resolveProblem: () => ({}),
+  ShipmentsController_arrange: ({ a: ids }) => ({ orderIds: [ids.order!], method: "pickup" }),
+  ShipmentsController_labels: ({ a: ids }) => ({ orderIds: [ids.order!] }),
+  DocumentsController_create: ({ a: ids }) => ({ kind: "labels", orderIds: [ids.order!] }),
+  DocumentsController_pickList: ({ a: ids }) => ({ orderIds: [ids.order!] }),
 };
 
 beforeAll(async () => {
@@ -153,6 +157,16 @@ beforeAll(async () => {
                          VALUES (${problemId}, ${tenantId}, ${orderId}, 'high_value', '{}')`);
     fixtures.order = { id: orderId };
     fixtures.order_problem = { id: problemId };
+    // a label file and a printed document, as the worker would have written them
+    const fileId = newId();
+    await tx.execute(sql`INSERT INTO file_object (id, tenant_id, bucket, object_key, mime, size_bytes, purpose)
+                         VALUES (${fileId}, ${tenantId}, 'local', ${`t/${tenantId}/label/${fileId}.pdf`}, 'application/pdf', 10, 'label')`);
+    fixtures.file_object = { id: fileId };
+    const documentId = newId();
+    await tx.execute(sql`INSERT INTO document_job (id, tenant_id, kind, status, params, file_object_id, requested_by)
+                         VALUES (${documentId}, ${tenantId}, 'labels', 'queued',
+                                 ${JSON.stringify({ orderIds: [orderId], format: "thermal" })}::jsonb, ${fileId}, ${a.me.user.id})`);
+    fixtures.document = { id: documentId };
   });
   const started = await a.c.post("/v1/store-authorizations", { channel: "shopee" });
   expect(started.status).toBe(201);
@@ -270,6 +284,11 @@ describe("tenant isolation generated from openapi.json", () => {
     const order = (await a.c.get(`/v1/orders/${fixtures.order!.id}`)).body;
     expect(order).toMatchObject({ status: "problem", internalNote: null });
     expect(order.problems).toMatchObject([{ code: "high_value", resolvedAt: null }]);
+    expect((await a.c.get(`/v1/documents/${fixtures.document!.id}`)).body).toMatchObject({
+      status: "queued",
+      orderCount: 1,
+    });
+    expect((await a.c.get(`/v1/orders/${fixtures.order!.id}/shipments`)).body.items).toEqual([]);
     // B's callback attempt with A's state did not consume it
     expect((await a.c.get(`/v1/store-authorizations/${fixtures.store_authorization!.id}`)).body.status).toBe("pending");
   });

@@ -8,6 +8,7 @@ import {
 import { describe, expect, it } from "vitest";
 import { accessExpiry, classifyShopeeError, shopeeBaseString, shopeeSign } from "./client.js";
 import { createShopeeConnector, SHOPEE_DEFAULT_WAREHOUSE_ID, SHOPEE_FBS_WAREHOUSE_ID } from "./connector.js";
+import { chooseShopeeHandover } from "./logistics.js";
 import { parseShopeePush, verifyShopeePush } from "./webhooks.js";
 
 type Handler = (url: URL, init: RequestInit) => unknown;
@@ -863,5 +864,379 @@ describe("Shopee orders (v2.order)", () => {
       { order_sn: "A", cancel_reason: "OUT_OF_STOCK", item_list: [{ item_id: 100, model_id: 11 }] },
       { order_sn: "B", cancel_reason: "CUSTOMER_REQUEST" },
     ]);
+  });
+});
+
+describe("Shopee shipments (Order Management 8, v2.logistics)", () => {
+  const shop = { externalShopId: "1", shopCipher: null, accessToken: "t" };
+  const pdf = () =>
+    new Response(new TextEncoder().encode("%PDF-1.4\n% label\n"), { headers: { "content-type": "application/pdf" } });
+
+  it("normalizes packages with their lines and fulfillment status", async () => {
+    const f = fakeFetch({
+      "GET /api/v2/order/get_order_detail": () => ({
+        error: "",
+        response: {
+          order_list: [
+            {
+              order_sn: "A",
+              order_status: "PROCESSED",
+              update_time: 1_790_000_600,
+              shipping_carrier: "SPX Standard",
+              item_list: [
+                { item_id: 100, model_id: 11, model_quantity_purchased: 2, promotion_group_id: 0 },
+                { item_id: 200, model_id: 0, model_quantity_purchased: 1 },
+              ],
+              package_list: [
+                {
+                  package_number: "OFG1",
+                  logistics_status: "LOGISTICS_REQUEST_CREATED",
+                  logistics_channel_id: 8003,
+                  shipping_carrier: "SPX Standard",
+                  item_list: [{ item_id: 100, model_id: 11, model_quantity: 2, product_location_id: "IDA" }],
+                },
+                {
+                  package_number: "OFG2",
+                  logistics_status: "LOGISTICS_PICKUP_RETRY",
+                  item_list: [{ item_id: 200, model_id: 0, model_quantity: 1 }],
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    });
+    const [order] = await connector(f.fn).orders.getOrders(shop, ["A"]);
+    expect(order!.packages).toEqual([
+      {
+        externalPackageId: "OFG1",
+        state: "arranged",
+        externalStatus: "LOGISTICS_REQUEST_CREATED",
+        trackingNumber: null,
+        shippingProvider: "SPX Standard",
+        items: [{ externalLineId: "100:11:0", quantity: 2 }],
+      },
+      expect.objectContaining({
+        externalPackageId: "OFG2",
+        state: "ready",
+        items: [{ externalLineId: "200:0:0", quantity: 1 }],
+      }),
+    ]);
+  });
+
+  it("books pickup at the warehouse's current address in the recommended slot, or drop-off", () => {
+    const param = {
+      info_needed: { pickup: ["address_id", "pickup_time_id"], dropoff: [] },
+      pickup: {
+        address_list: [
+          { address_id: 1, address_flag: ["default_address"], time_slot_list: [] },
+          {
+            address_id: 2,
+            address_flag: ["pickup_address", "current_address"],
+            time_slot_list: [
+              { date: 1_790_100_000, pickup_time_id: "early" },
+              { date: 1_790_200_000, pickup_time_id: "best", flags: ["recommended"] },
+            ],
+          },
+        ],
+      },
+    };
+    expect(chooseShopeeHandover(param, "pickup")).toEqual({
+      ok: true,
+      body: { pickup: { address_id: 2, pickup_time_id: "best" } },
+      pickupAt: new Date(1_790_200_000_000),
+    });
+    const noRecommendation = structuredClone(param);
+    noRecommendation.pickup.address_list[1]!.time_slot_list = [
+      { date: 1_790_300_000, pickup_time_id: "later" },
+      { date: 1_790_100_000, pickup_time_id: "early" },
+    ];
+    expect(chooseShopeeHandover(noRecommendation, "pickup")).toMatchObject({
+      body: { pickup: { pickup_time_id: "early" } },
+    });
+    expect(chooseShopeeHandover(param, "dropoff")).toEqual({ ok: true, body: { dropoff: {} }, pickupAt: null });
+    expect(chooseShopeeHandover({ info_needed: { dropoff: ["branch_id"] } }, "dropoff")).toMatchObject({
+      ok: false,
+      code: "dropoff_branch_required",
+    });
+    expect(chooseShopeeHandover({ info_needed: { dropoff: [] } }, "pickup")).toMatchObject({
+      ok: false,
+      code: "method_unavailable",
+      message: "Pickup tidak tersedia untuk pesanan ini; pilih drop-off.",
+    });
+    expect(chooseShopeeHandover({ info_needed: { non_integrated: ["tracking_no"] } }, "dropoff")).toMatchObject({
+      ok: false,
+      code: "non_integrated",
+    });
+  });
+
+  it("arranges ready packages in mass per channel and warehouse; failed pickups are booked again one by one", async () => {
+    const calls: { path: string; body: unknown }[] = [];
+    const record = (path: string) => (_url: URL, init: RequestInit) => {
+      calls.push({ path, body: init.body ? JSON.parse(String(init.body)) : null });
+    };
+    const pickupParam = {
+      info_needed: { pickup: ["address_id", "pickup_time_id"], dropoff: [] },
+      pickup: {
+        address_list: [
+          {
+            address_id: 9,
+            address_flag: ["pickup_address"],
+            time_slot_list: [{ date: 1_790_100_000, pickup_time_id: "slot-1" }],
+          },
+        ],
+      },
+    };
+    const pkg = (n: string, status: string, channel: number) => ({
+      package_number: n,
+      logistics_status: status,
+      logistics_channel_id: channel,
+      item_list: [{ item_id: 1, model_id: 0, model_quantity: 1, product_location_id: "IDA" }],
+    });
+    const f = fakeFetch({
+      "GET /api/v2/order/get_order_detail": (url) => {
+        expect(url.searchParams.get("response_optional_fields")).toBe("package_list");
+        return {
+          error: "",
+          response: {
+            order_list: [
+              {
+                order_sn: "A",
+                order_status: "READY_TO_SHIP",
+                package_list: [pkg("P1", "LOGISTICS_READY", 8003), pkg("P2", "LOGISTICS_READY", 8003)],
+              },
+              { order_sn: "B", order_status: "RETRY_SHIP", package_list: [pkg("P3", "LOGISTICS_PICKUP_RETRY", 8005)] },
+              {
+                order_sn: "C",
+                order_status: "PROCESSED",
+                package_list: [pkg("P4", "LOGISTICS_REQUEST_CREATED", 8003)],
+              },
+              { order_sn: "D", order_status: "UNPAID", package_list: [pkg("P5", "LOGISTICS_NOT_START", 8003)] },
+            ],
+          },
+        };
+      },
+      "POST /api/v2/logistics/get_mass_shipping_parameter": (url, init) => {
+        record("mass_param")(url, init);
+        return {
+          error: "",
+          response: {
+            ...pickupParam,
+            success_list: [{ package_number: "P1" }, { package_number: "P2" }],
+            fail_list: [],
+          },
+        };
+      },
+      "POST /api/v2/logistics/mass_ship_order": (url, init) => {
+        record("mass_ship")(url, init);
+        return {
+          error: "",
+          success_list: [{ package_number: "P1" }],
+          fail_list: [{ package_number: "P2", fail_reason: "Alamat tidak valid" }],
+        };
+      },
+      "GET /api/v2/logistics/get_shipping_parameter": (url) => {
+        calls.push({
+          path: "param",
+          body: Object.fromEntries(["order_sn", "package_number"].map((k) => [k, url.searchParams.get(k)])),
+        });
+        return { error: "", response: pickupParam };
+      },
+      "POST /api/v2/logistics/update_shipping_order": (url, init) => {
+        record("update")(url, init);
+        return { error: "" };
+      },
+    });
+    const results = await connector(f.fn).fulfillment.arrange(shop, {
+      externalOrderIds: ["A", "B", "C", "D", "E"],
+      method: "pickup",
+    });
+    expect(calls).toEqual([
+      {
+        path: "mass_param",
+        body: {
+          logistics_channel_id: 8003,
+          product_location_id: "IDA",
+          package_list: [{ package_number: "P1" }, { package_number: "P2" }],
+        },
+      },
+      {
+        path: "mass_ship",
+        body: {
+          logistics_channel_id: 8003,
+          product_location_id: "IDA",
+          package_list: [{ package_number: "P1" }, { package_number: "P2" }],
+          pickup: { address_id: 9, pickup_time_id: "slot-1" },
+        },
+      },
+      { path: "param", body: { order_sn: "B", package_number: "P3" } },
+      {
+        path: "update",
+        body: { order_sn: "B", package_number: "P3", pickup: { address_id: 9, pickup_time_id: "slot-1" } },
+      },
+    ]);
+    expect(results).toEqual([
+      {
+        externalOrderId: "A",
+        packages: [
+          { externalPackageId: "P1", ok: true, pickupAt: new Date(1_790_100_000_000) },
+          { externalPackageId: "P2", ok: false, code: "ship_failed", message: "Alamat tidak valid" },
+        ],
+      },
+      {
+        externalOrderId: "B",
+        packages: [{ externalPackageId: "P3", ok: true, pickupAt: new Date(1_790_100_000_000) }],
+      },
+      { externalOrderId: "C", packages: [{ externalPackageId: "P4", ok: true, alreadyArranged: true }] },
+      {
+        externalOrderId: "D",
+        packages: [
+          { externalPackageId: "P5", ok: false, code: "package_waiting", message: "Paket belum siap dikirim." },
+        ],
+      },
+      {
+        externalOrderId: "E",
+        packages: [],
+        error: { code: "order_not_found", message: "Pesanan tidak ditemukan di Shopee." },
+      },
+    ]);
+  });
+
+  it("gets labels once the tracking number exists: thermal airway bill created, rendered, and downloaded", async () => {
+    const results: string[] = [];
+    let resultCalls = 0;
+    const body = (init: RequestInit) => JSON.parse(String(init.body));
+    const f = fakeFetch({
+      "POST /api/v2/logistics/get_mass_tracking_number": (_url, init) => {
+        expect(body(init).package_list).toEqual([
+          { package_number: "P1" },
+          { package_number: "P2" },
+          { package_number: "P3" },
+        ]);
+        return {
+          error: "",
+          response: {
+            success_list: [
+              { package_number: "P1", tracking_number: "SPXID01" },
+              { package_number: "P2", tracking_number: "" },
+              { package_number: "P3", tracking_number: "SPXID03" },
+            ],
+            fail_list: [],
+          },
+        };
+      },
+      "POST /api/v2/logistics/get_shipping_document_parameter": () => ({
+        error: "",
+        response: {
+          result_list: [
+            {
+              order_sn: "A",
+              package_number: "P1",
+              suggest_shipping_document_type: "NORMAL_AIR_WAYBILL",
+              selectable_shipping_document_type: ["NORMAL_AIR_WAYBILL", "THERMAL_AIR_WAYBILL"],
+            },
+            {
+              order_sn: "C",
+              package_number: "P3",
+              suggest_shipping_document_type: "THERMAL_AIR_WAYBILL",
+              selectable_shipping_document_type: ["THERMAL_AIR_WAYBILL"],
+            },
+          ],
+        },
+      }),
+      "POST /api/v2/logistics/get_shipping_document_result": (_url, init) => {
+        resultCalls++;
+        const list = body(init).order_list as {
+          order_sn: string;
+          package_number: string;
+          shipping_document_type: string;
+        }[];
+        expect(list.every((o) => o.shipping_document_type === "THERMAL_AIR_WAYBILL")).toBe(true);
+        return {
+          error: resultCalls === 1 ? "common.batch_api_all_failed" : "",
+          message: "",
+          response: {
+            result_list: list.map((o) =>
+              resultCalls === 1
+                ? { ...o, fail_error: "logistics.shipping_document_not_exist", fail_message: "not created" }
+                : { ...o, status: "READY" },
+            ),
+          },
+        };
+      },
+      "POST /api/v2/logistics/create_shipping_document": (_url, init) => {
+        const list = body(init).order_list as { order_sn: string; package_number: string; tracking_number: string }[];
+        results.push(...list.map((o) => `${o.package_number}:${o.tracking_number}`));
+        return {
+          error: "",
+          response: {
+            result_list: list.map((o) =>
+              o.package_number === "P3"
+                ? {
+                    order_sn: o.order_sn,
+                    package_number: o.package_number,
+                    fail_error: "logistics.order_status_error",
+                    fail_message: "Order status does not support awb printing.",
+                  }
+                : { order_sn: o.order_sn, package_number: o.package_number },
+            ),
+          },
+        };
+      },
+      "POST /api/v2/logistics/download_shipping_document": (_url, init) => {
+        expect(body(init)).toEqual({
+          shipping_document_type: "THERMAL_AIR_WAYBILL",
+          order_list: [{ order_sn: "A", package_number: "P1" }],
+        });
+        return pdf();
+      },
+    });
+    const labels = await connector(f.fn).fulfillment.labels(shop, [
+      { externalOrderId: "A", externalPackageId: "P1" },
+      { externalOrderId: "B", externalPackageId: "P2" },
+      { externalOrderId: "C", externalPackageId: "P3" },
+    ]);
+    expect(results).toEqual(["P1:SPXID01", "P3:SPXID03"]);
+    expect(labels.map((l) => [l.ref.externalPackageId, l.state])).toEqual([
+      ["P1", "ready"],
+      ["P2", "pending"],
+      ["P3", "failed"],
+    ]);
+    expect(labels[0]).toMatchObject({ trackingNumber: "SPXID01" });
+    expect(new TextDecoder().decode((labels[0] as { pdf: Uint8Array }).pdf)).toMatch(/^%PDF-/);
+    expect(labels[1]).toMatchObject({ message: "Menunggu nomor resi dari kurir." });
+    expect(labels[2]).toMatchObject({ code: "logistics.order_status_error" });
+  });
+
+  it("reads tracking number and shipping document pushes (codes 4 and 15)", () => {
+    const [tracking] = parseShopeePush(
+      Buffer.from(
+        JSON.stringify({
+          code: 4,
+          shop_id: 7,
+          timestamp: 1_790_000_000,
+          data: { ordersn: "A", package_number: "P1", tracking_no: "SPXID01" },
+        }),
+      ),
+    );
+    expect(tracking).toMatchObject({
+      kind: "order.tracking_updated",
+      externalShopIds: ["7"],
+      data: { externalOrderId: "A", externalPackageId: "P1" },
+    });
+    const [doc] = parseShopeePush(
+      Buffer.from(
+        JSON.stringify({
+          code: 15,
+          shop_id: 7,
+          timestamp: 1_790_000_000,
+          data: { ordersn: "A", package_number: "P1", status: "READY" },
+        }),
+      ),
+    );
+    expect(doc).toMatchObject({
+      kind: "shipment.document_ready",
+      data: { externalOrderId: "A", externalPackageId: "P1", status: "READY" },
+    });
   });
 });

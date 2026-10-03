@@ -38,7 +38,8 @@ pnpm test:int            # needs TEST_PG_ADMIN_URL + TEST_REDIS_URL, or Docker f
 - `src/common/security/`: passwords, secret tokens, Redis sessions, rate limiter; `src/modules/auth/auth.guard.ts`: the global guard that builds `RequestContext`
 - `packages/shared/src`: ULID, money, permissions, statuses; `packages/logging`: the logger
 - `packages/connectors/<marketplace>`: marketplace clients (no database); `src/modules/channel/marketplace-gateway.ts` is how the worker calls them
-- `test/setup/mock-marketplace.ts`: fake Shopee and TikTok Shop that enforce the documented signatures and token rules
+- `src/modules/files/`: private files (`FilesService`, `FileStorage`: R2, MinIO via `R2_ENDPOINT`, or a local directory in local/test); `src/modules/fulfillment/pdf.ts`: PDFs with pdf-lib and the bundled Noto Sans in `assets/fonts`
+- `test/setup/mock-marketplace.ts`: fake Shopee and TikTok Shop that enforce the documented signatures and token rules, including order packages, arranging shipment, tracking numbers, and label PDFs
 
 ## How to add things
 Module: section 15.4. Table: 15.5 (write the SQL migration first, then the Drizzle mirror). Endpoint: 15.6. Job: 15.7. Connector: 15.8. Event: 15.9.
@@ -59,8 +60,14 @@ NestJS injection always uses explicit `@Inject(TOKEN)`; do not rely on construct
 - Marketplace orders go through `OrderIntakeService.applyIn` only. It ignores snapshots older than `external_updated_at`, never moves a status backwards, and derives stock from the status (`itemStockPlan`): only reserved units ship. Order ids come from `newIdAt(ordered_at)`, not `newId()`.
 - Orders reserve stock even in read-only stores (parallel mode counts stock); only the push pauses there. Seller actions on orders (accept, pack, cancel) are refused for read-only stores.
 - Never hold a database transaction open across an HTTP call to a marketplace: the worker role ends sessions idle in a transaction after 10 seconds. Call marketplaces only through `MarketplaceGateway` (rate limit, sync log, token refresh); for a lock that must span the call use `withAdvisoryLock`.
+- Shipping labels and printed documents carry buyer names, phones, and addresses. Store them only through `FilesService` (private, with `expires_at`) and never log their bytes or URLs; connectors download files with `requestFile`, which records only size and type.
+- Upload a file before writing its row (`FilesService.save` does): never keep a database transaction open across an upload to R2.
+- Fulfillment changes orders only through `OrderIntakeService` (`advanceIn`, `recordIn`, `setShippingIn`); shipments follow orders through the `order.status_changed` event, never by reading order tables.
+- `label.fetch` throws `LabelsPendingError` on purpose while the courier's tracking number or the marketplace's label is not there yet, so BullMQ retries with backoff. Do not catch it.
 - Webhook signatures cover the exact raw body. The webhook process parses no JSON before verifying (`webhook/webhook-app.ts`); do not add a JSON body parser there.
 - `outbox.enqueue` writes nothing for an event that no job consumes yet, so a test cannot look for that event's row.
+- Test servers must listen on 127.0.0.1 before supertest uses them (`listenOnLoopback` in `test/setup/app.ts`). Left to supertest they bind `::` on a random port, and on macOS an editor helper holding the same port on 127.0.0.1 then answers some test requests (401s in another API's error format).
+- Marketplace shop ids in e2e files must not overlap between files (`let shopSeq` per file): `store (channel, external_shop_id)` is unique across tenants and the files share one database.
 - Tests that touch BullMQ use the run's prefix (`infra.keyPrefix`, passed by `startApi`, `startWorker`, `startWebhook`); jobs under the default `bull` prefix would reach any worker sharing the Redis.
 - In the Indonesian market the TikTok Shop channel is shown as "Tokopedia & Shop" (platform branding rule, PRD 5.6); the internal channel id stays `tiktokshop`.
 

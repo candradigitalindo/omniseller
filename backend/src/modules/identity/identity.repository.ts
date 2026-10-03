@@ -256,6 +256,18 @@ export class IdentityRepository {
     return row?.n ?? 0;
   }
 
+  /** Active users holding a permission, with their store and warehouse scopes (recipients of alerts). */
+  async usersWithPermission(
+    tx: Tx,
+    permission: string,
+  ): Promise<{ id: string; storeScope: string[] | null; warehouseScope: string[] | null }[]> {
+    return tx
+      .select({ id: user.id, storeScope: storeScopeOfUser, warehouseScope: warehouseScopeOfUser })
+      .from(user)
+      .where(and(eq(user.status, "active"), sql`${permission} = ANY(${permissionsOfUser})`))
+      .orderBy(user.id);
+  }
+
   async loadPrincipal(tx: Tx, userId: string): Promise<Principal | undefined> {
     const [row] = await tx
       .select({

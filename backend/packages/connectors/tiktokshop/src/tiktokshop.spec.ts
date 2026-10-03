@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { tiktokListingStatus } from "./catalog.js";
 import { tiktokSign, tiktokSignString } from "./client.js";
 import { createTiktokShopConnector } from "./connector.js";
+import { chooseTiktokHandover } from "./fulfillment.js";
 import { parseTiktokWebhook, verifyTiktokWebhook } from "./webhooks.js";
 
 type Handler = (url: URL, init: RequestInit) => unknown;
@@ -744,5 +745,213 @@ describe("TikTok Shop orders (Order API)", () => {
       ),
     );
     expect(address[0]).toMatchObject({ kind: "order.status_changed", data: { externalOrderId: "576486316948490002" } });
+  });
+});
+
+describe("TikTok Shop fulfillment (schedule shipping, SEA)", () => {
+  const shop = { externalShopId: "7494", shopCipher: "ROW_cipher", accessToken: "TTP_access" };
+  const line = (id: string, sku: string, pkg: string, status: string, extra: object = {}) => ({
+    id,
+    sku_id: sku,
+    product_id: "1729",
+    product_name: "Kaos",
+    sale_price: "45000",
+    original_price: "50000",
+    package_id: pkg,
+    package_status: status,
+    ...extra,
+  });
+
+  it("normalizes packages from line items, held while the buyer can still cancel freely", async () => {
+    const f = fakeFetch({
+      "GET /order/202507/orders": () => ({
+        code: 0,
+        data: {
+          orders: [
+            {
+              id: "5781",
+              status: "AWAITING_COLLECTION",
+              update_time: 1_790_000_600,
+              shipping_provider: "J&T Express",
+              packages: [{ id: "P1" }],
+              line_items: [
+                line("L1", "S1", "P1", "PROCESSING", {
+                  tracking_number: "JT001",
+                  shipping_provider_name: "J&T Express",
+                }),
+                line("L2", "S1", "P1", "PROCESSING", { tracking_number: "JT001" }),
+              ],
+            },
+            {
+              id: "5782",
+              status: "ON_HOLD",
+              packages: [{ id: "P2" }],
+              line_items: [line("L3", "S2", "P2", "TO_FULFILL")],
+            },
+          ],
+        },
+      }),
+    });
+    const [a, b] = await connector(f.fn).orders.getOrders(shop, ["5781", "5782"]);
+    expect(a!.packages).toEqual([
+      {
+        externalPackageId: "P1",
+        state: "arranged",
+        externalStatus: "PROCESSING",
+        trackingNumber: "JT001",
+        shippingProvider: "J&T Express",
+        items: [{ externalLineId: "S1", quantity: 2 }],
+      },
+    ]);
+    expect(b!.packages).toMatchObject([{ externalPackageId: "P2", state: "waiting" }]);
+  });
+
+  it("picks the earliest open pickup slot, or drop-off where the package allows it", () => {
+    const slots = {
+      can_pickup: true,
+      can_drop_off: false,
+      pickup_slots: [
+        { start_time: 1_790_200_000, end_time: 1_790_210_000, avaliable: true },
+        { start_time: 1_790_100_000, end_time: 1_790_110_000, avaliable: false },
+        { start_time: 1_790_150_000, end_time: 1_790_160_000, avaliable: true },
+      ],
+    };
+    expect(chooseTiktokHandover(slots, "pickup")).toEqual({
+      ok: true,
+      body: { handover_method: "PICKUP", pickup_slot: { start_time: 1_790_150_000, end_time: 1_790_160_000 } },
+      pickupAt: new Date(1_790_150_000_000),
+    });
+    expect(chooseTiktokHandover(slots, "dropoff")).toEqual({
+      ok: false,
+      code: "method_unavailable",
+      message: "Drop-off tidak tersedia untuk paket ini; pilih pickup.",
+    });
+    expect(chooseTiktokHandover({ can_drop_off: true }, "dropoff")).toMatchObject({
+      body: { handover_method: "DROP_OFF" },
+    });
+  });
+
+  it("ships ready packages, keeps arranged ones, and leaves seller-shipped orders to Seller Center", async () => {
+    const shipped: { path: string; body: unknown }[] = [];
+    const f = fakeFetch({
+      "GET /order/202507/orders": () => ({
+        code: 0,
+        data: {
+          orders: [
+            {
+              id: "A",
+              status: "AWAITING_SHIPMENT",
+              shipping_type: "TIKTOK",
+              packages: [{ id: "P1" }],
+              line_items: [line("L1", "S1", "P1", "TO_FULFILL")],
+            },
+            {
+              id: "B",
+              status: "AWAITING_SHIPMENT",
+              shipping_type: "SELLER",
+              packages: [{ id: "P2" }],
+              line_items: [line("L2", "S1", "P2", "TO_FULFILL")],
+            },
+            {
+              id: "C",
+              status: "AWAITING_COLLECTION",
+              shipping_type: "TIKTOK",
+              packages: [{ id: "P3" }],
+              line_items: [line("L3", "S1", "P3", "PROCESSING")],
+            },
+            { id: "D", status: "UNPAID", shipping_type: "TIKTOK", line_items: [] },
+          ],
+        },
+      }),
+      "GET /fulfillment/202309/packages/P1/handover_time_slots": () => ({
+        code: 0,
+        data: {
+          can_pickup: true,
+          can_drop_off: true,
+          pickup_slots: [{ start_time: 1_790_100_000, end_time: 1_790_110_000, avaliable: true }],
+        },
+      }),
+      "POST /fulfillment/202309/packages/P1/ship": (url, init) => {
+        shipped.push({ path: url.pathname, body: JSON.parse(String(init.body)) });
+        expect(url.searchParams.get("shop_cipher")).toBe("ROW_cipher");
+        return { code: 0, data: {} };
+      },
+    });
+    const results = await connector(f.fn).fulfillment.arrange(shop, {
+      externalOrderIds: ["A", "B", "C", "D"],
+      method: "pickup",
+    });
+    expect(shipped).toEqual([
+      {
+        path: "/fulfillment/202309/packages/P1/ship",
+        body: { handover_method: "PICKUP", pickup_slot: { start_time: 1_790_100_000, end_time: 1_790_110_000 } },
+      },
+    ]);
+    expect(results).toEqual([
+      {
+        externalOrderId: "A",
+        packages: [{ externalPackageId: "P1", ok: true, pickupAt: new Date(1_790_100_000_000) }],
+      },
+      { externalOrderId: "B", packages: [], error: expect.objectContaining({ code: "seller_shipping" }) },
+      { externalOrderId: "C", packages: [{ externalPackageId: "P3", ok: true, alreadyArranged: true }] },
+      { externalOrderId: "D", packages: [], error: expect.objectContaining({ code: "order_not_ready" }) },
+    ]);
+  });
+
+  it("downloads the A6 label PDF from the document URL and reports refusals per package", async () => {
+    const f = fakeFetch({
+      "GET /fulfillment/202309/packages/P1/shipping_documents": (url) => {
+        expect(
+          Object.fromEntries(
+            ["document_type", "document_size", "document_format"].map((k) => [k, url.searchParams.get(k)]),
+          ),
+        ).toEqual({
+          document_type: "SHIPPING_LABEL",
+          document_size: "A6",
+          document_format: "PDF",
+        });
+        return {
+          code: 0,
+          data: { doc_url: "https://files.tiktokshop.test/docs/p1.pdf?sig=x", tracking_number: "JT001" },
+        };
+      },
+      "GET /docs/p1.pdf": () =>
+        new Response(new TextEncoder().encode("%PDF-1.7\n% label"), { headers: { "content-type": "application/pdf" } }),
+      "GET /fulfillment/202309/packages/P2/shipping_documents": () =>
+        new Response(JSON.stringify({ code: 21011001, message: "Package not found." }), { status: 200 }),
+    });
+    const labels = await connector(f.fn).fulfillment.labels(shop, [
+      { externalOrderId: "A", externalPackageId: "P1" },
+      { externalOrderId: "B", externalPackageId: "P2" },
+    ]);
+    expect(labels[0]).toMatchObject({ state: "ready", trackingNumber: "JT001" });
+    expect(labels[1]).toEqual({
+      ref: { externalOrderId: "B", externalPackageId: "P2" },
+      state: "failed",
+      code: "21011001",
+      message: "Package not found.",
+    });
+    // the signed document URL is called without the shop's token
+    const download = f.calls.find((c) => c.url.pathname === "/docs/p1.pdf")!;
+    expect((download.init.headers as Record<string, string>)["x-tts-access-token"]).toBeUndefined();
+  });
+
+  it("reads package updates as order changes for every order in the package", () => {
+    const [event] = parseTiktokWebhook(
+      Buffer.from(
+        JSON.stringify({
+          type: 4,
+          tts_notification_id: "7327",
+          shop_id: "7494",
+          timestamp: 1_644_412_885,
+          data: {
+            sc_type: "COMBINE",
+            role_type: "ROLE_USER",
+            package_list: [{ package_id: "1", order_id_list: ["152523", "532123"] }],
+          },
+        }),
+      ),
+    );
+    expect(event).toMatchObject({ kind: "order.status_changed", data: { externalOrderIds: ["152523", "532123"] } });
   });
 });

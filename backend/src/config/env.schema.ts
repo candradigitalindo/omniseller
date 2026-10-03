@@ -69,7 +69,39 @@ const tokenKeys = {
   AWS_REGION: z.string().optional(),
 };
 
+/**
+ * Private files (technology doc 13, ADR-009): shipping labels and printable documents in Cloudflare R2,
+ * MinIO locally (same S3 API, `R2_ENDPOINT=http://127.0.0.1:9000`). Downloads go through short-lived
+ * signed links. `local` keeps files in a directory served by the api and is refused outside local/test.
+ */
+const fileStorage = {
+  FILE_STORAGE: z.enum(["r2", "local"]).default("r2"),
+  FILE_STORAGE_LOCAL_DIR: z.string().min(1).default(".local/files"),
+  R2_ACCOUNT_ID: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  /** S3 endpoint; defaults to https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com */
+  R2_ENDPOINT: z.url().optional(),
+  R2_BUCKET_DOCUMENTS: z.string().min(3).default("omniseller-documents"),
+};
+
 type Refinable = { NODE_ENV: string } & Record<string, unknown>;
+
+const fileStorageRules = [
+  {
+    check: (e: Refinable) => e.FILE_STORAGE !== "local" || e.NODE_ENV === "local" || e.NODE_ENV === "test",
+    path: "FILE_STORAGE",
+    message: "local is only allowed when NODE_ENV is local or test; use r2",
+  },
+  {
+    check: (e: Refinable) =>
+      e.FILE_STORAGE !== "r2" ||
+      (!!e.R2_ACCESS_KEY_ID && !!e.R2_SECRET_ACCESS_KEY && (!!e.R2_ACCOUNT_ID || !!e.R2_ENDPOINT)),
+    path: "R2_ACCESS_KEY_ID",
+    message:
+      "R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and R2_ACCOUNT_ID (or R2_ENDPOINT) are required with FILE_STORAGE=r2",
+  },
+] as const;
 
 function bothOrNeither(e: Record<string, unknown>, a: string, b: string): boolean {
   return (e[a] === undefined) === (e[b] === undefined);
@@ -80,14 +112,18 @@ function base64Key32(value: unknown): boolean {
   return Buffer.from(value, "base64").length === 32;
 }
 
-const apiEnv = base.extend({
-  APP_ROLE: z.literal("api"),
-  PORT: z.coerce.number().int().positive().default(3000),
-  ...apiRoleDb,
-  ...publicWebUrl,
-  ...shopeeLink,
-  ...tiktokLink,
-});
+const apiEnv = base
+  .extend({
+    APP_ROLE: z.literal("api"),
+    PORT: z.coerce.number().int().positive().default(3000),
+    ...apiRoleDb,
+    ...publicWebUrl,
+    ...shopeeLink,
+    ...tiktokLink,
+    ...fileStorage,
+  })
+  .refine(fileStorageRules[0].check, { path: [fileStorageRules[0].path], message: fileStorageRules[0].message })
+  .refine(fileStorageRules[1].check, { path: [fileStorageRules[1].path], message: fileStorageRules[1].message });
 
 const webhookEnv = base
   .extend({
@@ -133,6 +169,7 @@ const workerEnv = base
     ...tiktokSecret,
     ...tiktokApi,
     ...tokenKeys,
+    ...fileStorage,
   })
   .refine((e) => bothOrNeither(e, "SHOPEE_PARTNER_ID", "SHOPEE_PARTNER_KEY"), {
     path: ["SHOPEE_PARTNER_KEY"],
@@ -165,7 +202,9 @@ const workerEnv = base
   .refine((e) => e.EMAIL_TRANSPORT !== "memory" || e.NODE_ENV === "test", {
     path: ["EMAIL_TRANSPORT"],
     message: "memory is only allowed when NODE_ENV=test",
-  });
+  })
+  .refine(fileStorageRules[0].check, { path: [fileStorageRules[0].path], message: fileStorageRules[0].message })
+  .refine(fileStorageRules[1].check, { path: [fileStorageRules[1].path], message: fileStorageRules[1].message });
 
 const schedulerEnv = base.extend({
   APP_ROLE: z.literal("scheduler"),

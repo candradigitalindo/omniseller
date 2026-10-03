@@ -56,6 +56,8 @@ const TOPIC_KINDS: Record<string, WebhookEventKind> = {
   // a buyer cancellation request or an address change: the order is read again
   CANCELLATION_STATUS_CHANGE: "order.status_changed",
   RECIPIENT_ADDRESS_UPDATE: "order.status_changed",
+  // packages combined, split, or cancelled: the orders are read again with their new packages
+  PACKAGE_UPDATE: "order.status_changed",
   PRODUCT_STATUS_CHANGE: "listing.changed",
   PRODUCT_AUDIT_STATUS_CHANGE: "listing.changed",
 };
@@ -112,6 +114,14 @@ export function parseTiktokWebhook(rawBody: Buffer): NormalizedWebhookEvent[] {
   if (kind === "order.status_changed") {
     if (data.order_id !== undefined) event.data.externalOrderId = String(data.order_id);
     if (typeof data.order_status === "string") event.data.status = data.order_status;
+    // (4) Package update: data.package_list[].order_id_list
+    if (Array.isArray(data.package_list)) {
+      const ids = new Set<string>();
+      for (const p of data.package_list as { order_id_list?: unknown }[]) {
+        if (Array.isArray(p?.order_id_list)) for (const id of p.order_id_list) if (id) ids.add(String(id));
+      }
+      if (ids.size > 0) event.data.externalOrderIds = [...ids];
+    }
   }
   return [event];
 }

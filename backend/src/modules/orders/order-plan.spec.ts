@@ -7,6 +7,7 @@ import {
   type ProblemInput,
   problemStep,
   SLA_WARNING_MS,
+  slaAlertDue,
   slaOf,
   statusSteps,
 } from "./order-plan";
@@ -176,5 +177,24 @@ describe("problemStep and slaOf", () => {
     expect(slaOf(later(-1), "ready_to_ship", now)?.state).toBe("overdue");
     expect(slaOf(later(-1), "shipped", now)).toBeNull();
     expect(slaOf(null, "new", now)).toBeNull();
+  });
+});
+
+describe("slaAlertDue (FR-SHP-10)", () => {
+  const now = new Date("2026-10-03T08:00:00Z");
+  const later = (ms: number) => new Date(now.getTime() + ms);
+
+  it("warns once at 6 hours or less, and once more when the deadline passes", () => {
+    expect(slaAlertDue(later(SLA_WARNING_MS + 60_000), "new", null, now)).toBeNull();
+    expect(slaAlertDue(later(3600_000), "ready_to_pack", null, now)).toBe("warning");
+    expect(slaAlertDue(later(3600_000), "ready_to_pack", "warning", now)).toBeNull();
+    expect(slaAlertDue(later(-60_000), "packed", "warning", now)).toBe("overdue");
+    expect(slaAlertDue(later(-60_000), "packed", null, now)).toBe("overdue");
+    expect(slaAlertDue(later(-60_000), "packed", "overdue", now)).toBeNull();
+  });
+
+  it("says nothing about orders already shipped or without a deadline", () => {
+    expect(slaAlertDue(later(-60_000), "shipped", null, now)).toBeNull();
+    expect(slaAlertDue(null, "new", null, now)).toBeNull();
   });
 });

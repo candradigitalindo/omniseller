@@ -37,6 +37,9 @@ export type ShipmentStatus = (typeof SHIPMENT_STATUSES)[number];
 export const SYNC_JOB_STATUSES = ["queued", "running", "succeeded", "failed", "skipped"] as const;
 export type SyncJobStatus = (typeof SYNC_JOB_STATUSES)[number];
 
+export const DOCUMENT_JOB_STATUSES = ["queued", "running", "ready", "failed"] as const;
+export type DocumentJobStatus = (typeof DOCUMENT_JOB_STATUSES)[number];
+
 export const CHANNELS = ["shopee", "tiktokshop", "lazada", "blibli", "shopify", "woocommerce", "manual"] as const;
 export type Channel = (typeof CHANNELS)[number];
 

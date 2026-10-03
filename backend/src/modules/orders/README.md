@@ -9,8 +9,9 @@ Pesanan dari semua toko dalam satu antrean (PRD 6.4: FR-ORD-01, 02, 03, 05, 06, 
 
 ## Service publik
 - `OrdersService` (api): `list`, `summary`, `get`, `accept`, `pack`, `cancelReasons`, `requestCancel`, `setNote`, `resolveProblem`, `requestSync`. Error: `order.not_found`, `order.not_cancellable`, validasi alasan batal (422), `order_problem.not_found`, `store.not_found`.
-- `OrderIntakeService` (api dan worker, di dalam transaksi pemanggil): `applyIn` (satu snapshot marketplace), `stepIn`, `settleIn`, `attachListingIn`, `recheckStockIn`.
-- Hanya worker: `OrderSyncService` (`ingest`, `refresh`, `pull`, `cancel`, `attachListing`, `recheckStock`); marketplace selalu lewat `MarketplaceGateway`.
+- `OrderIntakeService` (api dan worker, di dalam transaksi pemanggil): `applyIn` (satu snapshot marketplace), `stepIn`, `settleIn`, `attachListingIn`, `recheckStockIn`; untuk modul fulfillment: `advanceIn` (langkah penjual bila status masih sesuai), `recordIn` (riwayat), `setShippingIn` (resi dan kurir).
+- `OrdersService` untuk modul lain: `requireVisible` (semua id harus terlihat pemanggil, atau 404), `readIn`, `idsByExternalIn`.
+- Hanya worker: `OrderSyncService` (`ingest`, `refresh`, `pull`, `cancel`, `attachListing`, `recheckStock`); marketplace selalu lewat `MarketplaceGateway`. `OrderAlertsService.alertDue`: peringatan batas kirim (FR-SHP-10).
 
 ## Aturan
 - Satu pesanan per toko dan id marketplace (`order_external_ref`); notifikasi ganda dan balapan dua webhook tidak pernah membuat pesanan ganda.
@@ -23,7 +24,7 @@ Pesanan dari semua toko dalam satu antrean (PRD 6.4: FR-ORD-01, 02, 03, 05, 06, 
 - Telepon dan alamat pembeli hanya untuk peran dengan `order:accept`, `shipment:print`, atau `order:write`. Data pembeli tidak pernah masuk log; connector menyamarkannya di log sinkron.
 
 ## Event
-- Diterbitkan: `order.pull_requested` (tarik ulang atau lanjutan), `order.cancel_requested`.
+- Diterbitkan: `order.pull_requested` (tarik ulang atau lanjutan), `order.cancel_requested`, `order.status_changed` (setiap langkah status, dari `stepIn`; dikonsumsi modul fulfillment).
 - Dikonsumsi: `store.connected` (impor 90 hari), `listing.mapped` (pasang varian, reservasi), `inventory.changed` (cek ulang stok kurang); webhook `order.status_changed` dan `order.tracking_updated` (baca ulang pesanan).
 
 ## Job
@@ -33,6 +34,7 @@ Pesanan dari semua toko dalam satu antrean (PRD 6.4: FR-ORD-01, 02, 03, 05, 06, 
 | `order.cancel` | `mp.outbound` | `order.cancel_requested` |
 | `order.listing_mapped` | `order.ingest` | `listing.mapped` |
 | `order.stock_recheck` | `order.ingest` | `inventory.changed` |
+| `order.sla_alert` | `notify` | jadwal `order.sla_scan` (5 menit, per tenant dengan pesanan jatuh tempo) |
 
 ## Endpoint
 | Metode | Path | Izin |
@@ -47,6 +49,7 @@ Pesanan dari semua toko dalam satu antrean (PRD 6.4: FR-ORD-01, 02, 03, 05, 06, 
 | POST | `/v1/orders/sync` | `settings:store` |
 
 ## Keputusan khusus modul
-- Shopee dan TikTok Shop tidak punya API "terima pesanan": "Terima" adalah langkah internal. Mengatur pengiriman, label, dan resi menyusul di modul pengiriman.
+- Shopee dan TikTok Shop tidak punya API "terima pesanan": "Terima" adalah langkah internal. Mengatur pengiriman, label, dan resi ada di modul fulfillment; resi ditulis ke pesanan lewat `setShippingIn`.
+- Peringatan batas kirim: sekali per tingkat (`order.sla_alert_level`: `warning` pada 6 jam, `overdue` setelah lewat) untuk pesanan penjual yang masih harus dikirim, ke pengguna dengan `shipment:arrange` sesuai cakupannya; toko baca saja tidak diperingatkan.
 - Menjawab permintaan batal pembeli (Shopee `handle_buyer_cancellation`, TikTok Shop Approve/Reject Cancellation), tag pesanan (FR-ORD-04), dan pesanan manual (FR-ORD-09) menyusul.
 - Ambang nilai tidak wajar Rp10.000.000 masih konstanta; menjadi pengaturan bisnis nanti.

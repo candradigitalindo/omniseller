@@ -19,6 +19,7 @@ async function main(): Promise<void> {
     REDIS_QUEUE_URL: "redis://127.0.0.1:1",
     REDIS_CACHE_URL: "redis://127.0.0.1:1",
     PUBLIC_WEB_URL: "http://localhost:3100",
+    FILE_STORAGE: "local",
   });
   const app = await NestFactory.create(AppModule.forEnv(env), { logger: false, abortOnError: false });
   const doc = buildOpenApiDocument(app);

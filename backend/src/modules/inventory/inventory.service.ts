@@ -7,7 +7,7 @@ import { DB_TENANT, OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
 import { duplicateLine, stockInsufficient, variantNotFound, warehouseNotFound } from "./inventory.errors";
 import { inventoryChanged } from "./inventory.events";
-import { InventoryRepository, type MovementRow, type StockSummary } from "./inventory.repository";
+import { InventoryRepository, type MovementRow, type StockSummary, type VariantInfo } from "./inventory.repository";
 import { WarehousesService, type WarehouseView } from "./warehouses.service";
 
 export interface AdjustmentLine {
@@ -248,6 +248,22 @@ export class InventoryService {
         { available: r.available ?? r.onHand - r.reserved - r.buffer, established: r.stockSetAt !== null },
       ]),
     );
+  }
+
+  /**
+   * What a picker needs per (variant, warehouse) (FR-SHP-02): the bin location, keyed
+   * `${variantId}|${warehouseId}`, and the variant's SKU and names.
+   */
+  async pickInfoIn(
+    tx: Tx,
+    pairs: { variantId: string; warehouseId: string }[],
+  ): Promise<{ bins: Map<string, string | null>; variants: Map<string, VariantInfo> }> {
+    const variantIds = [...new Set(pairs.map((p) => p.variantId))];
+    const rows = await this.repo.rows(tx, variantIds, [...new Set(pairs.map((p) => p.warehouseId))]);
+    return {
+      bins: new Map(rows.map((r) => [`${r.variantId}|${r.warehouseId}`, r.binLocation])),
+      variants: await this.repo.variants(tx, variantIds),
+    };
   }
 
   /** Bin location and minimum stock of one variant in one warehouse (FR-STK-07, 12). */

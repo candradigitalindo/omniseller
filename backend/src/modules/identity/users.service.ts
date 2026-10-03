@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { newId } from "@omniseller/shared";
+import { newId, type Permission } from "@omniseller/shared";
 import { type RequestContext, systemContext } from "../../common/context/request-context";
 import { ConflictError } from "../../common/errors/domain-errors";
 import { decodeCursor, page } from "../../common/http/pagination";
@@ -33,6 +33,17 @@ export class UsersService {
   /** Identity of a signed-in user, loaded on every authenticated request by the auth guard. */
   async loadPrincipal(tenantId: string, userId: string): Promise<Principal | undefined> {
     return withTenantTx(this.db, systemContext(tenantId), (tx) => this.repo.loadPrincipal(tx, userId));
+  }
+
+  /**
+   * Who should hear about something that needs this permission (alerts, FR-SHP-10), with the scopes
+   * that decide which stores and warehouses each of them may hear about.
+   */
+  async recipientsIn(
+    tx: Tx,
+    permission: Permission,
+  ): Promise<{ id: string; storeScope: string[] | null; warehouseScope: string[] | null }[]> {
+    return this.repo.usersWithPermission(tx, permission);
   }
 
   async list(ctx: RequestContext, cursor: string | undefined, limit: number) {

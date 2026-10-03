@@ -1,0 +1,96 @@
+import { Injectable } from "@nestjs/common";
+import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import type { Tx } from "../../db/client";
+import { documentJob, shipment, shipmentPackage } from "../../db/schema";
+
+export type ShipmentRow = typeof shipment.$inferSelect;
+export type PackageRow = typeof shipmentPackage.$inferSelect;
+export type DocumentRow = typeof documentJob.$inferSelect;
+
+@Injectable()
+export class FulfillmentRepository {
+  // ---- shipments ----
+
+  /** The live (not cancelled) shipment of each order. */
+  async liveFor(tx: Tx, orderIds: string[], forUpdate = false): Promise<ShipmentRow[]> {
+    if (orderIds.length === 0) return [];
+    const q = tx
+      .select()
+      .from(shipment)
+      .where(and(inArray(shipment.orderId, orderIds), ne(shipment.status, "cancelled")))
+      .orderBy(asc(shipment.id));
+    return forUpdate ? q.for("update") : q;
+  }
+
+  /** Every shipment of these orders, cancelled ones too, newest first. */
+  async ofOrders(tx: Tx, orderIds: string[]): Promise<ShipmentRow[]> {
+    if (orderIds.length === 0) return [];
+    return tx.select().from(shipment).where(inArray(shipment.orderId, orderIds)).orderBy(desc(shipment.id));
+  }
+
+  async getMany(tx: Tx, ids: string[], forUpdate = false): Promise<ShipmentRow[]> {
+    if (ids.length === 0) return [];
+    const q = tx.select().from(shipment).where(inArray(shipment.id, ids)).orderBy(asc(shipment.id));
+    return forUpdate ? q.for("update") : q;
+  }
+
+  /** Null when the order already has a live shipment (the partial unique index). */
+  async insertShipment(tx: Tx, row: typeof shipment.$inferInsert): Promise<ShipmentRow | undefined> {
+    const [r] = await tx
+      .insert(shipment)
+      .values(row)
+      .onConflictDoNothing({ target: [shipment.tenantId, shipment.orderId], where: sql`status <> 'cancelled'` })
+      .returning();
+    return r;
+  }
+
+  async updateShipment(tx: Tx, id: string, patch: Partial<typeof shipment.$inferInsert>): Promise<void> {
+    if (Object.keys(patch).length > 0) await tx.update(shipment).set(patch).where(eq(shipment.id, id));
+  }
+
+  // ---- packages ----
+
+  async packages(tx: Tx, shipmentIds: string[]): Promise<PackageRow[]> {
+    if (shipmentIds.length === 0) return [];
+    return tx
+      .select()
+      .from(shipmentPackage)
+      .where(inArray(shipmentPackage.shipmentId, shipmentIds))
+      .orderBy(asc(shipmentPackage.id));
+  }
+
+  async insertPackage(tx: Tx, row: typeof shipmentPackage.$inferInsert): Promise<void> {
+    await tx.insert(shipmentPackage).values(row);
+  }
+
+  async updatePackage(tx: Tx, id: string, patch: Partial<typeof shipmentPackage.$inferInsert>): Promise<void> {
+    if (Object.keys(patch).length > 0) await tx.update(shipmentPackage).set(patch).where(eq(shipmentPackage.id, id));
+  }
+
+  /** Packages still without a label, of shipments in these statuses. */
+  async withoutLabel(tx: Tx, shipmentIds: string[]): Promise<PackageRow[]> {
+    if (shipmentIds.length === 0) return [];
+    return tx
+      .select()
+      .from(shipmentPackage)
+      .where(and(inArray(shipmentPackage.shipmentId, shipmentIds), isNull(shipmentPackage.labelFileId)))
+      .orderBy(asc(shipmentPackage.id));
+  }
+
+  // ---- documents ----
+
+  async insertDocument(tx: Tx, row: typeof documentJob.$inferInsert): Promise<DocumentRow> {
+    const [r] = await tx.insert(documentJob).values(row).returning();
+    return r!;
+  }
+
+  async getDocument(tx: Tx, id: string, forUpdate = false): Promise<DocumentRow | undefined> {
+    const q = tx.select().from(documentJob).where(eq(documentJob.id, id));
+    const [r] = forUpdate ? await q.for("update") : await q;
+    return r;
+  }
+
+  async updateDocument(tx: Tx, id: string, patch: Partial<typeof documentJob.$inferInsert>): Promise<void> {
+    if (Object.keys(patch).length > 0) await tx.update(documentJob).set(patch).where(eq(documentJob.id, id));
+  }
+}

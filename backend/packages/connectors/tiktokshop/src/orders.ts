@@ -2,8 +2,10 @@ import {
   type CancelReason,
   type NormalizedOrder,
   type NormalizedOrderItem,
+  type NormalizedPackage,
   type OrderPage,
   type OrderState,
+  type PackageState,
   type ShippingServiceType,
   type ShopCredentials,
   toRupiah,
@@ -40,6 +42,17 @@ export const TIKTOK_ORDER_STATES: Record<string, OrderState> = {
   CANCEL: "cancelled",
 };
 
+/** Package status of a line item (Get Order Detail) or a package (Get Package Detail). */
+export const TIKTOK_PACKAGE_STATES: Record<string, PackageState> = {
+  TO_FULFILL: "ready",
+  // spelled with a space in one place of Get Package Detail
+  "TO FULFILL": "ready",
+  PROCESSING: "arranged",
+  FULFILLING: "shipped",
+  COMPLETED: "delivered",
+  CANCELLED: "cancelled",
+};
+
 /** Indonesian seller cancel reasons; "unable to deliver" was withdrawn for Indonesia on 31 Aug 2025. */
 const UNPAID_REASONS: readonly CancelReason[] = [
   { code: "seller_cancel_unpaid_reason_out_of_stock", label: "Stok habis", needsItems: false },
@@ -67,9 +80,13 @@ interface LineItem {
   original_price?: string;
   sale_price?: string;
   display_status?: string;
+  package_id?: string;
+  package_status?: string;
+  tracking_number?: string;
+  shipping_provider_name?: string;
 }
 
-interface TiktokOrder {
+export interface TiktokOrder {
   id?: string;
   status?: string;
   commerce_platform?: string;
@@ -101,6 +118,8 @@ interface TiktokOrder {
   delivery_option_name?: string;
   tracking_number?: string;
   warehouse_id?: string;
+  shipping_type?: string;
+  packages?: { id?: string }[];
   payment?: {
     currency?: string;
     sub_total?: string;
@@ -171,6 +190,33 @@ function lines(o: TiktokOrder): NormalizedOrderItem[] {
   });
 }
 
+/** Packages from the order's package ids and the package fields of its line items (one per unit). */
+function packages(o: TiktokOrder): NormalizedPackage[] {
+  const ids = new Set<string>();
+  for (const p of o.packages ?? []) if (p.id) ids.add(String(p.id));
+  for (const l of o.line_items ?? []) if (l.package_id) ids.add(String(l.package_id));
+  // the order is not ready while unpaid or in the buyer's remorse window, whatever the package says
+  const held = o.status === "UNPAID" || o.status === "ON_HOLD";
+  return [...ids].map((id) => {
+    const units = (o.line_items ?? []).filter((l) => String(l.package_id ?? "") === id);
+    const status = units.find((l) => l.package_status)?.package_status ?? "";
+    const perLine = new Map<string, number>();
+    for (const l of units) {
+      const line = l.sku_id ?? l.id ?? "";
+      perLine.set(line, (perLine.get(line) ?? 0) + 1);
+    }
+    return {
+      externalPackageId: id,
+      state: held ? "waiting" : (TIKTOK_PACKAGE_STATES[status] ?? "waiting"),
+      externalStatus: status || (o.status ?? ""),
+      trackingNumber: text(units.find((l) => l.tracking_number)?.tracking_number) ?? text(o.tracking_number),
+      shippingProvider:
+        text(units.find((l) => l.shipping_provider_name)?.shipping_provider_name) ?? text(o.shipping_provider),
+      items: [...perLine].map(([externalLineId, quantity]) => ({ externalLineId, quantity })),
+    };
+  });
+}
+
 export function normalizeTiktokOrder(o: TiktokOrder): NormalizedOrder {
   const status = o.status ?? "UNKNOWN";
   const state = TIKTOK_ORDER_STATES[status] ?? "to_ship";
@@ -225,6 +271,7 @@ export function normalizeTiktokOrder(o: TiktokOrder): NormalizedOrder {
     shippingFeeBuyer: money(p.shipping_fee),
     total: p.total_amount !== undefined ? money(p.total_amount) : items.reduce((n, i) => n + i.lineTotal, 0),
     items,
+    packages: packages(o),
   };
 }
 

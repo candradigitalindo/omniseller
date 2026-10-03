@@ -11,6 +11,7 @@ import {
 } from "@omniseller/connector-core";
 import { tiktokCatalog } from "./catalog.js";
 import { TiktokShopClient, type TiktokShopConfig } from "./client.js";
+import { tiktokFulfillment } from "./fulfillment.js";
 import { TIKTOK_MAX_STOCK, tiktokInventory } from "./inventory.js";
 import { tiktokOrders } from "./orders.js";
 import { parseTiktokWebhook, TIKTOK_WEBHOOK_TOPICS, verifyTiktokWebhook } from "./webhooks.js";
@@ -233,6 +234,8 @@ export function createTiktokShopConnector(config: TiktokShopConfig): Marketplace
     catalog: tiktokCatalog(client),
 
     orders: tiktokOrders(client),
+
+    fulfillment: tiktokFulfillment(client),
 
     inventory: tiktokInventory(client),
 

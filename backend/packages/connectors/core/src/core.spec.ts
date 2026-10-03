@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { signatureEquals } from "./crypto.js";
 import { PermanentConnectorError, TransientConnectorError } from "./errors.js";
-import { type CallRecord, parseJsonSafe, requestJson, retryAfter, toRupiah } from "./http.js";
+import { type CallRecord, isPdf, parseJsonSafe, requestFile, requestJson, retryAfter, toRupiah } from "./http.js";
 import { REDACTED, redactUrl, redactValue, summarize } from "./redact.js";
 
 describe("redaction", () => {
@@ -79,6 +79,43 @@ describe("requestJson", () => {
   it("reads Retry-After as seconds or a date", () => {
     expect(retryAfter(new Headers({ "retry-after": "5" }))).toEqual({ retryAfterMs: 5000 });
     expect(retryAfter(new Headers())).toEqual({});
+  });
+});
+
+describe("requestFile", () => {
+  const url = new URL("https://files.example.test/label.pdf?sign=s");
+  const serve = (res: Response) => (async () => res) as unknown as typeof fetch;
+
+  it("returns the file and records only its size and type", async () => {
+    const records: CallRecord[] = [];
+    const bytes = new TextEncoder().encode("%PDF-1.4\nDewi, Jl. Mawar 1");
+    const res = await requestFile(
+      {
+        fetch: serve(new Response(bytes, { headers: { "content-type": "application/pdf" } })),
+        observer: (r) => records.push(r),
+      },
+      { method: "GET", url },
+      () => undefined,
+    );
+    expect(isPdf(res.bytes!)).toBe(true);
+    expect(records[0]!.response).toEqual({ bytes: bytes.length, contentType: "application/pdf" });
+    expect(JSON.stringify(records)).not.toContain("Mawar");
+  });
+
+  it("hands back a JSON error envelope, and treats 5xx without one as temporary", async () => {
+    const json = await requestFile(
+      { fetch: serve(new Response(JSON.stringify({ error: "logistics.error_param" }), { status: 200 })) },
+      { method: "POST", url, body: "{}" },
+      () => undefined,
+    );
+    expect(json).toMatchObject({ json: { error: "logistics.error_param" } });
+    expect(json.bytes).toBeUndefined();
+    await expect(
+      requestFile({ fetch: serve(new Response("oops", { status: 503 })) }, { method: "GET", url }, () => undefined),
+    ).rejects.toBeInstanceOf(TransientConnectorError);
+    await expect(
+      requestFile({ fetch: serve(new Response("gone", { status: 404 })) }, { method: "GET", url }, () => undefined),
+    ).rejects.toBeInstanceOf(PermanentConnectorError);
   });
 });
 

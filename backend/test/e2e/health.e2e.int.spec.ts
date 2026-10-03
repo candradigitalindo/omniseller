@@ -4,6 +4,7 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { AppModule } from "../../src/app.module";
 import { parseEnv } from "../../src/config/env.schema";
+import { listenOnLoopback } from "../setup/app";
 
 describe("api process (backend doc 8.1, 10.1, 10.3)", () => {
   let app: INestApplication;
@@ -17,10 +18,11 @@ describe("api process (backend doc 8.1, 10.1, 10.3)", () => {
       REDIS_QUEUE_URL: infra.redisUrl,
       REDIS_CACHE_URL: infra.redisUrl,
       PUBLIC_WEB_URL: "http://localhost:3100",
+      FILE_STORAGE: "local",
     });
     const moduleRef = await Test.createTestingModule({ imports: [AppModule.forEnv(env)] }).compile();
     app = moduleRef.createNestApplication({ logger: false });
-    await app.init();
+    await listenOnLoopback(app);
   });
 
   afterAll(async () => {

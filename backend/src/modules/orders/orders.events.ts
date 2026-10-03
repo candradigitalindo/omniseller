@@ -1,4 +1,4 @@
-import { ulidSchema } from "@omniseller/shared";
+import { ORDER_STATUSES, ulidSchema } from "@omniseller/shared";
 import { z } from "zod";
 import { defineEvent } from "../../jobs/define";
 
@@ -21,4 +21,20 @@ export const orderCancelRequested = defineEvent({
   type: "order.cancel_requested",
   aggregate: "order",
   schema: z.object({ orderId: ulidSchema, reason: z.string().min(1).max(200) }),
+});
+
+/**
+ * An order moved to another status (marketplace fact, seller step, or problem state). Fulfillment keeps
+ * the shipment in line with it (backend doc 8.15).
+ */
+export const orderStatusChanged = defineEvent({
+  type: "order.status_changed",
+  aggregate: "order",
+  schema: z.object({
+    orderId: ulidSchema,
+    from: z.enum(ORDER_STATUSES),
+    to: z.enum(ORDER_STATUSES),
+    actorType: z.enum(["user", "system", "marketplace"]),
+    actorId: ulidSchema.nullable(),
+  }),
 });

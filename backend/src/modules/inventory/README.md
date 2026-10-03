@@ -15,7 +15,7 @@ Gudang, stok, pergerakan stok, aturan alokasi, dan push stok ke marketplace (PRD
 
 ## Service publik
 - `WarehousesService`: `list(ctx)`, `visibleIn(tx, ctx)` (cakupan gudang pengguna), `activeIn(tx)`, `findActiveIn(tx, id)`.
-- `InventoryService`: `adjust(ctx, {lines, reason, note})`, `establishIn(tx, ctx, lines, meta)` (stok awal, nanti opname), `orderMovementsIn(tx, ctx, moves)` (reservasi, pelepasan, dan pengiriman pesanan; kunci baris berurutan, kekurangan stok fisik dilaporkan), `stockIn`, `setLocation`, `movements`, `summary`, `warehousesIn`. Error: validasi 422 (`lines.<i>.variantId`, `lines.<i>.warehouseId`, `lines.<i>.quantity` untuk stok fisik di bawah nol, `lines.<i>` untuk baris ganda).
+- `InventoryService`: `adjust(ctx, {lines, reason, note})`, `establishIn(tx, ctx, lines, meta)` (stok awal, nanti opname), `orderMovementsIn(tx, ctx, moves)` (reservasi, pelepasan, dan pengiriman pesanan; kunci baris berurutan, kekurangan stok fisik dilaporkan), `stockIn`, `pickInfoIn(tx, pairs)` (lokasi rak dan nama varian untuk pick list dan urutan label, modul fulfillment), `setLocation`, `movements`, `summary`, `warehousesIn`. Error: validasi 422 (`lines.<i>.variantId`, `lines.<i>.warehouseId`, `lines.<i>.quantity` untuk stok fisik di bawah nol, `lines.<i>` untuk baris ganda).
 - `StockOverviewService.list`: daftar stok dengan status push per toko.
 - `InitialStockService.fromStore(ctx, storeId, dryRun)`. Error: `store.not_found`, `store.orders_importing` (impor pesanan toko belum selesai).
 - `AllocationRulesService`: `list`, `get`, `create`, `update` (`If-Match`), `remove`, `requestResync`. Error: `store.not_found`, `channel_warehouse.not_found`, `stock_rule.not_found`, `stock_rule.duplicate`, `store.not_live`, `row.stale`.

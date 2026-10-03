@@ -1,4 +1,4 @@
-import type { Channel, OrderStatus, ShipmentStatus } from "@omniseller/shared";
+import type { Channel, DocumentJobStatus, OrderStatus, ShipmentStatus } from "@omniseller/shared";
 import { boolean, char, integer, jsonb, pgTable, smallint, text } from "drizzle-orm/pg-core";
 import { appendOnlyColumns, baseColumns, money, tstz, ulid } from "../columns";
 
@@ -81,6 +81,8 @@ export const order = pgTable("order", {
   platform: text("platform"),
   cancelRequested: boolean("cancel_requested").notNull().default(false),
   externalBuyerId: text("external_buyer_id"),
+  /** Ship-by alerts already sent (FR-SHP-10). */
+  slaAlertLevel: text("sla_alert_level").$type<"warning" | "overdue">(),
 });
 
 /** Enforces (store_id, external_order_id) uniqueness, which the partitioned order table cannot. */
@@ -171,6 +173,8 @@ export const shipment = pgTable("shipment", {
   packedBy: ulid("packed_by"),
   handedOverBy: ulid("handed_over_by"),
   failedReason: text("failed_reason"),
+  arrangedAt: tstz("arranged_at"),
+  lastError: text("last_error"),
   insured: boolean("insured").notNull().default(false),
   insuredValue: money("insured_value"),
   shippingCostActual: money("shipping_cost_actual"),
@@ -200,4 +204,34 @@ export const printJob = pgTable("print_job", {
   error: text("error"),
   requestedBy: ulid("requested_by"),
   printedAt: tstz("printed_at"),
+});
+
+export type DocumentKind = "labels" | "pick_list";
+
+export interface DocumentParams {
+  orderIds: string[];
+  /** Labels: thermal 100 x 150 mm, or A4 with 4 labels per page (FR-SHP-01). */
+  format?: "thermal" | "a4";
+}
+
+export interface DocumentResult {
+  orders?: number;
+  labels?: number;
+  /** Orders left out, with the reason (no label yet, not arranged, not in a pickable status). */
+  missing?: { orderId: string; code: string; message: string }[];
+}
+
+/** Printable documents the worker renders on request (backend doc 8.15). Status changes are checked by trigger. */
+export const documentJob = pgTable("document_job", {
+  ...baseColumns(),
+  kind: text("kind").$type<DocumentKind>().notNull(),
+  status: text("status").$type<DocumentJobStatus>().notNull().default("queued"),
+  statusChangedAt: tstz("status_changed_at").notNull().defaultNow(),
+  params: jsonb("params").$type<DocumentParams>().notNull(),
+  result: jsonb("result").$type<DocumentResult>().notNull().default({}),
+  fileObjectId: ulid("file_object_id"),
+  pageCount: integer("page_count"),
+  error: text("error"),
+  requestedBy: ulid("requested_by"),
+  finishedAt: tstz("finished_at"),
 });

@@ -24,6 +24,8 @@ SELECT ensure_trigger('shipment', 'status_transition_trg',
   'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON shipment FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''shipment'')');
 SELECT ensure_trigger('sync_job', 'status_transition_trg',
   'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON sync_job FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''sync_job'')');
+SELECT ensure_trigger('document_job', 'status_transition_trg',
+  'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON document_job FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''document_job'')');
 
 -- Inventory guard
 SELECT ensure_trigger('inventory', 'inventory_guard_trg',

@@ -4,6 +4,7 @@ import {
   type HttpConfig,
   hmacSha256Hex,
   PermanentConnectorError,
+  requestFile,
   requestJson,
   retryAfter,
   unixSeconds,
@@ -135,6 +136,67 @@ export class ShopeeClient {
     return this.call<T>(method, path, { ...opts, shop });
   }
 
+  /**
+   * Shop API file download (`download_shipping_document`). Shopee answers with the file, or with its
+   * JSON envelope when the call fails; the envelope is classified like any other error.
+   */
+  async shopFile(
+    shop: { externalShopId: string; accessToken: string },
+    method: "GET" | "POST",
+    path: string,
+    opts: { query?: Record<string, string | readonly string[]>; body?: object } = {},
+  ): Promise<Uint8Array> {
+    const url = this.signedUrl(path, opts.query, shop);
+    const body = opts.body === undefined ? undefined : JSON.stringify(opts.body);
+    const res = await requestFile(
+      this.config.http ?? {},
+      {
+        method,
+        url,
+        ...(body === undefined ? {} : { body, logBody: opts.body, headers: { "content-type": "application/json" } }),
+      },
+      (json) => (json as ShopeeEnvelope | null)?.request_id,
+    );
+    if (res.bytes) return res.bytes;
+    const env = (res.json ?? {}) as ShopeeEnvelope;
+    const error = typeof env.error === "string" ? env.error.trim() : "";
+    if ((error === "" || error === "-") && res.status < 400) {
+      throw new PermanentConnectorError({ code: "no_file", message: "expected a file, got JSON" });
+    }
+    throw this.errorOf(env, res.status, res.headers);
+  }
+
+  private signedUrl(
+    path: string,
+    query: Record<string, string | readonly string[]> | undefined,
+    shop?: { externalShopId: string; accessToken: string },
+  ): URL {
+    const timestamp = unixSeconds();
+    const sign = shopeeSign(
+      this.partnerKey,
+      shopeeBaseString({
+        partnerId: this.config.partnerId,
+        path,
+        timestamp,
+        ...(shop ? { accessToken: shop.accessToken, shopId: shop.externalShopId } : {}),
+      }),
+    );
+    const url = new URL(path, this.config.apiBaseUrl);
+    url.searchParams.set("partner_id", String(this.config.partnerId));
+    url.searchParams.set("timestamp", String(timestamp));
+    if (shop) {
+      url.searchParams.set("access_token", shop.accessToken);
+      url.searchParams.set("shop_id", shop.externalShopId);
+    }
+    url.searchParams.set("sign", sign);
+    // Array parameters repeat the key (item_status=NORMAL&item_status=BANNED), as Shopee documents.
+    for (const [k, v] of Object.entries(query ?? {})) {
+      if (typeof v === "string") url.searchParams.set(k, v);
+      else for (const item of v) url.searchParams.append(k, item);
+    }
+    return url;
+  }
+
   private async call<T>(
     method: "GET" | "POST",
     path: string,
@@ -145,30 +207,7 @@ export class ShopeeClient {
       passErrors?: readonly string[];
     },
   ): Promise<T & ShopeeEnvelope> {
-    const timestamp = unixSeconds();
-    const sign = shopeeSign(
-      this.partnerKey,
-      shopeeBaseString({
-        partnerId: this.config.partnerId,
-        path,
-        timestamp,
-        ...(opts.shop ? { accessToken: opts.shop.accessToken, shopId: opts.shop.externalShopId } : {}),
-      }),
-    );
-    const url = new URL(path, this.config.apiBaseUrl);
-    url.searchParams.set("partner_id", String(this.config.partnerId));
-    url.searchParams.set("timestamp", String(timestamp));
-    if (opts.shop) {
-      url.searchParams.set("access_token", opts.shop.accessToken);
-      url.searchParams.set("shop_id", opts.shop.externalShopId);
-    }
-    url.searchParams.set("sign", sign);
-    // Array parameters repeat the key (item_status=NORMAL&item_status=BANNED), as Shopee documents.
-    for (const [k, v] of Object.entries(opts.query ?? {})) {
-      if (typeof v === "string") url.searchParams.set(k, v);
-      else for (const item of v) url.searchParams.append(k, item);
-    }
-
+    const url = this.signedUrl(path, opts.query, opts.shop);
     const body = opts.body === undefined ? undefined : JSON.stringify(opts.body);
     const res = await requestJson(
       this.config.http ?? {},
@@ -185,20 +224,24 @@ export class ShopeeClient {
     const failed = (error !== "" && error !== "-") || res.status >= 400;
     if (!failed) return env;
     if (res.status < 400 && opts.passErrors?.includes(error)) return env;
+    throw this.errorOf(env, res.status, res.headers);
+  }
 
-    const code = error && error !== "-" ? error : `http_${res.status}`;
-    const message = typeof env.message === "string" && env.message ? env.message : `HTTP ${res.status}`;
-    const kind = classifyShopeeError(code, message, res.status);
+  private errorOf(env: ShopeeEnvelope, status: number, headers: Headers) {
+    const error = typeof env.error === "string" ? env.error.trim() : "";
+    const code = error && error !== "-" ? error : `http_${status}`;
+    const message = typeof env.message === "string" && env.message ? env.message : `HTTP ${status}`;
+    const kind = classifyShopeeError(code, message, status);
     const retry =
       code === "error_limit"
         ? { retryAfterMs: untilShopeeMidnight() }
         : code === "error_rate_limit"
-          ? { retryAfterMs: retryAfter(res.headers).retryAfterMs ?? 60_000 }
-          : retryAfter(res.headers);
-    throw errorOfKind(kind, {
+          ? { retryAfterMs: retryAfter(headers).retryAfterMs ?? 60_000 }
+          : retryAfter(headers);
+    return errorOfKind(kind, {
       code,
       message,
-      httpStatus: res.status,
+      httpStatus: status,
       ...(env.request_id ? { requestId: env.request_id } : {}),
       ...retry,
     });

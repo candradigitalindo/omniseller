@@ -2,8 +2,10 @@ import {
   type CancelReason,
   type NormalizedOrder,
   type NormalizedOrderItem,
+  type NormalizedPackage,
   type OrderPage,
   type OrderState,
+  type PackageState,
   type ShippingServiceType,
   type ShopCredentials,
   toRupiah,
@@ -54,6 +56,26 @@ export const SHOPEE_ORDER_STATES: Record<string, OrderState> = {
   COMPLETED: "completed",
   CANCELLED: "cancelled",
   TO_RETURN: "returning",
+};
+
+/**
+ * Package fulfillment status (V2.0 Data Definition, PackageFulfillmentStatus / LogisticsStatus) to the
+ * connector's package states. LOGISTICS_PICKUP_RETRY is ready again: the courier failed to pick up.
+ */
+export const SHOPEE_PACKAGE_STATES: Record<string, PackageState> = {
+  LOGISTICS_NOT_START: "waiting",
+  LOGISTICS_PENDING_ARRANGE: "waiting",
+  LOGISTICS_READY: "ready",
+  LOGISTICS_PICKUP_RETRY: "ready",
+  LOGISTICS_REQUEST_CREATED: "arranged",
+  LOGISTICS_PICKUP_DONE: "shipped",
+  LOGISTICS_DELIVERY_DONE: "delivered",
+  LOGISTICS_COD_REJECTED: "cancelled",
+  LOGISTICS_INVALID: "cancelled",
+  LOGISTICS_REQUEST_CANCELED: "cancelled",
+  LOGISTICS_PICKUP_FAILED: "failed",
+  LOGISTICS_DELIVERY_FAILED: "failed",
+  LOGISTICS_LOST: "failed",
 };
 
 /** Statuses in which a seller may still cancel (cancel_order: "before the order has been shipped"). */
@@ -113,7 +135,21 @@ interface ShopeeOrder {
   cancel_reason?: string;
   buyer_cancel_reason?: string;
   fulfillment_flag?: string;
-  package_list?: { product_location_id?: string; item_list?: { product_location_id?: string }[] }[];
+  package_list?: ShopeePackage[];
+}
+
+export interface ShopeePackage {
+  package_number?: string;
+  logistics_status?: string;
+  logistics_channel_id?: number | string;
+  shipping_carrier?: string;
+  item_list?: {
+    item_id?: number | string;
+    model_id?: number | string;
+    model_quantity?: number;
+    promotion_group_id?: number | string;
+    product_location_id?: string;
+  }[];
 }
 
 const at = (seconds: number | undefined): Date | null => (seconds && seconds > 0 ? new Date(seconds * 1000) : null);
@@ -179,6 +215,36 @@ function items(o: ShopeeOrder): NormalizedOrderItem[] {
   });
 }
 
+/** Order lines of each package: package items name item, model, and promotion group, not the line. */
+function packages(o: ShopeeOrder, lines: NormalizedOrderItem[]): NormalizedPackage[] {
+  const raw = o.item_list ?? [];
+  const lineOf = (item: NonNullable<ShopeePackage["item_list"]>[number]): string | undefined => {
+    const same = (i: ShopeeOrderItem) =>
+      String(i.item_id ?? "") === String(item.item_id ?? "") && String(i.model_id ?? 0) === String(item.model_id ?? 0);
+    const exact = raw.findIndex(
+      (i) => same(i) && String(i.promotion_group_id ?? 0) === String(item.promotion_group_id ?? 0),
+    );
+    const index = exact >= 0 ? exact : raw.findIndex(same);
+    return index >= 0 ? lines[index]?.externalLineId : undefined;
+  };
+  return (o.package_list ?? []).map((p) => {
+    const status = p.logistics_status ?? "UNKNOWN";
+    const units = new Map<string, number>();
+    for (const item of p.item_list ?? []) {
+      const line = lineOf(item);
+      if (line) units.set(line, (units.get(line) ?? 0) + Math.max(1, Number(item.model_quantity ?? 1)));
+    }
+    return {
+      externalPackageId: text(p.package_number) ?? "",
+      state: SHOPEE_PACKAGE_STATES[status] ?? "waiting",
+      externalStatus: status,
+      trackingNumber: null,
+      shippingProvider: text(p.shipping_carrier) ?? text(o.shipping_carrier),
+      items: [...units].map(([externalLineId, quantity]) => ({ externalLineId, quantity })),
+    };
+  });
+}
+
 export function normalizeShopeeOrder(o: ShopeeOrder): NormalizedOrder {
   const status = o.order_status ?? "UNKNOWN";
   const state = SHOPEE_ORDER_STATES[status] ?? "to_ship";
@@ -229,6 +295,7 @@ export function normalizeShopeeOrder(o: ShopeeOrder): NormalizedOrder {
     shippingFeeBuyer: 0,
     total: o.total_amount !== undefined ? (toRupiah(o.total_amount) ?? subtotal) : subtotal,
     items: lines,
+    packages: packages(o, lines),
   };
 }
 

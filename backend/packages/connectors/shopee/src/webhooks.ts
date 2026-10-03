@@ -32,6 +32,7 @@ export const SHOPEE_PUSH_CODES = {
   SHOPEE_UPDATES: 5,
   BANNED_ITEM: 6,
   OPEN_API_AUTHORIZATION_EXPIRY: 12,
+  SHIPPING_DOCUMENT_STATUS: 15,
   VIOLATION_ITEM: 16,
   ITEM_PRICE_UPDATE: 22,
 } as const;
@@ -43,6 +44,7 @@ const KINDS: Record<number, WebhookEventKind> = {
   4: "order.tracking_updated",
   6: "listing.changed",
   12: "authorization.expiring",
+  15: "shipment.document_ready",
   16: "listing.changed",
   22: "listing.changed",
 };
@@ -109,9 +111,12 @@ export function parseShopeePush(rawBody: Buffer): NormalizedWebhookEvent[] {
     if (data.item_id !== undefined) event.data.externalItemId = String(data.item_id);
     if (typeof data.item_status === "string") event.data.status = data.item_status;
   }
-  if (kind === "order.status_changed" || kind === "order.tracking_updated") {
+  if (kind === "order.status_changed" || kind === "order.tracking_updated" || kind === "shipment.document_ready") {
     if (typeof data.ordersn === "string") event.data.externalOrderId = data.ordersn;
     if (typeof data.status === "string") event.data.status = data.status;
+    if (typeof data.package_number === "string" && data.package_number) {
+      event.data.externalPackageId = data.package_number;
+    }
   }
   return [event];
 }

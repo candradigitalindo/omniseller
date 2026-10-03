@@ -1,7 +1,9 @@
 import { randomBytes } from "node:crypto";
+import { rm } from "node:fs/promises";
 import type { TestProject } from "vitest/node";
 import { bootstrapDatabase, dropDatabase } from "../../src/db/bootstrap";
 import { migrate } from "../../src/db/migrate";
+import { testFilesDir } from "./files-dir";
 
 /**
  * Integration test infrastructure (backend doc 13.2).
@@ -76,7 +78,10 @@ export default async function setup(project: TestProject): Promise<() => Promise
   project.provide("infra", { urls, database, redisUrl, keyPrefix: `test_${runId}` });
 
   return async () => {
-    if (!process.env.KEEP_TEST_DB) await dropDatabase(adminUrl, database);
+    if (!process.env.KEEP_TEST_DB) {
+      await dropDatabase(adminUrl, database);
+      await rm(testFilesDir(`test_${runId}`), { recursive: true, force: true });
+    }
     for (const stop of stops.reverse()) await stop();
   };
 }

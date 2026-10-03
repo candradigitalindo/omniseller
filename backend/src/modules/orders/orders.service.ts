@@ -119,6 +119,36 @@ export class OrdersService {
     }));
   }
 
+  /**
+   * Orders by id for another module's action (fulfillment): every id must exist in the tenant and be in
+   * the caller's store and warehouse scope, or the whole request is not found, like the bulk endpoints.
+   */
+  async requireVisible(ctx: RequestContext, orderIds: string[]): Promise<OrderRow[]> {
+    const ids = [...new Set(orderIds)];
+    return withTenantTx(this.db, ctx, async (tx) => {
+      const found = await this.repo.getMany(tx, ids);
+      if (found.length !== ids.length || found.some((o) => !this.visible(ctx, o))) throw orderNotFound();
+      return ids.map((id) => found.find((o) => o.id === id)!);
+    });
+  }
+
+  /** Order ids of marketplace order ids in one store (webhooks); unknown ones are left out. */
+  async idsByExternalIn(tx: Tx, storeId: string, externalOrderIds: string[]): Promise<string[]> {
+    const out: string[] = [];
+    for (const ext of new Set(externalOrderIds)) {
+      const id = await this.repo.refOf(tx, storeId, ext);
+      if (id) out.push(id);
+    }
+    return out;
+  }
+
+  /** Orders and their lines inside the caller's transaction, without scope checks (worker side). */
+  async readIn(tx: Tx, orderIds: string[]): Promise<{ orders: OrderRow[]; items: OrderItemRow[] }> {
+    const ids = [...new Set(orderIds)];
+    const [orders, items] = await Promise.all([this.repo.getMany(tx, ids), this.repo.items(tx, ids)]);
+    return { orders, items };
+  }
+
   async list(
     ctx: RequestContext,
     filter: Omit<OrderListFilter, "storeScope" | "warehouseScope">,

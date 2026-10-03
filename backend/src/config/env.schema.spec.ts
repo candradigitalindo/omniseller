@@ -8,6 +8,8 @@ const common = {
   REDIS_QUEUE_URL: "redis://localhost:6379",
   REDIS_CACHE_URL: "redis://localhost:6380",
 };
+/** Cloudflare R2, the default file storage. */
+const r2 = { R2_ACCOUNT_ID: "acc", R2_ACCESS_KEY_ID: "key", R2_SECRET_ACCESS_KEY: "secret" };
 
 describe("parseEnv", () => {
   it("parses the api role with defaults", () => {
@@ -16,8 +18,15 @@ describe("parseEnv", () => {
       APP_ROLE: "api",
       DATABASE_URL: "postgres://a@localhost/db",
       PUBLIC_WEB_URL: "http://localhost:3100",
+      ...r2,
     });
-    expect(env).toMatchObject({ APP_ROLE: "api", PORT: 3000, LOG_LEVEL: "info" });
+    expect(env).toMatchObject({
+      APP_ROLE: "api",
+      PORT: 3000,
+      LOG_LEVEL: "info",
+      FILE_STORAGE: "r2",
+      R2_BUCKET_DOCUMENTS: "omniseller-documents",
+    });
   });
 
   it("requires the worker database URL for the worker role", () => {
@@ -54,6 +63,7 @@ describe("parseEnv", () => {
       PUBLIC_WEBHOOK_URL: "https://hooks.omniseller.id",
       KMS_KEY_ID_TOKENS: "alias/omniseller-tokens",
       AWS_REGION: "ap-southeast-3",
+      ...r2,
     };
     expect(() => parseEnv({ ...worker, NODE_ENV: "production", EMAIL_TRANSPORT: "log" })).toThrow(
       /only allowed when NODE_ENV=local/,
@@ -71,6 +81,7 @@ describe("parseEnv", () => {
       PUBLIC_WEB_URL: "http://localhost:3100",
       PUBLIC_WEBHOOK_URL: "https://hooks.omniseller.id",
       EMAIL_TRANSPORT: "memory",
+      ...r2,
     };
     const key = Buffer.alloc(32, 7).toString("base64");
     // aws_kms is the default and needs its key and region
@@ -105,10 +116,26 @@ describe("parseEnv", () => {
       SHOPEE_PARTNER_ID: "2001887",
       SHOPEE_PARTNER_KEY: "must-not-appear",
       TIKTOKSHOP_APP_SECRET: "must-not-appear",
+      ...r2,
     });
     expect(env).toMatchObject({ SHOPEE_PARTNER_ID: 2001887 });
     expect(env).not.toHaveProperty("SHOPEE_PARTNER_KEY");
     expect(env).not.toHaveProperty("TIKTOKSHOP_APP_SECRET");
+  });
+
+  it("keeps files in R2 outside local and test, and needs its keys", () => {
+    const api = {
+      ...common,
+      APP_ROLE: "api",
+      DATABASE_URL: "postgres://a@localhost/db",
+      PUBLIC_WEB_URL: "http://localhost:3100",
+    };
+    expect(() => parseEnv(api)).toThrow(/R2_ACCESS_KEY_ID/);
+    expect(parseEnv({ ...api, FILE_STORAGE: "local" })).toMatchObject({ FILE_STORAGE_LOCAL_DIR: ".local/files" });
+    expect(() => parseEnv({ ...api, NODE_ENV: "production", FILE_STORAGE: "local" })).toThrow(/use r2/);
+    // MinIO locally: an endpoint instead of the R2 account
+    const minio = { R2_ENDPOINT: "http://127.0.0.1:9000", R2_ACCESS_KEY_ID: "minio", R2_SECRET_ACCESS_KEY: "minio123" };
+    expect(parseEnv({ ...api, NODE_ENV: "local", ...minio })).toMatchObject({ FILE_STORAGE: "r2" });
   });
 
   it("rejects an unknown role with a readable message", () => {

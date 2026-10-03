@@ -6,6 +6,7 @@ import { listingMapped } from "../catalog/catalog.events";
 import { storeConnected } from "../channel/channel.events";
 import { inventoryChanged } from "../inventory/inventory.events";
 import type { WebhookConsumers } from "../sync/webhook-consumer";
+import { OrderAlertsService } from "./order-alerts.service";
 import { OrderSyncService } from "./order-sync.service";
 import { orderCancelRequested, orderPullRequested } from "./orders.events";
 
@@ -78,12 +79,29 @@ export const orderStockRecheckJob = defineJob({
   },
 });
 
-export const ORDER_JOBS = [orderPullJob, orderCancelJob, orderListingMappedJob, orderStockRecheckJob];
+/** FR-SHP-10: ship-by alerts, from the scheduler every 5 minutes for tenants with orders due. */
+export const orderSlaAlertJob = defineJob({
+  queue: "notify",
+  name: "order.sla_alert",
+  schema: z.object({ slot: z.string().min(1) }),
+  options: { attempts: 3, backoff: { type: "exponential", delay: 10_000 } },
+  jobId: (p) => jobKey("order.sla_alert", p.tenantId, p.slot),
+  handler: async (_p, run) => {
+    await run.deps.resolve(OrderAlertsService).alertDue(run.ctx);
+  },
+});
+
+export const ORDER_JOBS = [orderPullJob, orderCancelJob, orderListingMappedJob, orderStockRecheckJob, orderSlaAlertJob];
 
 /** Order notifications: the order is read again from the marketplace (FR-ORD-01). */
 const refresh: NonNullable<WebhookConsumers["order.status_changed"]>[number] = async (run, event) => {
-  if (!event.data.externalOrderId) return;
-  await run.deps.resolve(OrderSyncService).refresh(run.ctx, event.storeId, [event.data.externalOrderId], {
+  // TikTok Shop package updates name every order of a combined or split package
+  const ids = [
+    ...(event.data.externalOrderId ? [event.data.externalOrderId] : []),
+    ...(event.data.externalOrderIds ?? []),
+  ];
+  if (ids.length === 0) return;
+  await run.deps.resolve(OrderSyncService).refresh(run.ctx, event.storeId, ids, {
     source: "webhook",
     rawRef: event.inboxId,
     queueJobId: run.jobId,

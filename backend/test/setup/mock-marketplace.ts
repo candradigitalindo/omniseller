@@ -1,6 +1,7 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
+import { PDFDocument } from "pdf-lib";
 
 /**
  * A fake Shopee Open Platform and TikTok Shop Partner API for integration tests (backend doc 13.2).
@@ -76,6 +77,8 @@ export interface MockShopeeOrder {
   };
   cancel_by?: string;
   cancel_reason?: string;
+  /** Warehouse of every line, as product_location_id (defaults to IDZ). */
+  location?: string;
   item_list: {
     item_id: number;
     item_name: string;
@@ -140,6 +143,8 @@ export interface MockTiktokOrder {
   cancel_reason?: string;
   cancellation_initiator?: string;
   is_buyer_request_cancel?: boolean;
+  /** TIKTOK (platform shipping, default) or SELLER (own courier). */
+  shipping_type?: "TIKTOK" | "SELLER";
   recipient_address?: { name?: string; phone_number?: string; full_address?: string; postal_code?: string };
   payment?: { currency?: string; sub_total?: string; shipping_fee?: string; total_amount?: string };
   line_items: {
@@ -176,7 +181,7 @@ interface Call {
   headers: IncomingMessage["headers"];
 }
 
-type Reply = { status: number; body: unknown };
+type Reply = { status: number; body: unknown; file?: Uint8Array };
 
 const now = () => Math.floor(Date.now() / 1000);
 
@@ -186,6 +191,93 @@ const shopeeSellerStock = (x: ShopeeStocked) =>
   Object.entries(shopeeLocations(x)).map(([location_id, stock]) => (location_id ? { location_id, stock } : { stock }));
 const token = (prefix: string) => `${prefix}${randomBytes(12).toString("hex")}`;
 const hmac = (key: string, msg: string) => createHmac("sha256", key).update(msg, "utf8").digest("hex");
+
+interface ShopeePackageState {
+  method: "pickup" | "dropoff";
+  tracking: string;
+  /** get_mass_tracking_number calls left that answer without a number */
+  trackingDelay: number;
+  /** shipping_document_type created; the document is READY at once */
+  document?: string;
+}
+
+/** One package per order, `OFG<order_sn>`, its status following the order like Shopee's. */
+function shopeePackagesOf(o: MockShopeeOrder) {
+  const status: Record<string, string> = {
+    UNPAID: "LOGISTICS_NOT_START",
+    READY_TO_SHIP: "LOGISTICS_READY",
+    RETRY_SHIP: "LOGISTICS_PICKUP_RETRY",
+    PROCESSED: "LOGISTICS_REQUEST_CREATED",
+    SHIPPED: "LOGISTICS_PICKUP_DONE",
+    TO_CONFIRM_RECEIVE: "LOGISTICS_DELIVERY_DONE",
+    COMPLETED: "LOGISTICS_DELIVERY_DONE",
+    CANCELLED: "LOGISTICS_INVALID",
+  };
+  return [
+    {
+      package_number: `OFG${o.order_sn}`,
+      logistics_status: status[o.order_status] ?? "LOGISTICS_NOT_START",
+      logistics_channel_id: 8003,
+      shipping_carrier: o.shipping_carrier ?? "SPX Standard",
+      item_list: o.item_list.map((i) => ({
+        item_id: i.item_id,
+        model_id: i.model_id,
+        model_quantity: i.model_quantity_purchased,
+        promotion_group_id: 0,
+        product_location_id: o.location ?? "IDZ",
+      })),
+    },
+  ];
+}
+
+/** The shop's pickup address (3001) with two slots tomorrow, the later one recommended; drop-off needs nothing. */
+const SHOPEE_PICKUP = (() => {
+  const tomorrow = Math.floor(Date.now() / 86_400_000) * 86400 + 86400;
+  return {
+    address_list: [
+      { address_id: 3002, address_flag: ["return_address"], time_slot_list: [] as { pickup_time_id: string }[] },
+      {
+        address_id: 3001,
+        city: "Jakarta Barat",
+        address: "Jl. Gudang 1",
+        address_flag: ["default_address", "pickup_address"],
+        time_slot_list: [
+          {
+            date: tomorrow + 2 * 3600,
+            time_text: "09:00 - 12:00",
+            pickup_time_id: String(tomorrow + 2 * 3600),
+            flags: [],
+          },
+          {
+            date: tomorrow + 6 * 3600,
+            time_text: "13:00 - 17:00",
+            pickup_time_id: String(tomorrow + 6 * 3600),
+            flags: ["recommended"],
+          },
+        ],
+      },
+    ],
+  };
+})();
+// the pickup address first, for lookups
+SHOPEE_PICKUP.address_list.reverse();
+
+function shopeeShippingParameter() {
+  return {
+    info_needed: { pickup: ["address_id", "pickup_time_id"], dropoff: [] },
+    pickup: SHOPEE_PICKUP,
+    dropoff: { branch_list: null },
+  };
+}
+
+/** A label PDF of the given size in millimetres, one page per text. */
+async function labelPdf(texts: string[], widthMm: number, heightMm: number): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  for (const text of texts) {
+    doc.addPage([(widthMm * 72) / 25.4, (heightMm * 72) / 25.4]).drawText(text, { x: 20, y: 200, size: 12 });
+  }
+  return doc.save();
+}
 
 export class MockMarketplace {
   url = "";
@@ -209,6 +301,16 @@ export class MockMarketplace {
   private readonly tiktokRefresh = new Map<string, string>();
   /** shop cipher -> event_type -> address */
   readonly tiktokWebhooks = new Map<string, Map<string, string>>();
+
+  // ---- shipping state (backend doc 13.2) ----
+  /** Shopee package_number -> arrangement, tracking number, airway bill. */
+  readonly shopeePackages = new Map<string, ShopeePackageState>();
+  /** get_mass_tracking_number answers without a number this many times after arranging (courier delay). */
+  shopeeTrackingDelay = 0;
+  /** Packages mass_ship_order refuses (fail_list), with the reason. */
+  readonly shopeeRefuse = new Map<string, string>();
+  /** TikTok Shop package id -> arrangement and tracking number. */
+  readonly tiktokPackages = new Map<string, { method: string; tracking: string }>();
 
   /** Port 0 picks a free port (tests); a fixed port lets separately started processes find it. */
   async start(port = 0): Promise<void> {
@@ -293,14 +395,22 @@ export class MockMarketplace {
     this.calls.push(call);
     const key = `${call.method} ${call.path}`;
     const forced = this.queued.get(key)?.shift();
-    const reply = forced ?? this.route(call);
+    const reply = forced ?? (await this.route(call));
+    if (reply.file) {
+      res.writeHead(reply.status, { "content-type": "application/pdf" });
+      res.end(Buffer.from(reply.file));
+      return;
+    }
     res.writeHead(reply.status, { "content-type": "application/json" });
     res.end(JSON.stringify(reply.body));
   }
 
-  private route(call: Call): Reply {
+  private route(call: Call): Reply | Promise<Reply> {
     if (call.path.startsWith("/api/v2/token/")) return this.tiktokToken(call);
     if (call.path.startsWith("/api/v2/")) return this.shopee(call);
+    // TikTok Shop's label links: a plain download without signature, like its file host
+    const doc = /^\/tts-docs\/([A-Za-z0-9]+)\.pdf$/.exec(call.path);
+    if (doc && call.method === "GET") return this.tiktokDocument(doc[1]!);
     return this.tiktok(call);
   }
 
@@ -310,7 +420,7 @@ export class MockMarketplace {
     return { status, body: { error, message, request_id: token("rq") } };
   }
 
-  private shopee(call: Call): Reply {
+  private shopee(call: Call): Reply | Promise<Reply> {
     const q = call.query;
     const ts = Number(q.timestamp);
     if (Number(q.partner_id) !== SHOPEE.partnerId) return this.shopeeError("error_param", "Invalid partner_id.");
@@ -334,6 +444,9 @@ export class MockMarketplace {
       status: 200,
       body: { error: "", message: "", request_id: token("rq"), ...extra },
     });
+    if (call.path.startsWith("/api/v2/logistics/") && call.path !== "/api/v2/logistics/get_address_list") {
+      return this.shopeeLogistics(call, shop, ok);
+    }
 
     switch (call.path) {
       case "/api/v2/shop/get_shop_info":
@@ -542,7 +655,14 @@ export class MockMarketplace {
         const sns = (q.order_sn_list ?? "").split(",").filter(Boolean);
         if (sns.length < 1 || sns.length > 50)
           return this.shopeeError("error_param", "order_sn_list should be [1,50]", 400);
-        return ok({ response: { order_list: (shop.orders ?? []).filter((o) => sns.includes(o.order_sn)) } });
+        const withPackages = (q.response_optional_fields ?? "").split(",").includes("package_list");
+        return ok({
+          response: {
+            order_list: (shop.orders ?? [])
+              .filter((o) => sns.includes(o.order_sn))
+              .map((o) => (withPackages ? { ...o, package_list: shopeePackagesOf(o) } : o)),
+          },
+        });
       }
       case "/api/v2/order/cancel_order": {
         const body = JSON.parse(call.body) as { order_sn: string; cancel_reason: string; item_list?: object[] };
@@ -585,6 +705,208 @@ export class MockMarketplace {
           404,
         );
     }
+  }
+
+  /**
+   * Shopee shipment APIs (Order Management 8): get_mass_shipping_parameter and mass_ship_order (at most
+   * 50 packages of one channel and warehouse, pickup at a listed address and slot, or drop-off),
+   * get_shipping_parameter with ship_order or update_shipping_order (failed pickups), the tracking
+   * number (late by `shopeeTrackingDelay` calls), and the airway bill: parameter, create, result,
+   * download (a PDF).
+   */
+  private async shopeeLogistics(call: Call, shop: MockShopeeShop, ok: (extra: object) => Reply): Promise<Reply> {
+    const body = (call.body ? JSON.parse(call.body) : {}) as Record<string, any>;
+    const orderOf = (packageNumber: string) => (shop.orders ?? []).find((o) => `OFG${o.order_sn}` === packageNumber);
+    const statusOf = (o: MockShopeeOrder) => shopeePackagesOf(o)[0]!.logistics_status;
+    const packages = (list: unknown): string[] =>
+      Array.isArray(list) ? list.map((p: { package_number?: string }) => p.package_number ?? "") : [];
+    const element = (o: { order_sn?: string; package_number?: string }, extra: object) => ({
+      order_sn: o.order_sn,
+      package_number: o.package_number,
+      ...extra,
+    });
+    const batch = (results: { fail_error?: string }[]) => ({
+      status: 200,
+      body: {
+        error: results.length > 0 && results.every((r) => r.fail_error) ? "common.batch_api_all_failed" : "",
+        message: "",
+        request_id: token("rq"),
+        response: { result_list: results },
+      },
+    });
+    const arrange = (o: MockShopeeOrder, n: string, how: Record<string, any>): string | null => {
+      if (how.pickup) {
+        const slots = SHOPEE_PICKUP.address_list[0]!.time_slot_list.map((t) => t.pickup_time_id);
+        if (how.pickup.address_id !== 3001) return "The address is invalid. Please check the address.";
+        if (!slots.includes(how.pickup.pickup_time_id)) return "No available time slot";
+      } else if (!how.dropoff) {
+        return "Wrong parameters, detail: pickup or dropoff is required.";
+      }
+      o.order_status = "PROCESSED";
+      o.update_time = now() + 1;
+      this.shopeePackages.set(n, {
+        method: how.pickup ? "pickup" : "dropoff",
+        tracking: `SPXID${randomBytes(5).toString("hex").toUpperCase()}`,
+        trackingDelay: this.shopeeTrackingDelay,
+      });
+      return null;
+    };
+
+    switch (call.path) {
+      case "/api/v2/logistics/get_mass_shipping_parameter": {
+        const list = packages(body.package_list);
+        if (list.length < 1 || list.length > 50)
+          return this.shopeeError("error_param", "package_list should be [1,50]", 400);
+        const fail_list: object[] = [];
+        const success_list: object[] = [];
+        for (const n of list) {
+          const o = orderOf(n);
+          if (!o || statusOf(o) !== "LOGISTICS_READY") {
+            fail_list.push({ package_number: n, fail_reason: "Package is not ready to be shipped." });
+          } else success_list.push({ package_number: n });
+        }
+        return ok({ response: { ...shopeeShippingParameter(), success_list, fail_list } });
+      }
+      case "/api/v2/logistics/mass_ship_order": {
+        const list = packages(body.package_list);
+        if (list.length < 1 || list.length > 50)
+          return this.shopeeError("error_param", "package_list should be [1,50]", 400);
+        const success_list: object[] = [];
+        const fail_list: object[] = [];
+        for (const n of list) {
+          const o = orderOf(n);
+          if (!o) {
+            fail_list.push({ package_number: n, fail_reason: "Package not found." });
+            continue;
+          }
+          if (body.logistics_channel_id !== 8003 || body.product_location_id !== (o.location ?? "IDZ")) {
+            fail_list.push({ package_number: n, fail_reason: "Package is not under the specified warehouse" });
+            continue;
+          }
+          if (statusOf(o) !== "LOGISTICS_READY") {
+            fail_list.push({ package_number: n, fail_reason: "Package is not ready to be shipped." });
+            continue;
+          }
+          const refused = this.shopeeRefuse.get(n);
+          const problem = refused ?? arrange(o, n, body);
+          if (problem) fail_list.push({ package_number: n, fail_reason: problem });
+          else success_list.push({ package_number: n });
+        }
+        // documented at the top level of the answer
+        return ok({ success_list, fail_list });
+      }
+      case "/api/v2/logistics/get_shipping_parameter": {
+        const o = orderOf(call.query.package_number ?? "");
+        if (!o)
+          return this.shopeeError("logistics.package_number_not_exist", "Please request with package_number.", 200);
+        return ok({ response: shopeeShippingParameter() });
+      }
+      case "/api/v2/logistics/ship_order":
+      case "/api/v2/logistics/update_shipping_order": {
+        const n = String(body.package_number ?? "");
+        const o = orderOf(n);
+        if (!o)
+          return this.shopeeError("logistics.package_number_not_exist", "Please request with package_number.", 200);
+        const retry = call.path.endsWith("update_shipping_order");
+        if (statusOf(o) !== (retry ? "LOGISTICS_PICKUP_RETRY" : "LOGISTICS_READY")) {
+          return this.shopeeError("logistics.error_status", "The order status does not support this operation.", 200);
+        }
+        if (retry && !body.pickup) return this.shopeeError("error_param", "pickup is required.", 400);
+        const problem = arrange(o, n, body);
+        return problem ? this.shopeeError("logistics.error_param", problem, 200) : ok({});
+      }
+      case "/api/v2/logistics/get_mass_tracking_number": {
+        const success_list: object[] = [];
+        const fail_list: object[] = [];
+        for (const n of packages(body.package_list)) {
+          const state = this.shopeePackages.get(n);
+          if (!state) {
+            fail_list.push({ package_number: n, fail_reason: "Package has not arranged shipment." });
+          } else if (state.trackingDelay > 0) {
+            state.trackingDelay--;
+            success_list.push({ package_number: n, tracking_number: "" });
+          } else success_list.push({ package_number: n, tracking_number: state.tracking });
+        }
+        return ok({ response: { success_list, fail_list } });
+      }
+      case "/api/v2/logistics/get_shipping_document_parameter":
+        return batch(
+          (body.order_list ?? []).map((o: { order_sn?: string; package_number?: string }) => {
+            const state = this.shopeePackages.get(o.package_number ?? "");
+            return state && state.trackingDelay === 0
+              ? element(o, {
+                  suggest_shipping_document_type: "NORMAL_AIR_WAYBILL",
+                  selectable_shipping_document_type: ["NORMAL_AIR_WAYBILL", "THERMAL_AIR_WAYBILL"],
+                })
+              : element(o, {
+                  fail_error: "logistics.order_status_error",
+                  fail_message: "Order status does not support awb printing.",
+                });
+          }),
+        );
+      case "/api/v2/logistics/create_shipping_document":
+        return batch(
+          (body.order_list ?? []).map(
+            (o: {
+              order_sn?: string;
+              package_number?: string;
+              tracking_number?: string;
+              shipping_document_type?: string;
+            }) => {
+              const state = this.shopeePackages.get(o.package_number ?? "");
+              if (!state || state.trackingDelay > 0) {
+                return element(o, {
+                  fail_error: "logistics.order_status_error",
+                  fail_message: "Order status does not support awb printing.",
+                });
+              }
+              if (o.tracking_number !== state.tracking) {
+                return element(o, {
+                  fail_error: "logistics.invalid_tracking_number",
+                  fail_message: "Tracking number is invalid.",
+                });
+              }
+              state.document = o.shipping_document_type ?? "NORMAL_AIR_WAYBILL";
+              return element(o, {});
+            },
+          ),
+        );
+      case "/api/v2/logistics/get_shipping_document_result":
+        return batch(
+          (body.order_list ?? []).map(
+            (o: { order_sn?: string; package_number?: string; shipping_document_type?: string }) => {
+              const state = this.shopeePackages.get(o.package_number ?? "");
+              return state?.document && state.document === o.shipping_document_type
+                ? element(o, { status: "READY" })
+                : element(o, {
+                    fail_error: "logistics.shipping_document_should_be_created",
+                    fail_message: "Please create shipping document first.",
+                  });
+            },
+          ),
+        );
+      case "/api/v2/logistics/download_shipping_document": {
+        const list = (body.order_list ?? []) as { package_number?: string }[];
+        const states = list.map((o) => this.shopeePackages.get(o.package_number ?? ""));
+        if (states.some((st) => !st?.document || st.document !== body.shipping_document_type)) {
+          return this.shopeeError("logistics.shipping_document_not_ready", "The package can not print now.", 200);
+        }
+        const pdf = await labelPdf(
+          states.map((st) => `SPX ${st!.tracking}`),
+          100,
+          150,
+        );
+        return { status: 200, body: null, file: pdf };
+      }
+      default:
+        return this.shopeeError("error_param", "Permission denied. The request path is incorrect.", 404);
+    }
+  }
+
+  private async tiktokDocument(packageId: string): Promise<Reply> {
+    const state = this.tiktokPackages.get(packageId);
+    if (!state) return { status: 404, body: { message: "not found" } };
+    return { status: 200, body: null, file: await labelPdf([`J&T ${state.tracking}`], 105, 148) };
   }
 
   private issueShopee(shopIds: string[]) {
@@ -811,7 +1133,9 @@ export class MockMarketplace {
       case "GET /order/202507/orders": {
         const ids = (q.ids ?? "").split(",").filter(Boolean);
         if (ids.length < 1 || ids.length > 50) return this.tiktokReply(36009001, "ids must contain 1 to 50 order ids");
-        return this.tiktokReply(0, "Success", { orders: (shop.orders ?? []).filter((o) => ids.includes(o.id)) });
+        return this.tiktokReply(0, "Success", {
+          orders: (shop.orders ?? []).filter((o) => ids.includes(o.id)).map((o) => this.tiktokWithPackages(o)),
+        });
       }
       case "POST /return_refund/202602/cancellations": {
         const body = JSON.parse(call.body) as { order_id: string; cancel_reason: string };
@@ -856,6 +1180,11 @@ export class MockMarketplace {
         return this.tiktokReply(0, "Success");
       }
       default: {
+        const pkg =
+          /^\/fulfillment\/202309\/packages\/([A-Za-z0-9]+)\/(handover_time_slots|ship|shipping_documents)$/.exec(
+            call.path,
+          );
+        if (pkg) return this.tiktokFulfillment(shop, call, pkg[1]!, pkg[2]!);
         const inv = /^\/product\/202309\/products\/(\d+)\/inventory\/update$/.exec(call.path);
         if (call.method === "POST" && inv) return this.tiktokInventory(shop, inv[1]!, call.body);
         const m = /^\/product\/202309\/products\/(\d+)$/.exec(call.path);
@@ -883,6 +1212,107 @@ export class MockMarketplace {
         return this.tiktokReply(36009009, "Invalid path.", {}, 404);
       }
     }
+  }
+
+  /** Get Order Detail with the package of each line, like TikTok Shop after the order is paid. */
+  private tiktokWithPackages(o: MockTiktokOrder) {
+    if (o.status === "UNPAID") return { ...o, shipping_type: o.shipping_type ?? "TIKTOK" };
+    const id = `PKG${o.id}`;
+    const state = this.tiktokPackages.get(id);
+    const status =
+      o.status === "AWAITING_COLLECTION"
+        ? "PROCESSING"
+        : o.status === "IN_TRANSIT"
+          ? "FULFILLING"
+          : o.status === "DELIVERED" || o.status === "COMPLETED"
+            ? "COMPLETED"
+            : o.status === "CANCELLED"
+              ? "CANCELLED"
+              : "TO_FULFILL";
+    return {
+      ...o,
+      shipping_type: o.shipping_type ?? "TIKTOK",
+      packages: [{ id }],
+      tracking_number: state?.tracking ?? o.tracking_number,
+      line_items: o.line_items.map((l) => ({
+        ...l,
+        package_id: id,
+        package_status: status,
+        ...(state ? { tracking_number: state.tracking, shipping_provider_name: "J&T Express" } : {}),
+      })),
+    };
+  }
+
+  /**
+   * Fulfillment 202309 for SEA "schedule shipping": handover slots, Ship Package (PICKUP in an open
+   * slot, or DROP_OFF; SELLER shipping needs the seller's tracking number), and the label link.
+   */
+  private tiktokFulfillment(shop: MockTiktokShop, call: Call, packageId: string, action: string): Reply {
+    const o = (shop.orders ?? []).find((x) => `PKG${x.id}` === packageId);
+    if (!o || o.status === "UNPAID") {
+      return this.tiktokReply(
+        21011001,
+        "Package not found. If the error persists, please contact the platform for assistance.",
+      );
+    }
+    const tomorrow = Math.floor(now() / 86400) * 86400 + 86400;
+    const slots = [
+      { start_time: tomorrow + 2 * 3600, end_time: tomorrow + 5 * 3600, avaliable: false },
+      { start_time: tomorrow + 6 * 3600, end_time: tomorrow + 10 * 3600, avaliable: true },
+    ];
+    if (action === "handover_time_slots" && call.method === "GET") {
+      return this.tiktokReply(0, "Success", {
+        can_pickup: true,
+        can_drop_off: true,
+        can_van_collection: false,
+        pickup_slots: slots,
+      });
+    }
+    if (action === "ship" && call.method === "POST") {
+      const body = JSON.parse(call.body || "{}") as {
+        handover_method?: string;
+        pickup_slot?: { start_time?: number; end_time?: number };
+        self_shipment?: { tracking_number?: string };
+      };
+      if (o.status !== "AWAITING_SHIPMENT") return this.tiktokReply(21011040, "Package has already been shipped.");
+      if ((o.shipping_type ?? "TIKTOK") === "SELLER" && !body.self_shipment?.tracking_number) {
+        return this.tiktokReply(21011022, "Invalid tracking number or provider ID. Please double check and try again.");
+      }
+      if (body.handover_method === "PICKUP" && body.pickup_slot) {
+        const open = slots.find((x) => x.avaliable && x.start_time === body.pickup_slot!.start_time);
+        if (!open)
+          return this.tiktokReply(
+            21011053,
+            "Fail to ship package because the shipment time is outside of the pick-up time slot.",
+          );
+      } else if (body.handover_method !== "PICKUP" && body.handover_method !== "DROP_OFF") {
+        return this.tiktokReply(11001002, "invalid param.");
+      }
+      this.tiktokPackages.set(packageId, {
+        method: body.handover_method,
+        tracking: `JX${randomBytes(5).toString("hex").toUpperCase()}`,
+      });
+      o.status = "AWAITING_COLLECTION";
+      o.update_time = now() + 1;
+      return this.tiktokReply(0, "Success", {});
+    }
+    if (action === "shipping_documents" && call.method === "GET") {
+      const state = this.tiktokPackages.get(packageId);
+      if (!state || o.status !== "AWAITING_COLLECTION") {
+        return this.tiktokReply(21011003, "fulfill_unit action not allowed");
+      }
+      if (
+        call.query.document_type !== "SHIPPING_LABEL" ||
+        !["A6", "A5", undefined].includes(call.query.document_size)
+      ) {
+        return this.tiktokReply(11001002, "invalid param.");
+      }
+      return this.tiktokReply(0, "Success", {
+        doc_url: `${this.url}/tts-docs/${packageId}.pdf?expire=${now() + 86400}&sig=${token("s")}`,
+        tracking_number: state.tracking,
+      });
+    }
+    return this.tiktokReply(36009009, "Invalid path.", {}, 404);
   }
 
   /**
