@@ -14,6 +14,7 @@ import type { Env } from "../config/env.schema";
 import { createDb, type DbHandle } from "../db/client";
 import { QueueRegistry } from "../jobs/queues";
 import { JOB_DEFINITIONS, JobRegistry } from "../jobs/registry";
+import { STOCK_DIRTY_KEY, StockDirtySet } from "../jobs/stock-dirty";
 import { Outbox } from "../outbox/outbox";
 import {
   DB_API,
@@ -27,6 +28,7 @@ import {
   REDIS_CACHE,
   REDIS_QUEUE,
   SESSIONS,
+  STOCK_DIRTY,
 } from "./tokens";
 
 /** Closes pools and connections when the process shuts down (SIGTERM from ECS). */
@@ -50,7 +52,16 @@ export class InfraModule {
   static forEnv(env: Env, opts: { queuePrefix?: string } = {}): DynamicModule {
     const closers: (() => Promise<unknown>)[] = [];
     const providers: Provider[] = [];
-    const exports: symbol[] = [REDIS_QUEUE, REDIS_CACHE, QUEUES, JOB_REGISTRY, OUTBOX, SESSIONS, RATE_LIMITER];
+    const exports: symbol[] = [
+      REDIS_QUEUE,
+      REDIS_CACHE,
+      QUEUES,
+      JOB_REGISTRY,
+      OUTBOX,
+      SESSIONS,
+      RATE_LIMITER,
+      STOCK_DIRTY,
+    ];
 
     const addDb = (token: symbol, handle: DbHandle) => {
       closers.push(() => handle.close());
@@ -85,6 +96,14 @@ export class InfraModule {
       { provide: REDIS_QUEUE, useValue: redisQueue },
       { provide: REDIS_CACHE, useValue: redisCache },
       { provide: QUEUES, useValue: queues },
+      // Tests run with a per-run queue prefix; the dirty set follows it so runs never share stock keys.
+      {
+        provide: STOCK_DIRTY,
+        useValue: new StockDirtySet(
+          redisQueue,
+          opts.queuePrefix ? `${opts.queuePrefix}:${STOCK_DIRTY_KEY}` : STOCK_DIRTY_KEY,
+        ),
+      },
       { provide: JOB_REGISTRY, useValue: registry },
       { provide: OUTBOX, useValue: new Outbox(registry) },
       { provide: SESSIONS, useValue: new SessionStore(redisCache) },

@@ -298,6 +298,23 @@ export class CatalogRepository {
     return forUpdate ? q.for("update") : q;
   }
 
+  /** Mapped listings that still exist at the marketplace, by variant and/or store (stock push). */
+  async mappedListings(tx: Tx, filter: { variantIds?: string[]; storeId?: string }): Promise<ListingRow[]> {
+    if (filter.variantIds && filter.variantIds.length === 0) return [];
+    return tx
+      .select()
+      .from(channelListing)
+      .where(
+        and(
+          isNotNull(channelListing.variantId),
+          ne(channelListing.status, "deleted"),
+          filter.variantIds ? inArray(channelListing.variantId, filter.variantIds) : undefined,
+          filter.storeId ? eq(channelListing.storeId, filter.storeId) : undefined,
+        ),
+      )
+      .orderBy(asc(channelListing.id));
+  }
+
   /** Inserts new listings and refreshes known ones; mappings are never touched here. */
   async upsertListings(
     tx: Tx,

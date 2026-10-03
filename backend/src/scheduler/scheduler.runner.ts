@@ -1,16 +1,15 @@
 import { Inject, Injectable, type OnApplicationBootstrap, type OnApplicationShutdown } from "@nestjs/common";
 import { logger } from "@omniseller/logging";
 import { sql } from "drizzle-orm";
-import type { Redis } from "ioredis";
 import pg from "pg";
 import { ENV } from "../config/config.module";
 import type { EnvFor } from "../config/env.schema";
 import type { DbHandle } from "../db/client";
 import { withSystemTx } from "../db/tenant-tx";
-import { DB_SYSTEM, JOB_REGISTRY, QUEUES, REDIS_QUEUE } from "../infra/tokens";
+import { DB_SYSTEM, JOB_REGISTRY, QUEUES, STOCK_DIRTY } from "../infra/tokens";
 import type { QueueRegistry } from "../jobs/queues";
 import type { JobRegistry } from "../jobs/registry";
-import { StockDirtySet } from "../jobs/stock-dirty";
+import type { StockDirtySet } from "../jobs/stock-dirty";
 import { scanTokenRefresh, scanWarehousePolls, sweepWebhookInbox, WAREHOUSE_POLL_SLOT_MS } from "./channel-scans";
 import { OutboxRelayRunner } from "./outbox-relay";
 import { flushStockDirty } from "./stock-flush";
@@ -38,7 +37,7 @@ export class SchedulerRunner implements OnApplicationBootstrap, OnApplicationShu
     @Inject(ENV) private readonly env: EnvFor<"scheduler">,
     @Inject(DB_SYSTEM) private readonly system: DbHandle,
     @Inject(QUEUES) private readonly queues: QueueRegistry,
-    @Inject(REDIS_QUEUE) private readonly redis: Redis,
+    @Inject(STOCK_DIRTY) private readonly dirty: StockDirtySet,
     @Inject(JOB_REGISTRY) private readonly registry: JobRegistry,
   ) {}
 
@@ -46,8 +45,7 @@ export class SchedulerRunner implements OnApplicationBootstrap, OnApplicationShu
     this.relay = new OutboxRelayRunner(this.system, this.queues, new pg.Client(this.env.DATABASE_URL_SYSTEM));
     await this.relay.start();
 
-    const dirty = new StockDirtySet(this.redis);
-    this.every(STOCK_FLUSH_MS, "stock.dirty_flush", () => flushStockDirty(dirty, this.queues));
+    this.every(STOCK_FLUSH_MS, "stock.dirty_flush", () => flushStockDirty(this.dirty, this.queues, this.registry));
     await this.maintainPartitions();
     this.every(PARTITIONS_EVERY_MS, "partition.maintain", () => this.maintainPartitions());
     this.every(INBOX_SWEEP_MS, "webhook.inbox_sweep", () => sweepWebhookInbox(this.system, this.queues, this.registry));

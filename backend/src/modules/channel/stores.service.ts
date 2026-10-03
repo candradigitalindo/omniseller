@@ -21,6 +21,7 @@ import {
   warehouseNotFound,
 } from "./channel.errors";
 import {
+  channelWarehouseMappingChanged,
   storeDisconnected,
   storeReauthRequired,
   storeSyncModeChanged,
@@ -37,6 +38,15 @@ export interface StoreView {
   store: StoreRow;
   credential: CredentialMeta | null;
   unmappedWarehouses: number;
+}
+
+/** What the stock pusher needs about a store (backend doc 9.4). */
+export interface StockTarget {
+  store: StoreRow;
+  /** active or token_expiring */
+  usable: boolean;
+  maxStockQuantity: number | null;
+  warehouses: ChannelWarehouseRow[];
 }
 
 export function channelDisplayName(channel: string): string {
@@ -219,8 +229,41 @@ export class StoresService {
         if (!(await this.warehouses.findActiveIn(tx, warehouseId))) throw warehouseNotFound("warehouseId");
         await this.repo.updateChannelWarehouse(tx, cw.id, { warehouseId, mappingStatus: "mapped" });
       }
+      if (cw.warehouseId !== warehouseId) {
+        await this.outbox.enqueue(
+          tx,
+          ctx,
+          channelWarehouseMappingChanged,
+          { storeId, channelWarehouseId, warehouseId },
+          storeId,
+        );
+      }
       return (await this.repo.getChannelWarehouse(tx, storeId, channelWarehouseId))!;
     });
+  }
+
+  /**
+   * Stores with their marketplace warehouses, inside the caller's transaction (stock pusher, initial
+   * stock). Ignores the caller's store scope: callers check scope themselves where a user is involved.
+   */
+  async stockTargetsIn(tx: Tx, storeIds: string[]): Promise<Map<string, StockTarget>> {
+    const out = new Map<string, StockTarget>();
+    for (const id of [...new Set(storeIds)]) {
+      const store = await this.repo.getStore(tx, id);
+      if (!store) continue;
+      out.set(id, {
+        store,
+        usable: USABLE.includes(store.status),
+        maxStockQuantity: isSupportedChannel(store.channel) ? MANIFESTS[store.channel].maxStockQuantity : null,
+        warehouses: await this.repo.channelWarehouses(tx, id),
+      });
+    }
+    return out;
+  }
+
+  /** Stores of the caller's scope, inside the caller's transaction. */
+  async listIn(tx: Tx, ctx: RequestContext): Promise<StoreRow[]> {
+    return this.repo.listStores(tx, ctx.storeScope);
   }
 
   // ---- sync bookkeeping for other modules' pulls (worker) ----

@@ -1,6 +1,6 @@
 import type { StockMovementType } from "@omniseller/shared";
 import { sql } from "drizzle-orm";
-import { boolean, integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
+import { bigint, boolean, integer, jsonb, pgTable, pgView, text } from "drizzle-orm/pg-core";
 import { appendOnlyColumns, baseColumns, qty, tstz, ulid } from "../columns";
 
 export const warehouse = pgTable("warehouse", {
@@ -26,6 +26,8 @@ export const inventory = pgTable("inventory", {
   available: qty("available").generatedAlwaysAs(sql`on_hand - reserved - buffer`),
   binLocation: text("bin_location"),
   minStock: qty("min_stock"),
+  /** Last time a person established the quantity; stock never established is not pushed (doc 9.4). */
+  stockSetAt: tstz("stock_set_at"),
 });
 
 export type StockReferenceType =
@@ -70,3 +72,34 @@ export const stockAllocationRule = pgTable("stock_allocation_rule", {
   priority: integer("priority").notNull().default(100),
   active: boolean("active").notNull().default(true),
 });
+
+/**
+ * What was last pushed for one listing and marketplace warehouse (backend doc 9.4). Owned by the
+ * inventory module, which runs the stock pusher; one row per (listing, channel warehouse).
+ */
+export const listingStockState = pgTable("listing_stock_state", {
+  ...baseColumns(),
+  listingId: ulid("listing_id").notNull(),
+  channelWarehouseId: ulid("channel_warehouse_id").notNull(),
+  lastPushedQty: qty("last_pushed_qty"),
+  lastPushedAt: tstz("last_pushed_at"),
+  lastError: text("last_error"),
+  pushFailCount: integer("push_fail_count").notNull().default(0),
+  lastAttemptAt: tstz("last_attempt_at"),
+});
+
+/** Read-only view exported by the catalog module (drizzle/sql/15_views.sql); RLS of the caller applies. */
+export const catalogVariantV = pgView("catalog_variant_v", {
+  tenantId: ulid("tenant_id").notNull(),
+  variantId: ulid("variant_id").notNull(),
+  productId: ulid("product_id").notNull(),
+  sku: text("sku").notNull(),
+  variantName: text("variant_name").notNull(),
+  variantStatus: text("variant_status").$type<"active" | "archived">().notNull(),
+  barcode: text("barcode"),
+  costPrice: bigint("cost_price", { mode: "number" }).notNull(),
+  productSku: text("product_sku").notNull(),
+  productName: text("product_name").notNull(),
+  productStatus: text("product_status").$type<"active" | "archived">().notNull(),
+  imageUrl: text("image_url"),
+}).existing();

@@ -11,6 +11,7 @@ import {
 } from "@omniseller/connector-core";
 import { shopeeCatalog } from "./catalog.js";
 import { accessExpiry, ShopeeClient, type ShopeeConfig } from "./client.js";
+import { shopeeInventory } from "./inventory.js";
 import { parseShopeePush, verifyShopeePush } from "./webhooks.js";
 
 export const SHOPEE_MANIFEST: ConnectorManifest = {
@@ -21,6 +22,8 @@ export const SHOPEE_MANIFEST: ConnectorManifest = {
   shopRateLimit: { capacity: 10, refillPerSecond: 10 },
   accessTokenLifetimeSeconds: 4 * 3600,
   supportedRegions: ["ID"],
+  // update_stock documents no upper bound.
+  maxStockQuantity: null,
 };
 
 /** refresh_token lifetime from the authorization guide; each one is single use. */
@@ -313,7 +316,9 @@ export function createShopeeConnector(config: ShopeeConfig): MarketplaceConnecto
       },
     },
 
-    catalog: shopeeCatalog(client, SHOPEE_FBS_WAREHOUSE_ID),
+    catalog: shopeeCatalog(client, { fbs: SHOPEE_FBS_WAREHOUSE_ID, shopLevel: SHOPEE_DEFAULT_WAREHOUSE_ID }),
+
+    inventory: shopeeInventory(client, SHOPEE_DEFAULT_WAREHOUSE_ID),
 
     webhooks: {
       verify(req) {

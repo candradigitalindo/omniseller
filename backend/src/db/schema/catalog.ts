@@ -82,13 +82,3 @@ export const channelListing = pgTable("channel_listing", {
   mappingSource: text("mapping_source").$type<MappingSource>(),
   mappedAt: tstz("mapped_at"),
 });
-
-export const listingStockState = pgTable("listing_stock_state", {
-  ...baseColumns(),
-  listingId: ulid("listing_id").notNull(),
-  channelWarehouseId: ulid("channel_warehouse_id").notNull(),
-  lastPushedQty: qty("last_pushed_qty"),
-  lastPushedAt: tstz("last_pushed_at"),
-  lastError: text("last_error"),
-  pushFailCount: integer("push_fail_count").notNull().default(0),
-});

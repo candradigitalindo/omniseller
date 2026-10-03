@@ -38,7 +38,11 @@ let b: { c: Client; me: MeBody };
 const fixtures: Record<string, Fixture> = {};
 
 /** Path parameters besides {id}, filled with A's fixture of the given kind. */
-const PATH_PARAMS: Record<string, string> = { "{channelWarehouseId}": "channel_warehouse", "{variantId}": "variant" };
+const PATH_PARAMS: Record<string, string> = {
+  "{channelWarehouseId}": "channel_warehouse",
+  "{variantId}": "variant",
+  "{warehouseId}": "warehouse",
+};
 
 /** Bodies for mutating operations, keyed by operationId. `ids` holds A's fixture ids and B's own ids. */
 const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: string; aState: string }) => object> = {
@@ -68,6 +72,16 @@ const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: s
   ListingsController_setStatus: ({ a: ids }) => ({ listingIds: [ids.listing!], active: false }),
   ListingsController_sync: ({ a: ids }) => ({ storeId: ids.store! }),
   ListingsController_map: ({ a: ids }) => ({ variantId: ids.variant! }),
+  InventoryController_adjust: ({ a: ids }) => ({
+    lines: [{ variantId: ids.variant!, warehouseId: ids.warehouse!, mode: "set", quantity: 1 }],
+    reason: "correction",
+  }),
+  InventoryController_initialStock: ({ a: ids }) => ({ storeId: ids.store! }),
+  InventoryController_resync: ({ a: ids }) => ({ storeId: ids.store! }),
+  InventoryController_setLocation: () => ({ minStock: 1 }),
+  StockRulesController_create: ({ a: ids }) => ({ storeId: ids.store!, mode: "all" }),
+  StockRulesController_update: () => ({ value: 1 }),
+  StockRulesController_remove: () => ({}),
 };
 
 beforeAll(async () => {
@@ -111,6 +125,14 @@ beforeAll(async () => {
                          VALUES (${listingId}, ${tenantId}, ${fixtures.store!.id}, '9001', 'A-KAOS-1', 'Kaos Tenant A', 'active')`);
     fixtures.listing = { id: listingId };
   });
+  const adjusted = await a.c.post("/v1/inventory/adjustments", {
+    lines: [{ variantId: fixtures.variant.id, warehouseId: fixtures.warehouse.id, mode: "set", quantity: 7 }],
+    reason: "correction",
+  });
+  fixtures.stock_movement = { id: adjusted.body.items[0].movementId };
+  const rule = await a.c.post("/v1/stock-allocation-rules", { storeId: fixtures.store!.id, mode: "all", buffer: 2 });
+  expect(rule.status).toBe(201);
+  fixtures.stock_rule = { id: rule.body.id };
   const started = await a.c.post("/v1/store-authorizations", { channel: "shopee" });
   expect(started.status).toBe(201);
   fixtures.store_authorization = { id: started.body.id };
@@ -216,6 +238,13 @@ describe("tenant isolation generated from openapi.json", () => {
     expect((await a.c.get(`/v1/listings/${fixtures.listing!.id}`)).body).toMatchObject({
       status: "active",
       mapping: null,
+    });
+    const stock = (await a.c.get("/v1/inventory?q=A-KAOS-1")).body.items[0];
+    expect(stock.warehouses[0]).toMatchObject({ onHand: 7, minStock: null });
+    expect((await a.c.get(`/v1/stock-allocation-rules/${fixtures.stock_rule!.id}`)).body).toMatchObject({
+      mode: "all",
+      buffer: 2,
+      value: 0,
     });
     // B's callback attempt with A's state did not consume it
     expect((await a.c.get(`/v1/store-authorizations/${fixtures.store_authorization!.id}`)).body.status).toBe("pending");

@@ -118,6 +118,27 @@ export interface ListingStatusResult {
   error?: string;
 }
 
+/**
+ * Absolute stock for one listing (technology doc 8.1, backend doc 9.4). `warehouses` lists every seller
+ * stock location of the listing, as the listing reports them: the marketplace may require all of them in
+ * one request (TikTok Shop does), so the backend never sends a subset.
+ */
+export interface StockUpdate {
+  externalItemId: string;
+  externalVariantId: string;
+  warehouses: { externalWarehouseId: string; quantity: number }[];
+}
+
+export interface StockUpdateResult {
+  externalItemId: string;
+  externalVariantId: string;
+  ok: boolean;
+  /** The marketplace's reason when not ok. */
+  error?: string;
+  /** True when trying again later may succeed (marketplace busy, rate limit); false for refusals. */
+  retryable?: boolean;
+}
+
 export type WebhookEventKind =
   | "authorization.granted"
   | "authorization.revoked"
@@ -169,6 +190,8 @@ export interface ConnectorManifest {
   accessTokenLifetimeSeconds: number;
   /** Regions OmniSeller connects; shops outside are skipped with a reason. */
   supportedRegions: readonly string[];
+  /** Largest stock quantity the marketplace accepts per warehouse; larger values are sent as this. */
+  maxStockQuantity: number | null;
 }
 
 export interface MarketplaceConnector {
@@ -205,6 +228,14 @@ export interface MarketplaceConnector {
     getListings(shop: ShopCredentials, externalItemIds: string[]): Promise<ListingPage>;
     /** Activates or deactivates whole items; per-item results, partial success is normal. */
     setListingStatus(shop: ShopCredentials, externalItemIds: string[], active: boolean): Promise<ListingStatusResult[]>;
+  };
+
+  inventory: {
+    /**
+     * Sets absolute seller stock. The connector groups updates per marketplace item as the API needs;
+     * results come back per listing, and partial success is normal. Authorization failures throw.
+     */
+    updateStock(shop: ShopCredentials, updates: StockUpdate[]): Promise<StockUpdateResult[]>;
   };
 
   webhooks: {

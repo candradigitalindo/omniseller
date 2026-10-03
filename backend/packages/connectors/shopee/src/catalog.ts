@@ -117,15 +117,20 @@ function dims(d: { package_length?: number; package_width?: number; package_heig
   return { length: d.package_length * 10, width: d.package_width * 10, height: d.package_height * 10 };
 }
 
-/** Seller stock per location, plus Shopee-held stock under the FBS warehouse id. */
-function stockOf(info: StockInfoV2 | undefined, fbsWarehouseId: string) {
+/**
+ * Seller stock per location, plus Shopee-held stock under the FBS warehouse id. Seller stock without a
+ * location (shops outside the multi-warehouse programme may have it) goes under the shop-level
+ * warehouse id, so the keys also record the item's stock structure that update_stock must follow.
+ */
+function stockOf(info: StockInfoV2 | undefined, ids: { fbs: string; shopLevel: string }) {
   const byWarehouse: Record<string, number> = {};
   for (const s of info?.seller_stock ?? []) {
-    if (s.location_id) byWarehouse[s.location_id] = (byWarehouse[s.location_id] ?? 0) + Number(s.stock ?? 0);
+    const key = s.location_id || ids.shopLevel;
+    byWarehouse[key] = (byWarehouse[key] ?? 0) + Number(s.stock ?? 0);
   }
   let fbs = 0;
   for (const s of info?.shopee_stock ?? []) fbs += Number(s.stock ?? 0);
-  if (fbs > 0) byWarehouse[fbsWarehouseId] = fbs;
+  if (fbs > 0) byWarehouse[ids.fbs] = fbs;
   const total = info?.summary_info?.total_available_stock;
   return { total: typeof total === "number" ? total : null, byWarehouse };
 }
@@ -135,7 +140,7 @@ function clean(s: string | undefined | null): string | null {
   return t ? t : null;
 }
 
-export function shopeeCatalog(client: ShopeeClient, fbsWarehouseId: string) {
+export function shopeeCatalog(client: ShopeeClient, warehouseIds: { fbs: string; shopLevel: string }) {
   async function itemsToListings(shop: ShopCredentials, ids: string[]): Promise<NormalizedListing[]> {
     const out: NormalizedListing[] = [];
     for (let i = 0; i < ids.length; i += BASE_INFO_BATCH) {
@@ -158,7 +163,7 @@ export function shopeeCatalog(client: ShopeeClient, fbsWarehouseId: string) {
           updatedAt: item.update_time ? new Date(item.update_time * 1000) : null,
         };
         if (!item.has_model) {
-          const stock = stockOf(item.stock_info_v2, fbsWarehouseId);
+          const stock = stockOf(item.stock_info_v2, warehouseIds);
           out.push({
             ...common,
             externalVariantId: "",
@@ -191,7 +196,7 @@ export function shopeeCatalog(client: ShopeeClient, fbsWarehouseId: string) {
             if (t?.name && option?.option) attributes[t.name] = option.option;
             if (tier === 0 && option?.image?.image_url) image = option.image.image_url;
           });
-          const stock = stockOf(m.stock_info_v2, fbsWarehouseId);
+          const stock = stockOf(m.stock_info_v2, warehouseIds);
           out.push({
             ...common,
             externalVariantId: String(m.model_id),

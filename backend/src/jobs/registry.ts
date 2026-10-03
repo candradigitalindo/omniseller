@@ -1,6 +1,7 @@
 import { CATALOG_JOBS } from "../modules/catalog/catalog.jobs";
 import { CHANNEL_JOBS } from "../modules/channel/channel.jobs";
 import { IDENTITY_JOBS } from "../modules/identity/identity.jobs";
+import { INVENTORY_JOBS } from "../modules/inventory/inventory.jobs";
 import { SYNC_JOBS } from "../modules/sync/sync.jobs";
 import type { EventDef, JobDef } from "./define";
 
@@ -45,4 +46,10 @@ export class JobRegistry {
 }
 
 /** Registered jobs; each module appends its definitions here. */
-export const JOB_DEFINITIONS: readonly JobDef[] = [...IDENTITY_JOBS, ...CHANNEL_JOBS, ...CATALOG_JOBS, ...SYNC_JOBS];
+export const JOB_DEFINITIONS: readonly JobDef[] = [
+  ...IDENTITY_JOBS,
+  ...CHANNEL_JOBS,
+  ...CATALOG_JOBS,
+  ...INVENTORY_JOBS,
+  ...SYNC_JOBS,
+];

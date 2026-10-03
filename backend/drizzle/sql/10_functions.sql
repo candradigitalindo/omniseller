@@ -141,7 +141,9 @@ BEGIN
 END $$;
 
 -- The only way to change stock quantities. Locks the inventory row, rejects results below zero,
--- and writes the ledger row with the resulting balances.
+-- and writes the ledger row with the resulting balances. A movement that establishes the quantity
+-- (adjustment, stock count, initial stock) also sets stock_set_at: only established stock is pushed
+-- to marketplaces (backend doc 9.4).
 CREATE OR REPLACE FUNCTION apply_stock_movement(
   p_id text, p_tenant_id text, p_variant_id text, p_warehouse_id text, p_type text,
   p_on_hand_delta bigint, p_reserved_delta bigint, p_damaged_delta bigint, p_buffer_delta bigint,
@@ -174,7 +176,9 @@ BEGIN
      SET on_hand = on_hand + p_on_hand_delta,
          reserved = reserved + p_reserved_delta,
          damaged = damaged + p_damaged_delta,
-         buffer = buffer + p_buffer_delta
+         buffer = buffer + p_buffer_delta,
+         stock_set_at = CASE WHEN p_type IN ('adjustment', 'count_apply', 'migration_initial') THEN now()
+                             ELSE stock_set_at END
    WHERE id = v_inv.id
   RETURNING * INTO v_inv;
   PERFORM set_config('app.stock_write', 'off', true);
@@ -190,6 +194,24 @@ BEGIN
     p_reference_type, p_reference_id, p_reason, p_note, p_actor_user_id
   ) RETURNING * INTO v_mv;
   RETURN v_mv;
+END $$;
+
+-- A person confirmed the quantity without changing it (an adjustment to the same number, initial stock
+-- equal to what is recorded): the quantity counts as established from now on.
+CREATE OR REPLACE FUNCTION confirm_stock(p_tenant_id text, p_variant_id text, p_warehouse_id text)
+RETURNS timestamptz
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+  v_at timestamptz;
+BEGIN
+  PERFORM assert_tenant(p_tenant_id);
+  UPDATE inventory SET stock_set_at = now()
+   WHERE tenant_id = p_tenant_id AND variant_id = p_variant_id AND warehouse_id = p_warehouse_id
+  RETURNING stock_set_at INTO v_at;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'STOCK_INVENTORY_MISSING' USING ERRCODE = 'no_data_found';
+  END IF;
+  RETURN v_at;
 END $$;
 
 ------------------------------------------------------------------------------------------------

@@ -366,6 +366,22 @@ export class ListingsService {
     });
   }
 
+  // ---- for the stock module, inside its transaction (backend doc 9.4) ----
+
+  /** Mapped, not deleted listings of these variants. */
+  mappedForVariantsIn(tx: Tx, variantIds: string[]): Promise<ListingRow[]> {
+    return this.repo.mappedListings(tx, { variantIds: [...new Set(variantIds)] });
+  }
+
+  /** Mapped, not deleted listings of a store, optionally only of some variants. */
+  mappedInStoreIn(tx: Tx, storeId: string, variantIds?: string[]): Promise<ListingRow[]> {
+    return this.repo.mappedListings(tx, { storeId, ...(variantIds ? { variantIds } : {}) });
+  }
+
+  listingsByIdsIn(tx: Tx, ids: string[]): Promise<ListingRow[]> {
+    return this.repo.listingsByIds(tx, [...new Set(ids)]);
+  }
+
   /** Pulls listings again: incremental by default, everything (and closing deleted ones) with `full`. */
   async requestPull(ctx: RequestContext, storeId: string, full: boolean): Promise<void> {
     const view = await this.stores.get(ctx, storeId);

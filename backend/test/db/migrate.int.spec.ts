@@ -13,6 +13,7 @@ describe("migration runner (ADR-027)", () => {
     expect(result.applied).toEqual([]);
     expect(result.repeatables).toEqual([
       "10_functions.sql",
+      "15_views.sql",
       "20_triggers.sql",
       "30_policies.sql",
       "40_grants.sql",

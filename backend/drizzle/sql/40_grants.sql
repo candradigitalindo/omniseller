@@ -56,6 +56,9 @@ GRANT UPDATE (bin_location, min_stock) ON TABLE inventory TO omniseller_api, omn
 REVOKE INSERT, UPDATE, DELETE ON TABLE stock_movement FROM omniseller_api, omniseller_worker;
 REVOKE UPDATE ON TABLE stock_movement FROM omniseller_system;
 
+-- Views a module exports for others to read (backend doc 11). security_invoker: the caller's RLS applies.
+GRANT SELECT ON catalog_variant_v TO omniseller_api, omniseller_worker;
+
 -- Append-only history
 REVOKE UPDATE, DELETE ON TABLE order_event FROM omniseller_api, omniseller_worker;
 REVOKE UPDATE ON TABLE order_external_ref FROM omniseller_api, omniseller_worker;
@@ -74,6 +77,7 @@ REVOKE SELECT, UPDATE, DELETE ON TABLE outbox_event FROM omniseller_api, omnisel
 -- SECURITY DEFINER functions: nobody by default, then exactly the roles that need them.
 REVOKE ALL ON FUNCTION ensure_inventory(text, text, text, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION apply_stock_movement(text, text, text, text, text, bigint, bigint, bigint, bigint, text, text, text, text, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION confirm_stock(text, text, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION audit_row() FROM PUBLIC;
 REVOKE ALL ON FUNCTION resolve_store(text, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION auth_login_candidates(text) FROM PUBLIC;
@@ -86,6 +90,7 @@ REVOKE ALL ON FUNCTION maintain_partitions(timestamptz) FROM PUBLIC;
 
 GRANT EXECUTE ON FUNCTION ensure_inventory(text, text, text, text) TO omniseller_api, omniseller_worker;
 GRANT EXECUTE ON FUNCTION apply_stock_movement(text, text, text, text, text, bigint, bigint, bigint, bigint, text, text, text, text, text) TO omniseller_api, omniseller_worker;
+GRANT EXECUTE ON FUNCTION confirm_stock(text, text, text) TO omniseller_api, omniseller_worker;
 GRANT EXECUTE ON FUNCTION resolve_store(text, text) TO omniseller_api, omniseller_worker;
 GRANT EXECUTE ON FUNCTION auth_login_candidates(text) TO omniseller_api;
 GRANT EXECUTE ON FUNCTION auth_resolve_refresh_token(text) TO omniseller_api;

@@ -1,40 +1,32 @@
-import { Controller, Get, Inject, Module } from "@nestjs/common";
-import { ApiTags } from "@nestjs/swagger";
-import { ulidSchema } from "@omniseller/shared";
-import { createZodDto, ZodResponse } from "nestjs-zod";
-import { z } from "zod";
-import type { RequestContext } from "../../common/context/request-context";
-import { Ctx, Isolation, RequirePermission } from "../../common/http/decorators";
-import { WarehousesService } from "./warehouses.service";
+import { Module } from "@nestjs/common";
+import { CatalogModule } from "../catalog/catalog.module";
+import { ChannelModule } from "../channel/channel.module";
+import { AllocationRulesService } from "./allocation-rules.service";
+import { InitialStockService } from "./initial-stock.service";
+import { InventoryController, StockRulesController, WarehousesController } from "./inventory.controllers";
+import { InventoryModule } from "./inventory-core.module";
+import { StockOverviewService } from "./stock-overview.service";
+import { StockPushService } from "./stock-push.service";
+import { StockTriggersService } from "./stock-triggers.service";
 
-const warehouseSchema = z.object({
-  id: ulidSchema,
-  code: z.string(),
-  name: z.string(),
-  isDefault: z.boolean(),
-  active: z.boolean(),
-  address: z.record(z.string(), z.unknown()),
-});
-export class WarehouseListDto extends createZodDto(z.object({ items: z.array(warehouseSchema) })) {}
+export { InventoryModule };
 
-@ApiTags("warehouses")
-@Controller("v1/warehouses")
-@RequirePermission("inventory:read")
-export class WarehousesController {
-  constructor(@Inject(WarehousesService) private readonly warehouses: WarehousesService) {}
+const STOCK = [StockOverviewService, InitialStockService, AllocationRulesService];
 
-  /** Warehouses of the business, limited to the caller's warehouse scope. */
-  @Get()
-  @Isolation({ fixture: "warehouse" })
-  @ZodResponse({ type: WarehouseListDto })
-  async list(@Ctx() ctx: RequestContext) {
-    return { items: await this.warehouses.list(ctx) };
-  }
-}
+/** Stock list with push state, initial stock, allocation rules (api and worker). */
+@Module({ imports: [InventoryModule, CatalogModule, ChannelModule], providers: STOCK, exports: STOCK })
+export class InventoryStockModule {}
 
-/** Inventory services (worker and api). Stock movements and counts join this module later. */
-@Module({ providers: [WarehousesService], exports: [WarehousesService] })
-export class InventoryModule {}
+/** The stock pusher and its triggers: worker only, marketplaces are called through MarketplaceGateway. */
+@Module({
+  imports: [InventoryModule, CatalogModule, ChannelModule],
+  providers: [StockPushService, StockTriggersService],
+  exports: [StockPushService, StockTriggersService],
+})
+export class InventoryWorkerModule {}
 
-@Module({ imports: [InventoryModule], controllers: [WarehousesController] })
+@Module({
+  imports: [InventoryModule, InventoryStockModule],
+  controllers: [WarehousesController, InventoryController, StockRulesController],
+})
 export class InventoryHttpModule {}

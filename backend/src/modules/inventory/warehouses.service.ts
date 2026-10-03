@@ -46,6 +46,23 @@ export class WarehousesService {
     });
   }
 
+  /** Active warehouses the caller may work with (warehouse scope, FR-WHS-09), inside a transaction. */
+  async visibleIn(tx: Tx, ctx: RequestContext): Promise<WarehouseView[]> {
+    const scope = ctx.warehouseScope;
+    if (scope && scope.size === 0) return [];
+    return tx
+      .select(columns)
+      .from(warehouse)
+      .where(
+        and(
+          eq(warehouse.active, true),
+          isNull(warehouse.deletedAt),
+          scope ? inArray(warehouse.id, [...scope]) : undefined,
+        ),
+      )
+      .orderBy(desc(warehouse.isDefault), asc(warehouse.name));
+  }
+
   /** Active, not deleted warehouses, inside an existing transaction. */
   async activeIn(tx: Tx): Promise<WarehouseView[]> {
     return tx

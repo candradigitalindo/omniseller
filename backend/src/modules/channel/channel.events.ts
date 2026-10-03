@@ -50,6 +50,13 @@ export const channelWarehouseChanged = defineEvent({
   schema: z.object({ storeId: ulidSchema, added: z.number().int(), removed: z.number().int() }),
 });
 
+/** A seller warehouse was mapped to another OmniSeller warehouse, or unmapped (FR-WHS-02). */
+export const channelWarehouseMappingChanged = defineEvent({
+  type: "channel_warehouse.mapping_changed",
+  aggregate: "store",
+  schema: z.object({ storeId: ulidSchema, channelWarehouseId: ulidSchema, warehouseId: ulidSchema.nullable() }),
+});
+
 export const storeSyncModeChanged = defineEvent({
   type: "store.sync_mode_changed",
   aggregate: "store",

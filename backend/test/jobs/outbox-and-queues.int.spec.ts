@@ -7,11 +7,11 @@ import { withTenantTx } from "../../src/db/tenant-tx";
 import { defineEvent, defineJob } from "../../src/jobs/define";
 import { jobKey } from "../../src/jobs/job-id";
 import { QueueRegistry } from "../../src/jobs/queues";
-import { JobRegistry } from "../../src/jobs/registry";
-import { StockDirtySet } from "../../src/jobs/stock-dirty";
+import { JOB_DEFINITIONS, JobRegistry } from "../../src/jobs/registry";
+import { StockDirtySet, stockPushJobId } from "../../src/jobs/stock-dirty";
 import { Outbox } from "../../src/outbox/outbox";
 import { relayOnce } from "../../src/scheduler/outbox-relay";
-import { flushStockDirty } from "../../src/scheduler/stock-flush";
+import { flushStockDirty, STOCK_PUSH_BATCH } from "../../src/scheduler/stock-flush";
 import { createTenant, type TenantFixture } from "../setup/factories";
 import { testHandles } from "../setup/handles";
 
@@ -156,6 +156,8 @@ describe("outbox and relay (invariant I4, ADR-024)", () => {
 describe("stock push debounce (backend doc 9.4, ADR-006)", () => {
   let queues: QueueRegistry;
   let dirty: StockDirtySet;
+  const registry = new JobRegistry(JOB_DEFINITIONS);
+  type Marks = { tenantId: string; marks: { variantId: string; warehouseId: string; score: string }[] };
 
   beforeAll(() => {
     queues = new QueueRegistry(h.redis, h.infra.keyPrefix);
@@ -192,17 +194,48 @@ describe("stock push debounce (backend doc 9.4, ADR-006)", () => {
     const queue = queues.get("stock.push");
 
     await dirty.mark(tenant, variant, warehouse, 100_000);
-    expect(await flushStockDirty(dirty, queues, 110_000)).toBeGreaterThanOrEqual(1);
+    expect(await flushStockDirty(dirty, queues, registry, 110_000)).toBeGreaterThanOrEqual(1);
     // The first push job is still held by BullMQ (here waiting; after it finishes it is kept for an
     // hour by removeOnComplete.age). Either way its id blocks an identical id.
 
     await dirty.mark(tenant, variant, warehouse, 200_000);
-    await flushStockDirty(dirty, queues, 210_000);
+    await flushStockDirty(dirty, queues, registry, 210_000);
     const all = await queue.getJobs(["waiting", "completed", "active"]);
-    const mine = all.filter((j) => (j.data as { variantId: string }).variantId === variant);
+    const mine = all.filter((j) => (j.data as Marks).tenantId === tenant);
     expect(mine.map((j) => j.id).sort()).toEqual(
-      [jobKey("stock.push", variant, warehouse, "100000"), jobKey("stock.push", variant, warehouse, "200000")].sort(),
+      [
+        stockPushJobId(tenant, [{ variantId: variant, warehouseId: warehouse, score: "100000" }]),
+        stockPushJobId(tenant, [{ variantId: variant, warehouseId: warehouse, score: "200000" }]),
+      ].sort(),
     );
+    expect(mine[0]!.opts.attempts).toBe(8);
+  });
+
+  it("batches one tenant's keys, and a flush repeated after a crash adds nothing", async () => {
+    const tenant = newId();
+    const queue = queues.get("stock.push");
+    const pairs = Array.from({ length: STOCK_PUSH_BATCH + 10 }, () => ({ variantId: newId(), warehouseId: newId() }));
+    await dirty.markMany(tenant, pairs, 300_000);
+    await flushStockDirty(dirty, queues, registry, 310_000);
+    const mine = async () =>
+      (await queue.getJobs(["waiting", "completed", "active"])).filter((j) => (j.data as Marks).tenantId === tenant);
+    const jobs = await mine();
+    expect(jobs.map((j) => (j.data as Marks).marks.length).sort((x, y) => x - y)).toEqual([10, STOCK_PUSH_BATCH]);
+
+    // The scheduler died after enqueueing and before acknowledging: the same keys are ready again.
+    await dirty.markMany(tenant, pairs, 300_000);
+    await flushStockDirty(dirty, queues, registry, 310_000);
+    expect((await mine()).map((j) => j.id).sort()).toEqual(jobs.map((j) => j.id).sort());
+  });
+
+  it("lets one pusher at a time hold a variant", async () => {
+    const [tenant, variant] = [newId(), newId()];
+    expect(await dirty.tryLock(tenant, variant, "a", 10_000)).toBe(true);
+    expect(await dirty.tryLock(tenant, variant, "b", 10_000)).toBe(false);
+    await dirty.unlock(tenant, variant, "b"); // not the owner: no effect
+    expect(await dirty.tryLock(tenant, variant, "b", 10_000)).toBe(false);
+    await dirty.unlock(tenant, variant, "a");
+    expect(await dirty.tryLock(tenant, variant, "b", 10_000)).toBe(true);
   });
 
   it("the business-key-only id from the original design would have dropped the second push", async () => {

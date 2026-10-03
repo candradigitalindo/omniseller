@@ -11,6 +11,7 @@ import {
 } from "@omniseller/connector-core";
 import { tiktokCatalog } from "./catalog.js";
 import { TiktokShopClient, type TiktokShopConfig } from "./client.js";
+import { TIKTOK_MAX_STOCK, tiktokInventory } from "./inventory.js";
 import { parseTiktokWebhook, TIKTOK_WEBHOOK_TOPICS, verifyTiktokWebhook } from "./webhooks.js";
 
 /**
@@ -26,6 +27,8 @@ export const TIKTOKSHOP_MANIFEST: ConnectorManifest = {
   // Access tokens last 7 days by default (Authorization overview).
   accessTokenLifetimeSeconds: 7 * 24 * 3600,
   supportedRegions: ["ID"],
+  // Update Inventory: quantity at most 99,999 per warehouse.
+  maxStockQuantity: TIKTOK_MAX_STOCK,
 };
 
 const SELLER_USER_TYPE = 0;
@@ -227,6 +230,8 @@ export function createTiktokShopConnector(config: TiktokShopConfig): Marketplace
     },
 
     catalog: tiktokCatalog(client),
+
+    inventory: tiktokInventory(client),
 
     webhooks: {
       verify(req) {

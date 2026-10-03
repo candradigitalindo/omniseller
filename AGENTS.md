@@ -53,6 +53,9 @@ NestJS injection always uses explicit `@Inject(TOKEN)`; do not rely on construct
 - Marketplace JSON goes through `parseJsonSafe` (`@omniseller/connector-core`), never plain `JSON.parse`: TikTok Shop product ids have 19 digits and lose precision as numbers. The webhook receiver already lost an id this way once.
 - Marketplace calls go only through `MarketplaceGateway.call`; the per-shop rate limit is taken per HTTP request inside it (`withRequestGate`), so a connector method may page as much as it needs.
 - Listing pulls page in batches (`PAGES_PER_JOB`) and continue through an outbox event; do not loop over a whole catalog in one job.
+- Stock changes go through `InventoryService` (`adjust`, `establishIn`, later the order and return movements), which writes `inventory.changed` in the same transaction. A movement without that event never reaches the marketplaces.
+- Stock nobody has established (`inventory.stock_set_at` null) is never pushed (ADR-036). A count equal to the record must still be confirmed: a `set` adjustment with no difference calls `confirm_stock`.
+- `InventoryModule` lives in `inventory-core.module.ts` and must not import catalog or channel: channel imports it, and a cycle between module files hands Nest an undefined import ("Nest cannot create the ... module instance"). Features that need listings or stores go in `inventory.module.ts`.
 - Never hold a database transaction open across an HTTP call to a marketplace: the worker role ends sessions idle in a transaction after 10 seconds. Call marketplaces only through `MarketplaceGateway` (rate limit, sync log, token refresh); for a lock that must span the call use `withAdvisoryLock`.
 - Webhook signatures cover the exact raw body. The webhook process parses no JSON before verifying (`webhook/webhook-app.ts`); do not add a JSON body parser there.
 - `outbox.enqueue` writes nothing for an event that no job consumes yet, so a test cannot look for that event's row.

@@ -16,7 +16,11 @@ import {
   RolesController,
   UsersController,
 } from "../../modules/identity/identity.controllers";
-import { WarehousesController } from "../../modules/inventory/inventory.module";
+import {
+  InventoryController,
+  StockRulesController,
+  WarehousesController,
+} from "../../modules/inventory/inventory.controllers";
 import { HealthController } from "../../modules/platform/health.controller";
 import { WebhooksController } from "../../modules/sync/webhooks.controller";
 
@@ -38,6 +42,8 @@ const CONTROLLERS = [
   StoreAuthorizationsController,
   StoresController,
   WarehousesController,
+  InventoryController,
+  StockRulesController,
   WebhooksController,
   ProductsController,
   ListingsController,

@@ -435,3 +435,136 @@ describe("TikTok Shop catalog", () => {
     });
   });
 });
+
+describe("TikTok Shop stock (Update Inventory 202309)", () => {
+  const shop = { externalShopId: "7494049642642441621", shopCipher: "ROW_cipher", accessToken: "TTP_access" };
+  type Body = { skus: { id: string; inventory: { warehouse_id: string; quantity: number }[] }[] };
+
+  it("sends one call per product with every warehouse of each SKU, capped at 99,999", async () => {
+    const calls: { product: string; body: Body }[] = [];
+    const f = fakeFetch({
+      "POST /product/202309/products/1729382561353664372/inventory/update": (url, init) => {
+        expect(url.searchParams.get("shop_cipher")).toBe("ROW_cipher");
+        calls.push({ product: "1729382561353664372", body: JSON.parse(String(init.body)) as Body });
+        return { code: 0, message: "Success", data: {} };
+      },
+      "POST /product/202309/products/1729382561353664999/inventory/update": (_url, init) => {
+        calls.push({ product: "1729382561353664999", body: JSON.parse(String(init.body)) as Body });
+        return { code: 0, message: "Success", data: {} };
+      },
+    });
+    const results = await connector(f.fn).inventory.updateStock(shop, [
+      {
+        externalItemId: "1729382561353664372",
+        externalVariantId: "1729592969712207013",
+        warehouses: [
+          { externalWarehouseId: "7068517275539719942", quantity: 120000 },
+          { externalWarehouseId: "7068517275539719943", quantity: 0 },
+        ],
+      },
+      {
+        externalItemId: "1729382561353664999",
+        externalVariantId: "1729592969712207999",
+        warehouses: [{ externalWarehouseId: "7068517275539719942", quantity: 7 }],
+      },
+      {
+        externalItemId: "1729382561353664372",
+        externalVariantId: "1729592969712207014",
+        warehouses: [{ externalWarehouseId: "7068517275539719942", quantity: 3 }],
+      },
+    ]);
+    expect(calls).toEqual([
+      {
+        product: "1729382561353664372",
+        body: {
+          skus: [
+            {
+              id: "1729592969712207013",
+              inventory: [
+                { warehouse_id: "7068517275539719942", quantity: 99_999 },
+                { warehouse_id: "7068517275539719943", quantity: 0 },
+              ],
+            },
+            { id: "1729592969712207014", inventory: [{ warehouse_id: "7068517275539719942", quantity: 3 }] },
+          ],
+        },
+      },
+      {
+        product: "1729382561353664999",
+        body: {
+          skus: [{ id: "1729592969712207999", inventory: [{ warehouse_id: "7068517275539719942", quantity: 7 }] }],
+        },
+      },
+    ]);
+    expect(results.map((r) => [r.externalVariantId, r.ok])).toEqual([
+      ["1729592969712207013", true],
+      ["1729592969712207999", true],
+      ["1729592969712207014", true],
+    ]);
+  });
+
+  it("reads per-SKU errors from data.errors even when code is 0", async () => {
+    const f = fakeFetch({
+      "POST /product/202309/products/1/inventory/update": () => ({
+        code: 0,
+        message: "Success",
+        data: {
+          errors: [
+            {
+              code: 12052990,
+              message: "Batch update inventory error.",
+              detail: {
+                sku_id: "12",
+                extra_errors: [
+                  {
+                    warehouse_id: "W1",
+                    code: 12052393,
+                    message: "Product locked for Promotion and stock can't be updated below current stock",
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      }),
+    });
+    const results = await connector(f.fn).inventory.updateStock(shop, [
+      { externalItemId: "1", externalVariantId: "11", warehouses: [{ externalWarehouseId: "W1", quantity: 5 }] },
+      { externalItemId: "1", externalVariantId: "12", warehouses: [{ externalWarehouseId: "W1", quantity: 0 }] },
+    ]);
+    expect(results[0]).toEqual({ externalItemId: "1", externalVariantId: "11", ok: true });
+    expect(results[1]).toMatchObject({ externalVariantId: "12", ok: false, retryable: false });
+    expect(results[1]!.error).toContain("Product locked for Promotion");
+    expect(results[1]!.error).toContain("gudang W1");
+  });
+
+  it("marks internal errors retryable, refusals not, and throws authorization errors", async () => {
+    const f = fakeFetch({
+      "POST /product/202309/products/1/inventory/update": () => ({
+        code: 36009003,
+        message: "Internal error. Please try again.",
+      }),
+      "POST /product/202309/products/2/inventory/update": () => ({
+        code: 12019028,
+        message: "Multiple warehouses detected. Include all warehouse IDs and the corresponding details and try again.",
+      }),
+    });
+    const results = await connector(f.fn).inventory.updateStock(shop, [
+      { externalItemId: "1", externalVariantId: "11", warehouses: [{ externalWarehouseId: "W1", quantity: 1 }] },
+      { externalItemId: "2", externalVariantId: "21", warehouses: [{ externalWarehouseId: "W1", quantity: 1 }] },
+    ]);
+    expect(results.map((r) => [r.ok, r.retryable])).toEqual([
+      [false, true],
+      [false, false],
+    ]);
+
+    const expired = fakeFetch({
+      "POST /product/202309/products/1/inventory/update": () => ({ code: 105002, message: "Expired credentials." }),
+    });
+    await expect(
+      connector(expired.fn).inventory.updateStock(shop, [
+        { externalItemId: "1", externalVariantId: "11", warehouses: [{ externalWarehouseId: "W1", quantity: 1 }] },
+      ]),
+    ).rejects.toBeInstanceOf(AuthExpiredError);
+  });
+});

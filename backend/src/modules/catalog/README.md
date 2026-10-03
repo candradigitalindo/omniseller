@@ -4,7 +4,8 @@
 Produk master dan variannya, listing marketplace, dan pemetaan keduanya (PRD 6.2: FR-PRD-01 sampai 04, 09, 10; bagian produk FR-INT-04; backend doc 8.12): CRUD produk dengan atribut varian, tarik listing dari Shopee dan Tokopedia & Shop, pemetaan otomatis per SKU, saran pemetaan, membuat produk dari listing, aktif dan nonaktif di marketplace, serta impor dan ekspor CSV.
 
 ## Tabel yang dimiliki
-- `product`, `variant`, `product_image`, `bundle_component`, `channel_listing`, `listing_stock_state`.
+- `product`, `variant`, `product_image`, `bundle_component`, `channel_listing`. `listing_stock_state` milik modul inventory.
+- Mengekspor view `catalog_variant_v` (`drizzle/sql/15_views.sql`): varian hidup beserta produknya, untuk dibaca modul lain.
 - Membaca toko, cakupan toko, dan `sync_cursor` lewat `StoresService` (milik `channel`); repository ini tidak pernah menyentuh tabel `store`.
 
 ## Service publik
@@ -12,6 +13,7 @@ Produk master dan variannya, listing marketplace, dan pemetaan keduanya (PRD 6.2
 - `ListingsService` (api dan worker): `list`, `get`, `unmappedWithSuggestions`, `map`, `autoMap`, `autoMapIn`, `createProductsFromListings`, `requestStatus`, `requestPull`. Error: `listing.not_found`, `listing.store_not_active`, `store.not_found`, varian tidak tersedia (422).
 - `ProductTransferService` (api): `exportCsv`, `importCsv(ctx, content, dryRun)`.
 - Hanya worker: `ListingSyncService` (`pull`, `apply`, `refreshItems`, `pushStatus`); semua panggilan marketplace lewat `MarketplaceGateway.call`.
+- Untuk modul inventory, di dalam transaksinya: `ListingsService.mappedForVariantsIn`, `mappedInStoreIn`, `listingsByIdsIn`.
 
 ## Aturan
 - SKU produk dan SKU varian unik per bisnis tanpa membedakan huruf besar dan spasi tepi (`lower(btrim(sku))`, indeks unik migrasi 0004), sama dengan aturan pencocokan listing. Barcode unik persis.
@@ -27,7 +29,7 @@ Produk master dan variannya, listing marketplace, dan pemetaan keduanya (PRD 6.2
 Ditulis setiap tarikan (`ListingChannelData`): `itemSku`, `variantName`, `attributes`, `imageUrl`, `itemImageUrls`, `description`, `brand`, `categoryPath`, `weightG`, `dimensionsMm`, `stockByWarehouse` (per id gudang marketplace), `statusDetail` (status asli marketplace), `updatedAt`.
 
 ## Event
-- Diterbitkan: `listing.pull_requested` (tarik ulang, atau lanjutan halaman berikutnya), `listing.status_push_requested` (maksimal 500 item per event), `listing.mapped`, `listing.unmapped`.
+- Diterbitkan: `listing.pull_requested` (tarik ulang, atau lanjutan halaman berikutnya), `listing.status_push_requested` (maksimal 500 item per event), `listing.mapped`, `listing.unmapped` (dikonsumsi pusher stok di modul inventory).
 - Dikonsumsi: `store.connected` (tarikan penuh pertama); dari webhook (`jobs/webhook-consumers.ts`): `listing.changed` (Shopee kode 6, 16, 22; TikTok Shop `PRODUCT_STATUS_CHANGE`, `PRODUCT_AUDIT_STATUS_CHANGE`).
 
 ## Job
@@ -60,4 +62,4 @@ Kolom: `sku_produk`, `nama_produk`, `deskripsi`, `merek`, `kategori`, `sku_varia
 - Gambar disimpan sebagai URL (`product_image.source_url`) sampai pipeline berkas menyalinnya ke `file_object`.
 - Produk dari listing memakai SKU induk item, atau `SP-<item_id>` / `TTS-<item_id>`, dan berat 100 g bila marketplace tidak mengisi.
 - Template Excel (.xlsx) belum ada; CSV dengan BOM dan `;` dibuka Excel per kolom.
-- Menyusul: dorong stok (`listing_stock_state`, 9.4), dorong harga (`listing.price_push`), salin listing antar toko (FR-PRD-11 sampai 13), bundle (`bundle_component`).
+- Menyusul: dorong harga (`listing.price_push`), salin listing antar toko (FR-PRD-11 sampai 13), bundle (`bundle_component`). Push stok ada di modul inventory.

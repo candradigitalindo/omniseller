@@ -12,16 +12,19 @@ import { ConfigModule } from "../../src/config/config.module";
 import { parseEnv } from "../../src/config/env.schema";
 import type { DbHandle } from "../../src/db/client";
 import { InfraModule } from "../../src/infra/infra.module";
+import { STOCK_DIRTY } from "../../src/infra/tokens";
 import type { JobDef } from "../../src/jobs/define";
 import { JOB_DEFINITIONS, JobRegistry } from "../../src/jobs/registry";
+import type { StockDirtySet } from "../../src/jobs/stock-dirty";
 import { AuthModule } from "../../src/modules/auth/auth.module";
 import { CatalogModule, CatalogWorkerModule } from "../../src/modules/catalog/catalog.module";
 import { ChannelModule, ChannelWorkerModule, ConnectorsModule } from "../../src/modules/channel/channel.module";
 import { IdentityModule } from "../../src/modules/identity/identity.module";
-import { InventoryModule } from "../../src/modules/inventory/inventory.module";
+import { InventoryModule, InventoryWorkerModule } from "../../src/modules/inventory/inventory.module";
 import { EMAIL_SENDER, type MemoryEmailSender } from "../../src/modules/notification/email";
 import { NotificationModule } from "../../src/modules/notification/notification.module";
 import { SyncModule } from "../../src/modules/sync/sync.module";
+import { STOCK_PUSH_BATCH } from "../../src/scheduler/stock-flush";
 import { configureWebhookApp } from "../../src/webhook/webhook-app";
 import type { TestInfra } from "./global-setup";
 import { type MockMarketplace, SHOPEE, TIKTOK } from "./mock-marketplace";
@@ -114,6 +117,7 @@ export async function startWorker(infra: TestInfra, system: DbHandle, opts: { ma
       ChannelWorkerModule.forEnv(env),
       CatalogModule,
       CatalogWorkerModule,
+      InventoryWorkerModule,
     ],
   }).compile();
   const ctx = await moduleRef.init();
@@ -160,7 +164,37 @@ export async function startWorker(infra: TestInfra, system: DbHandle, opts: { ma
     });
   }
 
-  return { ctx, email, runOutbox, runJob, close: () => ctx.close() };
+  /**
+   * The scheduler's stock.dirty_flush followed by the stock.push jobs it would enqueue, run in place and
+   * without the quiet period. Only this tenant's keys are taken. Returns the jobs' errors (a temporary
+   * marketplace failure makes stock.push throw so BullMQ retries).
+   */
+  async function flushStock(tenantId: string): Promise<{ jobs: number; errors: unknown[] }> {
+    const dirty = ctx.get<StockDirtySet>(STOCK_DIRTY);
+    const def = registry.get("stock.push", "stock.push")!;
+    const ready = (await dirty.ready(Date.now() + 1, 0, 10_000)).filter((k) => k.tenantId === tenantId);
+    const batches: { variantId: string; warehouseId: string; score: string }[][] = [];
+    for (let i = 0; i < ready.length; i += STOCK_PUSH_BATCH) {
+      batches.push(
+        ready
+          .slice(i, i + STOCK_PUSH_BATCH)
+          .map((k) => ({ variantId: k.variantId, warehouseId: k.warehouseId, score: k.score })),
+      );
+    }
+    // Same order as the scheduler: enqueue and acknowledge first, the jobs run afterwards.
+    for (const k of ready) await dirty.ack(k);
+    const errors: unknown[] = [];
+    for (const marks of batches) {
+      try {
+        await runJob(def, { marks }, tenantId);
+      } catch (err) {
+        errors.push(err);
+      }
+    }
+    return { jobs: batches.length, errors };
+  }
+
+  return { ctx, email, runOutbox, runJob, flushStock, close: () => ctx.close() };
 }
 
 /** The webhook process: raw bodies, signature checks, inbox, enqueue (technology doc 8.3). */

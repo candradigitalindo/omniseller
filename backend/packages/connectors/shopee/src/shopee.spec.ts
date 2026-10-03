@@ -523,3 +523,158 @@ describe("Shopee catalog (v2.product)", () => {
     }
   });
 });
+
+describe("Shopee stock (v2.product.update_stock)", () => {
+  const shop = { externalShopId: "1", shopCipher: null, accessToken: "t" };
+  type Body = { item_id: number; stock_list: { model_id: number; seller_stock: object[] }[] };
+
+  it("sends one call per item with all its models, mirroring each model's location structure", async () => {
+    const bodies: Body[] = [];
+    const f = fakeFetch({
+      "POST /api/v2/product/update_stock": (_url, init) => {
+        const body = JSON.parse(String(init.body)) as Body;
+        bodies.push(body);
+        return {
+          error: "",
+          response: { success_list: body.stock_list.map((s) => ({ model_id: s.model_id })), failure_list: [] },
+        };
+      },
+    });
+    const results = await connector(f.fn).inventory.updateStock(shop, [
+      { externalItemId: "100", externalVariantId: "11", warehouses: [{ externalWarehouseId: "IDZ", quantity: 5 }] },
+      {
+        externalItemId: "200",
+        externalVariantId: "",
+        warehouses: [{ externalWarehouseId: SHOPEE_DEFAULT_WAREHOUSE_ID, quantity: 0 }],
+      },
+      { externalItemId: "100", externalVariantId: "12", warehouses: [{ externalWarehouseId: "IDZ", quantity: 3 }] },
+    ]);
+    expect(bodies).toEqual([
+      {
+        item_id: 100,
+        stock_list: [
+          { model_id: 11, seller_stock: [{ location_id: "IDZ", stock: 5 }] },
+          { model_id: 12, seller_stock: [{ location_id: "IDZ", stock: 3 }] },
+        ],
+      },
+      // stock without a location stays without one: Shopee refuses a change of stock structure
+      { item_id: 200, stock_list: [{ model_id: 0, seller_stock: [{ stock: 0 }] }] },
+    ]);
+    expect(results.map((r) => [r.externalItemId, r.externalVariantId, r.ok])).toEqual([
+      ["100", "11", true],
+      ["200", "", true],
+      ["100", "12", true],
+    ]);
+  });
+
+  it("reads failure_list next to a top-level error and keeps the models that succeeded", async () => {
+    const f = fakeFetch({
+      "POST /api/v2/product/update_stock": () => ({
+        error: "error_busi_update_stock_failed",
+        message: "Update stock failed, please check failure_list for detailed reason",
+        response: {
+          success_list: [{ model_id: 11, location_id: "IDZ", stock: 5 }],
+          failure_list: [{ model_id: 12, failed_reason: "Can not update item with stock less than reserved stock" }],
+        },
+      }),
+    });
+    const results = await connector(f.fn).inventory.updateStock(shop, [
+      { externalItemId: "100", externalVariantId: "11", warehouses: [{ externalWarehouseId: "IDZ", quantity: 5 }] },
+      { externalItemId: "100", externalVariantId: "12", warehouses: [{ externalWarehouseId: "IDZ", quantity: 0 }] },
+    ]);
+    expect(results).toEqual([
+      { externalItemId: "100", externalVariantId: "11", ok: true },
+      {
+        externalItemId: "100",
+        externalVariantId: "12",
+        ok: false,
+        error: "Can not update item with stock less than reserved stock",
+        retryable: false,
+      },
+    ]);
+  });
+
+  it("splits an item with more than 50 models into several calls", async () => {
+    const sizes: number[] = [];
+    const f = fakeFetch({
+      "POST /api/v2/product/update_stock": (_url, init) => {
+        sizes.push((JSON.parse(String(init.body)) as Body).stock_list.length);
+        return { error: "", response: { success_list: [], failure_list: [] } };
+      },
+    });
+    const updates = Array.from({ length: 60 }, (_, i) => ({
+      externalItemId: "100",
+      externalVariantId: String(i + 1),
+      warehouses: [{ externalWarehouseId: "IDZ", quantity: i }],
+    }));
+    const results = await connector(f.fn).inventory.updateStock(shop, updates);
+    expect(sizes).toEqual([50, 10]);
+    expect(results.every((r) => r.ok)).toBe(true);
+  });
+
+  it("marks busy-marketplace failures retryable, refusals not, and throws authorization errors", async () => {
+    const f = fakeFetch({
+      "POST /api/v2/product/update_stock": (_url, init) => {
+        const item = (JSON.parse(String(init.body)) as Body).item_id;
+        if (item === 100)
+          return new Response(
+            JSON.stringify({ error: "error_server", message: "Something wrong. Please try later." }),
+            {
+              status: 500,
+            },
+          );
+        if (item === 200) return { error: "error_item_not_found", message: "Item_id is not found." };
+        return { error: "error_busi", message: "The merchant/shop has multi warehouse, please input location id" };
+      },
+    });
+    const results = await connector(f.fn).inventory.updateStock(shop, [
+      { externalItemId: "100", externalVariantId: "", warehouses: [{ externalWarehouseId: "IDZ", quantity: 1 }] },
+      { externalItemId: "200", externalVariantId: "", warehouses: [{ externalWarehouseId: "IDZ", quantity: 1 }] },
+      { externalItemId: "300", externalVariantId: "", warehouses: [{ externalWarehouseId: "default", quantity: 1 }] },
+    ]);
+    expect(results.map((r) => [r.ok, r.retryable])).toEqual([
+      [false, true],
+      [false, false],
+      [false, false],
+    ]);
+    expect(results[1]!.error).toContain("Item_id is not found");
+
+    const expired = fakeFetch({
+      "POST /api/v2/product/update_stock": () => ({ error: "invalid_acceess_token", message: "Invalid access_token." }),
+    });
+    await expect(
+      connector(expired.fn).inventory.updateStock(shop, [
+        { externalItemId: "100", externalVariantId: "", warehouses: [{ externalWarehouseId: "IDZ", quantity: 1 }] },
+      ]),
+    ).rejects.toBeInstanceOf(AuthExpiredError);
+  });
+
+  it("keeps seller stock without a location under the shop-level warehouse when pulling", async () => {
+    const f = fakeFetch({
+      "GET /api/v2/product/get_item_base_info": () => ({
+        error: "",
+        response: {
+          item_list: [
+            {
+              item_id: 200,
+              item_name: "Topi",
+              item_status: "NORMAL",
+              has_model: false,
+              price_info: [{ current_price: 45000 }],
+              stock_info_v2: {
+                summary_info: { total_available_stock: 6 },
+                seller_stock: [{ stock: 4 }],
+                shopee_stock: [{ location_id: "IDG", stock: 2 }],
+              },
+            },
+          ],
+        },
+      }),
+    });
+    const page = await connector(f.fn).catalog.getListings(shop, ["200"]);
+    expect(page.listings[0]!.stockByWarehouse).toEqual({
+      [SHOPEE_DEFAULT_WAREHOUSE_ID]: 4,
+      [SHOPEE_FBS_WAREHOUSE_ID]: 2,
+    });
+  });
+});

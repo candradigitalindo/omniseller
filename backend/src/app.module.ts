@@ -18,7 +18,7 @@ import {
 } from "./modules/channel/channel.module";
 import { IdentityHttpModule } from "./modules/identity/identity.http.module";
 import { IdentityModule } from "./modules/identity/identity.module";
-import { InventoryHttpModule, InventoryModule } from "./modules/inventory/inventory.module";
+import { InventoryHttpModule, InventoryModule, InventoryWorkerModule } from "./modules/inventory/inventory.module";
 import { NotificationModule } from "./modules/notification/notification.module";
 import { HealthController } from "./modules/platform/health.controller";
 import { SyncModule, WebhookHttpModule } from "./modules/sync/sync.module";
@@ -41,7 +41,7 @@ const HTTP_PROVIDERS: Provider[] = [
 
 /**
  * One image, five process roles (backend doc 3.1). The role decides which modules load:
- * api       HTTP API: auth, identity, audit, stores, warehouses, catalog (more modules join as they are built)
+ * api       HTTP API: auth, identity, audit, stores, warehouses, stock, catalog (more modules join as they are built)
  * webhook   HTTP webhook receiver only (verify, store, enqueue, reply)
  * worker    BullMQ processors and the services their handlers call
  * scheduler outbox relay, stock flush, partitions, periodic jobs
@@ -99,6 +99,7 @@ export class AppModule {
             ChannelWorkerModule.forEnv(env),
             CatalogModule,
             CatalogWorkerModule,
+            InventoryWorkerModule,
           ],
           providers: [WorkerRunner],
         };

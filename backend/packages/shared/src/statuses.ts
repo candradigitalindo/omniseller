@@ -59,6 +59,16 @@ export const STOCK_MOVEMENT_TYPES = [
 ] as const;
 export type StockMovementType = (typeof STOCK_MOVEMENT_TYPES)[number];
 
+/** Reasons for a manual stock adjustment (FR-STK-05): the API takes the code, screens show the label. */
+export const STOCK_ADJUSTMENT_REASONS = {
+  damaged: "Rusak",
+  lost: "Hilang",
+  correction: "Koreksi",
+  sample: "Sampel",
+  other: "Lainnya",
+} as const;
+export type StockAdjustmentReason = keyof typeof STOCK_ADJUSTMENT_REASONS;
+
 /**
  * Who is asking for a status change. Marketplace-driven changes may skip seller-side steps
  * (for example `ready_to_pack -> shipped` when the courier picks up a parcel that was never scanned).

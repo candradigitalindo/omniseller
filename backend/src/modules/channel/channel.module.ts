@@ -3,7 +3,7 @@ import { AwsKmsKeyProvider, type KeyProvider, LocalKeyProvider } from "../../com
 import { TokenVault } from "../../common/security/token-vault";
 import type { Env, EnvFor } from "../../config/env.schema";
 import { TOKEN_VAULT } from "../../infra/tokens";
-import { InventoryModule } from "../inventory/inventory.module";
+import { InventoryModule } from "../inventory/inventory-core.module";
 import { SyncModule } from "../sync/sync.module";
 import { ChannelsController, StoreAuthorizationsController, StoresController } from "./channel.controllers";
 import { ChannelRepository } from "./channel.repository";

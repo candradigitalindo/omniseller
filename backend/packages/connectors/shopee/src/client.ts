@@ -121,12 +121,16 @@ export class ShopeeClient {
     return this.call<T>(method, path, opts);
   }
 
-  /** Shop API: anything about one shop, with its access token. */
+  /**
+   * Shop API: anything about one shop, with its access token. `passErrors` lists `error` values that
+   * come with a usable body (update_stock reports `error_busi_update_stock_failed` next to its
+   * failure_list); for those the envelope is returned instead of thrown.
+   */
   shopCall<T>(
     shop: { externalShopId: string; accessToken: string },
     method: "GET" | "POST",
     path: string,
-    opts: { query?: Record<string, string | readonly string[]>; body?: object } = {},
+    opts: { query?: Record<string, string | readonly string[]>; body?: object; passErrors?: readonly string[] } = {},
   ) {
     return this.call<T>(method, path, { ...opts, shop });
   }
@@ -138,6 +142,7 @@ export class ShopeeClient {
       query?: Record<string, string | readonly string[]>;
       body?: object;
       shop?: { externalShopId: string; accessToken: string };
+      passErrors?: readonly string[];
     },
   ): Promise<T & ShopeeEnvelope> {
     const timestamp = unixSeconds();
@@ -179,6 +184,7 @@ export class ShopeeClient {
     // Some samples fill `error` and `message` with "-" on success.
     const failed = (error !== "" && error !== "-") || res.status >= 400;
     if (!failed) return env;
+    if (res.status < 400 && opts.passErrors?.includes(error)) return env;
 
     const code = error && error !== "-" ? error : `http_${res.status}`;
     const message = typeof env.message === "string" && env.message ? env.message : `HTTP ${res.status}`;

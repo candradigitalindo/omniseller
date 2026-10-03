@@ -30,10 +30,24 @@ export interface MockShopeeItem {
   images?: string[];
   price?: number;
   stock?: number;
+  /**
+   * Seller stock per location_id; "" is stock without a location. Defaults to { IDZ: stock }. update_stock
+   * must keep this structure, as Shopee requires.
+   */
+  stockByLocation?: Record<string, number>;
   tiers?: { name: string; options: string[] }[];
-  models?: { model_id: number; model_sku?: string; tier_index: number[]; price: number; stock: number }[];
+  models?: {
+    model_id: number;
+    model_sku?: string;
+    tier_index: number[];
+    price: number;
+    stock: number;
+    stockByLocation?: Record<string, number>;
+  }[];
   /** unlist_item refuses this item, like an item under promotion */
   lockedForUnlist?: boolean;
+  /** Stock reserved for a promotion: update_stock refuses less than this per model. */
+  reservedStock?: number;
 }
 
 export interface MockShopeeShop {
@@ -51,7 +65,7 @@ export interface MockShopeeShop {
 export interface MockTiktokProduct {
   id: string;
   title: string;
-  status: "ACTIVATE" | "SELLER_DEACTIVATED" | "PLATFORM_DEACTIVATED" | "PENDING" | "DELETED";
+  status: "ACTIVATE" | "SELLER_DEACTIVATED" | "PLATFORM_DEACTIVATED" | "PENDING" | "DELETED" | "FREEZE";
   tokopedia?: string;
   update_time: number;
   images?: string[];
@@ -87,6 +101,11 @@ interface Call {
 type Reply = { status: number; body: unknown };
 
 const now = () => Math.floor(Date.now() / 1000);
+
+type ShopeeStocked = { stock?: number; stockByLocation?: Record<string, number> };
+const shopeeLocations = (x: ShopeeStocked): Record<string, number> => x.stockByLocation ?? { IDZ: x.stock ?? 0 };
+const shopeeSellerStock = (x: ShopeeStocked) =>
+  Object.entries(shopeeLocations(x)).map(([location_id, stock]) => (location_id ? { location_id, stock } : { stock }));
 const token = (prefix: string) => `${prefix}${randomBytes(12).toString("hex")}`;
 const hmac = (key: string, msg: string) => createHmac("sha256", key).update(msg, "utf8").digest("hex");
 
@@ -298,7 +317,7 @@ export class MockMarketplace {
                     price_info: [{ currency: "IDR", current_price: i.price ?? 0, original_price: i.price ?? 0 }],
                     stock_info_v2: {
                       summary_info: { total_available_stock: i.stock ?? 0 },
-                      seller_stock: [{ location_id: "IDZ", stock: i.stock ?? 0 }],
+                      seller_stock: shopeeSellerStock(i),
                     },
                   }
                 : {}),
@@ -323,7 +342,7 @@ export class MockMarketplace {
               price_info: [{ currency: "IDR", current_price: m.price, original_price: m.price }],
               stock_info_v2: {
                 summary_info: { total_available_stock: m.stock },
-                seller_stock: [{ location_id: "IDZ", stock: m.stock }],
+                seller_stock: shopeeSellerStock(m),
               },
             })),
           },
@@ -342,6 +361,76 @@ export class MockMarketplace {
           item.item_status = e.unlist ? "UNLIST" : "NORMAL";
           item.update_time = now();
           success_list.push({ item_id: e.item_id, unlist: e.unlist });
+        }
+        return ok({ response: { success_list, failure_list } });
+      }
+      case "/api/v2/product/update_stock": {
+        const body = JSON.parse(call.body) as {
+          item_id: number;
+          stock_list: { model_id: number; seller_stock: { location_id?: string; stock: number }[] }[];
+        };
+        if (!Array.isArray(body.stock_list) || body.stock_list.length < 1 || body.stock_list.length > 50) {
+          return this.shopeeError("error_param", "Parameter is not match the constraints, stock_list.", 400);
+        }
+        const item = (shop.items ?? []).find((i) => i.item_id === body.item_id);
+        if (!item || item.item_status === "SELLER_DELETE" || item.item_status === "SHOPEE_DELETE") {
+          return this.shopeeError("error_item_not_found", "Item_id is not found.", 200);
+        }
+        if (item.item_status === "BANNED") {
+          return this.shopeeError(
+            "error_item_uneditable",
+            "Can't edit this item. item status can not support editing.",
+            200,
+          );
+        }
+        const success_list: object[] = [];
+        const failure_list: object[] = [];
+        for (const e of body.stock_list) {
+          const target: ShopeeStocked | undefined =
+            e.model_id === 0
+              ? (item.models ?? []).length === 0
+                ? item
+                : undefined
+              : (item.models ?? []).find((m) => m.model_id === e.model_id);
+          if (!target) {
+            failure_list.push({ model_id: e.model_id, failed_reason: "Wrong model_id." });
+            continue;
+          }
+          const current = { ...shopeeLocations(target) };
+          const located = Object.keys(current).some((k) => k !== "");
+          const total = e.seller_stock.reduce((n, x) => n + x.stock, 0);
+          const failed = e.seller_stock.some((x) => (located ? !x.location_id : !!x.location_id))
+            ? "Can not update item with different stock structure. Can only update seller stock with location id when existing seller stock have location id. Can only update seller stock without location id when existing seller stock without location id."
+            : e.seller_stock.some((x) => x.location_id && !(x.location_id in current))
+              ? "The location_id input is not matched the shop's location_id(more/wrong). Please double check."
+              : total < (item.reservedStock ?? 0)
+                ? "Can not update item with stock less than reserved stock"
+                : null;
+          if (failed) {
+            failure_list.push({ model_id: e.model_id, failed_reason: failed });
+            continue;
+          }
+          for (const x of e.seller_stock) current[x.location_id ?? ""] = x.stock;
+          target.stockByLocation = current;
+          target.stock = Object.values(current).reduce((n, v) => n + v, 0);
+          for (const x of e.seller_stock) {
+            success_list.push({
+              model_id: e.model_id,
+              ...(x.location_id ? { location_id: x.location_id } : {}),
+              stock: x.stock,
+            });
+          }
+        }
+        if (failure_list.length > 0 && success_list.length === 0) {
+          return {
+            status: 200,
+            body: {
+              error: "error_busi_update_stock_failed",
+              message: "Update stock failed, please check failure_list for detailed reason",
+              request_id: token("rq"),
+              response: { success_list, failure_list },
+            },
+          };
         }
         return ok({ response: { success_list, failure_list } });
       }
@@ -586,6 +675,8 @@ export class MockMarketplace {
         return this.tiktokReply(0, "Success");
       }
       default: {
+        const inv = /^\/product\/202309\/products\/(\d+)\/inventory\/update$/.exec(call.path);
+        if (call.method === "POST" && inv) return this.tiktokInventory(shop, inv[1]!, call.body);
         const m = /^\/product\/202309\/products\/(\d+)$/.exec(call.path);
         if (call.method === "GET" && m) {
           const p = (shop.products ?? []).find((x) => x.id === m[1]);
@@ -611,5 +702,63 @@ export class MockMarketplace {
         return this.tiktokReply(36009009, "Invalid path.", {}, 404);
       }
     }
+  }
+
+  /**
+   * Update Inventory 202309: every warehouse of a SKU must be sent (12019028), quantities within
+   * [0, 99999] (0 for sold out is accepted), fulfillment warehouses refused per SKU (12052382).
+   */
+  private tiktokInventory(shop: MockTiktokShop, productId: string, rawBody: string): Reply {
+    const p = (shop.products ?? []).find((x) => x.id === productId);
+    if (!p) return this.tiktokReply(12052032, "The product does not exist");
+    if (!["ACTIVATE", "SELLER_DEACTIVATED", "PENDING", "DRAFT", "FAILED"].includes(p.status)) {
+      return this.tiktokReply(
+        12052901,
+        "The product in its current status is not available for this operation. Change the product status and try again.",
+      );
+    }
+    const body = JSON.parse(rawBody) as {
+      skus: { id: string; inventory: { warehouse_id?: string; quantity: number }[] }[];
+    };
+    const errors: object[] = [];
+    for (const s of body.skus) {
+      const sku = p.skus.find((k) => k.id === s.id);
+      if (!sku) return this.tiktokReply(12052556, "The SKU id not exist.");
+      const assigned = Object.keys(sku.inventory).sort();
+      const sent = s.inventory.map((i) => i.warehouse_id ?? (assigned.length === 1 ? assigned[0]! : "")).sort();
+      if (JSON.stringify(assigned) !== JSON.stringify(sent)) {
+        return this.tiktokReply(
+          12019028,
+          "Multiple warehouses detected. Include all warehouse IDs and the corresponding details and try again.",
+        );
+      }
+      const extra = [
+        ...s.inventory
+          .filter((i) => i.quantity < 0 || i.quantity > 99_999)
+          .map((i) => ({
+            warehouse_id: i.warehouse_id,
+            code: 12052055,
+            message: "The SKU inventory quantity for the warehouse must be within allowed limits.",
+          })),
+        ...s.inventory
+          .filter((i) => (shop.fbt ?? []).some((f) => f.fbt_warehouse_id === i.warehouse_id))
+          .map((i) => ({
+            warehouse_id: i.warehouse_id,
+            code: 12052382,
+            message: "Can't edit Dilayani Tokopedia warehouse quantity",
+          })),
+      ];
+      if (extra.length > 0) {
+        errors.push({
+          code: 12052990,
+          message: "Batch update inventory error.",
+          detail: { sku_id: s.id, extra_errors: extra },
+        });
+        continue;
+      }
+      for (const i of s.inventory) sku.inventory[i.warehouse_id ?? assigned[0]!] = i.quantity;
+    }
+    p.update_time = now();
+    return this.tiktokReply(0, "Success", { errors });
   }
 }

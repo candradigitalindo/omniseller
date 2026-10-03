@@ -12,3 +12,5 @@ export const QUEUES = Symbol("QUEUES");
 export const JOB_REGISTRY = Symbol("JOB_REGISTRY");
 export const OUTBOX = Symbol("OUTBOX");
 export const TOKEN_VAULT = Symbol("TOKEN_VAULT");
+/** StockDirtySet on the queue Redis: stock push debounce and per-variant push locks (backend doc 9.4). */
+export const STOCK_DIRTY = Symbol("STOCK_DIRTY");
