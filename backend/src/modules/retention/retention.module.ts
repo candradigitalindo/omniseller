@@ -3,6 +3,7 @@ import { CatalogModule } from "../catalog/catalog.module";
 import { ChannelModule } from "../channel/channel.module";
 import { FulfillmentModule } from "../fulfillment/fulfillment.module";
 import { InventoryModule } from "../inventory/inventory-core.module";
+import { ListingCopyModule } from "../listing-copy/listing-copy.module";
 import { OrdersModule } from "../orders/orders.module";
 import { SyncModule } from "../sync/sync.module";
 import { StoreDataDeletionService } from "./store-data-deletion.service";
@@ -12,7 +13,15 @@ import { StoreDataDeletionService } from "./store-data-deletion.service";
  * disconnected without keeping it; the retention run of 9.5 (old webhooks, buyer anonymization) joins.
  */
 @Module({
-  imports: [ChannelModule, OrdersModule, FulfillmentModule, CatalogModule, InventoryModule, SyncModule],
+  imports: [
+    ChannelModule,
+    OrdersModule,
+    FulfillmentModule,
+    CatalogModule,
+    InventoryModule,
+    SyncModule,
+    ListingCopyModule,
+  ],
   providers: [StoreDataDeletionService],
   exports: [StoreDataDeletionService],
 })

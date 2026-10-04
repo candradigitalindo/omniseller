@@ -61,6 +61,9 @@ export class ConnectorRegistry {
           ...(partnerKey ? { partnerKey } : {}),
           apiBaseUrl: str(env, "SHOPEE_API_BASE_URL") ?? "https://partner.shopeemobile.com",
           authBaseUrl: str(env, "SHOPEE_AUTH_BASE_URL") ?? "https://open.shopee.com",
+          ...(num(env, "SHOPEE_VARIANT_DELAY_MS") !== undefined
+            ? { variantDelayMs: num(env, "SHOPEE_VARIANT_DELAY_MS")! }
+            : {}),
           http,
         }),
       ]);

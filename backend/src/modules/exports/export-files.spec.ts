@@ -75,6 +75,7 @@ describe("export files", () => {
     expect(text).toContain("- pesanan.csv (12 baris): Pesanan.");
     expect(text).toContain("- ready_to_pack: Siap Dikemas");
     expect(text).toContain("- handed_over: diserahkan ke kurir");
+    expect(text).toContain("- published: sudah diterbitkan ke toko tujuan");
     expect(text).toContain("- migration_initial: stok awal saat pindah ke OmniSeller");
     expect(text).toContain("- damaged: Rusak");
     expect(text.endsWith("\r\n")).toBe(true);

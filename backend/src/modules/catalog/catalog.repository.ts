@@ -554,6 +554,34 @@ export class CatalogRepository {
       .limit(limit);
   }
 
+  /**
+   * Marketplace items of a store that still exist there, in id order after `after` (copying a whole
+   * store, FR-PRD-13).
+   */
+  async storeItemIds(tx: Tx, storeId: string, after: string | null, limit: number): Promise<string[]> {
+    const rows = await tx
+      .selectDistinct({ itemId: channelListing.externalItemId })
+      .from(channelListing)
+      .where(
+        and(
+          eq(channelListing.storeId, storeId),
+          ne(channelListing.status, "deleted"),
+          after !== null ? gt(channelListing.externalItemId, after) : undefined,
+        ),
+      )
+      .orderBy(asc(channelListing.externalItemId))
+      .limit(limit);
+    return rows.map((r) => r.itemId);
+  }
+
+  async storeItemCount(tx: Tx, storeId: string): Promise<number> {
+    const [row] = await tx
+      .select({ n: sql<number>`count(DISTINCT ${channelListing.externalItemId})::int` })
+      .from(channelListing)
+      .where(and(eq(channelListing.storeId, storeId), ne(channelListing.status, "deleted")));
+    return row?.n ?? 0;
+  }
+
   /** Deletes up to `limit` listings of a store with their push state (FR-INT-07); returns how many. */
   async deleteStoreListings(tx: Tx, storeId: string, limit: number): Promise<number> {
     const batch = tx

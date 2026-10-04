@@ -10,6 +10,8 @@ import { storeDataDeletionRequested } from "../channel/channel.events";
 import { StoresService } from "../channel/stores.service";
 import { FulfillmentService } from "../fulfillment/fulfillment.service";
 import { InventoryService } from "../inventory/inventory.service";
+import { CategoriesService } from "../listing-copy/categories.service";
+import { ListingCopyService } from "../listing-copy/listing-copy.service";
 import { OrdersService } from "../orders/orders.service";
 import { SyncLogService } from "../sync/sync-log.service";
 
@@ -19,6 +21,9 @@ const log = logger.forModule("retention");
 const ORDER_BATCH = 200;
 const LISTING_BATCH = 500;
 const SYNC_LOG_BATCH = 1000;
+/** Listing copies (each with its drafts) and cached categories. */
+const COPY_BATCH = 50;
+const CATEGORY_BATCH = 2000;
 /** One job works this long, then the rest continues in the next job (a large store takes several). */
 export const DELETION_BUDGET_MS = 20_000;
 
@@ -28,7 +33,8 @@ export type DeletionOutcome = "done" | "continued" | "skipped";
  * FR-INT-07 (backend doc 8.23): deletes the data of a store disconnected without keeping it, through the
  * services of the modules that own it: orders with their shipments (stock they still hold is released
  * first; label files and printed documents expire now), listings, stock allocation rules, the sync log,
- * marketplace warehouses, and sync cursors. Batches run in short transactions; stock movements and the
+ * marketplace warehouses, sync cursors, listing copies from or to the store with their drafts, and its
+ * cached marketplace categories. Batches run in short transactions; stock movements and the
  * audit log stay, since they record what happened to stock and who did what. The store row stays as a
  * marker with `data_deleted_at`.
  */
@@ -42,6 +48,8 @@ export class StoreDataDeletionService {
     @Inject(ListingsService) private readonly listings: ListingsService,
     @Inject(InventoryService) private readonly inventory: InventoryService,
     @Inject(SyncLogService) private readonly syncLog: SyncLogService,
+    @Inject(ListingCopyService) private readonly copies: ListingCopyService,
+    @Inject(CategoriesService) private readonly categories: CategoriesService,
     @Inject(OUTBOX) private readonly outbox: Outbox,
   ) {}
 
@@ -60,6 +68,8 @@ export class StoreDataDeletionService {
         },
       ],
       ["listings", LISTING_BATCH, (tx) => this.listings.deleteStoreListingsIn(tx, storeId, LISTING_BATCH)],
+      ["listing_copies", COPY_BATCH, (tx) => this.copies.deleteStoreCopiesIn(tx, storeId, COPY_BATCH)],
+      ["categories", CATEGORY_BATCH, (tx) => this.categories.deleteStoreCategoriesIn(tx, storeId, CATEGORY_BATCH)],
       ["sync_log", SYNC_LOG_BATCH, (tx) => this.syncLog.deleteStoreLogIn(tx, storeId, SYNC_LOG_BATCH)],
     ];
     const deleted: Record<string, number> = {};

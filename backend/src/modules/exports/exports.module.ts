@@ -4,6 +4,7 @@ import { ChannelModule } from "../channel/channel.module";
 import { FulfillmentModule } from "../fulfillment/fulfillment.module";
 import { IdentityModule } from "../identity/identity.module";
 import { InventoryModule } from "../inventory/inventory-core.module";
+import { ListingCopyModule } from "../listing-copy/listing-copy.module";
 import { NotificationInboxModule } from "../notification/notification.module";
 import { OrdersModule } from "../orders/orders.module";
 import { ExportRenderService } from "./export-render.service";
@@ -25,6 +26,7 @@ export class ExportsModule {}
     OrdersModule,
     FulfillmentModule,
     NotificationInboxModule,
+    ListingCopyModule,
   ],
   providers: [ExportsRepository, ExportRenderService],
   exports: [ExportRenderService],

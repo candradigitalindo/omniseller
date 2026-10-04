@@ -190,6 +190,33 @@ SELECT gen_ulid(), t.f, t.t, 'any'
   ) AS t(f, t)
 ON CONFLICT (from_status, to_status) DO NOTHING;
 
+-- Copying listings (backend doc 8.25): a copy prepares its drafts once; it fails when the source store
+-- cannot be read, and the seller may stop a long one (a whole store).
+INSERT INTO listing_copy_status_transition (id, from_status, to_status, via)
+SELECT gen_ulid(), t.f, t.t, 'any'
+  FROM (VALUES
+    ('preparing', 'ready'),
+    ('preparing', 'failed'),
+    ('preparing', 'cancelled')
+  ) AS t(f, t)
+ON CONFLICT (from_status, to_status) DO NOTHING;
+
+-- A draft is reviewed (draft), prepared again after its category changes (preparing), published once
+-- (publishing, published), and after a failure edited or published again. Published is final.
+INSERT INTO listing_draft_status_transition (id, from_status, to_status, via)
+SELECT gen_ulid(), t.f, t.t, 'any'
+  FROM (VALUES
+    ('preparing', 'draft'),
+    ('draft', 'preparing'),
+    ('draft', 'publishing'),
+    ('publishing', 'published'),
+    ('publishing', 'failed'),
+    ('failed', 'draft'),
+    ('failed', 'preparing'),
+    ('failed', 'publishing')
+  ) AS t(f, t)
+ON CONFLICT (from_status, to_status) DO NOTHING;
+
 -- Full data export (backend doc 8.18): rendered once by the worker. A failed or stuck export is not
 -- queued again: the next request starts a new one.
 INSERT INTO data_export_status_transition (id, from_status, to_status, via)

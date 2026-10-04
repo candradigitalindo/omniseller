@@ -3,7 +3,7 @@ import type { ListingPage, ListingStatusResult, NormalizedListing } from "@omnis
 import { logger } from "@omniseller/logging";
 import { newId } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
-import type { DbHandle } from "../../db/client";
+import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
@@ -153,34 +153,36 @@ export class ListingSyncService {
 
   /** Upserts the page and closes deleted items and removed variants, in one transaction. */
   async apply(ctx: RequestContext, storeId: string, page: ListingPage, at: Date): Promise<void> {
-    await withTenantTx(this.db, ctx, async (tx) => {
-      await this.repo.upsertListings(
-        tx,
-        page.listings.map((l) => ({
-          id: newId(),
-          tenantId: ctx.tenantId,
-          storeId,
-          externalItemId: l.externalItemId,
-          externalVariantId: l.externalVariantId,
-          externalSku: l.sku,
-          title: l.title,
-          price: l.price,
-          originalPrice: l.originalPrice,
-          status: l.status,
-          stockAtChannel: l.stock,
-          channelData: channelData(l) as Record<string, unknown>,
-          lastPulledAt: at,
-        })),
-      );
-      await this.repo.markItemsDeleted(tx, storeId, page.deletedItemIds, at);
-      const variantsByItem = new Map<string, string[]>();
-      for (const l of page.listings) {
-        variantsByItem.set(l.externalItemId, [...(variantsByItem.get(l.externalItemId) ?? []), l.externalVariantId]);
-      }
-      for (const [itemId, variantIds] of variantsByItem) {
-        await this.repo.closeMissingVariants(tx, storeId, itemId, variantIds, at);
-      }
-    });
+    await withTenantTx(this.db, ctx, (tx) => this.applyIn(tx, ctx, storeId, page, at));
+  }
+
+  private async applyIn(tx: Tx, ctx: RequestContext, storeId: string, page: ListingPage, at: Date): Promise<void> {
+    await this.repo.upsertListings(
+      tx,
+      page.listings.map((l) => ({
+        id: newId(),
+        tenantId: ctx.tenantId,
+        storeId,
+        externalItemId: l.externalItemId,
+        externalVariantId: l.externalVariantId,
+        externalSku: l.sku,
+        title: l.title,
+        price: l.price,
+        originalPrice: l.originalPrice,
+        status: l.status,
+        stockAtChannel: l.stock,
+        channelData: channelData(l) as Record<string, unknown>,
+        lastPulledAt: at,
+      })),
+    );
+    await this.repo.markItemsDeleted(tx, storeId, page.deletedItemIds, at);
+    const variantsByItem = new Map<string, string[]>();
+    for (const l of page.listings) {
+      variantsByItem.set(l.externalItemId, [...(variantsByItem.get(l.externalItemId) ?? []), l.externalVariantId]);
+    }
+    for (const [itemId, variantIds] of variantsByItem) {
+      await this.repo.closeMissingVariants(tx, storeId, itemId, variantIds, at);
+    }
   }
 
   /** Re-reads specific items (after a webhook or a status change) and maps new SKUs. */
@@ -207,6 +209,44 @@ export class ListingSyncService {
     await this.apply(ctx, storeId, page, new Date());
     await withTenantTx(this.db, ctx, (tx) => this.listings.autoMapIn(tx, ctx, storeId));
     return page.listings.length;
+  }
+
+  /**
+   * FR-PRD-13: reads an item a copy just created and maps its listings to the source's variants
+   * (`copied`) before SKU matching sees them. Returns how many listings were mapped that way.
+   */
+  async refreshCopiedItem(
+    ctx: RequestContext,
+    storeId: string,
+    externalItemId: string,
+    pairs: { externalVariantId: string; variantId: string }[],
+    queueJobId?: string,
+  ): Promise<{ listings: number; mapped: number }> {
+    const page = await this.gateway.call(
+      ctx,
+      storeId,
+      {
+        kind: "listings.refresh",
+        direction: "pull",
+        request: { items: 1, copied: true },
+        ...(queueJobId ? { queueJobId } : {}),
+      },
+      (connector, shop) => connector.catalog.getListings(shop, [externalItemId]),
+      (p) => ({ listings: p.listings.length, deleted: p.deletedItemIds.length }),
+    );
+    // one transaction: another job's SKU matching must not see the new listings before they are mapped
+    const mapped = await withTenantTx(this.db, ctx, async (tx) => {
+      await this.applyIn(tx, ctx, storeId, page, new Date());
+      const n = await this.listings.mapCopiedIn(
+        tx,
+        ctx,
+        storeId,
+        pairs.map((p) => ({ externalItemId, ...p })),
+      );
+      await this.listings.autoMapIn(tx, ctx, storeId);
+      return n;
+    });
+    return { listings: page.listings.length, mapped };
   }
 
   /** FR-PRD-10: activates or deactivates items, then reads them back to show the marketplace's answer. */

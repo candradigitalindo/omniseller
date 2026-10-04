@@ -31,7 +31,11 @@ export const listingStatusPushRequested = defineEvent({
 export const listingMapped = defineEvent({
   type: "listing.mapped",
   aggregate: "channel_listing",
-  schema: z.object({ listingId: ulidSchema, variantId: ulidSchema, source: z.enum(["auto_sku", "manual", "created"]) }),
+  schema: z.object({
+    listingId: ulidSchema,
+    variantId: ulidSchema,
+    source: z.enum(["auto_sku", "manual", "created", "copied"]),
+  }),
 });
 
 export const listingUnmapped = defineEvent({

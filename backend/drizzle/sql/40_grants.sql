@@ -31,7 +31,8 @@ BEGIN
                            'order_status_transition', 'shipment_status_transition', 'sync_job_status_transition',
                            'document_job_status_transition', 'data_export_status_transition',
                            'migration_job_status_transition', 'store_cutover_status_transition',
-                           'print_job_status_transition', 'handover_status_transition']
+                           'print_job_status_transition', 'handover_status_transition',
+                           'listing_copy_status_transition', 'listing_draft_status_transition']
   LOOP
     EXECUTE format('REVOKE INSERT, UPDATE, DELETE ON TABLE %I FROM omniseller_api, omniseller_worker, omniseller_system', t);
   END LOOP;

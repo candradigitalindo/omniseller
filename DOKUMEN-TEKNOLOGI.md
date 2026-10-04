@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.14 |
+| Versi dokumen | 1.15 |
 | Tanggal | 4 Oktober 2026 |
 | Status | Keputusan final untuk implementasi |
 | Pemilik dokumen | Candra Syahputra |
@@ -900,6 +900,7 @@ marketplace/
 | `PUBLIC_WEBHOOK_URL` | webhook, worker | Origin publik proses webhook; Shopee menandatangani URL callback lengkap |
 | `SHOPEE_PARTNER_ID` (api, webhook, worker), `SHOPEE_PARTNER_KEY` (webhook, worker), `SHOPEE_API_BASE_URL`, `SHOPEE_AUTH_BASE_URL` | lihat kolom kiri | Kosong berarti marketplace belum dikonfigurasi |
 | `TIKTOKSHOP_SERVICE_ID` (api), `TIKTOKSHOP_APP_KEY`, `TIKTOKSHOP_APP_SECRET` (webhook, worker), `TIKTOKSHOP_AUTHORIZE_URL`, `TIKTOKSHOP_API_BASE_URL`, `TIKTOKSHOP_AUTH_BASE_URL` | lihat kolom kiri | Sama |
+| `SHOPEE_VARIANT_DELAY_MS`, `PRODUCT_IMAGE_HOSTS` | worker | Salin listing: jeda Shopee antara membuat item dan variasinya (bawaan 5000 ms), dan host gambar tambahan selain host gambar marketplace |
 | `LAZADA_*`, `BLIBLI_*` | webhook, worker | Per marketplace, pola yang sama untuk TikTok Shop, Lazada, Blibli |
 | `ANTHROPIC_API_KEY`, `VOYAGE_API_KEY` | worker | |
 | `XENDIT_SECRET_KEY`, `XENDIT_WEBHOOK_TOKEN` | api, webhook | |
@@ -974,6 +975,17 @@ export interface MarketplaceConnector {
     getListings(shop: ShopCredentials, externalItemIds: string[]): Promise<ListingPage>; // yang hilang masuk deletedItemIds
     setListingStatus(shop: ShopCredentials, externalItemIds: string[], active: boolean): Promise<ListingStatusResult[]>;
   };
+  products: {
+    // salin listing (DOKUMEN-ARSITEKTUR-BACKEND 8.25); data rujukan dibaca dalam bahasa Indonesia
+    get(shop: ShopCredentials, externalItemId: string): Promise<SourceProduct | null>;
+    categories(shop: ShopCredentials): Promise<MarketplaceCategory[]>;
+    recommendCategory(shop: ShopCredentials, input: { title: string; description: string; source?: SourceCategory }): Promise<string[]>;
+    categoryRules(shop: ShopCredentials, categoryIds: string[]): Promise<CategoryRules[]>; // atribut, batas, merek, tabel ukuran
+    brands(shop: ShopCredentials, input: { categoryId: string; name?: string }): Promise<MarketplaceBrand[]>;
+    uploadImage(shop: ShopCredentials, image: { bytes: Uint8Array; contentType: string; use: ImageUse }): Promise<{ ref: string; url: string | null }>;
+    prerequisites(shop: ShopCredentials): Promise<string[]>; // alasan toko belum bisa menambah produk
+    create(shop: ShopCredentials, product: ProductToCreate, resume?: { externalItemId: string }, hooks?: { itemCreated?(id: string): Promise<void> }): Promise<CreatedProduct>;
+  };
   webhooks: {
     verify(req: { url: string; headers: Record<string, string | undefined>; rawBody: Buffer }): boolean;
     parse(rawBody: Buffer): NormalizedWebhookEvent[];
@@ -982,7 +994,7 @@ export interface MarketplaceConnector {
 }
 ```
 
-`NormalizedOrder.packages` membawa paket pesanan (`externalPackageId`, `PackageState`, resi, baris per paket). Bagian berikutnya mengikuti modulnya: `catalog` diperluas dengan ubah harga, `fulfillment` dengan pelacakan, lalu `finance`, `returns`, `chat`, `promotions`, `health` sebagai bagian opsional. Bagian opsional yang tidak didukung marketplace dibiarkan `undefined`, dan UI menyembunyikan fitur terkait untuk toko itu.
+`NormalizedOrder.packages` membawa paket pesanan (`externalPackageId`, `PackageState`, resi, baris per paket). Unggah gambar dikirim multipart (`fileForm`): Shopee menandatangani URL saja, TikTok Shop menandatangani tanpa body multipart, dan log sinkron hanya mencatat ukuran dan jenis berkas. Bagian berikutnya mengikuti modulnya: `catalog` diperluas dengan ubah harga, `fulfillment` dengan pelacakan, lalu `finance`, `returns`, `chat`, `promotions`, `health` sebagai bagian opsional. Bagian opsional yang tidak didukung marketplace dibiarkan `undefined`, dan UI menyembunyikan fitur terkait untuk toko itu.
 
 ### 26.5 Referensi
 
@@ -1009,3 +1021,4 @@ export interface MarketplaceConnector {
 | 1.12 | 4 Oktober 2026 | Hasil implementasi pelacakan paket: antrean `mp.track` dan bucket pekerjaan latar per toko, 30% laju toko dengan waktu tunggu sampai 2 menit (7.1) | Candra Syahputra |
 | 1.13 | 4 Oktober 2026 | Hasil implementasi putus toko dan barcode: antrean `import` juga menjalankan penghapusan data toko yang diputus (7.1); barcode digambar sendiri dengan pdf-lib (EAN-13, EAN-8, Code 128), tanpa pustaka barcode tambahan | Candra Syahputra |
 | 1.14 | 4 Oktober 2026 | Hasil implementasi agen cetak: Socket.IO 4.8 di proses api tanpa `@nestjs/websockets`, dengan adapter dan emitter Redis; event `print.job` dan `print.cancelled` ke room `device:<id>`; agen hanya memakai transport WebSocket (7.3). Protokol agen dirinci: token perangkat, PDF lewat redirect ke URL R2 bertanda tangan, laporan status lewat REST, dan daftar pekerjaan tertunda sebagai jaring pengaman (12) | Candra Syahputra |
+| 1.15 | 4 Oktober 2026 | Hasil implementasi salin listing antar toko: bagian connector `products` (26.4) untuk Shopee (`add_item` dengan `init_tier_variation` standar, unggah `media_space`) dan TikTok Shop (Create Product dengan kunci idempoten, Upload Product Image); unggah multipart di core; variabel `SHOPEE_VARIANT_DELAY_MS` dan `PRODUCT_IMAGE_HOSTS` (26.2) | Candra Syahputra |

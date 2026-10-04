@@ -49,8 +49,11 @@ export const bundleComponent = pgTable("bundle_component", {
 });
 
 export type ListingStatus = "active" | "inactive" | "banned" | "reviewing" | "deleted" | "unknown";
-/** auto_sku: same SKU as a variant; manual: chosen by a person; created: the variant was created from it. */
-export type MappingSource = "auto_sku" | "manual" | "created";
+/**
+ * auto_sku: same SKU as a variant; manual: chosen by a person; created: the variant was created from it;
+ * copied: the listing was created by copying a listing of that variant from another store (FR-PRD-13).
+ */
+export type MappingSource = "auto_sku" | "manual" | "created" | "copied";
 
 export interface LinkFields {
   title: boolean;

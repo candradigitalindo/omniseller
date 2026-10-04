@@ -2957,6 +2957,655 @@
         }
       }
     },
+    "/v1/stores/{id}/categories": {
+      "get": {
+        "operationId": "StoreCategoriesController_list",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "parentId",
+            "required": false,
+            "in": "query",
+            "description": "anak kategori ini; tanpa parentId dan q: kategori teratas",
+            "schema": {
+              "pattern": "^[0-9A-Za-z_-]{1,64}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "cari di jalur lengkap kategori",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "leafOnly",
+            "required": false,
+            "in": "query",
+            "description": "hanya kategori paling akhir (tempat produk dibuat)",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 500,
+              "default": 200,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryPageDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "listing-copies"
+        ],
+        "x-isolation": {
+          "fixture": "store"
+        }
+      }
+    },
+    "/v1/stores/{id}/categories/refresh": {
+      "post": {
+        "operationId": "StoreCategoriesController_refresh",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryRefreshDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "listing-copies"
+        ],
+        "x-isolation": {
+          "fixture": "store"
+        }
+      }
+    },
+    "/v1/stores/{id}/categories/{categoryId}": {
+      "get": {
+        "operationId": "StoreCategoriesController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "categoryId",
+            "required": true,
+            "in": "path",
+            "description": "id kategori di marketplace toko itu",
+            "schema": {
+              "pattern": "^[0-9A-Za-z_-]{1,64}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryDetailDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "listing-copies"
+        ],
+        "x-isolation": {
+          "fixture": "store"
+        }
+      }
+    },
+    "/v1/listing-copies": {
+      "post": {
+        "operationId": "ListingCopiesController_create",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "8-100 karakter; mencegah salinan ganda",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCopyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopyListDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "listing-copies"
+        ],
+        "x-isolation": {
+          "fixture": "store"
+        }
+      },
+      "get": {
+        "operationId": "ListingCopiesController_list",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "targetStoreId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "sourceStoreId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "preparing",
+                "ready",
+                "failed",
+                "cancelled"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopyPageDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "listing-copies"
+        ],
+        "x-isolation": {
+          "fixture": "listing_copy"
+        }
+      }
+    },
+    "/v1/listing-copies/{id}": {
+      "get": {
+        "operationId": "ListingCopiesController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopyDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "listing-copies"
+        ],
+        "x-isolation": {
+          "fixture": "listing_copy"
+        }
+      }
+    },
+    "/v1/listing-copies/{id}/cancel": {
+      "post": {
+        "operationId": "ListingCopiesController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopyDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "listing-copies"
+        ],
+        "x-isolation": {
+          "fixture": "listing_copy"
+        }
+      }
+    },
+    "/v1/listing-drafts": {
+      "get": {
+        "operationId": "ListingDraftsController_list",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "copyId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "targetStoreId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "preparing",
+                "draft",
+                "publishing",
+                "published",
+                "failed"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "cari di nama produk",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "blocking",
+            "required": false,
+            "in": "query",
+            "description": "true: hanya draf yang masih punya masalah penghalang; false: yang siap terbit",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftPageDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "listing-copies"
+        ],
+        "x-isolation": {
+          "fixture": "listing_draft"
+        }
+      }
+    },
+    "/v1/listing-drafts/{id}": {
+      "get": {
+        "operationId": "ListingDraftsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "listing-copies"
+        ],
+        "x-isolation": {
+          "fixture": "listing_draft"
+        }
+      },
+      "patch": {
+        "operationId": "ListingDraftsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDraftDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "listing-copies"
+        ],
+        "x-isolation": {
+          "fixture": "listing_draft"
+        }
+      },
+      "delete": {
+        "operationId": "ListingDraftsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "listing-copies"
+        ],
+        "x-isolation": {
+          "fixture": "listing_draft"
+        }
+      }
+    },
+    "/v1/listing-drafts/category": {
+      "post": {
+        "operationId": "ListingDraftsController_setCategory",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftCategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftCategoryResultDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "listing-copies"
+        ],
+        "x-isolation": {
+          "fixture": "listing_draft"
+        }
+      }
+    },
+    "/v1/listing-drafts/attributes": {
+      "post": {
+        "operationId": "ListingDraftsController_setAttribute",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftAttributeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftAttributeResultDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "listing-copies"
+        ],
+        "x-isolation": {
+          "fixture": "listing_draft"
+        }
+      }
+    },
+    "/v1/listing-drafts/publish": {
+      "post": {
+        "operationId": "ListingDraftsController_publish",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishDraftsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishResultDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "listing-copies"
+        ],
+        "x-isolation": {
+          "fixture": "listing_draft"
+        }
+      }
+    },
     "/v1/orders": {
       "get": {
         "operationId": "OrdersController_list",
@@ -12119,7 +12768,8 @@
                           "enum": [
                             "auto_sku",
                             "manual",
-                            "created"
+                            "created",
+                            "copied"
                           ]
                         },
                         "mappedAt": {
@@ -12362,7 +13012,8 @@
                           "enum": [
                             "auto_sku",
                             "manual",
-                            "created"
+                            "created",
+                            "copied"
                           ]
                         },
                         "mappedAt": {
@@ -12829,7 +13480,8 @@
                     "enum": [
                       "auto_sku",
                       "manual",
-                      "created"
+                      "created",
+                      "copied"
                     ]
                   },
                   "mappedAt": {
@@ -12908,6 +13560,2257 @@
         "required": [
           "variantId"
         ]
+      },
+      "CategoryPageDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "categoryId": {
+                  "type": "string"
+                },
+                "parentId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string",
+                  "description": "\"Pakaian Pria > Kaos\""
+                },
+                "isLeaf": {
+                  "type": "boolean"
+                },
+                "permitted": {
+                  "type": "boolean",
+                  "description": "toko boleh berjualan di kategori ini (Tokopedia & Shop)"
+                }
+              },
+              "required": [
+                "categoryId",
+                "parentId",
+                "name",
+                "path",
+                "isLeaf",
+                "permitted"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "kategori tersimpan untuk toko ini"
+          },
+          "refreshedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "kapan daftar kategori terakhir dibaca dari marketplace"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "refreshedAt"
+        ],
+        "additionalProperties": false
+      },
+      "CategoryRefreshDto_Output": {
+        "type": "object",
+        "properties": {
+          "requested": {
+            "type": "boolean",
+            "description": "false: daftar baru saja dibaca (kurang dari 10 menit)"
+          },
+          "refreshedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "requested",
+          "refreshedAt"
+        ],
+        "additionalProperties": false
+      },
+      "CategoryDetailDto_Output": {
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "string"
+          },
+          "parentId": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "description": "\"Pakaian Pria > Kaos\""
+          },
+          "isLeaf": {
+            "type": "boolean"
+          },
+          "permitted": {
+            "type": "boolean",
+            "description": "toko boleh berjualan di kategori ini (Tokopedia & Shop)"
+          },
+          "rules": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "attributes": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "attributeId": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "required": {
+                          "type": "boolean"
+                        },
+                        "input": {
+                          "type": "string",
+                          "enum": [
+                            "select",
+                            "multi_select",
+                            "text",
+                            "select_or_text",
+                            "multi_select_or_text"
+                          ]
+                        },
+                        "values": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "valueId": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "valueId",
+                              "name"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "units": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "valueFormat": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "date",
+                                "integer",
+                                "decimal"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "maxValues": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "requiredWhen": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "attributeId": {
+                                "type": "string"
+                              },
+                              "valueId": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "attributeId",
+                              "valueId"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "description": "wajib bila atribut lain bernilai ini (Tokopedia & Shop)"
+                        }
+                      },
+                      "required": [
+                        "attributeId",
+                        "name",
+                        "required",
+                        "input",
+                        "values",
+                        "units",
+                        "valueFormat",
+                        "maxValues",
+                        "requiredWhen"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "brandRequired": {
+                    "type": "boolean"
+                  },
+                  "weightRequired": {
+                    "type": "boolean"
+                  },
+                  "dimensionsRequired": {
+                    "type": "boolean"
+                  },
+                  "sizeChart": {
+                    "type": "object",
+                    "properties": {
+                      "supported": {
+                        "type": "boolean"
+                      },
+                      "required": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "supported",
+                      "required"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "certifications": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "daysToShip": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "limits": {
+                    "type": "object",
+                    "properties": {
+                      "titleMin": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "titleMax": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "descriptionMin": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "descriptionMax": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "imagesMin": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "imagesMax": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "priceMin": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "priceMax": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "variantsMax": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "variationsMax": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "variationNameMax": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "optionNameMax": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "skuMax": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "skuNoSpaces": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "titleMin",
+                      "titleMax",
+                      "descriptionMin",
+                      "descriptionMax",
+                      "imagesMin",
+                      "imagesMax",
+                      "priceMin",
+                      "priceMax",
+                      "variantsMax",
+                      "variationsMax",
+                      "variationNameMax",
+                      "optionNameMax",
+                      "skuMax",
+                      "skuNoSpaces"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "attributes",
+                  "brandRequired",
+                  "weightRequired",
+                  "dimensionsRequired",
+                  "sizeChart",
+                  "certifications",
+                  "daysToShip",
+                  "limits"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "atribut dan batas kategori; null bila belum terbaca"
+          },
+          "rulesPending": {
+            "type": "boolean",
+            "description": "aturan sedang dibaca dari marketplace; minta lagi sebentar lagi"
+          },
+          "rulesReadAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "categoryId",
+          "parentId",
+          "name",
+          "path",
+          "isLeaf",
+          "permitted",
+          "rules",
+          "rulesPending",
+          "rulesReadAt"
+        ],
+        "additionalProperties": false
+      },
+      "CreateCopyDto": {
+        "type": "object",
+        "properties": {
+          "sourceStoreId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "listingIds": {
+            "description": "listing toko asal yang disalin (per produk); tanpa ini seluruh toko asal disalin",
+            "minItems": 1,
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+            }
+          },
+          "targetStoreIds": {
+            "minItems": 1,
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+            },
+            "description": "satu salinan per toko tujuan"
+          },
+          "priceChangePercent": {
+            "default": 0,
+            "description": "ubah harga sekian persen (dibulatkan ke ratusan rupiah); 0: harga sama",
+            "type": "number",
+            "minimum": -90,
+            "maximum": 500
+          },
+          "skipListed": {
+            "default": true,
+            "description": "lewati produk yang semua variannya sudah punya listing di toko tujuan",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sourceStoreId",
+          "targetStoreIds"
+        ]
+      },
+      "CopyListDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "sourceStore": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "channel": {
+                      "type": "string"
+                    },
+                    "channelName": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "channel",
+                    "channelName"
+                  ],
+                  "additionalProperties": false
+                },
+                "targetStore": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "channel": {
+                      "type": "string"
+                    },
+                    "channelName": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "channel",
+                    "channelName"
+                  ],
+                  "additionalProperties": false
+                },
+                "scope": {
+                  "type": "string",
+                  "enum": [
+                    "items",
+                    "store"
+                  ],
+                  "description": "items: listing terpilih; store: seluruh toko asal"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "preparing",
+                    "ready",
+                    "failed",
+                    "cancelled"
+                  ]
+                },
+                "priceChangePercent": {
+                  "type": "number"
+                },
+                "skipListed": {
+                  "type": "boolean"
+                },
+                "itemsTotal": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "itemsDrafted": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "itemsSkipped": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "sudah ada drafnya, atau sudah ada listingnya di toko tujuan"
+                },
+                "itemsFailed": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "failures": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "externalItemId": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "externalItemId",
+                      "title",
+                      "reason"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "drafts": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string",
+                    "enum": [
+                      "preparing",
+                      "draft",
+                      "publishing",
+                      "published",
+                      "failed"
+                    ]
+                  },
+                  "additionalProperties": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "required": [
+                    "preparing",
+                    "draft",
+                    "publishing",
+                    "published",
+                    "failed"
+                  ],
+                  "description": "jumlah draf per status"
+                },
+                "error": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "finishedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "sourceStore",
+                "targetStore",
+                "scope",
+                "status",
+                "priceChangePercent",
+                "skipListed",
+                "itemsTotal",
+                "itemsDrafted",
+                "itemsSkipped",
+                "itemsFailed",
+                "failures",
+                "drafts",
+                "error",
+                "createdAt",
+                "finishedAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "CopyPageDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "sourceStore": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "channel": {
+                      "type": "string"
+                    },
+                    "channelName": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "channel",
+                    "channelName"
+                  ],
+                  "additionalProperties": false
+                },
+                "targetStore": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "channel": {
+                      "type": "string"
+                    },
+                    "channelName": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "channel",
+                    "channelName"
+                  ],
+                  "additionalProperties": false
+                },
+                "scope": {
+                  "type": "string",
+                  "enum": [
+                    "items",
+                    "store"
+                  ],
+                  "description": "items: listing terpilih; store: seluruh toko asal"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "preparing",
+                    "ready",
+                    "failed",
+                    "cancelled"
+                  ]
+                },
+                "priceChangePercent": {
+                  "type": "number"
+                },
+                "skipListed": {
+                  "type": "boolean"
+                },
+                "itemsTotal": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "itemsDrafted": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "itemsSkipped": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "sudah ada drafnya, atau sudah ada listingnya di toko tujuan"
+                },
+                "itemsFailed": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "failures": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "externalItemId": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "externalItemId",
+                      "title",
+                      "reason"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "drafts": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string",
+                    "enum": [
+                      "preparing",
+                      "draft",
+                      "publishing",
+                      "published",
+                      "failed"
+                    ]
+                  },
+                  "additionalProperties": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "required": [
+                    "preparing",
+                    "draft",
+                    "publishing",
+                    "published",
+                    "failed"
+                  ],
+                  "description": "jumlah draf per status"
+                },
+                "error": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "finishedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "sourceStore",
+                "targetStore",
+                "scope",
+                "status",
+                "priceChangePercent",
+                "skipListed",
+                "itemsTotal",
+                "itemsDrafted",
+                "itemsSkipped",
+                "itemsFailed",
+                "failures",
+                "drafts",
+                "error",
+                "createdAt",
+                "finishedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "next_cursor": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "CopyDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "sourceStore": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "name": {
+                "type": "string"
+              },
+              "channel": {
+                "type": "string"
+              },
+              "channelName": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "channel",
+              "channelName"
+            ],
+            "additionalProperties": false
+          },
+          "targetStore": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "name": {
+                "type": "string"
+              },
+              "channel": {
+                "type": "string"
+              },
+              "channelName": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "channel",
+              "channelName"
+            ],
+            "additionalProperties": false
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "items",
+              "store"
+            ],
+            "description": "items: listing terpilih; store: seluruh toko asal"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "preparing",
+              "ready",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "priceChangePercent": {
+            "type": "number"
+          },
+          "skipListed": {
+            "type": "boolean"
+          },
+          "itemsTotal": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "itemsDrafted": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "itemsSkipped": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "sudah ada drafnya, atau sudah ada listingnya di toko tujuan"
+          },
+          "itemsFailed": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "failures": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "externalItemId": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "externalItemId",
+                "title",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "drafts": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "enum": [
+                "preparing",
+                "draft",
+                "publishing",
+                "published",
+                "failed"
+              ]
+            },
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "required": [
+              "preparing",
+              "draft",
+              "publishing",
+              "published",
+              "failed"
+            ],
+            "description": "jumlah draf per status"
+          },
+          "error": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "sourceStore",
+          "targetStore",
+          "scope",
+          "status",
+          "priceChangePercent",
+          "skipListed",
+          "itemsTotal",
+          "itemsDrafted",
+          "itemsSkipped",
+          "itemsFailed",
+          "failures",
+          "drafts",
+          "error",
+          "createdAt",
+          "finishedAt"
+        ],
+        "additionalProperties": false
+      },
+      "DraftPageDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "copyId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "sourceStoreId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "targetStoreId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "externalSourceItemId": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "preparing",
+                    "draft",
+                    "publishing",
+                    "published",
+                    "failed"
+                  ]
+                },
+                "title": {
+                  "type": "string"
+                },
+                "categoryPath": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "imageUrl": {
+                  "description": "foto pertama (dari toko asal)",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "variantCount": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "priceMin": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "priceMax": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "blockingProblems": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "warnings": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "externalTargetItemId": {
+                  "description": "id produk di toko tujuan setelah terbit",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "error": {
+                  "description": "alasan gagal terbit terakhir",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "rowVersion": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "id",
+                "copyId",
+                "sourceStoreId",
+                "targetStoreId",
+                "externalSourceItemId",
+                "status",
+                "title",
+                "categoryPath",
+                "imageUrl",
+                "variantCount",
+                "priceMin",
+                "priceMax",
+                "blockingProblems",
+                "warnings",
+                "externalTargetItemId",
+                "error",
+                "rowVersion",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "next_cursor": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "DraftDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "copyId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "sourceStoreId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "targetStoreId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "externalSourceItemId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "preparing",
+              "draft",
+              "publishing",
+              "published",
+              "failed"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "categoryPath": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "imageUrl": {
+            "description": "foto pertama (dari toko asal)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "variantCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "priceMin": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "priceMax": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "blockingProblems": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "warnings": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "externalTargetItemId": {
+            "description": "id produk di toko tujuan setelah terbit",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "error": {
+            "description": "alasan gagal terbit terakhir",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rowVersion": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "description": {
+            "type": "string"
+          },
+          "descriptionHtml": {
+            "description": "deskripsi HTML asal (Tokopedia & Shop), dipakai apa adanya",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "externalCategoryId": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "brandId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "brandId",
+                  "name"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "attributes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "attributeId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "values": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "valueId": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "name": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "unit": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "valueId",
+                      "name",
+                      "unit"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "attributeId",
+                "name",
+                "values"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "sourceUrl": {
+                  "type": "string"
+                },
+                "uploaded": {
+                  "type": "boolean",
+                  "description": "sudah diunggah ke marketplace tujuan"
+                },
+                "url": {
+                  "description": "alamat di marketplace tujuan, setelah diunggah",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "sourceUrl",
+                "uploaded",
+                "url"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "sizeChart": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "sourceUrl": {
+                    "type": "string"
+                  },
+                  "uploaded": {
+                    "type": "boolean",
+                    "description": "sudah diunggah ke marketplace tujuan"
+                  },
+                  "url": {
+                    "description": "alamat di marketplace tujuan, setelah diunggah",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "sourceUrl",
+                  "uploaded",
+                  "url"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "weightG": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dimensionsMm": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "length": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "width": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "height": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "length",
+                  "width",
+                  "height"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "condition": {
+            "type": "string",
+            "enum": [
+              "new",
+              "used"
+            ]
+          },
+          "preOrderDays": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "itemSku": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "variationNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "externalSourceVariantId": {
+                  "type": "string"
+                },
+                "variantId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "varian OmniSeller; listing baru dipetakan ke sini"
+                },
+                "sku": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "options": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "price": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "image": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "sourceUrl": {
+                          "type": "string"
+                        },
+                        "uploaded": {
+                          "type": "boolean",
+                          "description": "sudah diunggah ke marketplace tujuan"
+                        },
+                        "url": {
+                          "description": "alamat di marketplace tujuan, setelah diunggah",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "sourceUrl",
+                        "uploaded",
+                        "url"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "gtin": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "key",
+                "externalSourceVariantId",
+                "variantId",
+                "sku",
+                "options",
+                "price",
+                "image",
+                "gtin"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "field": {
+                  "type": "string",
+                  "description": "bagian yang diperbaiki: title, attributes.<id>, variants.<key>.sku, ..."
+                },
+                "message": {
+                  "type": "string"
+                },
+                "blocking": {
+                  "type": "boolean",
+                  "description": "true: harus diperbaiki sebelum terbit"
+                }
+              },
+              "required": [
+                "code",
+                "field",
+                "message",
+                "blocking"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "channel": {
+                "type": "string"
+              },
+              "categoryId": {
+                "type": "string"
+              },
+              "categoryPath": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "brand": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "channel",
+              "categoryId",
+              "categoryPath",
+              "brand"
+            ],
+            "additionalProperties": false
+          },
+          "publishAttempt": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "publishedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "copyId",
+          "sourceStoreId",
+          "targetStoreId",
+          "externalSourceItemId",
+          "status",
+          "title",
+          "categoryPath",
+          "imageUrl",
+          "variantCount",
+          "priceMin",
+          "priceMax",
+          "blockingProblems",
+          "warnings",
+          "externalTargetItemId",
+          "error",
+          "rowVersion",
+          "updatedAt",
+          "description",
+          "descriptionHtml",
+          "externalCategoryId",
+          "brand",
+          "attributes",
+          "images",
+          "sizeChart",
+          "weightG",
+          "dimensionsMm",
+          "condition",
+          "preOrderDays",
+          "itemSku",
+          "variationNames",
+          "variants",
+          "problems",
+          "source",
+          "publishAttempt",
+          "publishedAt",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateDraftDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 30000,
+            "description": "teks biasa; menggantikan deskripsi HTML asal"
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 100
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null: tanpa merek"
+          },
+          "attributes": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "attributeId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "values": {
+                  "maxItems": 30,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "valueId": {
+                        "description": "nilai dari daftar kategori",
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "name": {
+                        "description": "nilai ketik, bila atributnya menerima teks",
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "unit": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 20
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              "required": [
+                "attributeId",
+                "values"
+              ]
+            },
+            "description": "menggantikan semua atribut draf"
+          },
+          "images": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "description": "sourceUrl foto draf dalam urutan baru; foto yang tidak disebut dihapus"
+          },
+          "weightG": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000
+          },
+          "dimensionsMm": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "length": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000
+                  },
+                  "width": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000
+                  },
+                  "height": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000
+                  }
+                },
+                "required": [
+                  "length",
+                  "width",
+                  "height"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "condition": {
+            "type": "string",
+            "enum": [
+              "new",
+              "used"
+            ]
+          },
+          "preOrderDays": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 90
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "itemSku": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "variationNames": {
+            "maxItems": 3,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50
+            },
+            "description": "ganti nama; jumlahnya tetap"
+          },
+          "variants": {
+            "minItems": 1,
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 10
+                },
+                "sku": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 100
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "price": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 1000000000000
+                },
+                "options": {
+                  "maxItems": 3,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  }
+                }
+              },
+              "required": [
+                "key"
+              ]
+            },
+            "description": "varian yang tetap ada (varian yang tidak disebut dihapus) dan perubahannya"
+          }
+        }
+      },
+      "DraftCategoryDto": {
+        "type": "object",
+        "properties": {
+          "draftIds": {
+            "minItems": 1,
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+            }
+          },
+          "categoryId": {
+            "type": "string",
+            "pattern": "^[0-9A-Za-z_-]{1,64}$",
+            "description": "id kategori di marketplace toko itu"
+          }
+        },
+        "required": [
+          "draftIds",
+          "categoryId"
+        ]
+      },
+      "DraftCategoryResultDto_Output": {
+        "type": "object",
+        "properties": {
+          "updated": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "updated"
+        ],
+        "additionalProperties": false
+      },
+      "DraftAttributeDto": {
+        "type": "object",
+        "properties": {
+          "draftIds": {
+            "minItems": 1,
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+            }
+          },
+          "attributeId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "values": {
+            "maxItems": 30,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "valueId": {
+                  "description": "nilai dari daftar kategori",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "name": {
+                  "description": "nilai ketik, bila atributnya menerima teks",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "unit": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 20
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "kosong: hapus atribut ini dari draf"
+          }
+        },
+        "required": [
+          "draftIds",
+          "attributeId",
+          "values"
+        ]
+      },
+      "DraftAttributeResultDto_Output": {
+        "type": "object",
+        "properties": {
+          "updated": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+            }
+          },
+          "skipped": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "draftId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "draftId",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "updated",
+          "skipped"
+        ],
+        "additionalProperties": false
+      },
+      "PublishDraftsDto": {
+        "type": "object",
+        "properties": {
+          "draftIds": {
+            "minItems": 1,
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+            }
+          }
+        },
+        "required": [
+          "draftIds"
+        ]
+      },
+      "PublishResultDto_Output": {
+        "type": "object",
+        "properties": {
+          "queued": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+            }
+          },
+          "refused": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "draftId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "code": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "draftId",
+                "code",
+                "message"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "queued",
+          "refused"
+        ],
+        "additionalProperties": false
       },
       "OrderPageDto_Output": {
         "type": "object",

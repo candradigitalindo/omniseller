@@ -26,6 +26,11 @@ import {
 import { IdentityHttpModule } from "./modules/identity/identity.http.module";
 import { IdentityModule } from "./modules/identity/identity.module";
 import { InventoryHttpModule, InventoryModule, InventoryWorkerModule } from "./modules/inventory/inventory.module";
+import {
+  ListingCopyHttpModule,
+  ListingCopyModule,
+  ListingCopyWorkerModule,
+} from "./modules/listing-copy/listing-copy.module";
 import { MigrationHttpModule, MigrationWorkerModule } from "./modules/migration/migration.module";
 import {
   NotificationHttpModule,
@@ -87,6 +92,7 @@ export class AppModule {
             InventoryHttpModule,
             ChannelHttpModule,
             CatalogHttpModule,
+            ListingCopyHttpModule,
             OrdersHttpModule,
             FilesModule.forEnv(env),
             FilesHttpModule,
@@ -126,6 +132,8 @@ export class AppModule {
             ChannelWorkerModule.forEnv(env),
             CatalogModule,
             CatalogWorkerModule,
+            ListingCopyModule,
+            ListingCopyWorkerModule,
             InventoryWorkerModule,
             OrdersModule,
             OrdersWorkerModule,

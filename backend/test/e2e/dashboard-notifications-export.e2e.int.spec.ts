@@ -562,6 +562,8 @@ describe("full data export (FR-MIG-09) and the audit of sensitive actions (FR-US
       "gudang.csv",
       "produk.csv",
       "listing.csv",
+      "draf_listing.csv",
+      "pemetaan_kategori.csv",
       "stok.csv",
       "mutasi_stok.csv",
       "pesanan.csv",

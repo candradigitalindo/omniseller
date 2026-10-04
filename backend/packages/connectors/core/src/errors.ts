@@ -17,6 +17,11 @@ export interface ConnectorErrorInit {
   httpStatus?: number;
   requestId?: string;
   retryAfterMs?: number;
+  /**
+   * The marketplace item the failed call already created (Shopee creates an item before its variants):
+   * the caller keeps it and continues from there instead of creating the item twice.
+   */
+  externalItemId?: string;
 }
 
 export abstract class ConnectorError extends Error {
@@ -25,6 +30,9 @@ export abstract class ConnectorError extends Error {
   readonly httpStatus: number | undefined;
   readonly requestId: string | undefined;
   readonly retryAfterMs: number | undefined;
+  readonly externalItemId: string | undefined;
+  /** The marketplace's own words, without the code (shown to sellers). */
+  readonly detail: string;
 
   constructor(init: ConnectorErrorInit) {
     super(`${init.code}: ${init.message}`);
@@ -33,6 +41,8 @@ export abstract class ConnectorError extends Error {
     this.httpStatus = init.httpStatus;
     this.requestId = init.requestId;
     this.retryAfterMs = init.retryAfterMs;
+    this.externalItemId = init.externalItemId;
+    this.detail = init.message;
   }
 }
 
@@ -67,4 +77,16 @@ export function errorOfKind(kind: ConnectorErrorKind, init: ConnectorErrorInit):
     case "permanent":
       return new PermanentConnectorError(init);
   }
+}
+
+/** The same error, now carrying the item the marketplace already created (see `externalItemId`). */
+export function withCreatedItem(err: ConnectorError, externalItemId: string): ConnectorError {
+  return errorOfKind(err.kind, {
+    code: err.code,
+    message: err.detail,
+    ...(err.httpStatus !== undefined ? { httpStatus: err.httpStatus } : {}),
+    ...(err.requestId !== undefined ? { requestId: err.requestId } : {}),
+    ...(err.retryAfterMs !== undefined ? { retryAfterMs: err.retryAfterMs } : {}),
+    externalItemId,
+  });
 }

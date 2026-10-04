@@ -118,6 +118,177 @@ export interface ListingStatusResult {
   error?: string;
 }
 
+// ---- products: copying listings between shops (PRD FR-PRD-13, backend doc 8.25) ----
+
+/** A category of the marketplace's tree as the shop sees it. */
+export interface MarketplaceCategory {
+  externalId: string;
+  /** null for a top-level category. */
+  parentExternalId: string | null;
+  name: string;
+  /** Products are created only in leaf categories. */
+  isLeaf: boolean;
+  /** The shop may list in it (TikTok Shop `AVAILABLE`; Shopee returns only usable categories). */
+  permitted: boolean;
+}
+
+/**
+ * How values of a product attribute are entered: picked from the list, typed, or either (Shopee combo
+ * boxes, TikTok Shop customizable attributes).
+ */
+export type AttributeInput = "select" | "multi_select" | "text" | "select_or_text" | "multi_select_or_text";
+
+export interface CategoryAttribute {
+  externalId: string;
+  name: string;
+  required: boolean;
+  input: AttributeInput;
+  /** Values the marketplace offers; empty for free text. */
+  values: { externalId: string; name: string }[];
+  /** Units for quantitative values (Shopee `g`, `ml`); empty when the value has none. */
+  units: string[];
+  /** Typed values must be dates (Unix seconds), whole numbers, or decimals; null: any text. */
+  valueFormat: "date" | "integer" | "decimal" | null;
+  /** At most this many values; null: no stated limit. */
+  maxValues: number | null;
+  /** Required when another attribute has one of these values (TikTok Shop requirement conditions). */
+  requiredWhen: { attributeId: string; valueId: string }[];
+}
+
+/** What a leaf category asks of a new product. */
+export interface CategoryRules {
+  categoryId: string;
+  attributes: CategoryAttribute[];
+  brandRequired: boolean;
+  weightRequired: boolean;
+  dimensionsRequired: boolean;
+  sizeChart: { supported: boolean; required: boolean };
+  /** Certifications the category always requires: not copied, sellers add them in the Seller Center. */
+  certifications: string[];
+  /** Days to ship for ready stock (Shopee); null when the marketplace decides. */
+  daysToShip: number | null;
+  limits: ProductLimits;
+}
+
+export interface ProductLimits {
+  titleMin: number;
+  titleMax: number;
+  descriptionMin: number;
+  descriptionMax: number;
+  imagesMin: number;
+  imagesMax: number;
+  /** Whole rupiah; null when the marketplace states no limit. */
+  priceMin: number | null;
+  priceMax: number | null;
+  variantsMax: number;
+  variationsMax: number;
+  variationNameMax: number;
+  optionNameMax: number;
+  skuMax: number;
+  /** TikTok Shop seller SKUs may not contain spaces. */
+  skuNoSpaces: boolean;
+}
+
+export interface MarketplaceBrand {
+  externalId: string;
+  name: string;
+  /** May be chosen for a new product (TikTok Shop refuses unauthorized T1 brands). */
+  selectable: boolean;
+}
+
+export interface ProductAttributeValue {
+  attributeId: string;
+  /** Source attribute name, for matching across marketplaces; null when unknown. */
+  name: string | null;
+  values: { externalId: string | null; name: string | null; unit?: string | null }[];
+}
+
+/** A marketplace product with everything a copy needs (FR-PRD-13). */
+export interface SourceProduct {
+  externalItemId: string;
+  title: string;
+  /** Plain text; paragraphs separated by line breaks. */
+  description: string;
+  /** The description as the marketplace keeps it, when that is HTML (TikTok Shop); null otherwise. */
+  descriptionHtml: string | null;
+  category: { externalId: string; name: string | null; path: string | null };
+  brand: { externalId: string | null; name: string | null } | null;
+  attributes: ProductAttributeValue[];
+  /** Gallery images, main first. */
+  images: string[];
+  weightG: number | null;
+  dimensionsMm: { length: number; width: number; height: number } | null;
+  condition: "new" | "used";
+  /** Pre-order days to ship; null for ready stock. */
+  preOrderDays: number | null;
+  sizeChartImageUrl: string | null;
+  itemSku: string | null;
+  /** Variation names in order ("Warna", "Ukuran"); empty for a product without variants. */
+  variationNames: string[];
+  variants: {
+    externalVariantId: string;
+    sku: string | null;
+    /** One option per variation name, in the same order. */
+    options: string[];
+    price: number | null;
+    stock: number | null;
+    imageUrl: string | null;
+    gtin: string | null;
+  }[];
+  /** Marketplace-specific settings kept for a copy to the same marketplace (Shopee logistics). */
+  extras: Record<string, unknown>;
+}
+
+/** A product to create; images are already on the target marketplace (`uploadImage`). */
+export interface ProductToCreate {
+  /** Same key for retries of one product: the marketplace creates it once (TikTok Shop). */
+  idempotencyKey: string;
+  title: string;
+  description: string;
+  /** Used as is where the marketplace takes HTML (TikTok Shop); otherwise `description` is used. */
+  descriptionHtml: string | null;
+  categoryId: string;
+  /** No id: the brand is looked up by name, or left out when the marketplace allows it. */
+  brand: { externalId: string | null; name: string | null } | null;
+  attributes: ProductAttributeValue[];
+  /** Uploaded image references, main first. */
+  images: string[];
+  weightG: number;
+  dimensionsMm: { length: number; width: number; height: number } | null;
+  condition: "new" | "used";
+  preOrderDays: number | null;
+  itemSku: string | null;
+  sizeChartImage: string | null;
+  variationNames: string[];
+  variants: {
+    /** Caller's key, returned with the variant's new id. */
+    key: string;
+    sku: string | null;
+    options: string[];
+    price: number;
+    stock: number;
+    /** Uploaded image of the variant's first option; null when there is none. */
+    image: string | null;
+    gtin: string | null;
+  }[];
+  /** Marketplace warehouse that holds the stock (TikTok Shop warehouse id, Shopee location id). */
+  warehouseId: string | null;
+  extras: Record<string, unknown>;
+}
+
+export interface CreatedProduct {
+  externalItemId: string;
+  variants: { key: string; externalVariantId: string }[];
+  /** The marketplace's warnings (a brand it cleared, for example). */
+  warnings: string[];
+}
+
+export type ImageUse = "main" | "variant" | "description" | "size_chart";
+
+export interface CreateHooks {
+  itemCreated?(externalItemId: string): Promise<void>;
+}
+
 /**
  * Absolute stock for one listing (technology doc 8.1, backend doc 9.4). `warehouses` lists every seller
  * stock location of the listing, as the listing reports them: the marketplace may require all of them in
@@ -459,6 +630,50 @@ export interface MarketplaceConnector {
     getListings(shop: ShopCredentials, externalItemIds: string[]): Promise<ListingPage>;
     /** Activates or deactivates whole items; per-item results, partial success is normal. */
     setListingStatus(shop: ShopCredentials, externalItemIds: string[], active: boolean): Promise<ListingStatusResult[]>;
+  };
+
+  /**
+   * Creating products, for copying listings between shops (FR-PRD-13). Reference data (categories,
+   * rules, brands) is read in the shop's language; prices are whole rupiah.
+   */
+  products: {
+    /** The product behind an item, with its variants; null when the marketplace no longer has it. */
+    get(shop: ShopCredentials, externalItemId: string): Promise<SourceProduct | null>;
+    /** The category tree the shop may use. */
+    categories(shop: ShopCredentials): Promise<MarketplaceCategory[]>;
+    /** Leaf categories the marketplace suggests for a product, best first. */
+    recommendCategory(
+      shop: ShopCredentials,
+      input: {
+        title: string;
+        description: string;
+        /** Where the product sits on the marketplace it comes from (TikTok Shop uses it). */
+        source?: { categoryId: string; categoryName: string | null; categoryPath: string | null; brand: string | null };
+      },
+    ): Promise<string[]>;
+    /** Attributes and limits of leaf categories. */
+    categoryRules(shop: ShopCredentials, categoryIds: string[]): Promise<CategoryRules[]>;
+    /** Brands usable in a category, optionally only those whose name starts with `name`. */
+    brands(shop: ShopCredentials, input: { categoryId: string; name?: string }): Promise<MarketplaceBrand[]>;
+    /** Uploads an image file; returns the reference products use and, when given, its public URL. */
+    uploadImage(
+      shop: ShopCredentials,
+      image: { bytes: Uint8Array; contentType: string; use: ImageUse },
+    ): Promise<{ ref: string; url: string | null }>;
+    /** Why the shop cannot list products now, in the marketplace's words; empty when it can. */
+    prerequisites(shop: ShopCredentials): Promise<string[]>;
+    /**
+     * Creates the product with its variants. `resume` continues a product whose item exists but whose
+     * variants failed (the error carried `externalItemId`). `hooks.itemCreated` runs as soon as the
+     * marketplace has the item, before its variants are added, so the caller can keep its id even if
+     * the process stops right after (Shopee has no idempotency key).
+     */
+    create(
+      shop: ShopCredentials,
+      product: ProductToCreate,
+      resume?: { externalItemId: string },
+      hooks?: CreateHooks,
+    ): Promise<CreatedProduct>;
   };
 
   orders: {

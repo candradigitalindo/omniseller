@@ -67,6 +67,14 @@ export type PrintJobStatus = (typeof PRINT_JOB_STATUSES)[number];
 export const HANDOVER_STATUSES = ["open", "completed", "cancelled"] as const;
 export type HandoverStatus = (typeof HANDOVER_STATUSES)[number];
 
+/** Copying listings into drafts for another store (FR-PRD-13, backend doc 8.25). */
+export const LISTING_COPY_STATUSES = ["preparing", "ready", "failed", "cancelled"] as const;
+export type ListingCopyStatus = (typeof LISTING_COPY_STATUSES)[number];
+
+/** A copied listing reviewed before it is created in the target store (FR-PRD-13). */
+export const LISTING_DRAFT_STATUSES = ["preparing", "draft", "publishing", "published", "failed"] as const;
+export type ListingDraftStatus = (typeof LISTING_DRAFT_STATUSES)[number];
+
 /** A store's switch from parallel mode to OmniSeller (FR-MIG-06); undone within 24 hours. */
 export const STORE_CUTOVER_STATUSES = ["done", "undone"] as const;
 export type StoreCutoverStatus = (typeof STORE_CUTOVER_STATUSES)[number];

@@ -4,5 +4,6 @@ export * from "./connector.js";
 export * from "./inventory.js";
 export * from "./logistics.js";
 export * from "./orders.js";
+export * from "./products.js";
 export * from "./push-config.js";
 export * from "./webhooks.js";

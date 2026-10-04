@@ -14,6 +14,7 @@ import { accessExpiry, ShopeeClient, type ShopeeConfig } from "./client.js";
 import { shopeeInventory } from "./inventory.js";
 import { shopeeLogistics } from "./logistics.js";
 import { shopeeOrders } from "./orders.js";
+import { shopeeProducts } from "./products.js";
 import { parseShopeePush, verifyShopeePush } from "./webhooks.js";
 
 export const SHOPEE_MANIFEST: ConnectorManifest = {
@@ -319,6 +320,8 @@ export function createShopeeConnector(config: ShopeeConfig): MarketplaceConnecto
     },
 
     catalog: shopeeCatalog(client, { fbs: SHOPEE_FBS_WAREHOUSE_ID, shopLevel: SHOPEE_DEFAULT_WAREHOUSE_ID }),
+
+    products: shopeeProducts(client, { shopLevel: SHOPEE_DEFAULT_WAREHOUSE_ID }),
 
     orders: shopeeOrders(client),
 

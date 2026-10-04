@@ -1,4 +1,5 @@
 import {
+  LISTING_DRAFT_STATUSES,
   ORDER_STATUSES,
   SHIPMENT_STATUSES,
   STOCK_ADJUSTMENT_REASONS,
@@ -39,6 +40,14 @@ const SHIPMENT_STATES: Record<(typeof SHIPMENT_STATUSES)[number], string> = {
   cancelled: "dibatalkan",
 };
 
+const DRAFT_STATES: Record<(typeof LISTING_DRAFT_STATUSES)[number], string> = {
+  preparing: "sedang disiapkan ulang (kategori diganti)",
+  draft: "menunggu ditinjau",
+  publishing: "sedang diterbitkan",
+  published: "sudah diterbitkan ke toko tujuan",
+  failed: "gagal diterbitkan (lihat kolom galat)",
+};
+
 export interface ReadmeInput {
   business: string;
   timezone: string;
@@ -74,6 +83,9 @@ export function exportReadme(p: ReadmeInput): string {
     "",
     "STATUS PENGIRIMAN (pengiriman.status)",
     ...SHIPMENT_STATUSES.map((s) => `- ${s}: ${SHIPMENT_STATES[s]}`),
+    "",
+    "STATUS DRAF SALINAN LISTING (draf_listing.status)",
+    ...LISTING_DRAFT_STATUSES.map((s) => `- ${s}: ${DRAFT_STATES[s]}`),
     "",
     "JENIS MUTASI STOK (mutasi_stok.jenis)",
     ...Object.entries(MOVEMENT_TYPES).map(([k, v]) => `- ${k}: ${v}`),

@@ -46,6 +46,7 @@ const PATH_PARAMS: Record<string, string> = {
   "{warehouseId}": "warehouse",
   "{problemId}": "order_problem",
   "{itemId}": "handover_item",
+  "{categoryId}": "channel_category",
 };
 
 /** Bodies for mutating operations, keyed by operationId. `ids` holds A's fixture ids and B's own ids. */
@@ -143,6 +144,18 @@ const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: s
   HandoversController_complete: () => ({}),
   HandoversController_cancel: () => ({}),
   HandoversController_manifest: () => ({}),
+  StoreCategoriesController_refresh: () => ({}),
+  ListingCopiesController_create: ({ a: ids }) => ({ sourceStoreId: ids.store!, targetStoreIds: [ids.store!] }),
+  ListingCopiesController_cancel: () => ({}),
+  ListingDraftsController_update: () => ({ title: "Penyusup" }),
+  ListingDraftsController_remove: () => ({}),
+  ListingDraftsController_setCategory: ({ a: ids }) => ({ draftIds: [ids.listing_draft!], categoryId: "601226" }),
+  ListingDraftsController_setAttribute: ({ a: ids }) => ({
+    draftIds: [ids.listing_draft!],
+    attributeId: "102254",
+    values: [{ valueId: "1000059" }],
+  }),
+  ListingDraftsController_publish: ({ a: ids }) => ({ draftIds: [ids.listing_draft!] }),
 };
 
 /** A print agent's client: its device token instead of a session. */
@@ -277,6 +290,25 @@ beforeAll(async () => {
     await tx.execute(sql`INSERT INTO handover_item (id, tenant_id, handover_id, order_id, tracking_number, order_number)
                          VALUES (${itemId}, ${tenantId}, ${opened.body.id}, ${fixtures.order!.id}, 'A-RESI-1', 'A-0001')`);
     fixtures.handover_item = { id: itemId };
+  });
+  // a copy of A's store into itself is impossible; the fixture copies between two stores of A (8.25)
+  await withTenantTx(h.worker, userCtx(tenantId), async (tx) => {
+    const otherStoreId = await createStore(tx, tenantId, { warehouseId: fixtures.warehouse!.id, channel: "tiktokshop" });
+    await tx.execute(sql`INSERT INTO channel_category (id, tenant_id, store_id, external_id, name, path, is_leaf, seen_at)
+                         VALUES (${newId()}, ${tenantId}, ${fixtures.store!.id}, '601226', 'Kaos', 'Pakaian Pria > Kaos', true, now())`);
+    fixtures.channel_category = { id: "601226" };
+    const copyId = newId();
+    await tx.execute(sql`INSERT INTO listing_copy (id, tenant_id, source_store_id, target_store_id, scope, options)
+                         VALUES (${copyId}, ${tenantId}, ${fixtures.store!.id}, ${otherStoreId}, 'store',
+                                 '{"priceChangePercent":0,"skipListed":true}'::jsonb)`);
+    fixtures.listing_copy = { id: copyId };
+    const draftId = newId();
+    await tx.execute(sql`INSERT INTO listing_draft (id, tenant_id, copy_id, source_store_id, target_store_id,
+                                                    external_source_item_id, title, source)
+                         VALUES (${draftId}, ${tenantId}, ${copyId}, ${fixtures.store!.id}, ${otherStoreId}, '9001',
+                                 'Kaos Tenant A',
+                                 '{"channel":"shopee","category":{"externalId":"100017","name":null,"path":null},"brand":null,"attributes":[],"extras":{},"notes":[]}'::jsonb)`);
+    fixtures.listing_draft = { id: draftId };
   });
   const theirs = await b.c.post("/v1/print-agents", { name: "Agen B" });
   expect(theirs.status).toBe(201);
@@ -459,6 +491,11 @@ describe("tenant isolation generated from openapi.json", () => {
       status: "open",
       courier: "SPX Standard",
       parcels: 1,
+    });
+    expect((await a.c.get(`/v1/listing-copies/${fixtures.listing_copy!.id}`)).body).toMatchObject({ status: "preparing" });
+    expect((await a.c.get(`/v1/listing-drafts/${fixtures.listing_draft!.id}`)).body).toMatchObject({
+      status: "draft",
+      title: "Kaos Tenant A",
     });
     // B's callback attempt with A's state did not consume it
     expect((await a.c.get(`/v1/store-authorizations/${fixtures.store_authorization!.id}`)).body.status).toBe("pending");

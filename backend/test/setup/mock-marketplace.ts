@@ -2,6 +2,14 @@ import { createHmac, randomBytes } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { PDFDocument } from "pdf-lib";
+import {
+  MockProductState,
+  type MockShopeeChannel,
+  SHOPEE_DEFAULT_CHANNELS,
+  shopeeProductCall,
+  solidPng,
+  tiktokProductCall,
+} from "./mock-products";
 
 /**
  * A fake Shopee Open Platform and TikTok Shop Partner API for integration tests (backend doc 13.2).
@@ -36,7 +44,8 @@ export interface MockShopeeItem {
    * must keep this structure, as Shopee requires.
    */
   stockByLocation?: Record<string, number>;
-  tiers?: { name: string; options: string[] }[];
+  /** Option names per tier; `images` gives the first tier's option images (URLs or null). */
+  tiers?: { name: string; options: string[]; images?: (string | null)[] }[];
   models?: {
     model_id: number;
     model_sku?: string;
@@ -49,6 +58,18 @@ export interface MockShopeeItem {
   lockedForUnlist?: boolean;
   /** Stock reserved for a promotion: update_stock refuses less than this per model. */
   reservedStock?: number;
+  // what get_item_base_info adds for a copy (FR-PRD-13)
+  category_id?: number;
+  description?: string;
+  attributes?: {
+    attribute_id: number;
+    original_attribute_name: string;
+    attribute_value_list: { value_id: number; original_value_name: string; value_unit?: string }[];
+  }[];
+  brand?: { brand_id: number; original_brand_name: string };
+  dimension?: { package_length: number; package_width: number; package_height: number };
+  logistic_info?: { logistic_id: number; enabled: boolean; is_free?: boolean; size_id?: number }[];
+  condition?: "NEW" | "USED";
 }
 
 /** A Shopee order as get_order_detail returns it; tests change fields to move it along. */
@@ -120,6 +141,8 @@ export interface MockShopeeShop {
   warehouses: "not_whitelisted" | { warehouse_id: number; warehouse_name: string; location_id: string }[];
   /** Authorization end, epoch seconds. */
   expireTime?: number;
+  /** v2.logistics.get_channel_list; defaults to SPX Standard and J&T Express enabled. */
+  channels?: MockShopeeChannel[];
 }
 
 export interface MockTiktokProduct {
@@ -135,7 +158,18 @@ export interface MockTiktokProduct {
     price: number;
     attrs: Record<string, string>;
     inventory: Record<string, number>;
+    /** Image of the SKU's first sales attribute value. */
+    image?: string;
+    /** GTIN (identifier_code). */
+    identifier?: string;
   }[];
+  // what Get Product adds for a copy (FR-PRD-13)
+  description?: string;
+  categoryChain?: { id: string; parent_id: string; local_name: string; is_leaf: boolean }[];
+  brand?: { id: string; name: string };
+  attributes?: { id: string; name: string; values: { id?: string; name: string }[] }[];
+  packageWeightKg?: string;
+  dimensions?: { length: string; width: string; height: string; unit: string };
 }
 
 /** A TikTok Shop order as Get Order Detail returns it: one line item per unit. */
@@ -196,9 +230,11 @@ interface Call {
   rawQuery: string;
   body: string;
   headers: IncomingMessage["headers"];
+  /** A multipart/form-data body (image uploads); `body` then holds the raw text, not signed. */
+  form?: FormData;
 }
 
-type Reply = { status: number; body: unknown; file?: Uint8Array };
+type Reply = { status: number; body: unknown; file?: Uint8Array; contentType?: string };
 
 const now = () => Math.floor(Date.now() / 1000);
 
@@ -331,6 +367,11 @@ export class MockMarketplace {
   /** Tracking reads, `<marketplace>:<order>:<package>`. */
   readonly trackingCalls: string[] = [];
 
+  // ---- product creation (FR-PRD-13) ----
+  readonly products = new MockProductState();
+  /** Image downloads (`/img/...`), to prove each image is fetched once per upload. */
+  readonly imageDownloads: string[] = [];
+
   /** Port 0 picks a free port (tests); a fixed port lets separately started processes find it. */
   async start(port = 0): Promise<void> {
     this.server = createServer((req, res) => void this.handle(req, res));
@@ -401,8 +442,10 @@ export class MockMarketplace {
   private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const chunks: Buffer[] = [];
     for await (const c of req) chunks.push(c as Buffer);
-    const body = Buffer.concat(chunks).toString("utf8");
+    const raw = Buffer.concat(chunks);
+    const body = raw.toString("utf8");
     const url = new URL(req.url ?? "/", "http://mock");
+    const type = String(req.headers["content-type"] ?? "");
     const call: Call = {
       method: req.method ?? "GET",
       path: url.pathname,
@@ -410,13 +453,16 @@ export class MockMarketplace {
       rawQuery: url.search,
       body,
       headers: req.headers,
+      ...(type.startsWith("multipart/form-data")
+        ? { form: await new Response(raw, { headers: { "content-type": type } }).formData() }
+        : {}),
     };
     this.calls.push(call);
     const key = `${call.method} ${call.path}`;
     const forced = this.queued.get(key)?.shift();
     const reply = forced ?? (await this.route(call));
     if (reply.file) {
-      res.writeHead(reply.status, { "content-type": "application/pdf" });
+      res.writeHead(reply.status, { "content-type": reply.contentType ?? "application/pdf" });
       res.end(Buffer.from(reply.file));
       return;
     }
@@ -430,7 +476,34 @@ export class MockMarketplace {
     // TikTok Shop's label links: a plain download without signature, like its file host
     const doc = /^\/tts-docs\/([A-Za-z0-9]+)\.pdf$/.exec(call.path);
     if (doc && call.method === "GET") return this.tiktokDocument(doc[1]!);
+    // product images on the marketplaces' file hosts: a source product's images and uploaded ones
+    if (call.method === "GET" && /^\/(img|shopee-img|tts-img)\//.test(call.path)) return this.image(call.path);
     return this.tiktok(call);
+  }
+
+  /**
+   * `/img/<name>.png` a 600 x 600 PNG, `.webp` a WebP header (Shopee refuses it), `missing-*` 404,
+   * `huge-*` more than 10 MB; uploaded images (`/shopee-img/`, `/tts-img/`) as PNG.
+   */
+  private image(path: string): Reply {
+    this.imageDownloads.push(path);
+    const name = path.split("/").pop() ?? "";
+    if (name.startsWith("missing-")) return { status: 404, body: { message: "not found" } };
+    if (name.endsWith(".webp")) {
+      const webp = Buffer.concat([
+        Buffer.from("RIFF"),
+        Buffer.from([0x24, 0, 0, 0]),
+        Buffer.from("WEBPVP8 "),
+        Buffer.alloc(24),
+      ]);
+      return { status: 200, body: null, file: webp, contentType: "image/webp" };
+    }
+    if (name.startsWith("huge-")) {
+      const big = new Uint8Array(10 * 1024 * 1024 + 10);
+      big.set(solidPng(4, 4).subarray(0, 8));
+      return { status: 200, body: null, file: big, contentType: "image/png" };
+    }
+    return { status: 200, body: null, file: solidPng(600, 600), contentType: "image/png" };
   }
 
   // ---- Shopee endpoints ----
@@ -463,8 +536,32 @@ export class MockMarketplace {
       status: 200,
       body: { error: "", message: "", request_id: token("rq"), ...extra },
     });
+    if (call.path === "/api/v2/logistics/get_channel_list") {
+      return ok({ response: { logistics_channel_list: shop.channels ?? SHOPEE_DEFAULT_CHANNELS } });
+    }
     if (call.path.startsWith("/api/v2/logistics/") && call.path !== "/api/v2/logistics/get_address_list") {
       return this.shopeeLogistics(call, shop, ok);
+    }
+    if (
+      call.path.startsWith("/api/v2/media_space/") ||
+      [
+        "/api/v2/product/get_category",
+        "/api/v2/product/category_recommend",
+        "/api/v2/product/get_attribute_tree",
+        "/api/v2/product/get_item_limit",
+        "/api/v2/product/get_brand_list",
+        "/api/v2/product/add_item",
+        "/api/v2/product/init_tier_variation",
+      ].includes(call.path)
+    ) {
+      return shopeeProductCall(
+        this.products,
+        call,
+        shop,
+        ok,
+        (error, message, status = 400) => this.shopeeError(error, message, status),
+        (id) => `${this.url}/shopee-img/${id}`,
+      ).then((r) => r ?? this.shopeeError("error_param", "Permission denied. The request path is incorrect.", 404));
     }
 
     switch (call.path) {
@@ -522,6 +619,15 @@ export class MockMarketplace {
               has_model: (i.models ?? []).length > 0,
               weight: i.weight ?? "0.2",
               image: { image_url_list: i.images ?? [] },
+              category_id: i.category_id ?? 100017,
+              description: i.description ?? "",
+              description_type: "normal",
+              attribute_list: i.attributes ?? [],
+              brand: i.brand ?? { brand_id: 0, original_brand_name: "NoBrand" },
+              condition: i.condition ?? "NEW",
+              logistic_info: i.logistic_info ?? [],
+              pre_order: { is_pre_order: false, days_to_ship: 2 },
+              ...(i.dimension ? { dimension: i.dimension } : {}),
               ...((i.models ?? []).length === 0
                 ? {
                     price_info: [{ currency: "IDR", current_price: i.price ?? 0, original_price: i.price ?? 0 }],
@@ -542,7 +648,10 @@ export class MockMarketplace {
           response: {
             tier_variation: (item.tiers ?? []).map((t) => ({
               name: t.name,
-              option_list: t.options.map((o) => ({ option: o })),
+              option_list: t.options.map((o, k) => ({
+                option: o,
+                ...(t.images?.[k] ? { image: { image_id: "x", image_url: this.optionImage(t.images[k]!) } } : {}),
+              })),
             })),
             model: (item.models ?? []).map((m) => ({
               model_id: m.model_id,
@@ -1063,7 +1172,12 @@ export class MockMarketplace {
     return this.tiktokReply(0, "success", this.issueTiktok(sellerId, this.tiktokSellers.get(sellerId)!));
   }
 
-  private tiktok(call: Call): Reply {
+  /** Option images of created items are kept as `img:<image_id>`; they are served like uploads. */
+  private optionImage(ref: string): string {
+    return ref.startsWith("img:") ? `${this.url}/shopee-img/${ref.slice(4)}` : ref;
+  }
+
+  private tiktok(call: Call): Reply | Promise<Reply> {
     const q = call.query;
     const ts = Number(q.timestamp);
     if (q.app_key !== TIKTOK.appKey)
@@ -1078,7 +1192,9 @@ export class MockMarketplace {
       .sort()
       .map((k) => `${k}${q[k]}`)
       .join("");
-    const expected = hmac(TIKTOK.appSecret, `${TIKTOK.appSecret}${call.path}${params}${call.body}${TIKTOK.appSecret}`);
+    // multipart/form-data bodies are not part of the signature ("Sign your API request")
+    const signedBody = call.form ? "" : call.body;
+    const expected = hmac(TIKTOK.appSecret, `${TIKTOK.appSecret}${call.path}${params}${signedBody}${TIKTOK.appSecret}`);
     if (q.sign !== expected)
       return this.tiktokReply(106001, "Invalid credentials. The sign query parameter is invalid.", {}, 401);
     const auth = this.tiktokAccess.get(String(call.headers["x-tts-access-token"] ?? ""));
@@ -1101,6 +1217,18 @@ export class MockMarketplace {
     }
     const shop = seller.shops.find((s) => s.cipher === q.shop_cipher);
     if (!shop) return this.tiktokReply(106013, "Missing identifier. The shop_cipher query parameter is required.");
+    if (
+      /^\/product\/(202309\/(categories|brands|images)|202312\/prerequisites)/.test(call.path) ||
+      (call.method === "POST" && call.path === "/product/202309/products")
+    ) {
+      return tiktokProductCall(
+        this.products,
+        call,
+        shop,
+        (code, message, data = {}) => this.tiktokReply(code, message, data),
+        (uri) => `${this.url}/tts-img/${encodeURIComponent(uri)}`,
+      ).then((r) => r ?? this.tiktokReply(36009009, "Invalid path.", {}, 404));
+    }
 
     switch (`${call.method} ${call.path}`) {
       case "GET /logistics/202309/warehouses":
@@ -1247,14 +1375,27 @@ export class MockMarketplace {
             status: p.status,
             update_time: p.update_time,
             integrated_platform_statuses: p.tokopedia ? [{ platform: "TOKOPEDIA", status: p.tokopedia }] : [],
-            main_images: (p.images ?? []).map((u) => ({ urls: [u] })),
-            package_weight: { value: "0.3", unit: "KILOGRAM" },
+            main_images: (p.images ?? []).map((u) => ({ uri: `tos-${u.length}`, urls: [u] })),
+            package_weight: { value: p.packageWeightKg ?? "0.3", unit: "KILOGRAM" },
+            ...(p.dimensions ? { package_dimensions: p.dimensions } : {}),
+            description: p.description ?? "",
+            category_chains: p.categoryChain ?? [
+              { id: "601152", parent_id: "0", local_name: "Pakaian Pria", is_leaf: false },
+              { id: "601226", parent_id: "601152", local_name: "Kaos", is_leaf: true },
+            ],
+            ...(p.brand ? { brand: p.brand } : {}),
+            product_attributes: p.attributes ?? [],
             skus: p.skus.map((k) => ({
               id: k.id,
               seller_sku: k.seller_sku ?? "",
               price: { currency: "IDR", tax_exclusive_price: String(k.price) },
               inventory: Object.entries(k.inventory).map(([warehouse_id, quantity]) => ({ warehouse_id, quantity })),
-              sales_attributes: Object.entries(k.attrs).map(([name, value_name]) => ({ name, value_name })),
+              sales_attributes: Object.entries(k.attrs).map(([name, value_name], i) => ({
+                name,
+                value_name,
+                ...(i === 0 && k.image ? { sku_img: { uri: "tos-sku", urls: [k.image] } } : {}),
+              })),
+              ...(k.identifier ? { identifier_code: { code: k.identifier, type: "EAN" } } : {}),
               status_info: { status: "NORMAL" },
             })),
           });

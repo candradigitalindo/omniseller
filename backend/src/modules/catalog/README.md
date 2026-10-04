@@ -18,6 +18,7 @@ Produk master dan variannya, listing marketplace, dan pemetaan keduanya (PRD 6.2
 - Untuk modul inventory, di dalam transaksinya: `ListingsService.mappedForVariantsIn`, `mappedInStoreIn`, `listingsByIdsIn`.
 - Untuk dasbor dan ekspor: `ListingsService.unmappedCountIn` (listing belum terpetakan dalam cakupan toko), `ListingsService.exportSheets` (`listing.csv`).
 - Untuk checklist cutover: `ListingsService.unmappedInStoreIn(tx, storeId)`.
+- Untuk salin listing (modul `listing-copy`, backend doc 8.25), di transaksi pemanggil: `ListingsService.itemListingsIn` (listing item asal), `storeItemIdsIn` dan `storeItemCountIn` (item toko yang masih ada), `listedVariantsIn` (varian yang sudah punya listing di toko), `mapCopiedIn` (petakan listing hasil salinan sebagai `copied`). Hanya worker: `ListingSyncService.refreshCopiedItem` (baca item yang baru dibuat, petakan `copied`, lalu pencocokan SKU).
 
 ## Aturan
 - **HPP** (backend doc 8.24): hanya pemegang `finance:read` yang melihatnya (`seesCost` di `common/cost-visibility.ts`). Tanpa izin itu `costPrice` di jawaban produk bernilai `null`, perubahan HPP di riwayat tampil tanpa nilai (`withoutCost`, `hidden: true`), dan kolom `hpp` CSV ekspor kosong; impor ulang berkas itu tidak mengubah HPP karena sel kosong tidak mengubah apa pun. Mengisi HPP tetap dengan `catalog:write`. `produk.csv` di ekspor data penuh selalu memuat HPP.
@@ -25,7 +26,7 @@ Produk master dan variannya, listing marketplace, dan pemetaan keduanya (PRD 6.2
 - Barcode (`common/barcode.ts`, `barcodeProblem`): ASCII yang bisa dicetak tanpa spasi, paling banyak 48 karakter; angka sepanjang EAN-8, UPC-A, EAN-13, atau GTIN-14 harus punya check digit GS1 yang benar. Berlaku di API, impor CSV, dan impor migrasi; barcode lama tidak diubah.
 - Setiap perubahan kolom produk dan varian masuk `audit_log` (trigger `audit_change_trg`), jadi riwayat produk lengkap; penulisan yang hanya mengubah `updated_at` dan `row_version` tidak dicatat.
 - Produk punya maksimal tiga atribut. Setiap varian mengisi tepat semua atribut dengan nilai tidak kosong, dan kombinasinya unik per produk.
-- Upsert listing tidak pernah mengubah pemetaan. `variant_id`, `mapping_source`, dan `mapped_at` terisi bersama atau kosong bersama (CHECK).
+- Upsert listing tidak pernah mengubah pemetaan. `variant_id`, `mapping_source`, dan `mapped_at` terisi bersama atau kosong bersama (CHECK). Sumber pemetaan: `auto_sku`, `manual`, `created`, dan `copied` (listing yang dibuat dengan menyalin listing varian itu dari toko lain).
 - Pemetaan otomatis hanya bila SKU listing cocok dengan tepat satu varian aktif. Pemetaan ke varian arsip ditolak.
 - Produk yang variannya masih dipetakan listing tidak bisa dihapus; arsipkan saja.
 - Status listing hanya berubah dari jawaban marketplace: setelah aktif atau nonaktif dikirim, item dibaca ulang.
@@ -72,4 +73,4 @@ Kolom: `sku_produk`, `nama_produk`, `deskripsi`, `merek`, `kategori`, `sku_varia
 - Gambar disimpan sebagai URL (`product_image.source_url`) sampai pipeline berkas menyalinnya ke `file_object`.
 - Produk dari listing memakai SKU induk item, atau `SP-<item_id>` / `TTS-<item_id>`, dan berat 100 g bila marketplace tidak mengisi.
 - Template Excel (.xlsx) belum ada; CSV dengan BOM dan `;` dibuka Excel per kolom.
-- Menyusul: dorong harga (`listing.price_push`), salin listing antar toko (FR-PRD-13), bundle (`bundle_component`). Push stok ada di modul inventory. Label barcode internal dicetak lewat dokumen modul fulfillment (`POST /v1/documents/barcode-labels`).
+- Menyusul: dorong harga (`listing.price_push`), bundle (`bundle_component`). Salin listing antar toko (FR-PRD-13) ada di modul `listing-copy`. Push stok ada di modul inventory. Label barcode internal dicetak lewat dokumen modul fulfillment (`POST /v1/documents/barcode-labels`).

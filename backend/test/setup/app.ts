@@ -24,6 +24,7 @@ import { FilesModule } from "../../src/modules/files/files.module";
 import { FulfillmentModule, FulfillmentWorkerModule } from "../../src/modules/fulfillment/fulfillment.module";
 import { IdentityModule } from "../../src/modules/identity/identity.module";
 import { InventoryModule, InventoryWorkerModule } from "../../src/modules/inventory/inventory.module";
+import { ListingCopyModule, ListingCopyWorkerModule } from "../../src/modules/listing-copy/listing-copy.module";
 import { MigrationWorkerModule } from "../../src/modules/migration/migration.module";
 import { EMAIL_SENDER, type MemoryEmailSender } from "../../src/modules/notification/email";
 import { NotificationModule, NotificationWorkerModule } from "../../src/modules/notification/notification.module";
@@ -74,6 +75,9 @@ function marketplaceEnv(mock: MockMarketplace | undefined, role: "api" | "webhoo
     SHOPEE_API_BASE_URL: mock.url,
     TIKTOKSHOP_API_BASE_URL: mock.url,
     TIKTOKSHOP_AUTH_BASE_URL: mock.url,
+    // product creation (FR-PRD-13): no 5-second wait, images from the fake marketplace's host
+    SHOPEE_VARIANT_DELAY_MS: "0",
+    PRODUCT_IMAGE_HOSTS: "127.0.0.1",
   };
 }
 
@@ -139,6 +143,8 @@ export async function startWorker(infra: TestInfra, system: DbHandle, opts: { ma
       ChannelWorkerModule.forEnv(env),
       CatalogModule,
       CatalogWorkerModule,
+      ListingCopyModule,
+      ListingCopyWorkerModule,
       InventoryWorkerModule,
       OrdersModule,
       OrdersWorkerModule,

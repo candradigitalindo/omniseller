@@ -120,6 +120,39 @@ export class TiktokShopClient {
     return this.unwrap<T>(res.json as TiktokEnvelope<T>, res.status, res.headers);
   }
 
+  /**
+   * Signed multipart upload (Upload Product Image). The body is not part of the signature for
+   * multipart/form-data requests ("Sign your API request"); fetch sets the content type with its boundary.
+   */
+  async upload<T>(input: {
+    path: string;
+    accessToken: string;
+    shopCipher?: string | null;
+    form: { body: FormData; logBody: Record<string, unknown> };
+  }): Promise<T> {
+    const query: Record<string, string> = {
+      app_key: this.appKey,
+      timestamp: String(unixSeconds()),
+      ...(input.shopCipher ? { shop_cipher: input.shopCipher } : {}),
+    };
+    const sign = tiktokSign(this.appSecret, tiktokSignString({ path: input.path, query }));
+    const url = new URL(input.path, this.config.apiBaseUrl);
+    for (const [k, v] of Object.entries(query)) url.searchParams.set(k, v);
+    url.searchParams.set("sign", sign);
+    const res = await requestJson(
+      this.config.http ?? {},
+      {
+        method: "POST",
+        url,
+        headers: { "x-tts-access-token": input.accessToken },
+        body: input.form.body,
+        logBody: input.form.logBody,
+      },
+      (json) => (json as TiktokEnvelope<unknown> | null)?.request_id,
+    );
+    return this.unwrap<T>(res.json as TiktokEnvelope<T>, res.status, res.headers);
+  }
+
   /** Token endpoints on auth.tiktok-shops.com: GET with app_secret in the query, no signature. */
   async token<T>(path: string, query: Record<string, string>): Promise<T> {
     const url = new URL(path, this.config.authBaseUrl);

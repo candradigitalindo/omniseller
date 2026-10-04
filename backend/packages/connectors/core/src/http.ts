@@ -27,8 +27,12 @@ export interface HttpRequest {
   method: "GET" | "POST" | "PUT" | "DELETE";
   url: URL;
   headers?: Record<string, string>;
-  /** Exact body bytes to send: some marketplaces sign the body string, so it is serialized once by the caller. */
-  body?: string;
+  /**
+   * Exact body bytes to send: some marketplaces sign the body string, so it is serialized once by the
+   * caller. A FormData body goes as multipart/form-data (fetch sets the boundary; do not set a
+   * content-type header for it).
+   */
+  body?: string | FormData;
   /** Parsed request body for the call record (redacted before it is stored). */
   logBody?: unknown;
 }
@@ -234,4 +238,18 @@ export function retryAfter(headers: Headers): { retryAfterMs?: number } {
 
 export function unixSeconds(date = new Date()): number {
   return Math.floor(date.getTime() / 1000);
+}
+
+/**
+ * A multipart body with one file, and what the call record keeps of it: the field names, the file's
+ * size and type, never its bytes.
+ */
+export function fileForm(
+  file: { field: string; bytes: Uint8Array; contentType: string; filename: string },
+  fields: Record<string, string> = {},
+): { body: FormData; logBody: Record<string, unknown> } {
+  const body = new FormData();
+  for (const [k, v] of Object.entries(fields)) body.append(k, v);
+  body.append(file.field, new Blob([file.bytes as Uint8Array<ArrayBuffer>], { type: file.contentType }), file.filename);
+  return { body, logBody: { ...fields, [file.field]: { bytes: file.bytes.length, contentType: file.contentType } } };
 }

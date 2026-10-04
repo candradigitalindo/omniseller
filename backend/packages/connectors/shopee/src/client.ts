@@ -30,6 +30,11 @@ export interface ShopeeConfig {
   /** https://open.shopee.com (sandbox: https://open.sandbox.test-stable.shopee.com) */
   authBaseUrl: string;
   http?: HttpConfig;
+  /**
+   * Wait between add_item and init_tier_variation: Shopee asks for at least 5 seconds, since the new
+   * item may not be ready for variants sooner. Tests pass 0.
+   */
+  variantDelayMs?: number;
 }
 
 export function shopeeBaseString(parts: {
@@ -134,6 +139,24 @@ export class ShopeeClient {
     opts: { query?: Record<string, string | readonly string[]>; body?: object; passErrors?: readonly string[] } = {},
   ) {
     return this.call<T>(method, path, { ...opts, shop });
+  }
+
+  /** Shop API multipart upload (`media_space.upload_image`); the signature covers the URL only. */
+  async shopUpload<T>(
+    shop: { externalShopId: string; accessToken: string },
+    path: string,
+    form: { body: FormData; logBody: Record<string, unknown> },
+  ): Promise<T & ShopeeEnvelope> {
+    const url = this.signedUrl(path, undefined, shop);
+    const res = await requestJson(
+      this.config.http ?? {},
+      { method: "POST", url, body: form.body, logBody: form.logBody },
+      (json) => (json as ShopeeEnvelope | null)?.request_id,
+    );
+    const env = (res.json ?? {}) as T & ShopeeEnvelope;
+    const error = typeof env.error === "string" ? env.error.trim() : "";
+    if ((error === "" || error === "-") && res.status < 400) return env;
+    throw this.errorOf(env, res.status, res.headers);
   }
 
   /**

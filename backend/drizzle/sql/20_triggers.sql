@@ -36,6 +36,10 @@ SELECT ensure_trigger('print_job', 'status_transition_trg',
   'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON print_job FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''print_job'')');
 SELECT ensure_trigger('handover', 'status_transition_trg',
   'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON handover FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''handover'')');
+SELECT ensure_trigger('listing_copy', 'status_transition_trg',
+  'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON listing_copy FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''listing_copy'')');
+SELECT ensure_trigger('listing_draft', 'status_transition_trg',
+  'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON listing_draft FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''listing_draft'')');
 
 -- Inventory guard
 SELECT ensure_trigger('inventory', 'inventory_guard_trg',
@@ -111,6 +115,15 @@ SELECT ensure_trigger('device', 'audit_upd_trg',
 -- Courier handovers (FR-SHP-05): who opened, completed, or cancelled a manifest.
 SELECT ensure_trigger('handover', 'audit_trg',
   'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE ON handover FOR EACH ROW EXECUTE FUNCTION audit_row()');
+-- Copying listings (FR-PRD-13, backend doc 8.25): who copied which store where, and who published or
+-- deleted a draft. Product content (descriptions, images, variants) stays out of the log.
+SELECT ensure_trigger('listing_copy', 'audit_trg',
+  'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF status ON listing_copy FOR EACH ROW
+     EXECUTE FUNCTION audit_row(''listing_copy'', ''failures'', ''external_item_ids'')');
+SELECT ensure_trigger('listing_draft', 'audit_trg',
+  'CREATE TRIGGER audit_trg AFTER UPDATE OF status OR DELETE ON listing_draft FOR EACH ROW
+     EXECUTE FUNCTION audit_row(''listing_draft'', ''description'', ''description_html'', ''attributes'', ''images'',
+                                ''size_chart'', ''variants'', ''source'', ''problems'')');
 SELECT ensure_trigger('data_export', 'audit_download_trg',
   'CREATE TRIGGER audit_download_trg AFTER UPDATE ON data_export FOR EACH ROW
      WHEN (OLD.download_count IS DISTINCT FROM NEW.download_count)

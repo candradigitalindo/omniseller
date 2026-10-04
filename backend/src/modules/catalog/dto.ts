@@ -320,7 +320,7 @@ const listingSchema = z.object({
       variantName: z.string(),
       productId: ulidSchema,
       productName: z.string(),
-      source: z.enum(["auto_sku", "manual", "created"]),
+      source: z.enum(["auto_sku", "manual", "created", "copied"]),
       mappedAt: iso,
     })
     .nullable(),

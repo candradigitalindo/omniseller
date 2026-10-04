@@ -6,7 +6,7 @@ import { storeNotFound } from "../channel/channel.errors";
 import { StoresService } from "../channel/stores.service";
 import { InventoryRepository } from "./inventory.repository";
 import { toPlanListing, toPlanStore, toRule } from "./stock-inputs";
-import { planStockPush, stockKey } from "./stock-plan";
+import { planStockPush, stockKey, storePaused } from "./stock-plan";
 
 /**
  * - match: OmniSeller would send what the marketplace shows
@@ -76,6 +76,58 @@ export class StockComparisonService {
     @Inject(ListingsService) private readonly listings: ListingsService,
     @Inject(StoresService) private readonly stores: StoresService,
   ) {}
+
+  /**
+   * FR-PRD-13: the stock a listing created by copying starts with, at the store's default seller
+   * warehouse: what the pusher would send for each variant if the listing already existed there. A
+   * variant whose stock was never established starts at 0 (ADR-036), and so does every variant of a
+   * store the pusher pauses (read-only, not connected, a seller warehouse unmapped).
+   */
+  async initialStockIn(
+    tx: Tx,
+    storeId: string,
+    variantIds: string[],
+  ): Promise<{ externalWarehouseId: string | null; quantities: Map<string, number> }> {
+    const quantities = new Map<string, number>();
+    const target = (await this.stores.stockTargetsIn(tx, [storeId])).get(storeId);
+    if (!target) return { externalWarehouseId: null, quantities };
+    const sellers = target.warehouses.filter((w) => w.active && w.kind === "seller");
+    const home = sellers.find((w) => w.isDefault) ?? sellers[0];
+    const store = toPlanStore(target);
+    if (!home || storePaused(store)) {
+      return { externalWarehouseId: home?.externalWarehouseId ?? null, quantities };
+    }
+    const ids = [...new Set(variantIds)];
+    const warehouseIds = [...new Set(store.warehouses.flatMap((w) => (w.warehouseId ? [w.warehouseId] : [])))];
+    const rows = ids.length > 0 ? await this.repo.rows(tx, ids, warehouseIds) : [];
+    const rules = await this.repo.rules(tx, [storeId]);
+    const outcomes = planStockPush({
+      listings: ids.map((variantId) => ({
+        id: `new:${variantId}`,
+        storeId,
+        variantId,
+        externalItemId: "",
+        externalVariantId: variantId,
+        status: "active",
+        stockKeys: [home.externalWarehouseId],
+      })),
+      stores: new Map([[storeId, store]]),
+      stock: new Map(
+        rows.map((r) => [
+          stockKey(r.variantId, r.warehouseId),
+          { available: r.available ?? 0, established: r.stockSetAt !== null },
+        ]),
+      ),
+      rules: rules.map(toRule),
+      states: [],
+    });
+    for (const o of outcomes) {
+      if (o.kind !== "push") continue;
+      const at = o.update.warehouses.find((w) => w.externalWarehouseId === home.externalWarehouseId);
+      quantities.set(o.listing.variantId, at?.quantity ?? 0);
+    }
+    return { externalWarehouseId: home.externalWarehouseId, quantities };
+  }
 
   async compareIn(tx: Tx, ctx: RequestContext, storeId: string): Promise<StoreComparison> {
     if (!this.stores.inScope(ctx, storeId)) throw storeNotFound();

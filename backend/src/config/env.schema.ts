@@ -59,6 +59,17 @@ const tiktokApi = {
 };
 
 /**
+ * Copying listings between stores (FR-PRD-13, backend doc 8.25). Shopee asks for at least 5 seconds
+ * between creating an item and its variations (`SHOPEE_VARIANT_DELAY_MS`, tests use 0). Product images
+ * are downloaded only from the marketplaces' image hosts; `PRODUCT_IMAGE_HOSTS` adds hosts (comma
+ * separated), and plain http is accepted only in local and test.
+ */
+const listingCopy = {
+  SHOPEE_VARIANT_DELAY_MS: z.coerce.number().int().min(0).max(60_000).default(5_000),
+  PRODUCT_IMAGE_HOSTS: z.string().default(""),
+};
+
+/**
  * Envelope encryption of marketplace tokens (technology doc 19.3). `aws_kms` wraps each tenant DEK
  * with KMS_KEY_ID_TOKENS; `local` wraps it with a 32-byte master key and is refused outside local/test.
  */
@@ -168,6 +179,7 @@ const workerEnv = base
     ...tiktokLink,
     ...tiktokSecret,
     ...tiktokApi,
+    ...listingCopy,
     ...tokenKeys,
     ...fileStorage,
   })

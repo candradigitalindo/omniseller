@@ -372,6 +372,69 @@ export class ListingsService {
     });
   }
 
+  // ---- for copying listings between stores (FR-PRD-13, backend doc 8.25), inside the caller's transaction ----
+
+  /** Listings of these marketplace items in a store, deleted ones excepted. */
+  async itemListingsIn(tx: Tx, storeId: string, externalItemIds: string[]): Promise<ListingRow[]> {
+    const rows = await this.repo.listingsByExternal(
+      tx,
+      storeId,
+      externalItemIds.map((externalItemId) => ({ externalItemId, externalVariantId: "" })),
+    );
+    return rows.filter((l) => l.status !== "deleted");
+  }
+
+  /** Items of a store that still exist at the marketplace, in id order after `after`. */
+  storeItemIdsIn(tx: Tx, storeId: string, after: string | null, limit: number): Promise<string[]> {
+    return this.repo.storeItemIds(tx, storeId, after, limit);
+  }
+
+  storeItemCountIn(tx: Tx, storeId: string): Promise<number> {
+    return this.repo.storeItemCount(tx, storeId);
+  }
+
+  /** Variants that already have a listing (not deleted) in a store. */
+  async listedVariantsIn(tx: Tx, storeId: string, variantIds: string[]): Promise<Set<string>> {
+    if (variantIds.length === 0) return new Set();
+    const rows = await this.repo.mappedListings(tx, { storeId, variantIds: [...new Set(variantIds)] });
+    return new Set(rows.map((l) => l.variantId!));
+  }
+
+  /**
+   * Maps the listings a copy created to the variants of the listings they were copied from (`copied`).
+   * A listing already mapped is left as it is. Returns how many were mapped.
+   */
+  async mapCopiedIn(
+    tx: Tx,
+    ctx: RequestContext,
+    storeId: string,
+    pairs: { externalItemId: string; externalVariantId: string; variantId: string }[],
+  ): Promise<number> {
+    if (pairs.length === 0) return 0;
+    const rows = await this.repo.listingsByExternal(tx, storeId, pairs);
+    const byRef = new Map(rows.map((l) => [`${l.externalItemId}|${l.externalVariantId}`, l]));
+    const live = await this.repo.variantsByIds(
+      tx,
+      pairs.map((p) => p.variantId),
+    );
+    const usable = new Set(live.filter((v) => v.status === "active" && !v.deletedAt).map((v) => v.id));
+    let mapped = 0;
+    for (const p of pairs) {
+      const l = byRef.get(`${p.externalItemId}|${p.externalVariantId}`);
+      if (!l || l.variantId || l.status === "deleted" || !usable.has(p.variantId)) continue;
+      await this.repo.setMapping(tx, l.id, p.variantId, "copied");
+      await this.outbox.enqueue(
+        tx,
+        ctx,
+        listingMapped,
+        { listingId: l.id, variantId: p.variantId, source: "copied" },
+        l.id,
+      );
+      mapped++;
+    }
+    return mapped;
+  }
+
   // ---- for the stock module, inside its transaction (backend doc 9.4) ----
 
   /** Mapped, not deleted listings of these variants. */

@@ -16,7 +16,8 @@ Tidak ada. Data dihapus lewat service modul pemiliknya, di transaksi pendek per 
   1. pesanan, 200 per transaksi: pengiriman dan paketnya dihapus serta label dan dokumen PDF pesanan itu kedaluwarsa (`FulfillmentService.deleteForOrdersIn`); stok yang masih ditahan dilepas, lalu pesanan dihapus beserta baris, riwayat, masalah, referensi, dan tagnya (`OrdersService.deleteOrdersIn`);
   2. listing, 500 per transaksi, beserta status push stoknya (`ListingsService.deleteStoreListingsIn`);
   3. log sinkron, 1.000 per transaksi (`SyncLogService.deleteStoreLogIn`);
-  4. aturan alokasi stok (`InventoryService.deleteStoreRulesIn`), gudang marketplace dan cursor sinkron, lalu `store.data_deleted_at` (`StoresService.finishDataDeletionIn`).
+  4. salinan listing dari dan ke toko itu, 50 per transaksi beserta drafnya (`ListingCopyService.deleteStoreCopiesIn`), lalu cache kategori marketplace toko, 2.000 per transaksi (`CategoriesService.deleteStoreCategoriesIn`; backend doc 8.25);
+  5. aturan alokasi stok (`InventoryService.deleteStoreRulesIn`), gudang marketplace dan cursor sinkron, lalu `store.data_deleted_at` (`StoresService.finishDataDeletionIn`).
 - Satu job bekerja paling lama 20 detik (`DELETION_BUDGET_MS`), lalu melanjutkan lewat event yang sama.
 - Yang tetap: pergerakan stok (mencatat apa yang terjadi pada stok), log audit (siapa melakukan apa), dan baris toko sebagai penanda. Baris toko tidak dihapus karena `user_store_scope` merujuknya dengan CASCADE: pengguna yang cakupannya hanya toko itu akan kehilangan semua baris cakupan, padahal cakupan kosong berarti semua toko.
 - Berkas ekspor data yang dibuat sebelumnya tetap sampai kedaluwarsa (8.18).
