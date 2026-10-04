@@ -9,7 +9,7 @@ Log sinkron per toko dan inbox webhook marketplace (technology doc 8.3; backend 
 - `outbox_event` (infra, `src/outbox`).
 
 ## Service publik
-- `SyncLogService.run(ctx, entri, fn, ringkasan?)`: menulis baris `running`, menjalankan `fn` sambil merekam panggilan connector, lalu `succeeded` atau `failed`. `skipped(ctx, entri, alasan)`. `list(ctx, storeId, cursor, limit)`.
+- `SyncLogService.run(ctx, entri, fn, ringkasan?)`: menulis baris `running`, menjalankan `fn` sambil merekam panggilan connector, lalu `succeeded` atau `failed`. `skipped(ctx, entri, alasan)`. `list(ctx, storeId, cursor, limit)`. `deleteStoreLogIn(tx, storeId, limit)`: log toko yang diputus tanpa menyimpan data (modul retention, backend doc 8.23).
 - `WebhookReceiver.receive(channel, headers, rawBody)` (proses webhook): verifikasi, simpan, enqueue. Error: `webhook.signature_invalid` (401), `channel.not_configured`.
 - `WebhookInboxService.process(ctx, inboxId, konsumen, run)` (worker): normalisasi lalu panggil konsumen per jenis event.
 - `describeSyncError(err)`: kode dan pesan berbahasa Indonesia untuk error connector.

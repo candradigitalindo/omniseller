@@ -54,6 +54,11 @@ export interface OrderListFilter {
   dueBefore?: Date | undefined;
   /** Orders carrying this tag (FR-ORD-04). */
   tagId?: string | undefined;
+  /**
+   * Disconnected stores (FR-INT-07): their orders still open are not work any more and stay out, unless
+   * the filter names the store.
+   */
+  hiddenStoreIds?: string[] | undefined;
 }
 
 export type OrderSort = "newest" | "ship_by";
@@ -103,6 +108,45 @@ export class OrdersRepository {
   async update(tx: Tx, id: string, patch: Partial<typeof order.$inferInsert>): Promise<void> {
     if (Object.keys(patch).length === 0) return;
     await tx.update(order).set(patch).where(eq(order.id, id));
+  }
+
+  /**
+   * FR-INT-07: up to `limit` orders of a store that still hold stock (some line reserved), locked. Their
+   * store was disconnected, so nothing will ship them through OmniSeller.
+   */
+  async holdingOrderIdsOfStore(tx: Tx, storeId: string, limit: number): Promise<string[]> {
+    const rows = await tx
+      .select({ id: order.id })
+      .from(order)
+      .where(
+        and(
+          eq(order.storeId, storeId),
+          sql`EXISTS (SELECT 1 FROM order_item i WHERE i.order_id = ${sql.raw('"order"."id"')} AND i.reserved_qty > 0)`,
+        ),
+      )
+      .orderBy(asc(order.id))
+      .limit(limit)
+      .for("update");
+    return rows.map((r) => r.id);
+  }
+
+  /** FR-INT-07: up to `limit` orders of a store, any status, locked: the next batch to delete. */
+  async orderIdsOfStore(tx: Tx, storeId: string, limit: number): Promise<string[]> {
+    const rows = await tx
+      .select({ id: order.id })
+      .from(order)
+      .where(eq(order.storeId, storeId))
+      .orderBy(asc(order.id))
+      .limit(limit)
+      .for("update");
+    return rows.map((r) => r.id);
+  }
+
+  /** Deletes orders with their lines, history, problems, references, and tags (ON DELETE CASCADE). */
+  async deleteOrders(tx: Tx, ids: string[]): Promise<number> {
+    if (ids.length === 0) return 0;
+    const r = await tx.delete(order).where(inArray(order.id, ids)).returning({ id: order.id });
+    return r.length;
   }
 
   async items(tx: Tx, orderIds: string[]): Promise<OrderItemRow[]> {
@@ -289,6 +333,9 @@ export class OrdersRepository {
         : undefined,
       f.tagId
         ? sql`EXISTS (SELECT 1 FROM order_tag t WHERE t.order_id = ${sql.raw('"order"."id"')} AND t.tag_id = ${f.tagId})`
+        : undefined,
+      f.hiddenStoreIds?.length && !f.storeId
+        ? or(notInArray(o.storeId, f.hiddenStoreIds), notInArray(o.status, [...HOLD_STATUSES]))
         : undefined,
       q
         ? or(

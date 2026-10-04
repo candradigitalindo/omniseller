@@ -160,6 +160,23 @@ export class CatalogRepository {
     return out;
   }
 
+  /** Live variants by id, in the order of `ids`' first appearance is not kept (sorted by id). */
+  async variantsByIds(tx: Tx, ids: string[], forUpdate = false): Promise<VariantRow[]> {
+    if (ids.length === 0) return [];
+    const q = tx
+      .select()
+      .from(variant)
+      .where(and(inArray(variant.id, [...new Set(ids)]), notDeleted))
+      .orderBy(asc(variant.id));
+    return forUpdate ? q.for("update") : q;
+  }
+
+  /** Every variant a product ever had, deleted ones too: the ids its history is about (FR-PRD-11). */
+  async variantIdsEver(tx: Tx, productId: string): Promise<string[]> {
+    const rows = await tx.select({ id: variant.id }).from(variant).where(eq(variant.productId, productId));
+    return rows.map((r) => r.id);
+  }
+
   /** Live variants holding any of these barcodes (exact match, like the unique index). */
   async variantsByBarcode(tx: Tx, barcodes: string[]): Promise<VariantRow[]> {
     const wanted = [...new Set(barcodes.filter(Boolean))];
@@ -535,5 +552,20 @@ export class CatalogRepository {
       .where(after ? gt(channelListing.id, after) : undefined)
       .orderBy(asc(channelListing.id))
       .limit(limit);
+  }
+
+  /** Deletes up to `limit` listings of a store with their push state (FR-INT-07); returns how many. */
+  async deleteStoreListings(tx: Tx, storeId: string, limit: number): Promise<number> {
+    const batch = tx
+      .select({ id: channelListing.id })
+      .from(channelListing)
+      .where(eq(channelListing.storeId, storeId))
+      .orderBy(asc(channelListing.id))
+      .limit(limit);
+    const r = await tx
+      .delete(channelListing)
+      .where(inArray(channelListing.id, batch))
+      .returning({ id: channelListing.id });
+    return r.length;
   }
 }

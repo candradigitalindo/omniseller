@@ -3,12 +3,13 @@ import { z } from "zod";
 import { defineJob } from "../../jobs/define";
 import { jobKey } from "../../jobs/job-id";
 import { listingMapped } from "../catalog/catalog.events";
-import { storeConnected } from "../channel/channel.events";
+import { storeConnected, storeDisconnected } from "../channel/channel.events";
 import { inventoryChanged } from "../inventory/inventory.events";
 import type { WebhookConsumers } from "../sync/webhook-consumer";
 import { OrderAlertsService } from "./order-alerts.service";
 import { OrderSyncService } from "./order-sync.service";
 import { orderCancelRequested, orderPullRequested } from "./orders.events";
+import { OrdersService } from "./orders.service";
 
 /**
  * Reads orders: 90 days of history when a store connects (FR-INT-04), every 5 minutes as a fallback
@@ -103,6 +104,22 @@ export const orderNewNoticeJob = defineJob({
   },
 });
 
+/**
+ * FR-INT-07: a disconnected store's orders stop holding stock; nothing will ship them through OmniSeller.
+ * Also before its data is deleted.
+ */
+export const orderStoreDisconnectedJob = defineJob({
+  queue: "order.ingest",
+  name: "order.store_disconnected",
+  schema: z.object({ storeId: ulidSchema, reason: z.string(), keepData: z.boolean().default(true) }),
+  triggeredBy: [storeDisconnected],
+  options: { attempts: 5, backoff: { type: "exponential", delay: 5_000 } },
+  jobId: (p, meta) => jobKey("order.store_disconnected", p.storeId, meta.eventId ?? "direct"),
+  handler: async (p, run) => {
+    await run.deps.resolve(OrdersService).releaseDisconnectedStore(run.ctx, p.storeId);
+  },
+});
+
 export const ORDER_JOBS = [
   orderPullJob,
   orderCancelJob,
@@ -110,6 +127,7 @@ export const ORDER_JOBS = [
   orderStockRecheckJob,
   orderSlaAlertJob,
   orderNewNoticeJob,
+  orderStoreDisconnectedJob,
 ];
 
 /** Order notifications: the order is read again from the marketplace (FR-ORD-01). */

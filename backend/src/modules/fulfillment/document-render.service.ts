@@ -1,5 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { logger } from "@omniseller/logging";
+import { barcodeFor, code128Encodable, isValidGtin } from "../../common/barcode";
 import type { RequestContext } from "../../common/context/request-context";
 import type { DbHandle } from "../../db/client";
 import type { DocumentResult } from "../../db/schema";
@@ -16,10 +17,12 @@ import { OrdersService } from "../orders/orders.service";
 import { type DocumentRow, FulfillmentRepository, type PackageRow, type ShipmentRow } from "./fulfillment.repository";
 import { LabelTemplateService } from "./label-template.service";
 import {
+  type BarcodeLabel,
   composeLabels,
   type LabelEntry,
   type ManualLabel,
   type PackingList,
+  renderBarcodeLabels,
   renderManualLabel,
   renderPackingList,
   renderPickList,
@@ -36,7 +39,7 @@ export const DOCUMENT_TTL_DAYS = 7;
 class NothingToRender extends Error {
   constructor(
     readonly reason: string,
-    readonly missing: Missing[],
+    readonly missing: NonNullable<DocumentResult["missing"]>,
   ) {
     super(reason);
   }
@@ -99,7 +102,9 @@ export class DocumentRenderService {
           ? await this.labels(ctx, doc)
           : doc.kind === "packing_list"
             ? await this.packingLists(ctx, doc)
-            : await this.pickList(ctx, doc);
+            : doc.kind === "barcode_labels"
+              ? await this.barcodeLabels(ctx, doc)
+              : await this.pickList(ctx, doc);
       const file = await this.files.save(ctx, {
         // packing lists carry the buyer's name like labels, and live as long
         purpose: doc.kind === "pick_list" ? "pick_list" : "label",
@@ -286,6 +291,57 @@ export class DocumentRenderService {
       pages: composed.pages,
       result: { orders: printed.length, labels: labelPages, missing },
       printed,
+    };
+  }
+
+  /**
+   * FR-PRD-12: each variant's barcode (EAN-13, EAN-8, or Code 128), or its SKU when it has none, `copies`
+   * times, in the order asked. Variants deleted since the request, and codes no symbology can hold, are
+   * left out with the reason.
+   */
+  private async barcodeLabels(ctx: RequestContext, doc: DocumentRow): Promise<Rendered> {
+    const items = doc.params.items ?? [];
+    const variants = await withTenantTx(this.db, ctx, (tx) =>
+      this.inventory.variantsIn(
+        tx,
+        items.map((i) => i.variantId),
+      ),
+    );
+    const missing: NonNullable<DocumentResult["missing"]> = [];
+    const labels: BarcodeLabel[] = [];
+    const owners: string[] = [];
+    for (const item of items) {
+      const v = variants.get(item.variantId);
+      if (!v) {
+        missing.push({ variantId: item.variantId, code: "variant.not_found", message: "Varian sudah dihapus." });
+        continue;
+      }
+      const value = v.barcode ?? v.sku;
+      if (!isValidGtin(value) && !code128Encodable(value)) {
+        missing.push({
+          variantId: v.variantId,
+          code: "barcode.unencodable",
+          message: `${v.barcode ? "Barcode" : "SKU"} varian ini berisi karakter yang tidak bisa dijadikan barcode. Isi barcodenya, atau buat barcode internal.`,
+        });
+        continue;
+      }
+      const barcode = barcodeFor(value);
+      const subtitle = [v.variantName !== v.productName ? v.variantName : null, v.barcode ? v.sku : null]
+        .filter(Boolean)
+        .join(" · ");
+      for (let k = 0; k < item.copies; k++) {
+        labels.push({ title: v.productName, subtitle, barcode });
+        owners.push(v.variantId);
+      }
+    }
+    if (labels.length === 0) throw new NothingToRender("Tidak ada label barcode yang bisa dicetak.", missing);
+    const out = await renderBarcodeLabels(labels, doc.params.labelFormat ?? "label_50x30");
+    const dense = [...new Set(out.dense.map((i) => owners[i]!))];
+    return {
+      pdf: out.pdf,
+      pages: out.pages,
+      result: { labels: labels.length, missing, ...(dense.length > 0 ? { dense } : {}) },
+      printed: [],
     };
   }
 

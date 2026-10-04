@@ -6,8 +6,10 @@ import { FULFILLMENT_JOBS } from "../modules/fulfillment/fulfillment.jobs";
 import { IDENTITY_JOBS } from "../modules/identity/identity.jobs";
 import { INVENTORY_JOBS } from "../modules/inventory/inventory.jobs";
 import { MIGRATION_JOBS } from "../modules/migration/migration.jobs";
+import { NOTIFICATION_JOBS } from "../modules/notification/notification.jobs";
 import { ORDER_JOBS } from "../modules/orders/orders.jobs";
 import { REPORTING_JOBS } from "../modules/reporting/reporting.jobs";
+import { RETENTION_JOBS } from "../modules/retention/retention.jobs";
 import { SYNC_JOBS } from "../modules/sync/sync.jobs";
 import type { EventDef, JobDef } from "./define";
 
@@ -53,6 +55,7 @@ export class JobRegistry {
 
 /** Registered jobs; each module appends its definitions here. */
 export const JOB_DEFINITIONS: readonly JobDef[] = [
+  ...NOTIFICATION_JOBS,
   ...IDENTITY_JOBS,
   ...CHANNEL_JOBS,
   ...CATALOG_JOBS,
@@ -62,6 +65,7 @@ export const JOB_DEFINITIONS: readonly JobDef[] = [
   ...EXPORT_JOBS,
   ...MIGRATION_JOBS,
   ...REPORTING_JOBS,
+  ...RETENTION_JOBS,
   ...FILES_JOBS,
   ...SYNC_JOBS,
 ];

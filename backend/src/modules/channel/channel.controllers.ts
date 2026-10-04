@@ -20,6 +20,7 @@ import {
   CreateManualStoreDto,
   channelWarehouseView,
   DisconnectedStoreDto,
+  DisconnectStoreDto,
   MapChannelWarehouseDto,
   StartAuthorizationDto,
   StartedAuthorizationDto,
@@ -145,14 +146,17 @@ export class StoresController {
     return storeView(view);
   }
 
-  /** Stops syncing and deletes the store's tokens; orders and products stay. */
+  /**
+   * FR-INT-07: stops syncing and deletes the store's tokens; its open orders stop holding stock. With
+   * `keepData` false its orders, listings, and sync log are deleted for good, in the background.
+   */
   @Post(":id/disconnect")
   @HttpCode(200)
   @RequirePermission("settings:store")
   @Isolation({ fixture: "store" })
   @ZodResponse({ type: DisconnectedStoreDto })
-  async disconnect(@Ctx() ctx: RequestContext, @Param() params: StoreIdParamDto) {
-    const { view, revokeUrl } = await this.stores.disconnect(ctx, params.id);
+  async disconnect(@Ctx() ctx: RequestContext, @Param() params: StoreIdParamDto, @Body() body: DisconnectStoreDto) {
+    const { view, revokeUrl } = await this.stores.disconnect(ctx, params.id, body.keepData);
     return { store: storeView(view), revokeUrl };
   }
 

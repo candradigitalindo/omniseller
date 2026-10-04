@@ -9,7 +9,7 @@ import { OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
 import { ListingsService } from "../catalog/listings.service";
 import type { ChannelWarehouseRow } from "../channel/channel.repository";
-import type { StockTarget } from "../channel/stores.service";
+import { type StockTarget, StoresService } from "../channel/stores.service";
 import { InventoryService, type OrderStockMove } from "../inventory/inventory.service";
 import {
   detectProblems,
@@ -76,6 +76,7 @@ export class OrderIntakeService {
     @Inject(InventoryService) private readonly inventory: InventoryService,
     @Inject(ListingsService) private readonly listings: ListingsService,
     @Inject(OUTBOX) private readonly outbox: Outbox,
+    @Inject(StoresService) private readonly stores: StoresService,
   ) {}
 
   /** Warehouse of a line (FR-WHS-06): the marketplace's warehouse, else the shop's only seller warehouse. */
@@ -629,10 +630,47 @@ export class OrderIntakeService {
     return step ? this.stepIn(tx, ctx, current, [step], { type: "system", id: null }) : current;
   }
 
+  /**
+   * FR-INT-07: these orders stop holding stock, because their store was disconnected and nothing will
+   * ship them through OmniSeller any more; each order's history says so. Statuses stay as they were.
+   * Returns the lines released.
+   */
+  async releaseForDisconnectIn(tx: Tx, ctx: RequestContext, orderIds: string[]): Promise<number> {
+    const held = (await this.repo.items(tx, orderIds)).filter((i) => i.reservedQty > 0);
+    await this.inventory.orderMovementsIn(
+      tx,
+      ctx,
+      held
+        .filter((i) => i.variantId && i.warehouseId)
+        .map((i) => ({
+          orderItemId: i.id,
+          variantId: i.variantId!,
+          warehouseId: i.warehouseId!,
+          type: "order_release" as const,
+          qty: i.reservedQty,
+        })),
+    );
+    for (const i of held) await this.repo.updateItem(tx, i.id, { reservedQty: 0 });
+    for (const orderId of [...new Set(held.map((i) => i.orderId))]) {
+      const units = held.filter((i) => i.orderId === orderId).reduce((n, i) => n + i.reservedQty, 0);
+      await this.event(
+        tx,
+        ctx,
+        orderId,
+        "store_disconnected",
+        { type: "system", id: null },
+        { payload: { released: units } },
+      );
+    }
+    return held.length;
+  }
+
   /** A listing got a variant: lines that sold it get the variant, then reservations and problems follow. */
   async attachListingIn(tx: Tx, ctx: RequestContext, listingId: string): Promise<string[]> {
     const [listing] = await this.listings.listingsByIdsIn(tx, [listingId]);
     if (!listing?.variantId) return [];
+    // a disconnected store's orders no longer hold stock (FR-INT-07)
+    if ((await this.stores.disconnectedIdsIn(tx)).has(listing.storeId)) return [];
     const items = await this.repo.unmappedItemsFor(tx, listing);
     const orderIds = [...new Set(items.map((i) => i.orderId))].sort();
     for (const orderId of orderIds) {
@@ -653,10 +691,15 @@ export class OrderIntakeService {
     pairs: { variantId: string; warehouseId: string }[],
   ): Promise<number> {
     const ids = (await this.repo.ordersWithOpenProblemOn(tx, "insufficient_stock", pairs)).sort();
+    const detached = ids.length > 0 ? await this.stores.disconnectedIdsIn(tx) : new Set<string>();
+    let settled = 0;
     for (const id of ids) {
       const o = await this.repo.get(tx, id, true);
-      if (o) await this.settleIn(tx, ctx, o, await this.repo.items(tx, [id]));
+      // a disconnected store's orders no longer hold stock (FR-INT-07)
+      if (!o || detached.has(o.storeId)) continue;
+      await this.settleIn(tx, ctx, o, await this.repo.items(tx, [id]));
+      settled++;
     }
-    return ids.length;
+    return settled;
   }
 }

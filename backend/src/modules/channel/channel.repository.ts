@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { newId } from "@omniseller/shared";
-import { and, asc, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import type { Tx } from "../../db/client";
 import {
   channelWarehouse,
@@ -79,10 +79,65 @@ export class ChannelRepository {
 
   // ---- store ----
 
-  async listStores(tx: Tx, scope: ReadonlySet<string> | null): Promise<StoreRow[]> {
-    const where = scope ? inArray(store.id, [...scope]) : undefined;
+  /**
+   * FR-INT-08, locked for the caller's job: stores whose connection has been down since `downSince` and
+   * nobody was told yet (authorization lost, or marketplace calls failing), and stores whose announced
+   * outage is over. Manual sales channels and disconnected stores have no connection to watch.
+   */
+  async connectionChangesIn(tx: Tx, downSince: Date): Promise<StoreRow[]> {
+    return tx
+      .select()
+      .from(store)
+      .where(
+        and(
+          ne(store.channel, "manual"),
+          ne(store.status, "disconnected"),
+          or(
+            and(
+              isNull(store.connectionAlertAt),
+              or(
+                and(eq(store.status, "reauth_required"), lte(store.statusChangedAt, downSince)),
+                and(inArray(store.status, ["active", "token_expiring"]), lte(store.failingSince, downSince)),
+              ),
+            ),
+            and(
+              isNotNull(store.connectionAlertAt),
+              inArray(store.status, ["active", "token_expiring"]),
+              isNull(store.failingSince),
+            ),
+          ),
+        ),
+      )
+      .orderBy(asc(store.id))
+      .for("update");
+  }
+
+  async storeIdsWithStatus(tx: Tx, status: StoreRow["status"]): Promise<string[]> {
+    const rows = await tx.select({ id: store.id }).from(store).where(eq(store.status, status));
+    return rows.map((r) => r.id);
+  }
+
+  /** Starts (`failing`) or ends an outage of a store's marketplace calls; a no-op when nothing changes. */
+  async markFailing(tx: Tx, storeId: string, failing: boolean): Promise<void> {
+    await tx
+      .update(store)
+      .set({ failingSince: failing ? new Date() : null })
+      .where(and(eq(store.id, storeId), failing ? isNull(store.failingSince) : isNotNull(store.failingSince)));
+  }
+
+  /** Stores in the caller's scope; those whose data was deleted (FR-INT-07) only when asked for. */
+  async listStores(tx: Tx, scope: ReadonlySet<string> | null, includeDeleted = false): Promise<StoreRow[]> {
     if (scope && scope.size === 0) return [];
-    return tx.select().from(store).where(where).orderBy(store.channel, store.name);
+    return tx
+      .select()
+      .from(store)
+      .where(
+        and(
+          scope ? inArray(store.id, [...scope]) : undefined,
+          includeDeleted ? undefined : isNull(store.dataDeletionRequestedAt),
+        ),
+      )
+      .orderBy(store.channel, store.name);
   }
 
   async getStore(tx: Tx, id: string, forUpdate = false): Promise<StoreRow | undefined> {
@@ -91,30 +146,43 @@ export class ChannelRepository {
     return row;
   }
 
+  /**
+   * This tenant's store for a marketplace shop that a new authorization reconnects: the one in use, else
+   * the last one disconnected with its data kept. A store whose data was deleted is never reused.
+   */
   async storeByExternalId(tx: Tx, channel: string, externalShopId: string): Promise<StoreRow | undefined> {
     const [row] = await tx
       .select()
       .from(store)
-      .where(and(eq(store.channel, channel as StoreRow["channel"]), eq(store.externalShopId, externalShopId)))
+      .where(
+        and(
+          eq(store.channel, channel as StoreRow["channel"]),
+          eq(store.externalShopId, externalShopId),
+          isNull(store.dataDeletionRequestedAt),
+        ),
+      )
+      .orderBy(sql`${store.status} = 'disconnected'`, desc(store.statusChangedAt))
+      .limit(1)
       .for("update");
     return row;
   }
 
   /**
-   * Which tenant owns a marketplace shop, across tenants, through the SECURITY DEFINER lookup
-   * resolve_store (backend doc 7.5): the unique (channel, external_shop_id) is global, so a shop owned
-   * by another tenant must be detected before inserting, without being able to read that tenant.
+   * Which tenant holds a marketplace shop, across tenants, through the SECURITY DEFINER lookup
+   * resolve_store (backend doc 7.5): only one store per shop may be in use (unique index), so a shop in
+   * use by another tenant must be detected before inserting, without being able to read that tenant. A
+   * shop whose stores are all disconnected is held by nobody (FR-INT-07).
    */
   async shopOwner(
     tx: Tx,
     channel: string,
     externalShopId: string,
   ): Promise<{ tenantId: string; storeId: string } | null> {
-    const r = await tx.execute<{ tenant_id: string; store_id: string }>(
-      sql`SELECT tenant_id, store_id FROM resolve_store(${channel}, ${externalShopId})`,
+    const r = await tx.execute<{ tenant_id: string; store_id: string; status: string }>(
+      sql`SELECT tenant_id, store_id, status FROM resolve_store(${channel}, ${externalShopId})`,
     );
     const row = r.rows[0];
-    return row ? { tenantId: row.tenant_id, storeId: row.store_id } : null;
+    return row && row.status !== "disconnected" ? { tenantId: row.tenant_id, storeId: row.store_id } : null;
   }
 
   /** The first manual sales channel still in use, in the caller's scope (null scope: every store). */
@@ -296,5 +364,11 @@ export class ChannelRepository {
         ),
       );
     return Number(row?.n ?? 0);
+  }
+
+  /** FR-INT-07: a store's marketplace warehouses and sync cursors go; its row stays. */
+  async deleteStoreMarketplaceData(tx: Tx, storeId: string): Promise<void> {
+    await tx.delete(channelWarehouse).where(eq(channelWarehouse.storeId, storeId));
+    await tx.delete(syncCursor).where(eq(syncCursor.storeId, storeId));
   }
 }

@@ -37,6 +37,13 @@ export const store = pgTable("store", {
   syncModeChangedAt: tstz("sync_mode_changed_at"),
   /** Non-secret marketplace metadata (seller type, shop code, logo, fulfillment flag). */
   marketplaceInfo: jsonb("marketplace_info").$type<Record<string, unknown>>().notNull().default({}),
+  /** Disconnected without keeping its data (FR-INT-07): deletion asked, and finished. */
+  dataDeletionRequestedAt: tstz("data_deletion_requested_at"),
+  dataDeletedAt: tstz("data_deleted_at"),
+  /** Marketplace calls fail for a temporary reason since then; null once one works (FR-INT-08). */
+  failingSince: tstz("failing_since"),
+  /** Its managers were told the connection is down; null once it is back. */
+  connectionAlertAt: tstz("connection_alert_at"),
 });
 
 export type StoreAuthorizationStatus = "pending" | "exchanging" | "succeeded" | "failed" | "expired";

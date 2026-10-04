@@ -11,7 +11,9 @@ import type { QueueRegistry } from "../jobs/queues";
 import type { JobRegistry } from "../jobs/registry";
 import type { StockDirtySet } from "../jobs/stock-dirty";
 import {
+  CONNECTION_SCAN_MS,
   ORDER_POLL_SLOT_MS,
+  scanConnectionAlerts,
   scanOrderPolls,
   scanTokenRefresh,
   scanWarehousePolls,
@@ -76,6 +78,9 @@ export class SchedulerRunner implements OnApplicationBootstrap, OnApplicationShu
     this.every(SLA_ALERT_SLOT_MS, "order.new_scan", () => scanNewOrderNotices(this.system, this.queues, this.registry));
     this.every(DIGEST_SCAN_MS, "digest.scan", () => scanDailyDigests(this.system, this.queues, this.registry));
     this.every(TRACKING_SCAN_MS, "shipment.tracking_scan", () => scanTracking(this.system, this.queues, this.registry));
+    this.every(CONNECTION_SCAN_MS, "store.connection_scan", () =>
+      scanConnectionAlerts(this.system, this.queues, this.registry),
+    );
     this.every(FILE_CLEANUP_SLOT_MS, "files.cleanup_scan", () =>
       scanExpiredFiles(this.system, this.queues, this.registry),
     );

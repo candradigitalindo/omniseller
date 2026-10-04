@@ -1,6 +1,7 @@
 import { type DynamicModule, Global, Module } from "@nestjs/common";
 import { IdentityModule } from "../identity/identity.module";
 import { createEmailSender, EMAIL_SENDER } from "./email";
+import { NotificationEmailService } from "./email.service";
 import { NotificationsController } from "./inbox.controller";
 import { InboxRepository } from "./inbox.repository";
 import { NotificationInboxService } from "./inbox.service";
@@ -23,9 +24,17 @@ export class NotificationModule {
 @Module({
   imports: [IdentityModule],
   providers: [InboxRepository, NotificationInboxService, NotificationPreferencesService],
-  exports: [NotificationInboxService, NotificationPreferencesService],
+  exports: [InboxRepository, NotificationInboxService, NotificationPreferencesService],
 })
 export class NotificationInboxModule {}
 
 @Module({ imports: [NotificationInboxModule], controllers: [NotificationsController] })
 export class NotificationHttpModule {}
+
+/** Worker only: notifications sent by email (job `notification.email`). */
+@Module({
+  imports: [NotificationInboxModule, IdentityModule],
+  providers: [NotificationEmailService],
+  exports: [NotificationEmailService],
+})
+export class NotificationWorkerModule {}

@@ -91,6 +91,9 @@ export interface SalesFilter {
  * warehouse staff, the warehouse scope (FR-WHS-09). Actions are refused for stores still in read-only
  * mode, where orders are processed in the old application (FR-MIG-05).
  */
+/** Orders per transaction when a disconnected store's orders stop holding stock. */
+const RELEASE_BATCH = 200;
+
 @Injectable()
 export class OrdersService {
   constructor(
@@ -109,6 +112,14 @@ export class OrdersService {
       storeScope: ctx.storeScope ? [...ctx.storeScope] : null,
       warehouseScope: ctx.warehouseScope ? [...ctx.warehouseScope] : null,
     };
+  }
+
+  /** The scope of work views (queue, tab counters, urgent list): open orders of disconnected stores stay out. */
+  private async workScope(
+    tx: Tx,
+    ctx: RequestContext,
+  ): Promise<Pick<OrderListFilter, "storeScope" | "warehouseScope" | "hiddenStoreIds">> {
+    return { ...this.scope(ctx), hiddenStoreIds: [...(await this.stores.disconnectedIdsIn(tx))] };
   }
 
   private visible(ctx: RequestContext, o: OrderRow): boolean {
@@ -200,7 +211,7 @@ export class OrdersService {
     limit: number,
   ): Promise<{ items: OrderView[]; more: boolean }> {
     return withTenantTx(this.db, ctx, async (tx) => {
-      const rows = await this.repo.list(tx, { ...filter, ...this.scope(ctx) }, sort, after, limit);
+      const rows = await this.repo.list(tx, { ...filter, ...(await this.workScope(tx, ctx)) }, sort, after, limit);
       return { items: await this.views(tx, ctx, rows.slice(0, limit)), more: rows.length > limit };
     });
   }
@@ -211,7 +222,7 @@ export class OrdersService {
   }
 
   async summaryIn(tx: Tx, ctx: RequestContext, filter: Pick<OrderListFilter, "storeId" | "warehouseId">) {
-    const f = { ...filter, ...this.scope(ctx) };
+    const f = { ...filter, ...(await this.workScope(tx, ctx)) };
     const now = Date.now();
     const [statuses, overdue, dueSoon, cod] = await Promise.all([
       this.repo.statusCounts(tx, f),
@@ -220,6 +231,39 @@ export class OrdersService {
       this.repo.codOutstanding(tx, f),
     ]);
     return { statuses, overdue, dueSoon, codOutstanding: cod };
+  }
+
+  // ---- disconnected stores (FR-INT-07, backend doc 8.23) ----
+
+  /**
+   * The store was disconnected: its orders stop holding stock, in batches of 200 orders per transaction.
+   * Returns the order lines released.
+   */
+  async releaseDisconnectedStore(ctx: RequestContext, storeId: string): Promise<number> {
+    let released = 0;
+    for (;;) {
+      const batch = await withTenantTx(this.db, ctx, async (tx) => {
+        const ids = await this.repo.holdingOrderIdsOfStore(tx, storeId, RELEASE_BATCH);
+        return { ids: ids.length, lines: await this.intake.releaseForDisconnectIn(tx, ctx, ids) };
+      });
+      released += batch.lines;
+      if (batch.ids < RELEASE_BATCH) return released;
+    }
+  }
+
+  /** The next orders of a store whose data is being deleted, locked (module retention). */
+  storeOrderIdsIn(tx: Tx, storeId: string, limit: number): Promise<string[]> {
+    return this.repo.orderIdsOfStore(tx, storeId, limit);
+  }
+
+  /**
+   * Deletes these orders for good, with their lines, history, problems, references, and tags; stock they
+   * still hold is released first. Shipments must be gone already (module fulfillment). Movements already
+   * in the stock card stay: they record what happened to the stock.
+   */
+  async deleteOrdersIn(tx: Tx, ctx: RequestContext, ids: string[]): Promise<number> {
+    await this.intake.releaseForDisconnectIn(tx, ctx, ids);
+    return this.repo.deleteOrders(tx, ids);
   }
 
   /** Orders still to ship from a warehouse, whatever the caller's scope: it cannot be deleted (8.21). */
@@ -326,7 +370,7 @@ export class OrdersService {
   async urgentIn(tx: Tx, ctx: RequestContext, filter: { storeId?: string | undefined }, limit: number) {
     const rows = await this.repo.list(
       tx,
-      { ...filter, ...this.scope(ctx), dueBefore: new Date(Date.now() + SLA_WARNING_MS) },
+      { ...filter, ...(await this.workScope(tx, ctx)), dueBefore: new Date(Date.now() + SLA_WARNING_MS) },
       "ship_by",
       undefined,
       limit,

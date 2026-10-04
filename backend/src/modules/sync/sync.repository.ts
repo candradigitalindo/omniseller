@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { and, desc, eq, isNull, lt, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import type { Tx } from "../../db/client";
 import { syncJob, webhookInbox } from "../../db/schema";
 
@@ -44,5 +44,12 @@ export class SyncRepository {
         ...(outcome.processed ? { processedAt: new Date() } : {}),
       })
       .where(and(eq(webhookInbox.id, id), isNull(webhookInbox.processedAt)));
+  }
+
+  /** Deletes up to `limit` sync log entries of a store (FR-INT-07); returns how many. */
+  async deleteStoreSyncJobs(tx: Tx, storeId: string, limit: number): Promise<number> {
+    const batch = tx.select({ id: syncJob.id }).from(syncJob).where(eq(syncJob.storeId, storeId)).limit(limit);
+    const r = await tx.delete(syncJob).where(inArray(syncJob.id, batch)).returning({ id: syncJob.id });
+    return r.length;
   }
 }

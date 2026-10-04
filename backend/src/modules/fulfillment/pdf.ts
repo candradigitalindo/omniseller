@@ -2,13 +2,17 @@ import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import * as fontkit from "@pdf-lib/fontkit";
 import { PDFDocument, type PDFEmbeddedPage, type PDFFont, type PDFPage, rgb } from "pdf-lib";
+import type { Barcode } from "../../common/barcode";
 import {
   A4_PAGE,
   a4Cells,
+  type BarcodeLabelFormat,
   type Box,
+  barcodeLabelLayout,
   type LabelStrip,
   labelPlacement,
   MM,
+  moduleWidth,
   type PickLine,
   THERMAL_PAGE,
 } from "./shipping-plan";
@@ -674,6 +678,74 @@ export async function renderPackingList(list: PackingList): Promise<Uint8Array> 
     });
   }
   return doc.save();
+}
+
+export interface BarcodeLabel {
+  /** Product name. */
+  title: string;
+  /** Variant name, and the SKU when the bars hold the barcode. */
+  subtitle: string;
+  barcode: Barcode;
+}
+
+/**
+ * Internal barcode labels (FR-PRD-12): product, variant, the bars, and what they hold, on label stock or
+ * A4 sheets (`barcodeLabelLayout`). Bars are drawn as rectangles in whole printer dots
+ * (`moduleWidth`), centred with their quiet zones. Returns the labels whose bars came out dense.
+ */
+export async function renderBarcodeLabels(
+  labels: readonly BarcodeLabel[],
+  format: BarcodeLabelFormat,
+): Promise<{ pdf: Uint8Array; pages: number; dense: number[] }> {
+  const doc = await PDFDocument.create();
+  doc.setTitle("Label barcode");
+  doc.setCreator("OmniSeller");
+  doc.setProducer("OmniSeller");
+  const f = await embedFonts(doc);
+  const layout = barcodeLabelLayout(format);
+  const dense: number[] = [];
+  let page: PDFPage | undefined;
+  for (const [i, label] of labels.entries()) {
+    const slot = i % layout.cells.length;
+    if (slot === 0 || !page) page = doc.addPage([layout.page.width, layout.page.height]);
+    if (drawBarcodeLabel(page, layout.cells[slot]!, label, f)) dense.push(i);
+  }
+  return { pdf: await doc.save(), pages: doc.getPageCount(), dense };
+}
+
+function drawBarcodeLabel(page: PDFPage, box: Box, label: BarcodeLabel, f: Fonts): boolean {
+  const pad = 1.5 * MM;
+  const x = box.x + pad;
+  const width = box.width - 2 * pad;
+  let y = box.y + box.height - pad;
+  page.drawText(clip(f.bold, f.text(label.title), 7.5, width), { x, y: y - 7.5, size: 7.5, font: f.bold });
+  y -= 7.5 + 1.5;
+  if (label.subtitle) {
+    page.drawText(clip(f.regular, f.text(label.subtitle), 6.5, width), { x, y: y - 6.5, size: 6.5, font: f.regular });
+    y -= 6.5 + 2;
+  }
+  const b = label.barcode;
+  const { module, dense } = moduleWidth(b.modules + b.quiet.left + b.quiet.right, width);
+  const textSize = 7;
+  const bottom = box.y + pad + textSize + 1.5;
+  const left = x + (width - (b.modules + b.quiet.left + b.quiet.right) * module) / 2 + b.quiet.left * module;
+  for (const bar of b.bars) {
+    page.drawRectangle({
+      x: left + bar.x * module,
+      y: bottom,
+      width: bar.w * module,
+      height: y - 1 - bottom,
+      color: BLACK,
+    });
+  }
+  const text = clip(f.regular, f.text(b.text), textSize, width);
+  page.drawText(text, {
+    x: x + (width - f.regular.widthOfTextAtSize(text, textSize)) / 2,
+    y: box.y + pad,
+    size: textSize,
+    font: f.regular,
+  });
+  return dense;
 }
 
 /** A stand-in for a marketplace label, for the template's test print (UI L42 "Cetak percobaan"). */

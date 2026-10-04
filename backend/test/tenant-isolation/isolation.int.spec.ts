@@ -68,6 +68,7 @@ const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: s
   ProductsController_remove: () => ({}),
   ProductsController_addVariant: () => ({ sku: "PENYUSUP-1", basePrice: 1, weightG: 1 }),
   ProductsController_updateVariant: () => ({ basePrice: 1 }),
+  ProductsController_generateBarcodes: ({ a: ids }) => ({ variantIds: [ids.variant!] }),
   ListingsController_autoMap: ({ a: ids }) => ({ storeId: ids.store! }),
   ListingsController_createProducts: ({ a: ids }) => ({ listingIds: [ids.listing!] }),
   ListingsController_setStatus: ({ a: ids }) => ({ listingIds: [ids.listing!], active: false }),
@@ -110,6 +111,7 @@ const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: s
   ShipmentsController_labels: ({ a: ids }) => ({ orderIds: [ids.order!] }),
   DocumentsController_create: ({ a: ids }) => ({ kind: "labels", orderIds: [ids.order!] }),
   DocumentsController_pickList: ({ a: ids }) => ({ orderIds: [ids.order!] }),
+  DocumentsController_barcodeLabels: ({ a: ids }) => ({ items: [{ variantId: ids.variant!, copies: 1 }] }),
   ShipmentsController_refreshTracking: () => ({}),
   MigrationImportsController_setMapping: () => ({
     headerRow: 1,

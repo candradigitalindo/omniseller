@@ -1,4 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
+import { barcodeProblem } from "../../common/barcode";
 import type { RequestContext } from "../../common/context/request-context";
 import type { CsvValue } from "../../common/csv";
 import { DomainError, type FieldIssue } from "../../common/errors/domain-errors";
@@ -261,6 +262,8 @@ export class ProductTransferService {
     if (attributes === null) err("atribut", 'Format: "Warna=Hitam; Ukuran=L".');
     const status = cells.status ? STATUS[cells.status.toLowerCase()] : "active";
     if (!status) err("status", 'Isi "aktif" atau "arsip".');
+    const barcodeIssue = cells.barcode ? barcodeProblem(cells.barcode) : null;
+    if (barcodeIssue) err("barcode", barcodeIssue);
     for (const col of ["sku_produk", "sku_varian"] as const) {
       if (cells[col] && (cells[col].length > 64 || /\s{2,}|[\r\n\t]/.test(cells[col])))
         err(col, "SKU maksimal 64 karakter tanpa baris baru.");

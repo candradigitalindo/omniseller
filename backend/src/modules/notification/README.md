@@ -12,8 +12,8 @@ Notifikasi untuk pengguna OmniSeller (PRD FR-NTF-01, FR-NTF-02; backend doc 7.8.
 
 ## Service publik
 - `NotificationInboxService` (api dan worker):
-  - `notifyIn`: di dalam transaksi pemanggil, satu baris per penerima.
-  - `notifyScopedIn`: penerima per izin, item per cakupan, satu notifikasi per pengguna.
+  - `notifyIn`: di dalam transaksi pemanggil, satu baris per penerima. Dengan `{ email: true }` setiap notifikasi juga dikirim lewat email oleh job `notification.email` (event `notification.email_requested`).
+  - `notifyScopedIn`: penerima per izin, item per cakupan, satu notifikasi per pengguna; opsi `email` sama.
   - `list`, `unreadCount`, `markRead`.
 - `NotificationPreferencesService` (api dan worker):
   - `list`: jenis yang bisa dipilih, pilihan pengguna, dan bawaannya.
@@ -21,6 +21,7 @@ Notifikasi untuk pengguna OmniSeller (PRD FR-NTF-01, FR-NTF-02; backend doc 7.8.
   - `emailChoicesIn(tx, kind)`: pilihan email semua pengguna yang sudah memilih.
 - `PREFERENCE_KINDS`: jenis yang bisa dipilih beserta label dan bawaan emailnya.
 - `inScope(recipient, item)`: aturan cakupan toko dan gudang yang sama dengan daftar pesanan.
+- `NotificationEmailService` (hanya worker, job `notification.email`): mengirim satu notifikasi ke penerimanya bila masih aktif dan mencatat `channels_sent.email`, sehingga ulangan job tidak mengirim dua kali.
 - `EmailSender` (`EMAIL_SENDER`, hanya worker): `smtp`, `log` (hanya local), `memory` (hanya test). Templatnya di `templates.ts`, termasuk `dailyDigestEmail`.
 
 ## Aturan
@@ -28,7 +29,12 @@ Notifikasi untuk pengguna OmniSeller (PRD FR-NTF-01, FR-NTF-02; backend doc 7.8.
 - Isi notifikasi tidak memuat data pribadi pembeli; data cukup id pesanan.
 - Penerima dipilih lewat `notifyScopedIn`: pengguna aktif yang memegang izin, dan masing-masing hanya mendengar item di cakupan toko dan gudangnya. Pengguna yang tidak melihat satu item pun tidak menerima apa-apa.
 - Notifikasi ditulis di transaksi modul yang memutuskan, oleh job modul itu (bukan oleh modul ini).
-- Jenis yang bisa dipilih sekarang hanya `digest.daily`: email ringkasan operasional pukul 07.00. Bawaannya aktif bagi pemegang `report:read`. Jenis lain di endpoint preferensi memberi 404 `notification_preference.unknown_kind`.
+- Jenis di preferensi: `digest.daily` (email ringkasan operasional pukul 07.00, bawaan aktif bagi pemegang `report:read`) dan `store.connection_lost` (terkunci, "Selalu dikirim" di L44; tampil hanya bagi pemegang `settings:store`, mengubahnya ditolak 422 `notification_preference.locked`). Jenis lain memberi 404 `notification_preference.unknown_kind`.
+
+## Job
+| Job | Antrean | Pemicu |
+|---|---|---|
+| `notification.email` | `notify` | `notification.email_requested` (notifikasi yang juga dikirim lewat email) |
 
 ## Endpoint
 | Metode | Path | Izin |
@@ -43,8 +49,8 @@ Notifikasi untuk pengguna OmniSeller (PRD FR-NTF-01, FR-NTF-02; backend doc 7.8.
 - **Jenis notifikasi** (backend doc 8.17):
   - `order.new` dan `order.sla` (modul orders);
   - `stock.critical` dan `sync.stock_push_failed` (inventory);
-  - `store.reauth_required`, `store.authorization_expiring`, dan `store.warehouses_changed` (channel);
+  - `store.reauth_required`, `store.authorization_expiring`, `store.warehouses_changed`, `store.connection_lost` (juga email), dan `store.connection_restored` (channel, backend doc 8.23);
   - `export.ready` dan `export.failed` (exports);
   - `migration.validated`, `migration.invalid`, `migration.imported`, dan `migration.failed` (migration).
 - **Ringkasan email harian ada di modul `reporting`** (`DigestService`). Modul ini hanya menyimpan pilihan dan templatnya, karena orders, inventory, dan channel mengimpor `NotificationInboxModule`.
-- **Menyusul bersama layar pengaturan notifikasi (L44):** pengiriman email dan WhatsApp untuk jenis lain sesuai preferensi, dan kolom `in_app` serta `whatsapp`, yang sudah ada di tabel tetapi belum dibaca.
+- **Menyusul bersama layar pengaturan notifikasi (L44):** email dan WhatsApp untuk jenis lain sesuai preferensi (jalur email `notification.email` sudah ada), dan kolom `in_app` serta `whatsapp`, yang sudah ada di tabel tetapi belum dibaca.

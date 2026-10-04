@@ -4,6 +4,7 @@ import {
   type ArrangeCheck,
   a4Cells,
   arrangeRefusal,
+  barcodeLabelLayout,
   combineParcels,
   compareBins,
   DEFAULT_LABEL_TEMPLATE,
@@ -12,6 +13,8 @@ import {
   labelSequence,
   MM,
   manualTrackingStage,
+  moduleWidth,
+  PRINTER_DOT,
   pickLines,
   STRIP_HEIGHT,
   shipmentStepFor,
@@ -207,6 +210,19 @@ describe("label layout", () => {
     expect(at.strip).toEqual({ x: 10, y: 20, width: 200, height: 45 });
     expect(at.label.y).toBeCloseTo(65, 5);
     expect(at.label.y + 100 * at.label.scale).toBeCloseTo(170, 5);
+  });
+
+  it("sizes barcode modules in whole printer dots and flags bars thinner than two (FR-PRD-12)", () => {
+    // an EAN-13 with its quiet zones (113 modules) in 47 mm: three dots a module
+    expect(moduleWidth(113, 47 * MM)).toEqual({ module: 3 * PRINTER_DOT, dense: false });
+    // a 16-character SKU in Code 128 (231 modules): one dot, readable by good scanners only
+    expect(moduleWidth(231, 47 * MM)).toEqual({ module: PRINTER_DOT, dense: true });
+    // longer still: squeezed into the space, under one dot
+    const squeezed = moduleWidth(500, 47 * MM);
+    expect(squeezed.dense).toBe(true);
+    expect(squeezed.module * 500).toBeCloseTo(47 * MM, 6);
+    expect(barcodeLabelLayout("a4_3x10").cells).toHaveLength(30);
+    expect(barcodeLabelLayout("label_40x30").page).toEqual({ width: 40 * MM, height: 30 * MM });
   });
 
   it("splits an A4 sheet into four quarters in reading order", () => {

@@ -8,6 +8,7 @@ Membaca log audit (PRD FR-USR-04). Baris ditulis hanya oleh trigger `audit_row()
 
 ## Service publik
 - `AuditService.list(ctx, { entityType, entityId }, cursor, limit)`.
+- `AuditService.entriesIn(tx, targets, before, limit)`: entri beberapa entitas sekaligus di transaksi pemanggil, terbaru dulu (riwayat produk dan variannya, backend doc 8.23).
 
 ## Endpoint
 | Metode | Path | Izin |

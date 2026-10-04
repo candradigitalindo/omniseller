@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { and, asc, desc, eq, gt, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import type { Tx } from "../../db/client";
 import { documentJob, labelTemplate, shipment, shipmentPackage } from "../../db/schema";
 
@@ -11,6 +11,35 @@ export type LabelTemplateRow = typeof labelTemplate.$inferSelect;
 @Injectable()
 export class FulfillmentRepository {
   // ---- shipments ----
+
+  /** Every shipment of these orders, cancelled ones too. */
+  async shipmentsOf(tx: Tx, orderIds: string[]): Promise<ShipmentRow[]> {
+    if (orderIds.length === 0) return [];
+    return tx.select().from(shipment).where(inArray(shipment.orderId, orderIds));
+  }
+
+  /** Deletes shipments with their packages (ON DELETE CASCADE). */
+  async deleteShipments(tx: Tx, ids: string[]): Promise<void> {
+    if (ids.length > 0) await tx.delete(shipment).where(inArray(shipment.id, ids));
+  }
+
+  /** PDF files of documents that printed any of these orders. */
+  async documentFilesFor(tx: Tx, orderIds: string[]): Promise<string[]> {
+    if (orderIds.length === 0) return [];
+    const rows = await tx
+      .select({ fileId: documentJob.fileObjectId })
+      .from(documentJob)
+      .where(
+        and(
+          isNotNull(documentJob.fileObjectId),
+          sql`jsonb_exists_any(${documentJob.params} -> 'orderIds', ARRAY[${sql.join(
+            orderIds.map((id) => sql`${id}`),
+            sql`, `,
+          )}]::text[])`,
+        ),
+      );
+    return rows.map((r) => r.fileId!);
+  }
 
   /** The live (not cancelled) shipment of each order. */
   async liveFor(tx: Tx, orderIds: string[], forUpdate = false): Promise<ShipmentRow[]> {

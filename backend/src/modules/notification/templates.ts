@@ -39,6 +39,25 @@ export function invitationEmail(input: {
   };
 }
 
+/** An in-app notification that also goes out by email (store connection lost, backend doc 8.23). */
+export function notificationEmail(input: {
+  to: string;
+  name: string;
+  tenantName: string;
+  title: string;
+  body: string;
+  url: string;
+}): EmailMessage {
+  const lines = [`Halo ${input.name},`, input.body];
+  const footer = `Email ini dikirim ke pengguna ${input.tenantName} yang mengelola toko di OmniSeller.`;
+  return {
+    to: input.to,
+    subject: `${input.title} (${input.tenantName})`,
+    text: `${lines.join("\n\n")}\n\nBuka OmniSeller: ${input.url}\n\n${footer}`,
+    html: layout(input.title, lines, { label: "Buka OmniSeller", url: input.url }, footer),
+  };
+}
+
 export function passwordResetEmail(input: {
   to: string;
   tenantName: string;

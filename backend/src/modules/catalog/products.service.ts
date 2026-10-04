@@ -1,10 +1,14 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { newId } from "@omniseller/shared";
+import { internalEan13 } from "../../common/barcode";
 import type { RequestContext } from "../../common/context/request-context";
+import { nextDocumentNumber } from "../../common/document-number";
 import { ConflictError } from "../../common/errors/domain-errors";
 import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
+import { AuditService } from "../audit/audit.module";
+import { UsersService } from "../identity/users.service";
 import {
   attributesInvalid,
   barcodeTaken,
@@ -14,6 +18,7 @@ import {
   variantNotFound,
 } from "./catalog.errors";
 import { CatalogRepository, normSku, type ProductRow, type VariantRow } from "./catalog.repository";
+import { type HistoryEntry, historyEntry } from "./product-history";
 
 export interface VariantInput {
   sku: string;
@@ -67,6 +72,18 @@ export interface ProductView {
 
 export const MAX_ATTRIBUTES = 3;
 
+/** A product history entry with the name of whoever made it (FR-PRD-11). */
+export interface ProductHistoryEntry extends HistoryEntry {
+  actorName: string | null;
+}
+
+/** What a scanned code found (FR-PRD-12): the variant and its product. */
+export interface ScanMatch {
+  matchedBy: "barcode" | "sku";
+  variant: VariantRow;
+  product: ProductRow;
+}
+
 function variantName(
   input: { name?: string | undefined; attributes?: Record<string, string> | undefined },
   fallback: string,
@@ -113,6 +130,8 @@ export class ProductsService {
   constructor(
     @Inject(DB_TENANT) private readonly db: DbHandle,
     @Inject(CatalogRepository) private readonly repo: CatalogRepository,
+    @Inject(AuditService) private readonly audit: AuditService,
+    @Inject(UsersService) private readonly users: UsersService,
   ) {}
 
   async view(tx: Tx, products: ProductRow[]): Promise<ProductView[]> {
@@ -156,6 +175,87 @@ export class ProductsService {
       const p = await this.repo.getProduct(tx, id);
       if (!p) throw productNotFound();
       return (await this.view(tx, [p]))[0]!;
+    });
+  }
+
+  /**
+   * FR-PRD-11: who changed the product or its variants, what, and when, newest first. The audit log
+   * keeps every change of a product or variant column (drizzle/sql/20_triggers.sql). A page may hold
+   * fewer entries than `limit`: writes that changed nothing visible are left out.
+   */
+  async history(
+    ctx: RequestContext,
+    productId: string,
+    before: string | undefined,
+    limit: number,
+  ): Promise<{ items: ProductHistoryEntry[]; next: string | null }> {
+    return withTenantTx(this.db, ctx, async (tx) => {
+      const p = await this.repo.getProduct(tx, productId);
+      if (!p) throw productNotFound();
+      const rows = await this.audit.entriesIn(
+        tx,
+        [
+          { entityType: "product", entityIds: [p.id] },
+          { entityType: "variant", entityIds: await this.repo.variantIdsEver(tx, p.id) },
+        ],
+        before,
+        limit + 1,
+      );
+      const names = await this.users.namesIn(tx);
+      const page = rows.slice(0, limit);
+      return {
+        items: page.flatMap((r) => {
+          const e = historyEntry(r);
+          return e
+            ? [{ ...e, actorName: e.actor.type === "user" && e.actor.id ? (names.get(e.actor.id) ?? null) : null }]
+            : [];
+        }),
+        next: rows.length > limit ? page[page.length - 1]!.id : null,
+      };
+    });
+  }
+
+  /**
+   * FR-PRD-12: an internal EAN-13 (prefix 20) for each of these variants that has no barcode, numbered
+   * per business. Variants with a barcode keep it. A number someone already typed in is skipped.
+   */
+  async generateBarcodes(
+    ctx: RequestContext,
+    variantIds: string[],
+  ): Promise<{ variant: VariantRow; generated: boolean }[]> {
+    return withTenantTx(this.db, ctx, async (tx) => {
+      const variants = await this.repo.variantsByIds(tx, variantIds, true);
+      if (variants.length !== new Set(variantIds).size) throw variantNotFound();
+      const out: { variant: VariantRow; generated: boolean }[] = [];
+      for (const v of [...variants].sort((a, b) => a.sku.localeCompare(b.sku))) {
+        if (v.barcode) {
+          out.push({ variant: v, generated: false });
+          continue;
+        }
+        let code: string;
+        do {
+          code = internalEan13(await nextDocumentNumber(tx, ctx.tenantId, "barcode", "0000"));
+        } while ((await this.repo.variantsByBarcode(tx, [code])).length > 0);
+        await this.repo.updateVariant(tx, v.id, { barcode: code });
+        out.push({ variant: { ...v, barcode: code }, generated: true });
+      }
+      return out;
+    });
+  }
+
+  /**
+   * FR-PRD-12: the variant a scanner read, by its barcode (exactly) or else its SKU (ignoring case and
+   * spaces at the ends). Archived variants are found too; deleted ones are not.
+   */
+  async lookup(ctx: RequestContext, code: string): Promise<ScanMatch> {
+    return withTenantTx(this.db, ctx, async (tx) => {
+      const [byBarcode] = await this.repo.variantsByBarcode(tx, [code]);
+      const bySku = byBarcode ? [] : ((await this.repo.variantsByNormSku(tx, [code])).get(normSku(code)!) ?? []);
+      const v = byBarcode ?? (bySku.length === 1 ? bySku[0] : undefined);
+      if (!v) throw variantNotFound();
+      const p = await this.repo.getProduct(tx, v.productId);
+      if (!p) throw variantNotFound();
+      return { matchedBy: byBarcode ? "barcode" : "sku", variant: v, product: p };
     });
   }
 

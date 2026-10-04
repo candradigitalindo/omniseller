@@ -27,10 +27,15 @@ import { IdentityHttpModule } from "./modules/identity/identity.http.module";
 import { IdentityModule } from "./modules/identity/identity.module";
 import { InventoryHttpModule, InventoryModule, InventoryWorkerModule } from "./modules/inventory/inventory.module";
 import { MigrationHttpModule, MigrationWorkerModule } from "./modules/migration/migration.module";
-import { NotificationHttpModule, NotificationModule } from "./modules/notification/notification.module";
+import {
+  NotificationHttpModule,
+  NotificationModule,
+  NotificationWorkerModule,
+} from "./modules/notification/notification.module";
 import { OrdersHttpModule, OrdersModule, OrdersWorkerModule } from "./modules/orders/orders.module";
 import { HealthController } from "./modules/platform/health.controller";
 import { ReportingHttpModule, ReportingWorkerModule } from "./modules/reporting/reporting.module";
+import { RetentionWorkerModule } from "./modules/retention/retention.module";
 import { SyncModule, WebhookHttpModule } from "./modules/sync/sync.module";
 import { SchedulerRunner } from "./scheduler/scheduler.runner";
 import { WorkerRunner } from "./worker/worker.runner";
@@ -110,6 +115,7 @@ export class AppModule {
             ...imports,
             ConnectorsModule.forEnv(env, fetchImpl),
             NotificationModule.forWorker(env),
+            NotificationWorkerModule,
             IdentityModule,
             AuthModule,
             InventoryModule,
@@ -127,6 +133,7 @@ export class AppModule {
             ExportsWorkerModule,
             MigrationWorkerModule,
             ReportingWorkerModule,
+            RetentionWorkerModule,
           ],
           providers: [WorkerRunner],
         };

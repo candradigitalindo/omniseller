@@ -4,7 +4,7 @@ import { stat } from "node:fs/promises";
 import { Inject, Injectable } from "@nestjs/common";
 import { newId } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
-import type { DbHandle } from "../../db/client";
+import type { DbHandle, Tx } from "../../db/client";
 import type { FilePurpose } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
@@ -124,6 +124,15 @@ export class FilesService {
     });
     if (url) return { url };
     return { bytes: await this.storage.get(row.objectKey), mime: row.mime, filename, disposition };
+  }
+
+  /**
+   * These files expire now, in the caller's transaction: the hourly cleanup deletes object and row. For
+   * files whose data must go (a store's data deleted, FR-INT-07) without an upload or delete inside the
+   * transaction.
+   */
+  async expireIn(tx: Tx, ids: string[], now = new Date()): Promise<void> {
+    await this.repo.expire(tx, [...new Set(ids)], now);
   }
 
   /** Deletes this tenant's expired files: the object, then the row (rows pointing at it lose the link). */

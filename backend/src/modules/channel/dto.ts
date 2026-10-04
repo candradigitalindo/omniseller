@@ -129,10 +129,27 @@ const storeSchema = z.object({
   autoAllocate: z
     .boolean()
     .describe("pesanan toko tanpa multi-gudang dikirim dari gudang terdekat yang stoknya cukup (FR-ORD-12)"),
+  failingSince: iso
+    .nullable()
+    .describe("panggilan ke marketplace gagal sementara sejak ini; peringatan setelah 15 menit (FR-INT-08)"),
+  dataDeletion: z
+    .object({ requestedAt: iso, deletedAt: iso.nullable().describe("null selama penghapusan berjalan") })
+    .nullable()
+    .describe("toko diputus tanpa menyimpan data: pesanan, listing, dan log sinkronnya dihapus (FR-INT-07)"),
   createdAt: iso,
 });
 export class StoreDto extends createZodDto(storeSchema) {}
 export class StoreListDto extends createZodDto(z.object({ items: z.array(storeSchema) })) {}
+export class DisconnectStoreDto extends createZodDto(
+  z.object({
+    keepData: z
+      .boolean()
+      .default(true)
+      .describe(
+        "true: pesanan, listing, dan log sinkron tetap sebagai riwayat. false: semuanya dihapus permanen di latar",
+      ),
+  }),
+) {}
 export class DisconnectedStoreDto extends createZodDto(
   z.object({
     store: storeSchema,
@@ -189,6 +206,10 @@ export function storeView(v: StoreView): z.infer<typeof storeSchema> {
     lastOrderSyncAt: s.lastOrderSyncAt?.toISOString() ?? null,
     marketplaceInfo: s.marketplaceInfo,
     autoAllocate: s.settings.autoAllocate === true,
+    failingSince: s.failingSince?.toISOString() ?? null,
+    dataDeletion: s.dataDeletionRequestedAt
+      ? { requestedAt: s.dataDeletionRequestedAt.toISOString(), deletedAt: s.dataDeletedAt?.toISOString() ?? null }
+      : null,
     createdAt: s.createdAt.toISOString(),
   };
 }

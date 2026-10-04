@@ -122,6 +122,21 @@ export const storeWarehousesNoticeJob = defineJob({
   },
 });
 
+/**
+ * FR-INT-08: connections down for more than 15 minutes, and connections back, of one tenant. Enqueued by
+ * the scheduler's `store.connection_scan` with one id per tenant per 5-minute slot.
+ */
+export const storeConnectionCheckJob = defineJob({
+  queue: "notify",
+  name: "store.connection_check",
+  schema: z.object({}),
+  options: { attempts: 3, backoff: { type: "exponential", delay: 10_000 } },
+  jobId: () => jobKey("store.connection_check", "direct"),
+  handler: async (_p, run) => {
+    await run.deps.resolve(ChannelAlertsService).checkConnections(run.ctx);
+  },
+});
+
 export const CHANNEL_JOBS = [
   storeAuthorizeJob,
   storeWarehousesSyncJob,
@@ -130,6 +145,7 @@ export const CHANNEL_JOBS = [
   storeReauthNoticeJob,
   storeExpiryNoticeJob,
   storeWarehousesNoticeJob,
+  storeConnectionCheckJob,
 ];
 
 /** Shopee authorize_type values of a code 2 push, and TikTok Shop's deauthorization message. */

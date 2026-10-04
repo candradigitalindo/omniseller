@@ -28,6 +28,7 @@ Pesanan dari semua toko dalam satu antrean (PRD 6.4: FR-ORD-01 sampai 10, 12, 13
 - `TagsService` (api): `list`, `create`, `update`, `remove`, `assign`. Error: `tag.not_found`, `tag.duplicate`, `tag.limit`, tag tidak dikenal (422).
 - `OrderIntakeService` (api dan worker, di dalam transaksi pemanggil): `applyIn` (satu snapshot marketplace; alokasi otomatis untuk toko yang mengaktifkannya), `createIn` (pesanan yang dibuat OmniSeller), `moveWarehouseIn`, `stepIn`, `settleIn`, `attachListingIn`, `recheckStockIn`; untuk modul fulfillment: `advanceIn` (langkah penjual bila status masih sesuai), `recordIn` (riwayat), `setShippingIn` (resi dan kurir).
 - `OrdersService` untuk modul lain: `requireVisible` (semua id harus terlihat pemanggil, atau 404), `readIn`, `idsByExternalIn`, `refsIn` (nomor pesanan dan toko), `tagsIn` (nama tag per pesanan, untuk label dan daftar kemas, 8.22), `visibleIn` (satu pesanan dalam cakupan, di transaksi pemanggil), `openInWarehouseIn` (pesanan yang belum dikirim dari satu gudang, untuk penghapusan gudang), `statusCountsIn` (pesanan satu toko per status sejak suatu waktu, mode paralel 8.19); untuk dasbor (backend doc 8.16, di transaksi dan cakupan pemanggil): `summaryIn`, `urgentIn`, `salesIn`, `salesByDayIn`, `topProductsIn`, `grossProfitIn`; untuk laporan penjualan dan email harian (8.20, filter `SalesFilter` toko dan marketplace): `salesBucketsIn` (per hari, minggu, atau bulan di zona waktu bisnis), `salesByIn` (per marketplace, toko, atau provinsi pembeli), `salesByHourIn`, `itemSalesIn` (per varian atau kategori), `unitsSoldIn`, `cancellationsIn` (dibayar lalu dibatalkan), `shippedIn` (menurut `shipped_at`); untuk perlu restock: `unitsByStockIn` (unit terjual pesanan penjual per varian dan gudang); untuk ekspor data (8.18): `exportSheets` (`pesanan.csv`, `item_pesanan.csv`).
+- Untuk toko yang diputus (FR-INT-07, backend doc 8.23): `OrdersService.releaseDisconnectedStore` (job `order.store_disconnected`), `storeOrderIdsIn` dan `deleteOrdersIn` (modul retention: stok yang masih ditahan dilepas, lalu pesanan dihapus beserta baris, riwayat, masalah, referensi, dan tagnya), `OrderIntakeService.releaseForDisconnectIn`.
 - Hanya worker: `OrderSyncService` (`ingest`, `refresh`, `pull`, `cancel`, `attachListing`, `recheckStock`); marketplace selalu lewat `MarketplaceGateway`. `OrderAlertsService`: `alertDue` (peringatan batas kirim, FR-SHP-10) dan `notifyNewOrders` (ringkasan pesanan baru, FR-NTF-01).
 
 ## Aturan
@@ -38,6 +39,7 @@ Pesanan dari semua toko dalam satu antrean (PRD 6.4: FR-ORD-01 sampai 10, 12, 13
 - Gudang baris dari marketplace (Shopee `product_location_id`, TikTok Shop `warehouse_id`) lewat pemetaan `channel_warehouse`; tanpa pemetaan menjadi masalah `unmapped_warehouse`.
 - Masalah dibuka dan ditutup otomatis; yang ditutup penjual tidak dibuka lagi. `new` dengan masalah terbuka menjadi `problem`.
 - Toko `read_only` tetap menerima pesanan dan menahan stok, tetapi aksi penjual ditolak (mode paralel, FR-MIG-05).
+- **Toko yang diputus** (FR-INT-07): pesanan terbukanya melepas stok yang ditahan (riwayat `store_disconnected`, status tetap), dan tidak menahannya lagi: pemetaan listing (`attachListingIn`) dan cek ulang stok (`recheckStockIn`) melewati toko yang diputus. Pesanan terbuka itu tidak tampil di antrean, penghitung tab, dan daftar mendesak dasbor (`hiddenStoreIds` di `OrderListFilter`), kecuali difilter `storeId` toko itu; laporan penjualan tetap menghitung riwayatnya.
 - Telepon dan alamat pembeli hanya untuk peran dengan `order:accept`, `shipment:print`, atau `order:write`. Data pembeli tidak pernah masuk log; connector menyamarkannya di log sinkron.
 - **Pesanan manual** ada di toko berkanal `manual` dan berjalan lewat setiap langkah penjual (`pathTo`).
   - Uangnya sama artinya dengan pesanan marketplace: total baris, subtotal, diskon, ongkir, total.
@@ -48,7 +50,7 @@ Pesanan dari semua toko dalam satu antrean (PRD 6.4: FR-ORD-01 sampai 10, 12, 13
 
 ## Event
 - Diterbitkan: `order.pull_requested` (tarik ulang atau lanjutan), `order.cancel_requested`, `order.status_changed` (setiap langkah status, dari `stepIn`; dikonsumsi modul fulfillment).
-- Dikonsumsi: `store.connected` (impor 90 hari), `listing.mapped` (pasang varian, reservasi), `inventory.changed` (cek ulang stok kurang); webhook `order.status_changed` dan `order.tracking_updated` (baca ulang pesanan).
+- Dikonsumsi: `store.connected` (impor 90 hari), `store.disconnected` (stok pesanan terbuka dilepas), `listing.mapped` (pasang varian, reservasi), `inventory.changed` (cek ulang stok kurang); webhook `order.status_changed` dan `order.tracking_updated` (baca ulang pesanan).
 
 ## Job
 | Job | Antrean | Pemicu |
@@ -59,6 +61,7 @@ Pesanan dari semua toko dalam satu antrean (PRD 6.4: FR-ORD-01 sampai 10, 12, 13
 | `order.stock_recheck` | `order.ingest` | `inventory.changed` |
 | `order.sla_alert` | `notify` | jadwal `order.sla_scan` (5 menit, per tenant dengan pesanan jatuh tempo) |
 | `order.new_notice` | `notify` | jadwal `order.new_scan` (5 menit, per tenant dengan pesanan bertanda `notify_new`) |
+| `order.store_disconnected` | `order.ingest` | `store.disconnected` (200 pesanan per transaksi) |
 
 ## Endpoint
 | Metode | Path | Izin |

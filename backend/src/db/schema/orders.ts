@@ -254,9 +254,10 @@ export const printJob = pgTable("print_job", {
   printedAt: tstz("printed_at"),
 });
 
-export type DocumentKind = "labels" | "pick_list" | "packing_list";
+export type DocumentKind = "labels" | "pick_list" | "packing_list" | "barcode_labels";
 
 export interface DocumentParams {
+  /** Orders of label, pick list, and packing list documents; empty for barcode labels. */
   orderIds: string[];
   /** Labels and packing lists: thermal 100 x 150 mm, or A4 with 4 per page (FR-SHP-01, 03). */
   format?: "thermal" | "a4";
@@ -264,13 +265,19 @@ export interface DocumentParams {
   template?: "standard" | "custom";
   /** Labels: each order's packing list right after its label (FR-SHP-03). */
   packingList?: boolean;
+  /** Barcode labels (FR-PRD-12): which variants, how many labels each, in this order. */
+  items?: { variantId: string; copies: number }[];
+  /** Barcode labels: label stock or A4 sheet. */
+  labelFormat?: "label_50x30" | "label_40x30" | "a4_3x10";
 }
 
 export interface DocumentResult {
   orders?: number;
   labels?: number;
-  /** Orders left out, with the reason (no label yet, not arranged, not in a pickable status). */
-  missing?: { orderId: string; code: string; message: string }[];
+  /** Orders (or, for barcode labels, variants) left out, with the reason. */
+  missing?: { orderId?: string; variantId?: string; code: string; message: string }[];
+  /** Barcode labels: variants whose bars came out denser than two printer dots. */
+  dense?: string[];
 }
 
 /** Printable documents the worker renders on request (backend doc 8.15). Status changes are checked by trigger. */

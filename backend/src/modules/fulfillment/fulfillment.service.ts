@@ -3,12 +3,15 @@ import type { HandoverMethod } from "@omniseller/connector-core";
 import { newId } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
 import { EXPORT_PAGE_SIZE, type ExportSheet, keysetPages } from "../../common/export-sheet";
-import type { DbHandle } from "../../db/client";
+import type { DbHandle, Tx } from "../../db/client";
 import type { DocumentKind, StoredTrackingEvent, TrackingStage } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
 import { isManualChannel, StoresService } from "../channel/stores.service";
+import { FilesService } from "../files/files.service";
+import { variantNotFound } from "../inventory/inventory.errors";
+import { InventoryService } from "../inventory/inventory.service";
 import { OrderIntakeService } from "../orders/order-intake.service";
 import { type ActionResult, OrdersService, orderStatusLabel } from "../orders/orders.service";
 import { documentNotFound, trackingManual, trackingNotShipped } from "./fulfillment.errors";
@@ -20,7 +23,13 @@ import {
 } from "./fulfillment.events";
 import { type DocumentRow, FulfillmentRepository, type PackageRow, type ShipmentRow } from "./fulfillment.repository";
 import { PickListBuilder, type PickListSection } from "./pick-list.builder";
-import { arrangeRefusal, manualTrackingStage, TRACKED, TRACKING_REFRESH_MS } from "./shipping-plan";
+import {
+  arrangeRefusal,
+  type BarcodeLabelFormat,
+  manualTrackingStage,
+  TRACKED,
+  TRACKING_REFRESH_MS,
+} from "./shipping-plan";
 
 export interface ShipmentView {
   shipment: ShipmentRow;
@@ -56,6 +65,8 @@ export class FulfillmentService {
     @Inject(StoresService) private readonly stores: StoresService,
     @Inject(PickListBuilder) private readonly pickLists: PickListBuilder,
     @Inject(OUTBOX) private readonly outbox: Outbox,
+    @Inject(InventoryService) private readonly inventory: InventoryService,
+    @Inject(FilesService) private readonly files: FilesService,
   ) {}
 
   /**
@@ -204,6 +215,59 @@ export class FulfillmentService {
               ? { format: opts.format }
               : {}),
         },
+        requestedBy: ctx.actor.id,
+      });
+      await this.outbox.enqueue(tx, ctx, documentRequested, { documentId: row.id }, row.id);
+      return row;
+    });
+  }
+
+  /**
+   * FR-INT-07, in the caller's transaction: the shipments of these orders go, with their packages; their
+   * label files and every document that printed one of the orders expire now, since they carry buyer
+   * data (the hourly file cleanup deletes them). Returns the shipments deleted.
+   */
+  async deleteForOrdersIn(tx: Tx, orderIds: string[]): Promise<number> {
+    const shipments = await this.repo.shipmentsOf(tx, orderIds);
+    const packages = await this.repo.packages(
+      tx,
+      shipments.map((s) => s.id),
+    );
+    const files = [
+      ...shipments.map((s) => s.labelFileId),
+      ...packages.map((p) => p.labelFileId),
+      ...(await this.repo.documentFilesFor(tx, orderIds)),
+    ].filter((id): id is string => !!id);
+    await this.files.expireIn(tx, files);
+    await this.repo.deleteShipments(
+      tx,
+      shipments.map((s) => s.id),
+    );
+    return shipments.length;
+  }
+
+  /**
+   * FR-PRD-12: internal barcode labels of these variants, rendered by the worker like the other
+   * documents, in the order given. Every variant must exist (archived ones too).
+   */
+  async requestBarcodeLabels(
+    ctx: RequestContext,
+    items: { variantId: string; copies: number }[],
+    labelFormat: BarcodeLabelFormat,
+  ): Promise<DocumentRow> {
+    return withTenantTx(this.db, ctx, async (tx) => {
+      const found = await this.inventory.variantsIn(
+        tx,
+        items.map((i) => i.variantId),
+      );
+      const unknown = items.findIndex((i) => !found.has(i.variantId));
+      if (unknown >= 0) throw variantNotFound(`items.${unknown}.variantId`);
+      const row = await this.repo.insertDocument(tx, {
+        id: newId(),
+        tenantId: ctx.tenantId,
+        kind: "barcode_labels",
+        status: "queued",
+        params: { orderIds: [], items, labelFormat },
         requestedBy: ctx.actor.id,
       });
       await this.outbox.enqueue(tx, ctx, documentRequested, { documentId: row.id }, row.id);

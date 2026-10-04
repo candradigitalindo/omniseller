@@ -24,10 +24,24 @@ export const storeConnected = defineEvent({
   schema: z.object({ storeId: ulidSchema, reconnected: z.boolean() }),
 });
 
+/**
+ * The seller disconnected a store (FR-INT-07): its open orders stop holding stock. `keepData` false
+ * also asks for its data to be deleted (`store.data_deletion_requested`).
+ */
 export const storeDisconnected = defineEvent({
   type: "store.disconnected",
   aggregate: "store",
-  schema: z.object({ storeId: ulidSchema, reason: z.string() }),
+  schema: z.object({ storeId: ulidSchema, reason: z.string(), keepData: z.boolean().default(true) }),
+});
+
+/**
+ * Delete the orders, listings, marketplace warehouses, and sync log of a store disconnected without its
+ * data; also the continuation of a deletion that stopped for time (module retention, backend doc 8.23).
+ */
+export const storeDataDeletionRequested = defineEvent({
+  type: "store.data_deletion_requested",
+  aggregate: "store",
+  schema: z.object({ storeId: ulidSchema }),
 });
 
 /** The seller has to authorize again (revoked, expired, refresh failing, shop banned). */

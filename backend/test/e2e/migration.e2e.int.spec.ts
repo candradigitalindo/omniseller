@@ -136,7 +136,7 @@ describe("import from another app (FR-MIG-01)", () => {
     const bad = xlsx([
       ["Petunjuk: isi mulai baris 3. Kolom bertanda * wajib."],
       BIGSELLER_HEADER,
-      ["MIG-1", "Kaos Migrasi", 20000, 50000, 0.25, "8991000000011", 10, "UTAMA"],
+      ["MIG-1", "Kaos Migrasi", 20000, 50000, 0.25, "8991000000010", 10, "UTAMA"],
       ["MIG-2", "Topi Migrasi", "15.000", "65.000,50", 0.1, "", 4, "Gudang X"],
       [],
       ["MIG-3", "Tas Migrasi", 30000, 90000, 0.5, "", "", ""],
@@ -174,7 +174,7 @@ describe("import from another app (FR-MIG-01)", () => {
       "20000",
       "50000",
       "0.25",
-      "8991000000011",
+      "8991000000010",
       "10",
       "UTAMA",
     ]);
@@ -204,7 +204,7 @@ describe("import from another app (FR-MIG-01)", () => {
     // the corrected file
     const good = xlsx([
       BIGSELLER_HEADER,
-      ["MIG-1", "Kaos Migrasi", 20000, 50000, 0.25, "8991000000011", 10, "UTAMA"],
+      ["MIG-1", "Kaos Migrasi", 20000, 50000, 0.25, "8991000000010", 10, "UTAMA"],
       ["MIG-2", "Topi Migrasi", "15.000", "65.000", 0.1, "", 4, ""],
       ["MIG-3", "Tas Migrasi", 30000, 90000, 0.5, "", "", ""],
     ]);
@@ -235,7 +235,7 @@ describe("import from another app (FR-MIG-01)", () => {
       costPrice: 20000,
       basePrice: 50000,
       weightG: 250,
-      barcode: "8991000000011",
+      barcode: "8991000000010",
     });
     const stock = (await c.get("/v1/inventory?q=MIG-2")).body.items[0];
     expect(stock.warehouses[0]).toMatchObject({ warehouseId, onHand: 4 });

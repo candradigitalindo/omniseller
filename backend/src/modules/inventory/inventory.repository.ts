@@ -345,6 +345,10 @@ export class InventoryRepository {
     await tx.delete(stockAllocationRule).where(eq(stockAllocationRule.id, id));
   }
 
+  async deleteStoreRules(tx: Tx, storeId: string): Promise<void> {
+    await tx.delete(stockAllocationRule).where(eq(stockAllocationRule.storeId, storeId));
+  }
+
   // ---- push state ----
 
   async states(tx: Tx, listingIds: string[]): Promise<StateRow[]> {

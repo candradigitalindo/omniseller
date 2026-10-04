@@ -2,7 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { newId } from "@omniseller/shared";
 import { eq } from "drizzle-orm";
 import type { RequestContext } from "../../common/context/request-context";
-import { NotFoundError } from "../../common/errors/domain-errors";
+import { NotFoundError, UnprocessableError } from "../../common/errors/domain-errors";
 import type { DbHandle, Tx } from "../../db/client";
 import { notificationPreference } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
@@ -13,14 +13,22 @@ export interface PreferenceKind {
   label: string;
   /** Email by default: who receives it until they choose (UI L44). */
   emailByDefault: (permissions: ReadonlySet<string>) => boolean;
+  /** Always sent, nobody can turn it off (UI L44 "Selalu dikirim"). */
+  locked?: boolean;
 }
 
-/** Kinds a user can choose about; in-app notifications are always on until L44 adds the rest. */
+/** Kinds shown in the user's choices; in-app notifications are always on until L44 adds the rest. */
 export const PREFERENCE_KINDS: readonly PreferenceKind[] = [
   {
     kind: "digest.daily",
     label: "Ringkasan operasional harian (email, pukul 07.00)",
     emailByDefault: (p) => p.has("report:read"),
+  },
+  {
+    kind: "store.connection_lost",
+    label: "Toko terputus lebih dari 15 menit (dalam aplikasi dan email)",
+    emailByDefault: (p) => p.has("settings:store"),
+    locked: true,
   },
 ];
 
@@ -38,23 +46,32 @@ const kindOf = (kind: string) => {
 export class NotificationPreferencesService {
   constructor(@Inject(DB_TENANT) private readonly db: DbHandle) {}
 
-  async list(ctx: RequestContext): Promise<{ kind: string; label: string; email: boolean; emailByDefault: boolean }[]> {
+  async list(
+    ctx: RequestContext,
+  ): Promise<{ kind: string; label: string; email: boolean; emailByDefault: boolean; locked: boolean }[]> {
     const rows = await withTenantTx(this.db, ctx, (tx) =>
       tx.select().from(notificationPreference).where(eq(notificationPreference.userId, ctx.actor.id)),
     );
-    return PREFERENCE_KINDS.map((k) => {
+    // an always-sent kind is shown to the people who get it
+    return PREFERENCE_KINDS.filter((k) => !k.locked || k.emailByDefault(ctx.permissions)).map((k) => {
       const byDefault = k.emailByDefault(ctx.permissions);
       return {
         kind: k.kind,
         label: k.label,
-        email: rows.find((r) => r.kind === k.kind)?.email ?? byDefault,
+        email: k.locked ? byDefault : (rows.find((r) => r.kind === k.kind)?.email ?? byDefault),
         emailByDefault: byDefault,
+        locked: k.locked === true,
       };
     });
   }
 
   async set(ctx: RequestContext, kind: string, choice: { email: boolean }): Promise<void> {
-    kindOf(kind);
+    if (kindOf(kind).locked) {
+      throw new UnprocessableError(
+        "notification_preference.locked",
+        "Notifikasi ini selalu dikirim dan tidak bisa dimatikan.",
+      );
+    }
     await withTenantTx(this.db, ctx, (tx) =>
       tx
         .insert(notificationPreference)

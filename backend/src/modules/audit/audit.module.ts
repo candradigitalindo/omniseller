@@ -1,13 +1,13 @@
 import { Controller, Get, Inject, Injectable, Module, Query } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { ulidSchema } from "@omniseller/shared";
-import { and, desc, eq, lt } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, or } from "drizzle-orm";
 import { createZodDto, ZodResponse } from "nestjs-zod";
 import { z } from "zod";
 import type { RequestContext } from "../../common/context/request-context";
 import { Ctx, Isolation, RequirePermission } from "../../common/http/decorators";
 import { decodeCursor, page, pageSchema, paginationQuery } from "../../common/http/pagination";
-import type { DbHandle } from "../../db/client";
+import type { DbHandle, Tx } from "../../db/client";
 import { auditLog } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
@@ -43,7 +43,34 @@ export class AuditService {
     );
     return page(rows, limit);
   }
+
+  /**
+   * Entries about any of these entities, newest first, in the caller's transaction: the history of a
+   * record that spans tables (a product and its variants, FR-PRD-11). `before` is an entry id.
+   */
+  async entriesIn(
+    tx: Tx,
+    targets: { entityType: string; entityIds: string[] }[],
+    before: string | undefined,
+    limit: number,
+  ): Promise<AuditRow[]> {
+    const wanted = targets.filter((t) => t.entityIds.length > 0);
+    if (wanted.length === 0) return [];
+    return tx
+      .select()
+      .from(auditLog)
+      .where(
+        and(
+          or(...wanted.map((t) => and(eq(auditLog.entityType, t.entityType), inArray(auditLog.entityId, t.entityIds)))),
+          before ? lt(auditLog.id, before) : undefined,
+        ),
+      )
+      .orderBy(desc(auditLog.id))
+      .limit(limit);
+  }
 }
+
+export type AuditRow = typeof auditLog.$inferSelect;
 
 const auditEntry = z.object({
   id: ulidSchema,

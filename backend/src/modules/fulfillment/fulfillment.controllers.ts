@@ -19,6 +19,7 @@ import {
   PickListDto,
   PickListRequestDto,
   pickListView,
+  RequestBarcodeLabelsDto,
   RequestDocumentDto,
   ShipmentListDto,
   shipmentView,
@@ -113,6 +114,16 @@ export class DocumentsController {
         packingList: body.packingList,
       }),
     );
+  }
+
+  /** FR-PRD-12: internal barcode labels of variants, on label stock or A4 sheets; rendered by the worker. */
+  @Post("documents/barcode-labels")
+  @HttpCode(202)
+  @RequirePermission("shipment:print")
+  @Isolation({ fixture: "variant" })
+  @ZodResponse({ type: DocumentDto, status: 202 })
+  async barcodeLabels(@Ctx() ctx: RequestContext, @Body() body: RequestBarcodeLabelsDto) {
+    return documentView(await this.fulfillment.requestBarcodeLabels(ctx, body.items, body.format));
   }
 
   @Get("documents/:id")

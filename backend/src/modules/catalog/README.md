@@ -1,7 +1,7 @@
 # Modul catalog
 
 ## Tanggung jawab
-Produk master dan variannya, listing marketplace, dan pemetaan keduanya (PRD 6.2: FR-PRD-01 sampai 04, 09, 10; bagian produk FR-INT-04; backend doc 8.12): CRUD produk dengan atribut varian, tarik listing dari Shopee dan Tokopedia & Shop, pemetaan otomatis per SKU, saran pemetaan, membuat produk dari listing, aktif dan nonaktif di marketplace, serta impor dan ekspor CSV.
+Produk master dan variannya, listing marketplace, dan pemetaan keduanya (PRD 6.2: FR-PRD-01 sampai 04, 09, 10, 11, 12; bagian produk FR-INT-04; backend doc 8.12, 8.23). Juga riwayat perubahan produk dan barcode: CRUD produk dengan atribut varian, tarik listing dari Shopee dan Tokopedia & Shop, pemetaan otomatis per SKU, saran pemetaan, membuat produk dari listing, aktif dan nonaktif di marketplace, serta impor dan ekspor CSV.
 
 ## Tabel yang dimiliki
 - `product`, `variant`, `product_image`, `bundle_component`, `channel_listing`. `listing_stock_state` milik modul inventory.
@@ -11,6 +11,8 @@ Produk master dan variannya, listing marketplace, dan pemetaan keduanya (PRD 6.2
 ## Service publik
 - `ProductsService` (api dan worker): `list`, `get`, `create`, `update` (`If-Match`), `remove`, `addVariant`, `updateVariant`; versi `...In(tx, ...)` untuk dipakai di transaksi lain (impor CSV, produk dari listing). Error: `product.not_found`, `variant.not_found`, `catalog.sku_taken`, `catalog.barcode_taken`, `product.has_listings`, `row.stale`, validasi atribut (422).
 - `ListingsService` (api dan worker): `list`, `get`, `unmappedWithSuggestions`, `map`, `autoMap`, `autoMapIn`, `createProductsFromListings`, `requestStatus`, `requestPull`. Error: `listing.not_found`, `listing.store_not_active`, `store.not_found`, varian tidak tersedia (422).
+- `ProductsService` untuk riwayat dan barcode (backend doc 8.23): `history` (dari `audit_log` lewat `AuditService.entriesIn`, nama pelaku lewat `UsersService`; entri dibentuk `product-history.ts`), `generateBarcodes` (EAN-13 internal awalan 20, nomor dari `document_sequence` jenis `barcode`), `lookup` (barcode persis, lalu SKU).
+- `ListingsService.deleteStoreListingsIn` (modul retention, toko diputus tanpa data).
 - `ProductTransferService` (api dan worker): `exportCsv`, `importCsv(ctx, content, dryRun)`, `exportSheets` (`produk.csv` ekspor data penuh, backend doc 8.18), `importRecordsIn(tx, ctx, records)`: baris templat produk di transaksi pemanggil, masalah dikembalikan per baris dan kolom (impor migrasi, 8.19).
 - Hanya worker: `ListingSyncService` (`pull`, `apply`, `refreshItems`, `pushStatus`); semua panggilan marketplace lewat `MarketplaceGateway.call`.
 - Untuk modul inventory, di dalam transaksinya: `ListingsService.mappedForVariantsIn`, `mappedInStoreIn`, `listingsByIdsIn`.
@@ -19,6 +21,8 @@ Produk master dan variannya, listing marketplace, dan pemetaan keduanya (PRD 6.2
 
 ## Aturan
 - SKU produk dan SKU varian unik per bisnis tanpa membedakan huruf besar dan spasi tepi (`lower(btrim(sku))`, indeks unik migrasi 0004), sama dengan aturan pencocokan listing. Barcode unik persis.
+- Barcode (`common/barcode.ts`, `barcodeProblem`): ASCII yang bisa dicetak tanpa spasi, paling banyak 48 karakter; angka sepanjang EAN-8, UPC-A, EAN-13, atau GTIN-14 harus punya check digit GS1 yang benar. Berlaku di API, impor CSV, dan impor migrasi; barcode lama tidak diubah.
+- Setiap perubahan kolom produk dan varian masuk `audit_log` (trigger `audit_change_trg`), jadi riwayat produk lengkap; penulisan yang hanya mengubah `updated_at` dan `row_version` tidak dicatat.
 - Produk punya maksimal tiga atribut. Setiap varian mengisi tepat semua atribut dengan nilai tidak kosong, dan kombinasinya unik per produk.
 - Upsert listing tidak pernah mengubah pemetaan. `variant_id`, `mapping_source`, dan `mapped_at` terisi bersama atau kosong bersama (CHECK).
 - Pemetaan otomatis hanya bila SKU listing cocok dengan tepat satu varian aktif. Pemetaan ke varian arsip ditolak.
@@ -49,6 +53,9 @@ Satu job `listing.pull` membaca maksimal 10 halaman (`PAGES_PER_JOB`). Tarikan i
 | POST, PATCH, DELETE | `/v1/products`, `/v1/products/{id}` | `catalog:write` |
 | POST, PATCH | `/v1/products/{id}/variants`, `/v1/products/{id}/variants/{variantId}` | `catalog:write` |
 | GET | `/v1/products/export` | `catalog:read` |
+| GET | `/v1/products/{id}/history` | `catalog:read` |
+| GET | `/v1/products/lookup?code=` | `catalog:read` |
+| POST | `/v1/products/barcodes` | `catalog:write` |
 | POST | `/v1/products/import` | `catalog:write` |
 | GET | `/v1/listings`, `/v1/listings/{id}` | `catalog:read` |
 | GET | `/v1/listings/unmapped` | `catalog:map` |
@@ -64,4 +71,4 @@ Kolom: `sku_produk`, `nama_produk`, `deskripsi`, `merek`, `kategori`, `sku_varia
 - Gambar disimpan sebagai URL (`product_image.source_url`) sampai pipeline berkas menyalinnya ke `file_object`.
 - Produk dari listing memakai SKU induk item, atau `SP-<item_id>` / `TTS-<item_id>`, dan berat 100 g bila marketplace tidak mengisi.
 - Template Excel (.xlsx) belum ada; CSV dengan BOM dan `;` dibuka Excel per kolom.
-- Menyusul: dorong harga (`listing.price_push`), salin listing antar toko (FR-PRD-11 sampai 13), bundle (`bundle_component`). Push stok ada di modul inventory.
+- Menyusul: dorong harga (`listing.price_push`), salin listing antar toko (FR-PRD-13), bundle (`bundle_component`). Push stok ada di modul inventory. Label barcode internal dicetak lewat dokumen modul fulfillment (`POST /v1/documents/barcode-labels`).

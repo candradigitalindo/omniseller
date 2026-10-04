@@ -10,6 +10,13 @@ import { CONNECTORS, type ConnectorRegistry } from "./connector-registry";
 import { CredentialService, revokedReason } from "./credential.service";
 import { StoresService } from "./stores.service";
 
+/**
+ * A failure that means the marketplace could not be reached or served the request for now (FR-INT-08),
+ * not one about the request itself, and not OmniSeller's own pacing (`local_rate_limit`).
+ */
+export const isOutage = (err: unknown): boolean =>
+  isConnectorError(err) && err.kind === "transient" && err.code !== "local_rate_limit";
+
 export type ShopCall<T> = (connector: MarketplaceConnector, shop: ShopCredentials, store: StoreRow) => Promise<T>;
 
 export interface CallOptions {
@@ -47,36 +54,46 @@ export class MarketplaceGateway {
     summarize?: (result: T) => Record<string, unknown>,
     options: CallOptions = {},
   ): Promise<T> {
-    return this.syncLog.run(
-      ctx,
-      { ...entry, storeId },
-      async () => {
-        let { store, shop } = await this.credentials.forShop(ctx, storeId);
-        const connector = this.connectors.get(store.channel);
-        const gate = {
-          limiter: this.limiter,
-          key: `mp:${connector.manifest.id}:${storeId}`,
-          rule: connector.manifest.shopRateLimit,
-          background: options.background === true,
-        };
-        return withRequestGate(gate, async () => {
-          try {
-            return await fn(connector, shop, store);
-          } catch (err) {
-            if (isConnectorError(err) && err.kind === "auth_expired") {
-              await this.credentials.refresh(ctx, storeId, { force: true });
-              ({ store, shop } = await this.credentials.forShop(ctx, storeId));
-              return await this.revokedGuard(ctx, storeId, () => fn(connector, shop, store));
+    // the store as the call found it: its outage state decides whether this outcome changes it
+    let seen: StoreRow | undefined;
+    try {
+      const result = await this.syncLog.run(
+        ctx,
+        { ...entry, storeId },
+        async () => {
+          let { store, shop } = await this.credentials.forShop(ctx, storeId);
+          seen = store;
+          const connector = this.connectors.get(store.channel);
+          const gate = {
+            limiter: this.limiter,
+            key: `mp:${connector.manifest.id}:${storeId}`,
+            rule: connector.manifest.shopRateLimit,
+            background: options.background === true,
+          };
+          return withRequestGate(gate, async () => {
+            try {
+              return await fn(connector, shop, store);
+            } catch (err) {
+              if (isConnectorError(err) && err.kind === "auth_expired") {
+                await this.credentials.refresh(ctx, storeId, { force: true });
+                ({ store, shop } = await this.credentials.forShop(ctx, storeId));
+                return await this.revokedGuard(ctx, storeId, () => fn(connector, shop, store));
+              }
+              if (isConnectorError(err) && err.kind === "auth_revoked") {
+                await this.stores.markReauthRequired(ctx, storeId, revokedReason(err.code));
+              }
+              throw err;
             }
-            if (isConnectorError(err) && err.kind === "auth_revoked") {
-              await this.stores.markReauthRequired(ctx, storeId, revokedReason(err.code));
-            }
-            throw err;
-          }
-        });
-      },
-      summarize,
-    );
+          });
+        },
+        summarize,
+      );
+      if (seen?.failingSince) await this.stores.noteCallWorked(ctx, storeId);
+      return result;
+    } catch (err) {
+      if (seen && !seen.failingSince && isOutage(err)) await this.stores.noteCallFailed(ctx, storeId);
+      throw err;
+    }
   }
 
   private async revokedGuard<T>(ctx: RequestContext, storeId: string, fn: () => Promise<T>): Promise<T> {

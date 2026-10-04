@@ -59,6 +59,8 @@ const preferenceSchema = z.object({
   email: z.boolean(),
   /** What applies while the user has not chosen. */
   emailByDefault: z.boolean(),
+  /** Always sent; the choice cannot be changed (L44 "Selalu dikirim"). */
+  locked: z.boolean(),
 });
 export class PreferenceListDto extends createZodDto(z.object({ items: z.array(preferenceSchema) })) {}
 export class PreferenceKindParamDto extends createZodDto(

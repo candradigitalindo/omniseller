@@ -29,6 +29,10 @@ import {
   CreateFromListingsResultDto,
   CreateProductDto,
   CreateVariantDto,
+  GenerateBarcodesDto,
+  GeneratedBarcodesDto,
+  HistoryQueryDto,
+  historyEntryView,
   ImportProductsDto,
   ImportSummaryDto,
   ListingDto,
@@ -41,10 +45,14 @@ import {
   listingView,
   MapListingDto,
   ProductDto,
+  ProductHistoryPageDto,
   ProductIdParamDto,
   ProductPageDto,
   ProductQueryDto,
   productView,
+  ScanLookupQueryDto,
+  ScanMatchDto,
+  scanMatchView,
   UnmappedPageDto,
   UnmappedQueryDto,
   UpdateProductDto,
@@ -109,6 +117,33 @@ export class ProductsController {
     return productView(await this.products.create(ctx, body));
   }
 
+  /** FR-PRD-12: an internal EAN-13 (prefix 20) for each variant without a barcode; others keep theirs. */
+  @Post("barcodes")
+  @HttpCode(200)
+  @RequirePermission("catalog:write")
+  @Isolation({ fixture: "variant" })
+  @ZodResponse({ type: GeneratedBarcodesDto })
+  async generateBarcodes(@Ctx() ctx: RequestContext, @Body() body: GenerateBarcodesDto) {
+    const done = await this.products.generateBarcodes(ctx, body.variantIds);
+    return {
+      items: done.map((d) => ({
+        variantId: d.variant.id,
+        sku: d.variant.sku,
+        barcode: d.variant.barcode!,
+        generated: d.generated,
+      })),
+    };
+  }
+
+  /** FR-PRD-12: the variant behind a scanned code, by barcode or else SKU. */
+  @Get("lookup")
+  @RequirePermission("catalog:read")
+  @Isolation("self")
+  @ZodResponse({ type: ScanMatchDto })
+  async lookup(@Ctx() ctx: RequestContext, @Query() q: ScanLookupQueryDto) {
+    return scanMatchView(await this.products.lookup(ctx, q.code));
+  }
+
   @Get(":id")
   @RequirePermission("catalog:read")
   @Isolation({ fixture: "product" })
@@ -117,6 +152,16 @@ export class ProductsController {
     const view = await this.products.get(ctx, p.id);
     res.setHeader("ETag", `"${view.product.rowVersion}"`);
     return productView(view);
+  }
+
+  /** FR-PRD-11: who changed the product or its variants, what, and when; newest first. */
+  @Get(":id/history")
+  @RequirePermission("catalog:read")
+  @Isolation({ fixture: "product" })
+  @ZodResponse({ type: ProductHistoryPageDto })
+  async history(@Ctx() ctx: RequestContext, @Param() p: ProductIdParamDto, @Query() q: HistoryQueryDto) {
+    const page = await this.products.history(ctx, p.id, decodeCursor(q.cursor), q.limit);
+    return { items: page.items.map(historyEntryView), next_cursor: page.next ? encodeCursor(page.next) : null };
   }
 
   @Patch(":id")

@@ -7,7 +7,7 @@ Berkas privat (backend doc 8.15, 8.18, DOKUMEN-TEKNOLOGI 13): label pengiriman, 
 - `file_object`.
 
 ## Service publik
-- `FilesService` (api dan worker): `save` (unggah lalu catat), `saveFile` (sama, untuk berkas besar di disk yang dialirkan ke penyimpanan), `read`, `download` (tautan bertanda tangan atau berkasnya; nama berkas dan `inline` atau `attachment` bisa diatur), `cleanupExpired`.
+- `FilesService` (api dan worker): `save` (unggah lalu catat), `saveFile` (sama, untuk berkas besar di disk yang dialirkan ke penyimpanan), `read`, `download` (tautan bertanda tangan atau berkasnya; nama berkas dan `inline` atau `attachment` bisa diatur), `cleanupExpired`, `expireIn(tx, ids)` (berkas kedaluwarsa saat itu juga di transaksi pemanggil; job per jam menghapusnya: label dan dokumen pesanan dari toko yang datanya dihapus, backend doc 8.23).
 - `FileStorage` (`FILE_STORAGE`): `R2FileStorage` (S3 API, path-style, tautan GET 10 menit) atau `LocalFileStorage` (hanya `local` dan `test`); `put` (byte) dan `putFile` (stream dari disk).
 
 ## Aturan

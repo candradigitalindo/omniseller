@@ -74,6 +74,11 @@ export class ListingsService {
     @Inject(OUTBOX) private readonly outbox: Outbox,
   ) {}
 
+  /** FR-INT-07, in the caller's transaction: up to `limit` listings of a store whose data is deleted. */
+  deleteStoreListingsIn(tx: Tx, storeId: string, limit: number): Promise<number> {
+    return this.repo.deleteStoreListings(tx, storeId, limit);
+  }
+
   private async storeIndex(ctx: RequestContext) {
     const views = await this.stores.list(ctx);
     return new Map(views.map((v) => [v.store.id, v.store]));

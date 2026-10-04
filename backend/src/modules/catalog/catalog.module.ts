@@ -1,5 +1,7 @@
 import { Module } from "@nestjs/common";
+import { AuditModule } from "../audit/audit.module";
 import { ChannelModule } from "../channel/channel.module";
+import { IdentityModule } from "../identity/identity.module";
 import { SyncModule } from "../sync/sync.module";
 import { ListingsController, ProductsController } from "./catalog.controllers";
 import { CatalogRepository } from "./catalog.repository";
@@ -11,7 +13,7 @@ import { ProductsService } from "./products.service";
 const SERVICES = [CatalogRepository, ProductsService, ListingsService, ProductTransferService];
 
 /** Services shared by api and worker. */
-@Module({ imports: [ChannelModule], providers: SERVICES, exports: SERVICES })
+@Module({ imports: [ChannelModule, AuditModule, IdentityModule], providers: SERVICES, exports: SERVICES })
 export class CatalogModule {}
 
 /** Worker only: listing pulls, item refreshes, status pushes (uses the global ChannelWorkerModule). */

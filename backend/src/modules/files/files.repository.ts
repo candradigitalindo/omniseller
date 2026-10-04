@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { and, asc, eq, inArray, isNotNull, lte } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNotNull, isNull, lte, or } from "drizzle-orm";
 import type { Tx } from "../../db/client";
 import { fileObject } from "../../db/schema";
 
@@ -24,6 +24,15 @@ export class FilesRepository {
       .where(and(isNotNull(fileObject.expiresAt), lte(fileObject.expiresAt, now)))
       .orderBy(asc(fileObject.expiresAt))
       .limit(limit);
+  }
+
+  /** Brings the expiry of these files forward to `now` (never later than it already is). */
+  async expire(tx: Tx, ids: string[], now: Date): Promise<void> {
+    if (ids.length === 0) return;
+    await tx
+      .update(fileObject)
+      .set({ expiresAt: now })
+      .where(and(inArray(fileObject.id, ids), or(isNull(fileObject.expiresAt), gt(fileObject.expiresAt, now))));
   }
 
   async delete(tx: Tx, ids: string[]): Promise<void> {

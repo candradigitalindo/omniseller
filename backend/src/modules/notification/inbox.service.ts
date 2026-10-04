@@ -4,9 +4,11 @@ import type { RequestContext } from "../../common/context/request-context";
 import type { DbHandle, Tx } from "../../db/client";
 import type { NotificationSeverity } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
-import { DB_TENANT } from "../../infra/tokens";
+import { DB_TENANT, OUTBOX } from "../../infra/tokens";
+import type { Outbox } from "../../outbox/outbox";
 import { UsersService } from "../identity/users.service";
 import { InboxRepository, type NotificationRow } from "./inbox.repository";
+import { notificationEmailRequested } from "./notification.events";
 
 /** What a notification is about, for the recipient's store and warehouse scope; undefined = not limited. */
 export interface ScopedItem {
@@ -50,13 +52,24 @@ export class NotificationInboxService {
     @Inject(DB_TENANT) private readonly db: DbHandle,
     @Inject(InboxRepository) private readonly repo: InboxRepository,
     @Inject(UsersService) private readonly users: UsersService,
+    @Inject(OUTBOX) private readonly outbox: Outbox,
   ) {}
 
-  async notifyIn(tx: Tx, ctx: RequestContext, notifications: NewNotification[]): Promise<void> {
+  /**
+   * Writes the notifications in the caller's transaction. With `email`, each is also sent to its
+   * recipient by email by the job `notification.email`; for kinds that always go out (L44).
+   */
+  async notifyIn(
+    tx: Tx,
+    ctx: RequestContext,
+    notifications: NewNotification[],
+    opts: { email?: boolean } = {},
+  ): Promise<void> {
+    const rows = notifications.map((n) => ({ ...n, id: newId() }));
     await this.repo.insertMany(
       tx,
-      notifications.map((n) => ({
-        id: newId(),
+      rows.map((n) => ({
+        id: n.id,
         tenantId: ctx.tenantId,
         userId: n.userId,
         kind: n.kind,
@@ -67,6 +80,10 @@ export class NotificationInboxService {
         channelsSent: { in_app: true },
       })),
     );
+    if (opts.email) {
+      for (const r of rows)
+        await this.outbox.enqueue(tx, ctx, notificationEmailRequested, { notificationId: r.id }, r.id);
+    }
   }
 
   /**
@@ -79,6 +96,7 @@ export class NotificationInboxService {
     permission: Permission,
     items: T[],
     build: (theirs: T[]) => Omit<NewNotification, "userId"> | null,
+    opts: { email?: boolean } = {},
   ): Promise<number> {
     if (items.length === 0) return 0;
     const notes: NewNotification[] = [];
@@ -88,7 +106,7 @@ export class NotificationInboxService {
       const n = build(theirs);
       if (n) notes.push({ ...n, userId: r.id });
     }
-    await this.notifyIn(tx, ctx, notes);
+    await this.notifyIn(tx, ctx, notes, opts);
     return notes.length;
   }
 

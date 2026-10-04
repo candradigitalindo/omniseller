@@ -1,10 +1,11 @@
 import { ulidSchema } from "@omniseller/shared";
 import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
+import { barcodeProblem } from "../../common/barcode";
 import { pageSchema, paginationQuery } from "../../common/http/pagination";
 import type { ListingChannelData, ListingView, SuggestionView } from "./listings.service";
 import { dataOf } from "./listings.service";
-import { MAX_ATTRIBUTES, type ProductView } from "./products.service";
+import { MAX_ATTRIBUTES, type ProductHistoryEntry, type ProductView, type ScanMatch } from "./products.service";
 
 /** Request and response DTOs of the catalog endpoints (backend doc 10.6). */
 
@@ -21,12 +22,20 @@ const httpsUrl = z
   .max(2000)
   .regex(/^https:\/\//, "Gunakan URL https.");
 const mm = z.number().int().min(1).max(100_000).nullable().optional();
+/** FR-PRD-12: what a scanner can read back; "" clears it (`barcodeProblem`). */
+const barcode = z
+  .string()
+  .trim()
+  .superRefine((v, c) => {
+    const problem = v ? barcodeProblem(v) : null;
+    if (problem) c.addIssue({ code: "custom", message: problem });
+  });
 
 const variantInput = z.object({
   sku,
   name: z.string().trim().min(1).max(255).optional(),
   attributes: z.record(z.string().trim().min(1).max(30), z.string().trim().min(1).max(60)).optional(),
-  barcode: z.string().trim().max(64).nullable().optional(),
+  barcode: barcode.nullable().optional(),
   basePrice: rupiah,
   costPrice: rupiah.optional(),
   weightG: z.number().int().min(1).max(1_000_000),
@@ -159,6 +168,84 @@ export function productView(v: ProductView): z.infer<typeof productSchema> {
     updatedAt: p.updatedAt.toISOString(),
   };
 }
+
+// ---- history and barcodes (FR-PRD-11, 12) ----
+
+const historyEntrySchema = z.object({
+  id: ulidSchema,
+  at: z.iso.datetime(),
+  actor: z.object({
+    type: z.enum(["user", "system", "api_key", "device"]),
+    id: z.string().nullable(),
+    name: z.string().nullable().describe("nama pengguna; null untuk sistem, impor, atau pengguna yang sudah dihapus"),
+  }),
+  action: z.enum(["created", "updated", "deleted", "restored"]),
+  target: z.object({
+    type: z.enum(["product", "variant"]),
+    id: ulidSchema,
+    sku: z.string().nullable(),
+    name: z.string().nullable(),
+  }),
+  changes: z.array(
+    z.object({
+      field: z.string().describe("nama field di API, misalnya basePrice"),
+      label: z.string(),
+      before: z.unknown(),
+      after: z.unknown(),
+    }),
+  ),
+});
+export class ProductHistoryPageDto extends createZodDto(pageSchema(historyEntrySchema)) {}
+export class HistoryQueryDto extends createZodDto(paginationQuery) {}
+export const historyEntryView = (e: ProductHistoryEntry): z.infer<typeof historyEntrySchema> => ({
+  id: e.id,
+  at: e.at.toISOString(),
+  actor: { type: e.actor.type as "user", id: e.actor.id, name: e.actorName },
+  action: e.action,
+  target: e.target,
+  changes: e.changes,
+});
+
+export class GenerateBarcodesDto extends createZodDto(z.object({ variantIds: z.array(ulidSchema).min(1).max(500) })) {}
+export class GeneratedBarcodesDto extends createZodDto(
+  z.object({
+    items: z.array(
+      z.object({
+        variantId: ulidSchema,
+        sku: z.string(),
+        barcode: z.string(),
+        generated: z.boolean().describe("false: varian sudah punya barcode dan tidak diubah"),
+      }),
+    ),
+  }),
+) {}
+
+export class ScanLookupQueryDto extends createZodDto(
+  z.object({ code: z.string().trim().min(1).max(100).describe("isi barcode yang dipindai, atau SKU") }),
+) {}
+const scanMatchSchema = z.object({
+  matchedBy: z.enum(["barcode", "sku"]),
+  variant: z.object({
+    id: ulidSchema,
+    sku: z.string(),
+    name: z.string(),
+    barcode: z.string().nullable(),
+    status: z.enum(["active", "archived"]),
+  }),
+  product: z.object({ id: ulidSchema, sku: z.string(), name: z.string() }),
+});
+export class ScanMatchDto extends createZodDto(scanMatchSchema) {}
+export const scanMatchView = (m: ScanMatch): z.infer<typeof scanMatchSchema> => ({
+  matchedBy: m.matchedBy,
+  variant: {
+    id: m.variant.id,
+    sku: m.variant.sku,
+    name: m.variant.name,
+    barcode: m.variant.barcode,
+    status: m.variant.status,
+  },
+  product: { id: m.product.id, sku: m.product.sku, name: m.product.name },
+});
 
 // ---- listings ----
 

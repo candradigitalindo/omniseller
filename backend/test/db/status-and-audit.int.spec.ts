@@ -167,23 +167,30 @@ describe("audit (backend doc 7.7)", () => {
     expect(rows[0]).toMatchObject({ actor_type: "user", actor_id: t.ctx.actor.id, request_id: t.ctx.requestId });
   });
 
-  it("does not audit sync-only columns, and the log cannot be changed", async () => {
+  it("audits every product column a person changes, not writes that change nothing, and the log cannot be changed", async () => {
     const t = await createTenant(h.api);
     const variantId = await withTenantTx(
       h.api,
       t.ctx,
       async (tx) => (await createProductWithVariant(tx, t.tenantId)).variantId,
     );
+    const updates = () =>
+      withTenantTx(h.api, t.ctx, async (tx) =>
+        Number(
+          (await tx.execute<{ n: number }>(sql`SELECT count(*)::int AS n FROM audit_log WHERE action = 'update'`))
+            .rows[0]!.n,
+        ),
+      );
+    // only the columns every write touches (touch_row): nothing to tell
+    await withTenantTx(h.api, t.ctx, (tx) =>
+      tx.execute(sql`UPDATE variant SET updated_at = now() WHERE id = ${variantId}`),
+    );
+    expect(await updates()).toBe(0);
+    // the product history shows weight changes too (FR-PRD-11)
     await withTenantTx(h.api, t.ctx, (tx) =>
       tx.execute(sql`UPDATE variant SET weight_g = 250 WHERE id = ${variantId}`),
     );
-    const count = await withTenantTx(h.api, t.ctx, async (tx) =>
-      Number(
-        (await tx.execute<{ n: number }>(sql`SELECT count(*)::int AS n FROM audit_log WHERE action = 'update'`))
-          .rows[0]!.n,
-      ),
-    );
-    expect(count).toBe(0);
+    expect(await updates()).toBe(1);
     const system = await h.raw("system");
     await expect(system.query("DELETE FROM audit_log WHERE tenant_id = $1", [t.tenantId])).rejects.toMatchObject({
       message: "AUDIT_LOG_IMMUTABLE",

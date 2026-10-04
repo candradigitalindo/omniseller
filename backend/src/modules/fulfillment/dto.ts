@@ -5,7 +5,7 @@ import { TRACKING_STAGES } from "../../db/schema";
 import type { DocumentRow } from "./fulfillment.repository";
 import type { ShipmentView, TrackingView } from "./fulfillment.service";
 import type { PickListSection } from "./pick-list.builder";
-import { type LabelTemplateOptions, TRACKING_STAGE_LABELS } from "./shipping-plan";
+import { BARCODE_LABEL_FORMATS, type LabelTemplateOptions, TRACKING_STAGE_LABELS } from "./shipping-plan";
 
 /** Request and response DTOs of the fulfillment endpoints (backend doc 10.6). */
 
@@ -13,6 +13,8 @@ const iso = z.iso.datetime();
 const METHODS = ["pickup", "dropoff"] as const;
 const FORMATS = ["thermal", "a4"] as const;
 const KINDS = ["labels", "pick_list", "packing_list"] as const;
+/** Every document kind, barcode labels included (requested at /v1/documents/barcode-labels). */
+const ALL_KINDS = [...KINDS, "barcode_labels"] as const;
 const TEMPLATES = ["standard", "custom"] as const;
 
 export class ArrangeShipmentsDto extends createZodDto(
@@ -188,13 +190,21 @@ export class RequestDocumentDto extends createZodDto(
   }),
 ) {}
 
-const missingSchema = z.object({ orderId: ulidSchema, code: z.string(), message: z.string() });
+/** Pick lists: the orders left out and why. */
+const orderMissingSchema = z.object({ orderId: ulidSchema, code: z.string(), message: z.string() });
+const missingSchema = z.object({
+  orderId: ulidSchema.nullable().describe("pesanan yang tertinggal; null untuk label barcode"),
+  variantId: ulidSchema.nullable().describe("label barcode: varian yang tertinggal"),
+  code: z.string(),
+  message: z.string(),
+});
 
 const documentSchema = z.object({
   id: ulidSchema,
-  kind: z.enum(KINDS),
+  kind: z.enum(ALL_KINDS),
   status: z.enum(DOCUMENT_JOB_STATUSES),
   format: z.enum(FORMATS).nullable(),
+  labelFormat: z.enum(BARCODE_LABEL_FORMATS).nullable().describe("label barcode: ukuran label"),
   template: z.enum(TEMPLATES).nullable(),
   packingList: z.boolean(),
   orderCount: z.number().int(),
@@ -204,6 +214,8 @@ const documentSchema = z.object({
     orders: z.number().int().optional(),
     labels: z.number().int().optional(),
     missing: z.array(missingSchema),
+    /** Barcode labels whose bars came out denser than two printer dots: use an EAN or a bigger label. */
+    dense: z.array(ulidSchema),
   }),
   error: z.string().nullable(),
   /** GET this path for the PDF once the document is ready. */
@@ -221,7 +233,8 @@ export function documentView(d: DocumentRow): z.infer<typeof documentSchema> {
     id: d.id,
     kind: d.kind,
     status: d.status,
-    format: d.kind === "pick_list" ? null : (d.params.format ?? "thermal"),
+    format: d.kind === "pick_list" || d.kind === "barcode_labels" ? null : (d.params.format ?? "thermal"),
+    labelFormat: d.kind === "barcode_labels" ? (d.params.labelFormat ?? "label_50x30") : null,
     template: d.kind === "labels" ? (d.params.template ?? "standard") : null,
     packingList: d.kind === "labels" ? (d.params.packingList ?? false) : false,
     orderCount: d.params.orderIds.length,
@@ -229,7 +242,13 @@ export function documentView(d: DocumentRow): z.infer<typeof documentSchema> {
     result: {
       ...(d.result.orders !== undefined ? { orders: d.result.orders } : {}),
       ...(d.result.labels !== undefined ? { labels: d.result.labels } : {}),
-      missing: d.result.missing ?? [],
+      missing: (d.result.missing ?? []).map((m) => ({
+        orderId: m.orderId ?? null,
+        variantId: m.variantId ?? null,
+        code: m.code,
+        message: m.message,
+      })),
+      dense: d.result.dense ?? [],
     },
     error: d.error,
     downloadUrl: d.status === "ready" && d.fileObjectId ? `/v1/files/${d.fileObjectId}/download` : null,
@@ -239,6 +258,25 @@ export function documentView(d: DocumentRow): z.infer<typeof documentSchema> {
 }
 
 export class PickListRequestDto extends createZodDto(z.object({ orderIds: z.array(ulidSchema).min(1).max(1000) })) {}
+
+/** FR-PRD-12: labels with each variant's barcode (or SKU), `copies` of each, at most 2,000 labels. */
+export class RequestBarcodeLabelsDto extends createZodDto(
+  z.object({
+    items: z
+      .array(z.object({ variantId: ulidSchema, copies: z.number().int().min(1).max(500).default(1) }))
+      .min(1)
+      .max(500)
+      .refine((items) => items.reduce((n, i) => n + i.copies, 0) <= 2000, {
+        message: "Paling banyak 2.000 label per dokumen.",
+      }),
+    format: z
+      .enum(BARCODE_LABEL_FORMATS)
+      .default("label_50x30")
+      .describe(
+        "label_50x30 dan label_40x30: satu label per halaman untuk printer barcode; a4_3x10: 30 label per lembar A4",
+      ),
+  }),
+) {}
 
 const pickListSchema = z.object({
   sections: z.array(
@@ -260,12 +298,12 @@ const pickListSchema = z.object({
       ),
     }),
   ),
-  missing: z.array(missingSchema),
+  missing: z.array(orderMissingSchema),
 });
 
 export class PickListDto extends createZodDto(pickListSchema) {}
 
-export function pickListView(p: { sections: PickListSection[]; missing: z.infer<typeof missingSchema>[] }) {
+export function pickListView(p: { sections: PickListSection[]; missing: z.infer<typeof orderMissingSchema>[] }) {
   return {
     sections: p.sections.map((s) => ({
       warehouseId: s.warehouseId,

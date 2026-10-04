@@ -2,7 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import type { CallRecord } from "@omniseller/connector-core";
 import { newId } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
-import type { DbHandle } from "../../db/client";
+import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
 import { describeSyncError, recordConnectorCalls } from "./connector-calls";
@@ -86,6 +86,11 @@ export class SyncLogService {
         errorMessage: reason,
       }),
     );
+  }
+
+  /** FR-INT-07, in the caller's transaction: up to `limit` sync log entries of a store whose data is deleted. */
+  deleteStoreLogIn(tx: Tx, storeId: string, limit: number): Promise<number> {
+    return this.repo.deleteStoreSyncJobs(tx, storeId, limit);
   }
 
   async list(ctx: RequestContext, storeId: string, before: string | undefined, limit: number): Promise<SyncJobRow[]> {

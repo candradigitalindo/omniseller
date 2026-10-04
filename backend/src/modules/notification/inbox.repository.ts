@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { and, count, desc, eq, inArray, isNull, lt, or } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import type { Tx } from "../../db/client";
 import { notification } from "../../db/schema";
 
@@ -12,6 +12,21 @@ const mine = (userId: string) => or(eq(notification.userId, userId), isNull(noti
 export class InboxRepository {
   async insertMany(tx: Tx, rows: (typeof notification.$inferInsert)[]): Promise<void> {
     if (rows.length > 0) await tx.insert(notification).values(rows);
+  }
+
+  async get(tx: Tx, id: string): Promise<NotificationRow | undefined> {
+    const [row] = await tx.select().from(notification).where(eq(notification.id, id));
+    return row;
+  }
+
+  /** Records that a notification also went out through another channel (`email`), and when. */
+  async markSent(tx: Tx, id: string, channel: "email", at: Date): Promise<void> {
+    await tx
+      .update(notification)
+      .set({
+        channelsSent: sql`${notification.channelsSent} || ${JSON.stringify({ [channel]: at.toISOString() })}::jsonb`,
+      })
+      .where(eq(notification.id, id));
   }
 
   async list(tx: Tx, userId: string, unreadOnly: boolean, before: string | undefined, limit: number) {

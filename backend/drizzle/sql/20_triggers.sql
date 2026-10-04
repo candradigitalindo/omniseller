@@ -40,15 +40,18 @@ SELECT ensure_trigger('inventory', 'inventory_guard_trg',
 -- Audit on sensitive tables (backend doc 7.7). Frequently synced tables audit only the columns that matter.
 SELECT ensure_trigger('variant', 'audit_insdel_trg',
   'CREATE TRIGGER audit_insdel_trg AFTER INSERT OR DELETE ON variant FOR EACH ROW EXECUTE FUNCTION audit_row()');
-SELECT ensure_trigger('variant', 'audit_upd_trg',
-  'CREATE TRIGGER audit_upd_trg AFTER UPDATE ON variant FOR EACH ROW
-     WHEN ((OLD.cost_price, OLD.base_price, OLD.status) IS DISTINCT FROM (NEW.cost_price, NEW.base_price, NEW.status))
+-- Products and variants: every change of a column, not only prices and status, because the product
+-- history (FR-PRD-11, backend doc 8.23) shows who changed what. Writes that only bump updated_at and
+-- row_version are left out. Migration 0013 dropped the narrower audit_upd_trg these replace.
+SELECT ensure_trigger('variant', 'audit_change_trg',
+  'CREATE TRIGGER audit_change_trg AFTER UPDATE ON variant FOR EACH ROW
+     WHEN ((to_jsonb(OLD) - ''updated_at'' - ''row_version'') IS DISTINCT FROM (to_jsonb(NEW) - ''updated_at'' - ''row_version''))
      EXECUTE FUNCTION audit_row()');
 SELECT ensure_trigger('product', 'audit_insdel_trg',
   'CREATE TRIGGER audit_insdel_trg AFTER INSERT OR DELETE ON product FOR EACH ROW EXECUTE FUNCTION audit_row()');
-SELECT ensure_trigger('product', 'audit_upd_trg',
-  'CREATE TRIGGER audit_upd_trg AFTER UPDATE ON product FOR EACH ROW
-     WHEN ((OLD.name, OLD.sku, OLD.status, OLD.deleted_at) IS DISTINCT FROM (NEW.name, NEW.sku, NEW.status, NEW.deleted_at))
+SELECT ensure_trigger('product', 'audit_change_trg',
+  'CREATE TRIGGER audit_change_trg AFTER UPDATE ON product FOR EACH ROW
+     WHEN ((to_jsonb(OLD) - ''updated_at'' - ''row_version'') IS DISTINCT FROM (to_jsonb(NEW) - ''updated_at'' - ''row_version''))
      EXECUTE FUNCTION audit_row()');
 SELECT ensure_trigger('channel_listing', 'audit_insdel_trg',
   'CREATE TRIGGER audit_insdel_trg AFTER INSERT OR DELETE ON channel_listing FOR EACH ROW EXECUTE FUNCTION audit_row()');

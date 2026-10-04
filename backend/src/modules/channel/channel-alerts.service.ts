@@ -7,6 +7,17 @@ import { NotificationInboxService } from "../notification/inbox.service";
 import { ChannelRepository } from "./channel.repository";
 import { channelDisplayName, statusMessage } from "./stores.service";
 
+/** FR-INT-08: a connection counts as lost once it has been down this long. */
+export const CONNECTION_GRACE_MS = 15 * 60_000;
+
+/** "15 menit lalu", "2 jam lalu": when an outage began, without the reader's time zone. */
+export function minutesAgo(since: Date, now: Date): string {
+  const minutes = Math.max(1, Math.round((now.getTime() - since.getTime()) / 60_000));
+  if (minutes < 120) return `${minutes} menit lalu`;
+  const hours = Math.round(minutes / 60);
+  return hours < 48 ? `${hours} jam lalu` : `${Math.round(hours / 24)} hari lalu`;
+}
+
 const date = new Intl.DateTimeFormat("id-ID", {
   timeZone: "Asia/Jakarta",
   day: "numeric",
@@ -76,6 +87,60 @@ export class ChannelAlertsService {
         body: `${channelDisplayName(store.channel)} ${store.name}: ${what}. ${todo}`,
         data: { storeId, added, removed, unmapped: unmapped.length, channel: store.channel },
       }));
+    });
+  }
+
+  /**
+   * FR-INT-08: a store's connection down for more than 15 minutes is announced once to the people who
+   * manage it, in-app and by email (always sent, L44): its authorization is gone (reconnect), or its
+   * marketplace cannot be reached (OmniSeller keeps trying). When it works again they get an in-app
+   * notice. Runs from the scheduler's `store.connection_scan`; rows are locked, so two runs never
+   * announce the same outage twice.
+   */
+  async checkConnections(ctx: RequestContext, now = new Date()): Promise<{ lost: number; restored: number }> {
+    return withTenantTx(this.db, ctx, async (tx) => {
+      const out = { lost: 0, restored: 0 };
+      for (const store of await this.repo.connectionChangesIn(tx, new Date(now.getTime() - CONNECTION_GRACE_MS))) {
+        const channel = channelDisplayName(store.channel);
+        if (!store.connectionAlertAt) {
+          const reauth = store.status === "reauth_required";
+          const since = reauth ? store.statusChangedAt : store.failingSince!;
+          await this.inbox.notifyScopedIn(
+            tx,
+            ctx,
+            "settings:store",
+            [{ storeId: store.id }],
+            () => ({
+              kind: "store.connection_lost",
+              severity: "critical",
+              title: `${store.name} terputus dari ${channel}`,
+              body: reauth
+                ? `${statusMessage(store.statusReason) ?? "Izin toko di marketplace berakhir."} Sejak ${minutesAgo(since, now)}, pesanan dan stok toko ini tidak tersinkron. Hubungkan ulang toko di menu Toko.`
+                : `OmniSeller tidak bisa menghubungi ${channel} untuk toko ini sejak ${minutesAgo(since, now)}. Pesanan dan stok toko ini tertunda; OmniSeller terus mencoba dan memberi tahu saat koneksi pulih.`,
+              data: {
+                storeId: store.id,
+                channel: store.channel,
+                cause: reauth ? "authorization" : "unreachable",
+                since: since.toISOString(),
+              },
+            }),
+            { email: true },
+          );
+          await this.repo.updateStore(tx, store.id, { connectionAlertAt: now });
+          out.lost++;
+        } else {
+          await this.inbox.notifyScopedIn(tx, ctx, "settings:store", [{ storeId: store.id }], () => ({
+            kind: "store.connection_restored",
+            severity: "info",
+            title: `${store.name} tersambung lagi`,
+            body: `Koneksi ke ${channel} pulih. Pesanan dan stok toko ini kembali tersinkron.`,
+            data: { storeId: store.id, channel: store.channel },
+          }));
+          await this.repo.updateStore(tx, store.id, { connectionAlertAt: null });
+          out.restored++;
+        }
+      }
+      return out;
     });
   }
 

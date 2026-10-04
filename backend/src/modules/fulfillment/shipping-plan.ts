@@ -259,6 +259,47 @@ export function fitInto(src: { width: number; height: number }, box: Box): { x: 
   };
 }
 
+// ---- barcode labels (FR-PRD-12) ----
+
+export const BARCODE_LABEL_FORMATS = ["label_50x30", "label_40x30", "a4_3x10"] as const;
+export type BarcodeLabelFormat = (typeof BARCODE_LABEL_FORMATS)[number];
+
+/**
+ * Pages of a barcode label document and the label boxes on each, in printing order: one label per page
+ * on label stock for barcode printers (50 x 30 or 40 x 30 mm), or 3 x 10 labels of 70 x 29.7 mm on A4.
+ */
+export function barcodeLabelLayout(format: BarcodeLabelFormat): {
+  page: { width: number; height: number };
+  cells: Box[];
+} {
+  if (format === "a4_3x10") {
+    const width = A4_PAGE.width / 3;
+    const height = A4_PAGE.height / 10;
+    const cells: Box[] = [];
+    for (let row = 0; row < 10; row++) {
+      for (let col = 0; col < 3; col++)
+        cells.push({ x: col * width, y: A4_PAGE.height - (row + 1) * height, width, height });
+    }
+    return { page: A4_PAGE, cells };
+  }
+  const page = format === "label_50x30" ? { width: 50 * MM, height: 30 * MM } : { width: 40 * MM, height: 30 * MM };
+  return { page, cells: [{ x: 0, y: 0, ...page }] };
+}
+
+/** One dot of a 203 dpi thermal printer, the common barcode printer, in points. */
+export const PRINTER_DOT = 72 / 203;
+
+/**
+ * Width of one bar module so that `modules` (quiet zones included) fit in `available` points. Modules are
+ * whole printer dots, so every bar prints with the same width; under two dots the bars are dense and
+ * cheap scanners may not read them. Narrower than one dot, the symbol is squeezed to fit.
+ */
+export function moduleWidth(modules: number, available: number): { module: number; dense: boolean } {
+  const dots = Math.floor(available / modules / PRINTER_DOT);
+  if (dots >= 1) return { module: dots * PRINTER_DOT, dense: dots < 2 };
+  return { module: available / modules, dense: true };
+}
+
 /** Height of the custom template's strip under a label (FR-SHP-16), at most 30% of the label's box. */
 export const STRIP_HEIGHT = 30 * MM;
 

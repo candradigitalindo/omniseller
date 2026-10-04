@@ -14,6 +14,7 @@ import type { JobRegistry } from "../jobs/registry";
 export const TOKEN_REFRESH_SLOT_MS = 15 * 60_000;
 export const WAREHOUSE_POLL_SLOT_MS = 6 * 3600_000;
 export const ORDER_POLL_SLOT_MS = 5 * 60_000;
+export const CONNECTION_SCAN_MS = 5 * 60_000;
 /** Pushes for shops OmniSeller does not know are kept this long, in case the shop is being connected. */
 const UNKNOWN_SHOP_GRACE = "15 minutes";
 
@@ -181,6 +182,45 @@ export async function scanWarehousePolls(
       "listing.pull",
       { ...payload, mode: "incremental" },
       jobKey("listing.pull", r.store_id, slot),
+    );
+  }
+  return rows.length;
+}
+
+/**
+ * `store.connection_scan` (every 5 min, FR-INT-08): tenants with a store whose connection has been down
+ * for more than 15 minutes without an announcement (authorization lost, or marketplace calls failing),
+ * or whose announced outage is over, get a `store.connection_check` job; one id per tenant per slot.
+ */
+export async function scanConnectionAlerts(
+  system: DbHandle,
+  queues: QueueRegistry,
+  registry: JobRegistry,
+  now = new Date(),
+) {
+  const rows = await withSystemTx(system, async (tx) => {
+    const r = await tx.execute<{ tenant_id: string }>(sql`
+      SELECT DISTINCT s.tenant_id
+        FROM store s
+       WHERE s.channel <> 'manual' AND s.status <> 'disconnected'
+         AND ((s.connection_alert_at IS NULL
+               AND ((s.status = 'reauth_required' AND s.status_changed_at <= ${now}::timestamptz - interval '15 minutes')
+                    OR (s.status IN ('active', 'token_expiring')
+                        AND s.failing_since <= ${now}::timestamptz - interval '15 minutes')))
+           OR (s.connection_alert_at IS NOT NULL AND s.status IN ('active', 'token_expiring')
+               AND s.failing_since IS NULL))
+       LIMIT 2000`);
+    return r.rows;
+  });
+  const slot = `k${Math.floor(now.getTime() / CONNECTION_SCAN_MS)}`;
+  for (const r of rows) {
+    await add(
+      queues,
+      registry,
+      "notify",
+      "store.connection_check",
+      { tenantId: r.tenant_id },
+      jobKey("store.connection_check", r.tenant_id, slot),
     );
   }
   return rows.length;

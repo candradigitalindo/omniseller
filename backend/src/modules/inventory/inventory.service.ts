@@ -66,6 +66,11 @@ export class InventoryService {
     @Inject(OUTBOX) private readonly outbox: Outbox,
   ) {}
 
+  /** FR-INT-07, in the caller's transaction: the stock allocation rules of a store whose data is deleted. */
+  async deleteStoreRulesIn(tx: Tx, storeId: string): Promise<void> {
+    await this.repo.deleteStoreRules(tx, storeId);
+  }
+
   /** Warehouses of the caller's scope, narrowed to `warehouseId` when given (empty when outside). */
   async warehousesIn(tx: Tx, ctx: RequestContext, warehouseId?: string): Promise<WarehouseView[]> {
     const visible = await this.warehouses.visibleIn(tx, ctx);

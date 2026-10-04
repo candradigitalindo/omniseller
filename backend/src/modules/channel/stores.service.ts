@@ -28,6 +28,7 @@ import {
 import {
   channelWarehouseMappingChanged,
   storeAuthorizationExpiring,
+  storeDataDeletionRequested,
   storeDisconnected,
   storeReauthRequired,
   storeSyncModeChanged,
@@ -210,23 +211,43 @@ export class StoresService {
   }
 
   /**
-   * Local disconnect (FR-INT-07): tokens are deleted at once, sync stops, history stays. Marketplaces
-   * keep the app authorized until the seller revokes it there; for Shopee the cancel link is returned.
+   * Local disconnect (FR-INT-07): tokens are deleted at once and sync stops; the orders module then
+   * releases the stock its open orders hold (`store.disconnected`). With `keepData` the orders, listings,
+   * and sync log stay as history; without it the retention module deletes them in the background and
+   * the store row stays as a marker (user store scopes may name it). Either way the marketplace shop is
+   * free to be connected again, here or by another business. Marketplaces keep the app authorized until
+   * the seller revokes it there; for Shopee the cancel link is returned.
    */
-  async disconnect(ctx: RequestContext, id: string): Promise<{ view: StoreView; revokeUrl: string | null }> {
+  async disconnect(
+    ctx: RequestContext,
+    id: string,
+    keepData = true,
+  ): Promise<{ view: StoreView; revokeUrl: string | null }> {
     const view = await withTenantTx(this.db, ctx, async (tx) => {
       const store = await this.load(tx, ctx, id, true);
+      // a manual sales channel has no marketplace: disconnecting it archives it
       if (store.status === "disconnected") throw storeAlreadyDisconnected();
+      const now = new Date();
       await this.repo.deleteCredential(tx, id);
       await this.repo.updateStore(tx, id, {
         status: "disconnected",
         statusReason: "disconnected_by_user",
-        statusChangedAt: new Date(),
-        disconnectedAt: new Date(),
+        statusChangedAt: now,
+        disconnectedAt: now,
         syncMode: "read_only",
-        ...(store.syncMode !== "read_only" ? { syncModeChangedAt: new Date() } : {}),
+        ...(store.syncMode !== "read_only" ? { syncModeChangedAt: now } : {}),
+        failingSince: null,
+        connectionAlertAt: null,
+        ...(keepData ? {} : { dataDeletionRequestedAt: now }),
       });
-      await this.outbox.enqueue(tx, ctx, storeDisconnected, { storeId: id, reason: "disconnected_by_user" }, id);
+      await this.outbox.enqueue(
+        tx,
+        ctx,
+        storeDisconnected,
+        { storeId: id, reason: "disconnected_by_user", keepData },
+        id,
+      );
+      if (!keepData) await this.outbox.enqueue(tx, ctx, storeDataDeletionRequested, { storeId: id }, id);
       return (await this.view(tx, [(await this.repo.getStore(tx, id))!]))[0]!;
     });
     let revokeUrl: string | null = null;
@@ -312,6 +333,28 @@ export class StoresService {
       });
     }
     return out;
+  }
+
+  /**
+   * FR-INT-07: ids of the tenant's disconnected stores, whatever the caller's scope: their orders stop
+   * holding stock and leave the work queues.
+   */
+  async disconnectedIdsIn(tx: Tx): Promise<Set<string>> {
+    return new Set(await this.repo.storeIdsWithStatus(tx, "disconnected"));
+  }
+
+  /** A store row whatever the caller's scope, in the caller's transaction (module retention). */
+  rowIn(tx: Tx, storeId: string, forUpdate = false): Promise<StoreRow | undefined> {
+    return this.repo.getStore(tx, storeId, forUpdate);
+  }
+
+  /**
+   * FR-INT-07, last step of deleting a store's data: its marketplace warehouses and sync cursors go, and
+   * the store is marked as deleted. The row stays: user store scopes may name it.
+   */
+  async finishDataDeletionIn(tx: Tx, storeId: string): Promise<void> {
+    await this.repo.deleteStoreMarketplaceData(tx, storeId);
+    await this.repo.updateStore(tx, storeId, { dataDeletedAt: new Date() });
   }
 
   /** Stores of the caller's scope, inside the caller's transaction. */
@@ -425,6 +468,19 @@ export class StoresService {
     });
   }
 
+  /**
+   * FR-INT-08: a call to the store's marketplace failed for a temporary reason (busy, unreachable); the
+   * outage starts now unless it started already. Only state changes write.
+   */
+  async noteCallFailed(ctx: RequestContext, storeId: string): Promise<void> {
+    await withTenantTx(this.db, ctx, (tx) => this.repo.markFailing(tx, storeId, true));
+  }
+
+  /** A call to the store's marketplace worked: an outage in progress is over. */
+  async noteCallWorked(ctx: RequestContext, storeId: string): Promise<void> {
+    await withTenantTx(this.db, ctx, (tx) => this.repo.markFailing(tx, storeId, false));
+  }
+
   /** The marketplace announced when the seller's authorization ends. */
   async noteAuthorizationExpiry(ctx: RequestContext, storeId: string, expiresAt: Date | undefined): Promise<void> {
     await withTenantTx(this.db, ctx, async (tx) => {
@@ -483,9 +539,9 @@ export class StoresService {
 
   // ---- full data export (FR-MIG-09) ----
 
-  /** Every store of the tenant, disconnected ones included: names for the other export sheets. */
+  /** Every store of the tenant, disconnected and deleted ones included: names for other modules. */
   async namesIn(tx: Tx): Promise<Map<string, string>> {
-    return new Map((await this.repo.listStores(tx, null)).map((s) => [s.id, s.name]));
+    return new Map((await this.repo.listStores(tx, null, true)).map((s) => [s.id, s.name]));
   }
 
   exportSheets(): ExportSheet[] {
@@ -511,7 +567,7 @@ export class StoresService {
         ],
         pages: (tx, l) =>
           singlePage(async () =>
-            (await this.repo.listStores(tx, null)).map((s) => [
+            (await this.repo.listStores(tx, null, true)).map((s) => [
               s.id,
               channelDisplayName(s.channel),
               s.name,

@@ -270,13 +270,17 @@ END $$;
 -- continue inside withTenantTx.
 ------------------------------------------------------------------------------------------------
 
--- Webhook routing: (channel, marketplace shop id) -> tenant and store.
+-- Webhook routing and shop ownership: (channel, marketplace shop id) -> tenant and store. Only one store
+-- per shop is not disconnected (unique index); disconnected ones of this or other tenants may remain
+-- (FR-INT-07), so the store in use wins, else the one disconnected last.
 CREATE OR REPLACE FUNCTION resolve_store(p_channel text, p_external_shop_id text)
 RETURNS TABLE (tenant_id text, store_id text, status text, sync_mode text)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT s.tenant_id, s.id, s.status, s.sync_mode
     FROM store s
    WHERE s.channel = p_channel AND s.external_shop_id = p_external_shop_id
+   ORDER BY s.status = 'disconnected', s.status_changed_at DESC
+   LIMIT 1
 $$;
 
 -- Login: the same email may exist in several tenants; the caller picks or asks the user.

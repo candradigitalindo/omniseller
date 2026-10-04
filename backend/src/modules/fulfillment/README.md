@@ -9,6 +9,7 @@ Pengiriman pesanan (PRD 6.5: FR-SHP-01, 02, 03, 06, 07, 16; FR-ORD-08, FR-WHS-08
 - daftar kemas per pesanan, bersama label atau sendiri;
 - template label kustom: strip di bawah label marketplace berisi SKU, varian, rak, catatan, dan tag;
 - pelacakan paket dari marketplace;
+- label barcode internal varian (FR-PRD-12, backend doc 8.23): EAN-13, EAN-8, atau Code 128 pada label 50 x 30, 40 x 30, atau A4 3 x 10;
 - pengiriman yang mengikuti status pesanannya.
 
 ## Tabel yang dimiliki
@@ -18,6 +19,7 @@ Pengiriman pesanan (PRD 6.5: FR-SHP-01, 02, 03, 06, 07, 16; FR-ORD-08, FR-WHS-08
 ## Service publik
 - `FulfillmentService` (api dan worker): `arrange`, `requestLabels`, `shipmentsOf`, `requestDocument` (jenis, format, template, daftar kemas), `document`, `pickList`, `tracking`, `requestTracking`, `exportSheets` (`pengiriman.csv` ekspor data penuh, backend doc 8.18; nomor pesanan lewat `OrdersService.refsIn`).
 - `LabelTemplateService` (api dan worker): `get`, `set`, `preview`, `optionsIn`.
+- `FulfillmentService.requestBarcodeLabels` (dokumen `barcode_labels`) dan `deleteForOrdersIn` (modul retention: pengiriman dihapus, label dan dokumen PDF pesanan itu kedaluwarsa seketika lewat `FilesService.expireIn`).
 - `PickListBuilder` (api dan worker): `buildIn`.
 - Hanya worker: `FulfillmentWorkerService` (`arrange`, `fetchLabels`, `followOrder`, `labelsForOrders`, `pullTracking`) dan `DocumentRenderService` (`render`). Marketplace selalu lewat `MarketplaceGateway`, di luar transaksi.
 
@@ -42,6 +44,7 @@ Pengiriman pesanan (PRD 6.5: FR-SHP-01, 02, 03, 06, 07, 16; FR-ORD-08, FR-WHS-08
   - Paket yang dibaca job lain dalam 10 menit terakhir (sesudah status pesanan terakhir berubah) tidak dibaca lagi.
 - **Template kustom** hanya menambah strip 30 mm di bawah label marketplace; label diskalakan ke ruang di atasnya dan tidak pernah ditimpa. Label pesanan manual tidak mendapat strip.
 - **Daftar kemas** memuat nama pembeli dan kota tujuan, tanpa alamat lengkap. Daftar kemas sendiri hanya untuk pesanan yang masih harus dikemas (aturan pick list).
+- **Label barcode** (`renderBarcodeLabels`): barcode varian, atau SKU-nya bila tidak punya; simbol dari `common/barcode.ts` digambar sebagai persegi panjang selebar kelipatan titik printer 203 dpi (`moduleWidth`). Batang di bawah dua titik dicatat di `result.dense`; kode di luar ASCII dan varian yang dihapus masuk `missing` dengan `variantId`. Paling banyak 2.000 label per dokumen.
 
 ## Event
 - Diterbitkan: `shipment.arrange_requested`, `shipment.label_requested`, `shipment.tracking_requested`, `document.requested`.
@@ -63,6 +66,7 @@ Pengiriman pesanan (PRD 6.5: FR-SHP-01, 02, 03, 06, 07, 16; FR-ORD-08, FR-WHS-08
 | POST | `/v1/shipments/labels` | `shipment:print` |
 | GET | `/v1/orders/{id}/shipments` | `order:read` |
 | POST, GET | `/v1/documents`, `/v1/documents/{id}` | `shipment:print` |
+| POST | `/v1/documents/barcode-labels` | `shipment:print` |
 | POST | `/v1/pick-lists` | `shipment:print` |
 | GET | `/v1/orders/{id}/tracking` | `order:read` |
 | POST | `/v1/orders/{id}/tracking/refresh` (202) | `order:read` |

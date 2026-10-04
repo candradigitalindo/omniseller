@@ -147,13 +147,13 @@ describe("master products (FR-PRD-01)", () => {
     const withBarcode = await c.post("/v1/products", {
       sku: "TOPI",
       name: "Topi",
-      variants: [{ sku: "TOPI-1", barcode: "8991234567890", basePrice: 20000, weightG: 80 }],
+      variants: [{ sku: "TOPI-1", barcode: "8991234567891", basePrice: 20000, weightG: 80 }],
     });
     expect(withBarcode.status).toBe(201);
     const sameBarcode = await c.post("/v1/products", {
       sku: "TOPI-B",
       name: "Topi B",
-      variants: [{ sku: "TOPI-B-1", barcode: "8991234567890", basePrice: 20000, weightG: 80 }],
+      variants: [{ sku: "TOPI-B-1", barcode: "8991234567891", basePrice: 20000, weightG: 80 }],
     });
     expect(sameBarcode.status).toBe(409);
     expect(sameBarcode.body).toMatchObject({

@@ -169,12 +169,14 @@ export class StoreConnectService {
         const existing = await this.repo.storeByExternalId(tx, row.channel, profile.externalShopId);
         let storeId: string;
         if (existing) {
-          // A reconnect keeps the seller's name, sync mode, and default warehouse.
+          // A reconnect keeps the seller's name, sync mode, and default warehouse. Failures from before
+          // it say nothing about the new tokens; an outage already announced ends with a notice.
           storeId = existing.id;
           await this.repo.updateStore(tx, storeId, {
             ...common,
             connectedAt: existing.connectedAt ?? now,
             disconnectedAt: null,
+            failingSince: null,
           });
         } else {
           storeId = newId();

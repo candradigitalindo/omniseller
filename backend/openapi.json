@@ -1919,6 +1919,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DisconnectStoreDto"
+              }
+            }
+          }
+        },
         "responses": {
           "default": {
             "description": "",
@@ -2257,6 +2267,74 @@
         "x-isolation": "self"
       }
     },
+    "/v1/products/barcodes": {
+      "post": {
+        "operationId": "ProductsController_generateBarcodes",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateBarcodesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeneratedBarcodesDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "products"
+        ],
+        "x-isolation": {
+          "fixture": "variant"
+        }
+      }
+    },
+    "/v1/products/lookup": {
+      "get": {
+        "operationId": "ProductsController_lookup",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "query",
+            "description": "isi barcode yang dipindai, atau SKU",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanMatchDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "products"
+        ],
+        "x-isolation": "self"
+      }
+    },
     "/v1/products/{id}": {
       "get": {
         "operationId": "ProductsController_get",
@@ -2348,6 +2426,60 @@
         "responses": {
           "204": {
             "description": ""
+          }
+        },
+        "tags": [
+          "products"
+        ],
+        "x-isolation": {
+          "fixture": "product"
+        }
+      }
+    },
+    "/v1/products/{id}/history": {
+      "get": {
+        "operationId": "ProductsController_history",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductHistoryPageDto_Output"
+                }
+              }
+            }
           }
         },
         "tags": [
@@ -3969,6 +4101,40 @@
         ],
         "x-isolation": {
           "fixture": "order"
+        }
+      }
+    },
+    "/v1/documents/barcode-labels": {
+      "post": {
+        "operationId": "DocumentsController_barcodeLabels",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestBarcodeLabelsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "documents"
+        ],
+        "x-isolation": {
+          "fixture": "variant"
         }
       }
     },
@@ -8378,6 +8544,55 @@
                   "type": "boolean",
                   "description": "pesanan toko tanpa multi-gudang dikirim dari gudang terdekat yang stoknya cukup (FR-ORD-12)"
                 },
+                "failingSince": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "panggilan ke marketplace gagal sementara sejak ini; peringatan setelah 15 menit (FR-INT-08)"
+                },
+                "dataDeletion": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "requestedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "deletedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "null selama penghapusan berjalan"
+                        }
+                      },
+                      "required": [
+                        "requestedAt",
+                        "deletedAt"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "toko diputus tanpa menyimpan data: pesanan, listing, dan log sinkronnya dihapus (FR-INT-07)"
+                },
                 "createdAt": {
                   "type": "string",
                   "format": "date-time",
@@ -8409,6 +8624,8 @@
                 "lastOrderSyncAt",
                 "marketplaceInfo",
                 "autoAllocate",
+                "failingSince",
+                "dataDeletion",
                 "createdAt"
               ],
               "additionalProperties": false
@@ -8646,6 +8863,55 @@
             "type": "boolean",
             "description": "pesanan toko tanpa multi-gudang dikirim dari gudang terdekat yang stoknya cukup (FR-ORD-12)"
           },
+          "failingSince": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "panggilan ke marketplace gagal sementara sejak ini; peringatan setelah 15 menit (FR-INT-08)"
+          },
+          "dataDeletion": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "requestedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "deletedAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "null selama penghapusan berjalan"
+                  }
+                },
+                "required": [
+                  "requestedAt",
+                  "deletedAt"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "toko diputus tanpa menyimpan data: pesanan, listing, dan log sinkronnya dihapus (FR-INT-07)"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -8677,6 +8943,8 @@
           "lastOrderSyncAt",
           "marketplaceInfo",
           "autoAllocate",
+          "failingSince",
+          "dataDeletion",
           "createdAt"
         ],
         "additionalProperties": false
@@ -8709,6 +8977,16 @@
           },
           "autoAllocate": {
             "description": "alokasi gudang otomatis untuk toko tanpa multi-gudang",
+            "type": "boolean"
+          }
+        }
+      },
+      "DisconnectStoreDto": {
+        "type": "object",
+        "properties": {
+          "keepData": {
+            "default": true,
+            "description": "true: pesanan, listing, dan log sinkron tetap sebagai riwayat. false: semuanya dihapus permanen di latar",
             "type": "boolean"
           }
         }
@@ -8917,6 +9195,55 @@
                 "type": "boolean",
                 "description": "pesanan toko tanpa multi-gudang dikirim dari gudang terdekat yang stoknya cukup (FR-ORD-12)"
               },
+              "failingSince": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "panggilan ke marketplace gagal sementara sejak ini; peringatan setelah 15 menit (FR-INT-08)"
+              },
+              "dataDeletion": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "requestedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      "deletedAt": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "null selama penghapusan berjalan"
+                      }
+                    },
+                    "required": [
+                      "requestedAt",
+                      "deletedAt"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "toko diputus tanpa menyimpan data: pesanan, listing, dan log sinkronnya dihapus (FR-INT-07)"
+              },
               "createdAt": {
                 "type": "string",
                 "format": "date-time",
@@ -8948,6 +9275,8 @@
               "lastOrderSyncAt",
               "marketplaceInfo",
               "autoAllocate",
+              "failingSince",
+              "dataDeletion",
               "createdAt"
             ],
             "additionalProperties": false
@@ -9696,14 +10025,9 @@
                   }
                 },
                 "barcode": {
-                  "anyOf": [
-                    {
-                      "type": "string",
-                      "maxLength": 64
-                    },
-                    {
-                      "type": "null"
-                    }
+                  "type": [
+                    "string",
+                    "null"
                   ]
                 },
                 "basePrice": {
@@ -9988,6 +10312,279 @@
         ],
         "additionalProperties": false
       },
+      "GenerateBarcodesDto": {
+        "type": "object",
+        "properties": {
+          "variantIds": {
+            "minItems": 1,
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+            }
+          }
+        },
+        "required": [
+          "variantIds"
+        ]
+      },
+      "GeneratedBarcodesDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "variantId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "sku": {
+                  "type": "string"
+                },
+                "barcode": {
+                  "type": "string"
+                },
+                "generated": {
+                  "type": "boolean",
+                  "description": "false: varian sudah punya barcode dan tidak diubah"
+                }
+              },
+              "required": [
+                "variantId",
+                "sku",
+                "barcode",
+                "generated"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "ScanMatchDto_Output": {
+        "type": "object",
+        "properties": {
+          "matchedBy": {
+            "type": "string",
+            "enum": [
+              "barcode",
+              "sku"
+            ]
+          },
+          "variant": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "sku": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "barcode": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "archived"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "sku",
+              "name",
+              "barcode",
+              "status"
+            ],
+            "additionalProperties": false
+          },
+          "product": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "sku": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "sku",
+              "name"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "matchedBy",
+          "variant",
+          "product"
+        ],
+        "additionalProperties": false
+      },
+      "ProductHistoryPageDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "actor": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "user",
+                        "system",
+                        "api_key",
+                        "device"
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "name": {
+                      "description": "nama pengguna; null untuk sistem, impor, atau pengguna yang sudah dihapus",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "id",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "action": {
+                  "type": "string",
+                  "enum": [
+                    "created",
+                    "updated",
+                    "deleted",
+                    "restored"
+                  ]
+                },
+                "target": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "product",
+                        "variant"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    "sku": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "id",
+                    "sku",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "changes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "field": {
+                        "type": "string",
+                        "description": "nama field di API, misalnya basePrice"
+                      },
+                      "label": {
+                        "type": "string"
+                      },
+                      "before": {},
+                      "after": {}
+                    },
+                    "required": [
+                      "field",
+                      "label",
+                      "before",
+                      "after"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "at",
+                "actor",
+                "action",
+                "target",
+                "changes"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "next_cursor": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
       "UpdateProductDto": {
         "type": "object",
         "properties": {
@@ -10090,15 +10687,10 @@
             }
           },
           "barcode": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 64
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "basePrice": {
             "type": "integer",
@@ -10205,15 +10797,10 @@
             }
           },
           "barcode": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 64
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "basePrice": {
             "type": "integer",
@@ -13649,7 +14236,8 @@
             "enum": [
               "labels",
               "pick_list",
-              "packing_list"
+              "packing_list",
+              "barcode_labels"
             ]
           },
           "status": {
@@ -13674,6 +14262,22 @@
                 "type": "null"
               }
             ]
+          },
+          "labelFormat": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "label_50x30",
+                  "label_40x30",
+                  "a4_3x10"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "label barcode: ukuran label"
           },
           "template": {
             "anyOf": [
@@ -13728,8 +14332,28 @@
                   "type": "object",
                   "properties": {
                     "orderId": {
-                      "type": "string",
-                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "pesanan yang tertinggal; null untuk label barcode"
+                    },
+                    "variantId": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "label barcode: varian yang tertinggal"
                     },
                     "code": {
                       "type": "string"
@@ -13740,15 +14364,24 @@
                   },
                   "required": [
                     "orderId",
+                    "variantId",
                     "code",
                     "message"
                   ],
                   "additionalProperties": false
                 }
+              },
+              "dense": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                }
               }
             },
             "required": [
-              "missing"
+              "missing",
+              "dense"
             ],
             "additionalProperties": false
           },
@@ -13787,6 +14420,7 @@
           "kind",
           "status",
           "format",
+          "labelFormat",
           "template",
           "packingList",
           "orderCount",
@@ -13798,6 +14432,47 @@
           "finishedAt"
         ],
         "additionalProperties": false
+      },
+      "RequestBarcodeLabelsDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "minItems": 1,
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "variantId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "copies": {
+                  "default": 1,
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 500
+                }
+              },
+              "required": [
+                "variantId"
+              ]
+            }
+          },
+          "format": {
+            "default": "label_50x30",
+            "description": "label_50x30 dan label_40x30: satu label per halaman untuk printer barcode; a4_3x10: 30 label per lembar A4",
+            "type": "string",
+            "enum": [
+              "label_50x30",
+              "label_40x30",
+              "a4_3x10"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ]
       },
       "PickListRequestDto": {
         "type": "object",
@@ -14145,13 +14820,17 @@
                 },
                 "emailByDefault": {
                   "type": "boolean"
+                },
+                "locked": {
+                  "type": "boolean"
                 }
               },
               "required": [
                 "kind",
                 "label",
                 "email",
-                "emailByDefault"
+                "emailByDefault",
+                "locked"
               ],
               "additionalProperties": false
             }
