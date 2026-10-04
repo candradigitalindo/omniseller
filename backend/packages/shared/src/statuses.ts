@@ -43,6 +43,26 @@ export type DocumentJobStatus = (typeof DOCUMENT_JOB_STATUSES)[number];
 export const DATA_EXPORT_STATUSES = DOCUMENT_JOB_STATUSES;
 export type DataExportStatus = DocumentJobStatus;
 
+/** Imports from another app (backend doc 7.9, 8.19). */
+export const MIGRATION_JOB_STATUSES = [
+  "uploaded",
+  "validating",
+  "validated",
+  "invalid",
+  "importing",
+  "imported",
+  "failed",
+] as const;
+export type MigrationJobStatus = (typeof MIGRATION_JOB_STATUSES)[number];
+
+/** The app a migration file comes from; `omniseller` is OmniSeller's own template (PRD 18.2). */
+export const MIGRATION_SOURCE_APPS = ["omniseller", "bigseller", "ginee", "jubelio", "spreadsheet", "other"] as const;
+export type MigrationSourceApp = (typeof MIGRATION_SOURCE_APPS)[number];
+
+/** A store's switch from parallel mode to OmniSeller (FR-MIG-06); undone within 24 hours. */
+export const STORE_CUTOVER_STATUSES = ["done", "undone"] as const;
+export type StoreCutoverStatus = (typeof STORE_CUTOVER_STATUSES)[number];
+
 export const CHANNELS = ["shopee", "tiktokshop", "lazada", "blibli", "shopify", "woocommerce", "manual"] as const;
 export type Channel = (typeof CHANNELS)[number];
 

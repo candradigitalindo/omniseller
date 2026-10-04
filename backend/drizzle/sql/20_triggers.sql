@@ -26,6 +26,10 @@ SELECT ensure_trigger('sync_job', 'status_transition_trg',
   'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON sync_job FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''sync_job'')');
 SELECT ensure_trigger('data_export', 'status_transition_trg',
   'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON data_export FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''data_export'')');
+SELECT ensure_trigger('migration_job', 'status_transition_trg',
+  'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON migration_job FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''migration_job'')');
+SELECT ensure_trigger('store_cutover', 'status_transition_trg',
+  'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON store_cutover FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''store_cutover'')');
 SELECT ensure_trigger('document_job', 'status_transition_trg',
   'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON document_job FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''document_job'')');
 
@@ -83,6 +87,11 @@ SELECT ensure_trigger('order_event', 'audit_cancel_trg',
      EXECUTE FUNCTION audit_row(''order_event'')');
 SELECT ensure_trigger('data_export', 'audit_insert_trg',
   'CREATE TRIGGER audit_insert_trg AFTER INSERT ON data_export FOR EACH ROW EXECUTE FUNCTION audit_row()');
+-- Moving to OmniSeller (FR-MIG-01, 06): who imported a file, who switched a store live and who undid it.
+SELECT ensure_trigger('migration_job', 'audit_insert_trg',
+  'CREATE TRIGGER audit_insert_trg AFTER INSERT ON migration_job FOR EACH ROW EXECUTE FUNCTION audit_row()');
+SELECT ensure_trigger('store_cutover', 'audit_trg',
+  'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE ON store_cutover FOR EACH ROW EXECUTE FUNCTION audit_row()');
 SELECT ensure_trigger('data_export', 'audit_download_trg',
   'CREATE TRIGGER audit_download_trg AFTER UPDATE ON data_export FOR EACH ROW
      WHEN (OLD.download_count IS DISTINCT FROM NEW.download_count)

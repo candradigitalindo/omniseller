@@ -3,6 +3,7 @@ import type { StockAdjustmentReason, StockMovementType } from "@omniseller/share
 import type { RequestContext } from "../../common/context/request-context";
 import { EXPORT_PAGE_SIZE, type ExportSheet, keysetPages } from "../../common/export-sheet";
 import type { DbHandle, Tx } from "../../db/client";
+import type { StockReferenceType } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
@@ -113,7 +114,11 @@ export class InventoryService {
     tx: Tx,
     ctx: RequestContext,
     lines: EstablishLine[],
-    meta: { type: "migration_initial" | "count_apply"; note: string | null },
+    meta: {
+      type: "migration_initial" | "count_apply";
+      note: string | null;
+      reference?: { type: StockReferenceType; id: string };
+    },
   ): Promise<AdjustmentResult[]> {
     const results: AdjustmentResult[] = [];
     for (const l of lines) {
@@ -126,11 +131,36 @@ export class InventoryService {
           reason: null,
           note: meta.note,
           path: l.path,
+          ...(meta.reference ? { reference: meta.reference } : {}),
         }),
       );
     }
     await this.changedIn(tx, ctx, results);
     return results;
+  }
+
+  /**
+   * Initial stock from a migration file (backend doc 8.19): sets on-hand only where nobody established
+   * stock yet, the same rule as initial stock from a store, so an import never overwrites a count.
+   * Rows are locked in (variant, warehouse) order before they are read.
+   */
+  async importInitialIn(
+    tx: Tx,
+    ctx: RequestContext,
+    lines: EstablishLine[],
+    meta: { note: string; reference: { type: StockReferenceType; id: string } },
+  ): Promise<{ set: number; confirmed: number; skipped: number }> {
+    const sorted = [...lines].sort(
+      (a, b) => a.variantId.localeCompare(b.variantId) || a.warehouseId.localeCompare(b.warehouseId),
+    );
+    const apply: EstablishLine[] = [];
+    for (const l of sorted) {
+      const row = await this.repo.lockRow(tx, ctx.tenantId, l.variantId, l.warehouseId);
+      if (!row.stockSetAt) apply.push(l);
+    }
+    const results = await this.establishIn(tx, ctx, apply, { type: "migration_initial", ...meta });
+    const set = results.filter((r) => r.changed).length;
+    return { set, confirmed: results.length - set, skipped: lines.length - apply.length };
   }
 
   private async moveIn(
@@ -145,6 +175,7 @@ export class InventoryService {
       reason: string | null;
       note: string | null;
       path: string;
+      reference?: { type: StockReferenceType; id: string };
     },
   ): Promise<AdjustmentResult> {
     const row = await this.repo.lockRow(tx, ctx.tenantId, m.variantId, m.warehouseId);
@@ -161,7 +192,8 @@ export class InventoryService {
       warehouseId: m.warehouseId,
       type: m.type,
       onHand: delta,
-      referenceType: "manual",
+      referenceType: m.reference?.type ?? "manual",
+      referenceId: m.reference?.id ?? null,
       reason: m.reason,
       note: m.note,
       actorUserId: ctx.actor.type === "user" ? ctx.actor.id : null,

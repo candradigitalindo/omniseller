@@ -93,6 +93,17 @@ const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: s
   ShipmentsController_labels: ({ a: ids }) => ({ orderIds: [ids.order!] }),
   DocumentsController_create: ({ a: ids }) => ({ kind: "labels", orderIds: [ids.order!] }),
   DocumentsController_pickList: ({ a: ids }) => ({ orderIds: [ids.order!] }),
+  MigrationImportsController_setMapping: () => ({
+    headerRow: 1,
+    fields: { sku_varian: 0, nama_produk: 1, harga_dasar: 2, berat: 3 },
+    weightUnit: "g",
+    dimensionUnit: "cm",
+  }),
+  MigrationImportsController_validate: () => ({}),
+  MigrationImportsController_import: () => ({}),
+  MigrationImportsController_deletePreset: () => ({}),
+  MigrationCutoverController_cutover: ({ a: ids }) => ({ storeIds: [ids.store!], oldAppRevoked: true }),
+  MigrationCutoverController_undo: () => ({}),
 };
 
 beforeAll(async () => {
@@ -173,6 +184,30 @@ beforeAll(async () => {
       sql`INSERT INTO data_export (id, tenant_id, requested_by) VALUES (${exportId}, ${tenantId}, ${a.me.user.id})`,
     );
     fixtures.data_export = { id: exportId };
+    // an uploaded migration file, a saved column mapping, and a cutover of the store
+    const migrationJobId = newId();
+    const mapping = {
+      headerRow: 1,
+      fields: { sku_varian: 0, nama_produk: 1, harga_dasar: 2, berat: 3 },
+      weightUnit: "g",
+      dimensionUnit: "cm",
+    };
+    await tx.execute(sql`INSERT INTO migration_job (id, tenant_id, source_app, file_name, file_type, columns, column_mapping, stats, created_by)
+                         VALUES (${migrationJobId}, ${tenantId}, 'bigseller', 'produk.xlsx', 'xlsx',
+                                 '["SKU","Nama","Harga","Berat"]'::jsonb, ${JSON.stringify(mapping)}::jsonb, '{"rows":1}'::jsonb,
+                                 ${a.me.user.id})`);
+    fixtures.migration_job = { id: migrationJobId };
+    const presetId = newId();
+    await tx.execute(sql`INSERT INTO migration_preset (id, tenant_id, name, source_app, mapping)
+                         VALUES (${presetId}, ${tenantId}, 'Preset A', 'bigseller',
+                                 '{"fields":{"sku_varian":"SKU"},"weightUnit":"g","dimensionUnit":"cm"}'::jsonb)`);
+    fixtures.migration_preset = { id: presetId };
+    const cutoverId = newId();
+    await tx.execute(sql`INSERT INTO store_cutover (id, tenant_id, store_id, checklist, undo_until)
+                         VALUES (${cutoverId}, ${tenantId}, ${fixtures.store!.id},
+                                 '{"checks":[],"oldAppRevoked":true,"stock":{"match":0,"differ":0,"unset":0}}'::jsonb,
+                                 now() + interval '1 day')`);
+    fixtures.store_cutover = { id: cutoverId };
   });
   const started = await a.c.post("/v1/store-authorizations", { channel: "shopee" });
   expect(started.status).toBe(201);
@@ -312,6 +347,16 @@ describe("tenant isolation generated from openapi.json", () => {
       status: "queued",
       downloadCount: 0,
     });
+    expect((await a.c.get(`/v1/migration/imports/${fixtures.migration_job!.id}`)).body).toMatchObject({
+      status: "uploaded",
+      mapping: { fields: { sku_varian: 0 } },
+    });
+    expect(((await a.c.get("/v1/migration/presets")).body.items as { id: string }[]).map((p) => p.id)).toContain(
+      fixtures.migration_preset!.id,
+    );
+    expect((await a.c.get("/v1/migration/cutovers")).body.items).toEqual([
+      expect.objectContaining({ id: fixtures.store_cutover!.id, status: "done" }),
+    ]);
     // B's callback attempt with A's state did not consume it
     expect((await a.c.get(`/v1/store-authorizations/${fixtures.store_authorization!.id}`)).body.status).toBe("pending");
   });

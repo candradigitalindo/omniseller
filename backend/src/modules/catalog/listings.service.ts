@@ -375,6 +375,11 @@ export class ListingsService {
   }
 
   /** Mapped, not deleted listings of a store, optionally only of some variants. */
+  /** Listings of one store without a variant, deleted ones excepted (cutover checklist, FR-MIG-06). */
+  unmappedInStoreIn(tx: Tx, storeId: string): Promise<number> {
+    return this.repo.unmappedCount(tx, new Set([storeId]));
+  }
+
   mappedInStoreIn(tx: Tx, storeId: string, variantIds?: string[]): Promise<ListingRow[]> {
     return this.repo.mappedListings(tx, { storeId, ...(variantIds ? { variantIds } : {}) });
   }

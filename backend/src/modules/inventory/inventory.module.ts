@@ -7,15 +7,16 @@ import { InitialStockService } from "./initial-stock.service";
 import { InventoryController, StockRulesController, WarehousesController } from "./inventory.controllers";
 import { InventoryModule } from "./inventory-core.module";
 import { StockAlertsService } from "./stock-alerts.service";
+import { StockComparisonService } from "./stock-comparison.service";
 import { StockOverviewService } from "./stock-overview.service";
 import { StockPushService } from "./stock-push.service";
 import { StockTriggersService } from "./stock-triggers.service";
 
 export { InventoryModule };
 
-const STOCK = [StockOverviewService, InitialStockService, AllocationRulesService];
+const STOCK = [StockOverviewService, InitialStockService, AllocationRulesService, StockComparisonService];
 
-/** Stock list with push state, initial stock, allocation rules (api and worker). */
+/** Stock list with push state, initial stock, allocation rules, comparison with the marketplace (api and worker). */
 @Module({ imports: [InventoryModule, CatalogModule, ChannelModule], providers: STOCK, exports: STOCK })
 export class InventoryStockModule {}
 

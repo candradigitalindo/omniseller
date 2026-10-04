@@ -175,6 +175,32 @@ SELECT gen_ulid(), t.f, t.t, 'any'
   ) AS t(f, t)
 ON CONFLICT (from_status, to_status) DO NOTHING;
 
+-- Imports from another app (backend doc 8.19): validated before importing; a new mapping sends the job
+-- back to uploaded, and validation can run again (the catalog may have changed in between).
+INSERT INTO migration_job_status_transition (id, from_status, to_status, via)
+SELECT gen_ulid(), t.f, t.t, 'any'
+  FROM (VALUES
+    ('uploaded', 'validating'),
+    ('validating', 'validated'),
+    ('validating', 'invalid'),
+    ('validating', 'failed'),
+    ('validated', 'importing'),
+    ('validated', 'validating'),
+    ('validated', 'uploaded'),
+    ('invalid', 'validating'),
+    ('invalid', 'uploaded'),
+    ('importing', 'imported'),
+    ('importing', 'failed'),
+    ('failed', 'validating'),
+    ('failed', 'uploaded')
+  ) AS t(f, t)
+ON CONFLICT (from_status, to_status) DO NOTHING;
+
+-- Cutover (backend doc 8.19): undone within 24 hours, once.
+INSERT INTO store_cutover_status_transition (id, from_status, to_status, via)
+VALUES (gen_ulid(), 'done', 'undone', 'any')
+ON CONFLICT (from_status, to_status) DO NOTHING;
+
 INSERT INTO sync_job_status_transition (id, from_status, to_status, via)
 SELECT gen_ulid(), t.f, t.t, 'any'
   FROM (VALUES

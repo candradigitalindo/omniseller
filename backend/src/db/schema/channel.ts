@@ -24,6 +24,8 @@ export const store = pgTable("store", {
   /** Machine code explaining the current status, e.g. `authorization_revoked`, `refresh_failed`. */
   statusReason: text("status_reason"),
   statusChangedAt: tstz("status_changed_at").notNull().defaultNow(),
+  /** Last change of sync mode; null when it has not changed since the store was connected (FR-MIG-05). */
+  syncModeChangedAt: tstz("sync_mode_changed_at"),
   /** Non-secret marketplace metadata (seller type, shop code, logo, fulfillment flag). */
   marketplaceInfo: jsonb("marketplace_info").$type<Record<string, unknown>>().notNull().default({}),
 });

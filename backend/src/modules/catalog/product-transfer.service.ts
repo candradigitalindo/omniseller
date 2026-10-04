@@ -32,6 +32,12 @@ export const PRODUCT_COLUMNS = [
   "gambar",
 ] as const;
 type Column = (typeof PRODUCT_COLUMNS)[number];
+export type ProductCells = Record<Column, string>;
+/** One product row in the template's columns; `line` is its spreadsheet row, for error paths. */
+export interface ProductRecord {
+  line: number;
+  cells: ProductCells;
+}
 const REQUIRED: Column[] = ["sku_produk", "nama_produk", "sku_varian", "harga_jual", "berat_gram"];
 const PRODUCT_FIELDS: Column[] = ["nama_produk", "deskripsi", "merek", "kategori", "gambar"];
 export const MAX_IMPORT_ROWS = 10_000;
@@ -147,7 +153,44 @@ export class ProductTransferService {
     }
     if (errors.length) throw importInvalid(errors);
 
-    const rows = table.slice(1).map((cells, i) => this.parseRow(header, cells, i + 2, errors));
+    const records = table.slice(1).map((raw, i) => ({
+      line: i + 2,
+      cells: Object.fromEntries(PRODUCT_COLUMNS.map((c) => [c, raw[header.indexOf(c)] ?? ""])) as ProductCells,
+    }));
+    try {
+      return await withTenantTx(this.db, ctx, async (tx) => {
+        const result = await this.importRecordsIn(tx, ctx, records);
+        if (result.errors.length) throw importInvalid(result.errors);
+        const summary = { ...result.summary, dryRun };
+        if (dryRun) throw new DryRunRollback(summary);
+        return summary;
+      });
+    } catch (err) {
+      if (err instanceof DryRunRollback) return err.summary;
+      throw err;
+    }
+  }
+
+  /**
+   * Validates and applies product rows in the caller's transaction, rows in the template's columns
+   * (the CSV above, and the migration import after its column mapping, FR-MIG-01). Problems come back
+   * per row and column (`rows.<line>.<column>`) instead of being thrown; when there are any, nothing
+   * is written or the caller must roll its transaction back. `variantIds` gives each imported variant
+   * SKU (normalized) its id.
+   */
+  async importRecordsIn(
+    tx: Tx,
+    ctx: RequestContext,
+    records: ProductRecord[],
+  ): Promise<{ summary: ImportSummary; errors: FieldIssue[]; variantIds: Map<string, string> }> {
+    const errors: FieldIssue[] = [];
+    const summary: ImportSummary = {
+      rows: records.length,
+      products: { created: 0, updated: 0 },
+      variants: { created: 0, updated: 0 },
+      dryRun: false,
+    };
+    const rows = records.map((r) => this.parseRow(r, errors));
     const groups = new Map<string, ParsedRow[]>();
     for (const r of rows) {
       if (!r) continue;
@@ -173,42 +216,29 @@ export class ProductTransferService {
         errors.push({ path: `rows.${r.line}.sku_varian`, message: `SKU varian sama dengan baris ${seen.get(k)}.` });
       else seen.set(k, r.line);
     }
-    if (errors.length) throw importInvalid(errors);
+    if (errors.length) return { summary, errors, variantIds: new Map() };
 
-    try {
-      return await withTenantTx(this.db, ctx, async (tx) => {
-        const summary: ImportSummary = {
-          rows: rows.length,
-          products: { created: 0, updated: 0 },
-          variants: { created: 0, updated: 0 },
-          dryRun,
-        };
-        for (const group of groups.values()) {
-          try {
-            await this.applyGroup(tx, ctx, group, summary);
-          } catch (err) {
-            if (err instanceof DomainError) {
-              errors.push(...this.rowIssues(group, err));
-              continue;
-            }
-            throw err;
-          }
+    for (const group of groups.values()) {
+      try {
+        await this.applyGroup(tx, ctx, group, summary);
+      } catch (err) {
+        if (err instanceof DomainError) {
+          errors.push(...this.rowIssues(group, err));
+          continue;
         }
-        if (errors.length) throw importInvalid(errors);
-        if (dryRun) throw new DryRunRollback(summary);
-        return summary;
-      });
-    } catch (err) {
-      if (err instanceof DryRunRollback) return err.summary;
-      throw err;
+        throw err;
+      }
     }
+    if (errors.length) return { summary, errors, variantIds: new Map() };
+    const bySku = await this.repo.variantsByNormSku(tx, [...seen.keys()]);
+    const variantIds = new Map<string, string>();
+    for (const [k, owners] of bySku) if (owners[0]) variantIds.set(k, owners[0].id);
+    return { summary, errors, variantIds };
   }
 
-  private parseRow(header: string[], raw: string[], line: number, errors: FieldIssue[]): ParsedRow | null {
-    const cells = Object.fromEntries(PRODUCT_COLUMNS.map((c) => [c, (raw[header.indexOf(c)] ?? "").trim()])) as Record<
-      Column,
-      string
-    >;
+  private parseRow(record: ProductRecord, errors: FieldIssue[]): ParsedRow | null {
+    const line = record.line;
+    const cells = Object.fromEntries(PRODUCT_COLUMNS.map((c) => [c, (record.cells[c] ?? "").trim()])) as ProductCells;
     const before = errors.length;
     const err = (col: Column, message: string) => errors.push({ path: `rows.${line}.${col}`, message });
     for (const c of REQUIRED) if (!cells[c]) err(c, "Wajib diisi.");

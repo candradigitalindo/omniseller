@@ -180,6 +180,11 @@ export class OrdersService {
     return { statuses, overdue, dueSoon, codOutstanding: cod };
   }
 
+  /** Orders of one store per status since a moment (parallel mode, FR-MIG-05), in the caller's scope. */
+  statusCountsIn(tx: Tx, ctx: RequestContext, storeId: string, from: Date | null): Promise<Record<string, number>> {
+    return this.repo.statusCounts(tx, { ...this.scope(ctx), storeId, ...(from ? { from } : {}) });
+  }
+
   // ---- figures for the dashboard (reporting, FR-RPT-01): the caller's transaction and scope ----
 
   salesIn(tx: Tx, ctx: RequestContext, filter: { storeId?: string | undefined }, from: Date, to: Date) {

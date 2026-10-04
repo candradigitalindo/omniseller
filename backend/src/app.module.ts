@@ -26,6 +26,7 @@ import {
 import { IdentityHttpModule } from "./modules/identity/identity.http.module";
 import { IdentityModule } from "./modules/identity/identity.module";
 import { InventoryHttpModule, InventoryModule, InventoryWorkerModule } from "./modules/inventory/inventory.module";
+import { MigrationHttpModule, MigrationWorkerModule } from "./modules/migration/migration.module";
 import { NotificationHttpModule, NotificationModule } from "./modules/notification/notification.module";
 import { OrdersHttpModule, OrdersModule, OrdersWorkerModule } from "./modules/orders/orders.module";
 import { HealthController } from "./modules/platform/health.controller";
@@ -87,6 +88,7 @@ export class AppModule {
             NotificationHttpModule,
             ReportingHttpModule,
             ExportsHttpModule,
+            MigrationHttpModule,
           ],
           providers: HTTP_PROVIDERS,
         };
@@ -123,6 +125,7 @@ export class AppModule {
             FulfillmentModule,
             FulfillmentWorkerModule,
             ExportsWorkerModule,
+            MigrationWorkerModule,
           ],
           providers: [WorkerRunner],
         };

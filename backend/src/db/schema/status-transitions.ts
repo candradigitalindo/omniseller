@@ -14,3 +14,5 @@ export const shipmentStatusTransition = pgTable("shipment_status_transition", tr
 export const syncJobStatusTransition = pgTable("sync_job_status_transition", transitionColumns());
 export const documentJobStatusTransition = pgTable("document_job_status_transition", transitionColumns());
 export const dataExportStatusTransition = pgTable("data_export_status_transition", transitionColumns());
+export const migrationJobStatusTransition = pgTable("migration_job_status_transition", transitionColumns());
+export const storeCutoverStatusTransition = pgTable("store_cutover_status_transition", transitionColumns());

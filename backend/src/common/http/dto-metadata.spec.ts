@@ -24,6 +24,7 @@ import {
   StockRulesController,
   WarehousesController,
 } from "../../modules/inventory/inventory.controllers";
+import { MigrationCutoverController, MigrationImportsController } from "../../modules/migration/migration.controllers";
 import { NotificationsController } from "../../modules/notification/inbox.controller";
 import { OrdersController } from "../../modules/orders/orders.controllers";
 import { HealthController } from "../../modules/platform/health.controller";
@@ -60,6 +61,8 @@ const CONTROLLERS = [
   NotificationsController,
   DashboardController,
   ExportsController,
+  MigrationImportsController,
+  MigrationCutoverController,
 ];
 
 /** Same test nestjs-zod's pipe applies (its helper is not exported from the package root). */

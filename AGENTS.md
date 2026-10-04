@@ -41,6 +41,7 @@ pnpm test:int            # needs TEST_PG_ADMIN_URL + TEST_REDIS_URL, or Docker f
 - `src/modules/files/`: private files (`FilesService`, `FileStorage`: R2, MinIO via `R2_ENDPOINT`, or a local directory in local/test); `src/modules/fulfillment/pdf.ts`: PDFs with pdf-lib and the bundled Noto Sans in `assets/fonts`
 - `src/modules/reporting/`: the home dashboard (no tables; reads through the owning modules' services); `src/modules/exports/`: the full data export (ZIP of CSVs); `src/modules/notification/inbox.service.ts`: in-app notifications (`notifyScopedIn`)
 - `src/common/csv.ts`: CSV for spreadsheets; `src/common/time-zone.ts`: dates in the business's time zone; `src/common/export-sheet.ts`: `ExportSheet`, one per exported table
+- `src/modules/migration/`: imports from other apps (`import-plan.ts`: fields, per-app header synonyms, row conversion; `sheet.ts`, `xlsx.ts`: file readers), parallel mode and cutover; `src/modules/inventory/stock-comparison.service.ts`: marketplace stock against what OmniSeller would send
 - `test/setup/mock-marketplace.ts`: fake Shopee and TikTok Shop that enforce the documented signatures and token rules, including order packages, arranging shipment, tracking numbers, and label PDFs
 
 ## How to add things
@@ -78,6 +79,10 @@ NestJS injection always uses explicit `@Inject(TOKEN)`; do not rely on construct
 - CSV meant for spreadsheets goes through `common/csv.ts` (`;`, BOM, CRLF, a `'` before text starting with `=`, `+`, `-`, `@`): buyer names and notes are written by strangers.
 - Notifications go through `NotificationInboxService.notifyScopedIn`: recipients are users holding the permission, and each hears only about stores and warehouses in their scope.
 - Keep `requestChecksumCalculation: "WHEN_REQUIRED"` on the S3 client (`files/file-storage.ts`): with the SDK default a streamed upload reaches storage `aws-chunked` with a CRC32 trailer, which R2 does not document.
+- A user with no stores listed in `user_store_scope` sees every store (`storeScope` null). To limit a user, list the stores; `storeIds: []` removes the limit.
+- Read uploaded spreadsheets only through `migration/sheet.ts` (`readSheet`): it decides the type from the content, caps what an .xlsx may unzip to (a 200 KB file can expand to gigabytes), and keeps blank rows so row numbers match what the seller sees.
+- The web app moves a store live through the cutover (`POST /v1/migration/cutover`), which checks the checklist (listings mapped, stock equal, old app revoked) and can be undone for 24 hours. `PATCH /v1/stores/{id} {syncMode}` skips the checklist; it stays for API clients and for going back to read-only.
+- Imports write through `ProductTransferService.importRecordsIn` and `InventoryService.importInitialIn` in the caller's transaction and return problems instead of throwing; with any problem the caller must roll back, because some rows may already be written.
 
 ## Definition of done
 Tests per section 13.3 (integration tests run as the application roles, never as a superuser), migration checklist 12.3, docs updated (module README and the backend doc section you touched), PR checklist 15.11.

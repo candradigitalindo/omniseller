@@ -14,6 +14,7 @@ export const QUEUES = [
   "research",
   "settlement",
   "export",
+  "import",
 ] as const;
 export type QueueName = (typeof QUEUES)[number];
 
@@ -31,6 +32,8 @@ export const QUEUE_CONCURRENCY: Record<QueueName, number> = {
   settlement: 2,
   // a full data export holds one snapshot transaction and a temporary directory for minutes
   export: 1,
+  // validating or importing a migration file: up to 10,000 rows in one transaction
+  import: 2,
 };
 
 export function isQueueName(value: string): value is QueueName {

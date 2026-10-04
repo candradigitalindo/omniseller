@@ -2,11 +2,11 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.10 |
+| Versi dokumen | 1.11 |
 | Tanggal | 4 Oktober 2026 |
 | Status | Keputusan final untuk implementasi |
 | Pemilik dokumen | Candra Syahputra |
-| Dokumen induk | DOKUMEN-SPESIFIKASI-APLIKASI.md versi 1.10 (PRD); rincian backend di DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.9 |
+| Dokumen induk | DOKUMEN-SPESIFIKASI-APLIKASI.md versi 1.10 (PRD); rincian backend di DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.10 |
 | Audiens | Tech lead, engineer backend, frontend, mobile, DevOps, QA |
 
 Dokumen ini menetapkan teknologi yang dipakai OmniSeller. Setiap lapisan memiliki **satu keputusan**, bukan daftar pilihan. Alasan dan konsekuensinya dicatat agar keputusan dapat ditinjau ulang dengan dasar yang jelas, bukan diganti karena selera. Perubahan keputusan hanya melalui ADR baru (bagian 25).
@@ -347,6 +347,7 @@ Tabel bervolume tinggi dipartisi **range pada kolom `id`** (ULID terurut waktu) 
 | `research` | Pengumpulan dan parsing riset | 5 per domain | 2 kali |
 | `settlement` | Tarik dan rekonsiliasi settlement | 2 | 3 kali |
 | `export` | Ekspor data penuh tenant: CSV dari satu snapshot basis data, digabung ZIP, diunggah ke R2 | 1 (satu transaksi snapshot dan direktori sementara per job) | 1 kali; permintaan berikutnya membuat ekspor baru |
+| `import` | Validasi dan impor berkas migrasi dari aplikasi lain (sampai 10.000 baris dalam satu transaksi) | 2 | 1 kali; penjual memvalidasi atau mengimpor ulang |
 
 - Konkurensi di tabel ini berlaku per proses worker (`QUEUE_CONCURRENCY` di `backend/src/jobs/queues.ts`).
 - `jobId` selalu berupa kunci idempoten dengan pemisah `|` (misalnya `order.ingest|{store_id}|{event_id}`), sehingga pekerjaan ganda ditolak oleh BullMQ. BullMQ 5 menolak id kustom yang mengandung `:`. Aksi yang sah berulang untuk entitas yang sama (dorongan stok, dorongan harga) menyertakan kunci kejadian di id-nya, karena BullMQ juga menolak id milik job yang sudah selesai tetapi masih disimpan (`removeOnComplete` satu jam).
@@ -485,7 +486,7 @@ Setiap marketplace adalah paket di `packages/connectors/<nama>` yang mengimpleme
 | Pencarian | Meilisearch versi stabil terbaru di EC2 `t4g.medium` dengan EBS gp3, satu indeks per jenis data dengan filter `tenant_id` wajib. Indeks diperbarui oleh worker dari event | Pencarian produk dan pesanan yang cepat dan toleran salah ketik, ringan dioperasikan, tanpa JVM |
 | Penyimpanan objek | Cloudflare R2, bucket terpisah untuk gambar produk (publik lewat CDN), PDF label (privat, URL bertanda tangan), ekspor dan arsip (privat). Klien S3 (`@aws-sdk/client-s3`) dengan `requestChecksumCalculation` dan `responseChecksumValidation` `WHEN_REQUIRED`: bawaan SDK terbaru (CRC32 di trailer `aws-chunked`) bukan yang didokumentasikan R2, dan berkas besar (ekspor) diunggah sebagai stream dari disk | Tanpa biaya egress, terintegrasi dengan CDN Cloudflare yang sudah dipakai di edge |
 | PDF | `pdf-lib` untuk menggabungkan PDF label dari marketplace (satu label per halaman thermal 100 x 150 mm, atau imposisi 4 label per A4) dan menggambar dokumen tabel seperti pick list, dengan Noto Sans yang dibundel (`backend/assets/fonts`, SIL OFL) lewat `@pdf-lib/fontkit`. Playwright Chromium headless di proses worker untuk dokumen bertemplat HTML (packing list, label kustom, label pesanan manual), ditambahkan bersama fitur pertama yang membutuhkannya (ADR-038) | Label marketplace sudah PDF sehingga cukup digabung. Pick list adalah tabel sederhana yang tidak butuh browser. Template HTML mudah diubah desainer untuk dokumen yang tata letaknya diatur penjual |
-| ZIP dan CSV | `yazl` 3.3.1 (MIT) menulis ZIP secara streaming dari berkas di disk (ZIP64 otomatis), sehingga ekspor data penuh tidak pernah dimuat utuh ke memori; CSV ditulis penulis internal (`backend/src/common/csv.ts`: pemisah `;`, BOM, CRLF, pengaman rumus spreadsheet). Uji membaca ZIP dengan `fflate` (dev) | Satu dependensi kecil tanpa kode native; pembaca ZIP tidak dibutuhkan di produksi |
+| ZIP, Excel, dan CSV | `yazl` 3.3.1 (MIT) menulis ZIP secara streaming dari berkas di disk (ZIP64 otomatis), sehingga ekspor data penuh tidak pernah dimuat utuh ke memori. `fflate` 0.8.3 (MIT, tanpa dependensi) membuka berkas .xlsx unggahan migrasi dengan inflate streaming dan batas keras 96 MB hasil ekstraksi (melawan ZIP bomb); XML lembar kerjanya dibaca pembaca kecil sendiri (`backend/src/modules/migration/xlsx.ts`), bukan SheetJS: paket `xlsx` di npm berhenti di versi dengan kerentanan yang diketahui, dan impor hanya butuh nilai sel. CSV ditulis penulis internal (`backend/src/common/csv.ts`: pemisah `;`, BOM, CRLF, pengaman rumus spreadsheet) | Dependensi kecil tanpa kode native; ukuran dan isi berkas unggahan dikendalikan sendiri |
 | Email | Amazon SES dengan template React Email, domain terverifikasi, DKIM dan DMARC. Region ap-southeast-1 karena SES belum tersedia di Jakarta saat penulisan; email hanya memuat data tenant, tidak memuat data pembeli | Murah, andal, terintegrasi IAM |
 | WhatsApp | Meta WhatsApp Business Platform (Cloud API) langsung, template pesan disetujui Meta, hanya untuk notifikasi ke pengguna OmniSeller, bukan ke pembeli | Tanpa biaya perantara, kontrol penuh atas template |
 | Pembayaran langganan | Xendit: tagihan berulang, virtual account, QRIS, e-wallet, kartu. Logika paket, kuota, dan metering pesanan ditulis di modul `billing` internal | Metode bayar lokal lengkap, API dan webhook matang |
@@ -998,3 +999,4 @@ export interface MarketplaceConnector {
 | 1.8 | 3 Oktober 2026 | Hasil implementasi pesanan: fakta API pesanan Shopee dan TikTok Shop per Oktober 2026 (8.1); impor 90 hari dan polling 5 menit (8.5); isi antrean `order.ingest` (7.1); bagian `orders` antarmuka connector (26.4) | Candra Syahputra |
 | 1.9 | 3 Oktober 2026 | Hasil implementasi pengiriman: fakta logistik Shopee (atur kirim berbasis paket, `mass_ship_order` per kanal dan gudang, resi yang bisa terlambat, alur dokumen label, push kode 4 dan 15) dan fulfillment TikTok Shop untuk Asia Tenggara (slot serah terima, Ship Package, label A6 lewat URL 24 jam, webhook tipe 4) di 8.1; bagian `fulfillment` connector di 26.4; ADR-038 (pdf-lib untuk label dan pick list, Playwright menyusul untuk template HTML); variabel penyimpanan berkas di 26.2 |
 | 1.10 | 4 Oktober 2026 | Hasil implementasi dasbor, notifikasi, dan ekspor data: antrean `export` dan konkurensi per antrean per proses worker (7.1); ZIP dengan yazl dan penulis CSV internal dengan pengaman rumus (13); klien S3 dengan checksum hanya bila diwajibkan dan unggahan stream untuk berkas besar (13) | Candra Syahputra |
+| 1.11 | 4 Oktober 2026 | Hasil implementasi migrasi dari aplikasi lain: antrean `import` (7.1); pembaca .xlsx sendiri di atas fflate dengan batas ekstraksi, tanpa SheetJS (13) | Candra Syahputra |

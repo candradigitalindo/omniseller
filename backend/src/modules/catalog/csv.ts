@@ -13,7 +13,8 @@ export function detectDelimiter(text: string): "," | ";" {
   return count(";") > count(",") ? ";" : ",";
 }
 
-export function parseCsv(input: string): string[][] {
+/** Rows of a CSV; blank rows are dropped unless `keepBlankRows` (the migration import counts rows). */
+export function parseCsv(input: string, opts: { keepBlankRows?: boolean } = {}): string[][] {
   const text = input.charCodeAt(0) === 0xfeff ? input.slice(1) : input;
   const delimiter = detectDelimiter(text);
   const rows: string[][] = [];
@@ -53,7 +54,7 @@ export function parseCsv(input: string): string[][] {
     row.push(unguardCell(field));
     rows.push(row);
   }
-  return rows.filter((r) => r.some((cell) => cell.trim() !== ""));
+  return opts.keepBlankRows ? rows : rows.filter((r) => r.some((cell) => cell.trim() !== ""));
 }
 
 /** "65000", "65.000", "65,000", "Rp 65.000" -> 65000. Decimals are refused: prices are whole rupiah. */

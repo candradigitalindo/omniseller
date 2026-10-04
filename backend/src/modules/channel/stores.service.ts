@@ -137,27 +137,54 @@ export class StoresService {
       if (patch.defaultWarehouseId && !(await this.warehouses.findActiveIn(tx, patch.defaultWarehouseId))) {
         throw warehouseNotFound("defaultWarehouseId");
       }
-      if (patch.syncMode === "live" && store.syncMode !== "live") {
-        if (!USABLE.includes(store.status)) throw storeNotActive();
-        const unmapped = await this.repo.unmappedCount(tx, id);
-        if (unmapped > 0) throw storeUnmappedWarehouses(unmapped);
-      }
+      const modeChanges = patch.syncMode !== undefined && patch.syncMode !== store.syncMode;
+      if (patch.syncMode === "live" && modeChanges) await this.requireLiveReady(tx, store);
       const ok = await this.repo.updateStore(
         tx,
         id,
         {
           ...(patch.name !== undefined ? { name: patch.name } : {}),
           ...(patch.defaultWarehouseId !== undefined ? { defaultWarehouseId: patch.defaultWarehouseId } : {}),
-          ...(patch.syncMode !== undefined ? { syncMode: patch.syncMode } : {}),
+          ...(modeChanges ? { syncMode: patch.syncMode, syncModeChangedAt: new Date() } : {}),
         },
         ifMatch,
       );
       if (!ok) throw new ConflictError("row.stale", "Data sudah diubah orang lain. Muat ulang lalu coba lagi.");
-      if (patch.syncMode !== undefined && patch.syncMode !== store.syncMode) {
-        await this.outbox.enqueue(tx, ctx, storeSyncModeChanged, { storeId: id, syncMode: patch.syncMode }, id);
+      if (modeChanges) {
+        await this.outbox.enqueue(tx, ctx, storeSyncModeChanged, { storeId: id, syncMode: patch.syncMode! }, id);
       }
       return (await this.view(tx, [(await this.repo.getStore(tx, id))!]))[0]!;
     });
+  }
+
+  /** Live needs a usable store whose active seller warehouses are all mapped (FR-WHS-04). */
+  private async requireLiveReady(tx: Tx, store: StoreRow): Promise<void> {
+    if (!USABLE.includes(store.status)) throw storeNotActive();
+    const unmapped = await this.repo.unmappedCount(tx, store.id);
+    if (unmapped > 0) throw storeUnmappedWarehouses(unmapped);
+  }
+
+  /** Active marketplace warehouses of the store without a mapping; going live needs 0 (FR-WHS-04). */
+  unmappedWarehousesIn(tx: Tx, storeId: string): Promise<number> {
+    return this.repo.unmappedCount(tx, storeId);
+  }
+
+  /** The caller's stores with these ids, locked for an update in the caller's transaction (cutover). */
+  async lockIn(tx: Tx, ctx: RequestContext, ids: string[]): Promise<StoreRow[]> {
+    const out: StoreRow[] = [];
+    for (const id of [...new Set(ids)].sort()) out.push(await this.load(tx, ctx, id, true));
+    return out;
+  }
+
+  /**
+   * Parallel mode (read_only) or live, in the caller's transaction, for a store it locked (FR-MIG-05,
+   * 06). Going live has the same conditions as `update`; the pusher resyncs the store when it does.
+   */
+  async setSyncModeIn(tx: Tx, ctx: RequestContext, store: StoreRow, mode: "read_only" | "live"): Promise<void> {
+    if (store.syncMode === mode) return;
+    if (mode === "live") await this.requireLiveReady(tx, store);
+    await this.repo.updateStore(tx, store.id, { syncMode: mode, syncModeChangedAt: new Date() });
+    await this.outbox.enqueue(tx, ctx, storeSyncModeChanged, { storeId: store.id, syncMode: mode }, store.id);
   }
 
   /**
@@ -175,6 +202,7 @@ export class StoresService {
         statusChangedAt: new Date(),
         disconnectedAt: new Date(),
         syncMode: "read_only",
+        ...(store.syncMode !== "read_only" ? { syncModeChangedAt: new Date() } : {}),
       });
       await this.outbox.enqueue(tx, ctx, storeDisconnected, { storeId: id, reason: "disconnected_by_user" }, id);
       return (await this.view(tx, [(await this.repo.getStore(tx, id))!]))[0]!;

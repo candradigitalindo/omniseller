@@ -24,6 +24,7 @@ import { FilesModule } from "../../src/modules/files/files.module";
 import { FulfillmentModule, FulfillmentWorkerModule } from "../../src/modules/fulfillment/fulfillment.module";
 import { IdentityModule } from "../../src/modules/identity/identity.module";
 import { InventoryModule, InventoryWorkerModule } from "../../src/modules/inventory/inventory.module";
+import { MigrationWorkerModule } from "../../src/modules/migration/migration.module";
 import { EMAIL_SENDER, type MemoryEmailSender } from "../../src/modules/notification/email";
 import { NotificationModule } from "../../src/modules/notification/notification.module";
 import { OrdersModule, OrdersWorkerModule } from "../../src/modules/orders/orders.module";
@@ -142,6 +143,7 @@ export async function startWorker(infra: TestInfra, system: DbHandle, opts: { ma
       FulfillmentModule,
       FulfillmentWorkerModule,
       ExportsWorkerModule,
+      MigrationWorkerModule,
     ],
   }).compile();
   const ctx = await moduleRef.init();

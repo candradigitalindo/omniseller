@@ -7,13 +7,13 @@ import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, STOCK_DIRTY } from "../../infra/tokens";
 import type { StockDirtySet, StockPair } from "../../jobs/stock-dirty";
-import { dataOf, ListingsService } from "../catalog/listings.service";
+import { ListingsService } from "../catalog/listings.service";
 import { MarketplaceGateway } from "../channel/marketplace-gateway";
 import { type StockTarget, StoresService } from "../channel/stores.service";
 import { NotificationInboxService } from "../notification/inbox.service";
 import { describeSyncError } from "../sync/connector-calls";
 import { InventoryRepository, type PushResultRow } from "./inventory.repository";
-import { toPlanStore, toRule } from "./stock-inputs";
+import { toPlanListing, toPlanStore, toRule } from "./stock-inputs";
 import { type PlannedPush, planStockPush, type SkipReason, stockKey } from "./stock-plan";
 
 const log = logger.forModule("inventory.stock_push");
@@ -98,15 +98,7 @@ export class StockPushService {
       });
 
       const outcomes = planStockPush({
-        listings: data.listings.map((l) => ({
-          id: l.id,
-          storeId: l.storeId,
-          variantId: l.variantId!,
-          externalItemId: l.externalItemId,
-          externalVariantId: l.externalVariantId,
-          status: l.status,
-          stockKeys: Object.keys(dataOf(l).stockByWarehouse ?? {}),
-        })),
+        listings: data.listings.map(toPlanListing),
         stores: new Map([...data.targets].map(([id, t]) => [id, toPlanStore(t)])),
         stock: new Map(
           data.rows.map((r) => [

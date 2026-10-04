@@ -1,9 +1,11 @@
 import {
   DATA_EXPORT_STATUSES,
   DOCUMENT_JOB_STATUSES,
+  MIGRATION_JOB_STATUSES,
   ORDER_STATUSES,
   PERMISSION_CODES,
   SHIPMENT_STATUSES,
+  STORE_CUTOVER_STATUSES,
   SYNC_JOB_STATUSES,
 } from "@omniseller/shared";
 import { getTableConfig, type PgTable } from "drizzle-orm/pg-core";
@@ -18,7 +20,14 @@ import { testHandles } from "../setup/handles";
 const h = testHandles();
 
 /** Tenant tables without updated_at/row_version by design (ledgers and event logs). */
-const APPEND_ONLY = new Set(["stock_movement", "order_event", "order_external_ref", "outbox_event", "audit_log"]);
+const APPEND_ONLY = new Set([
+  "stock_movement",
+  "order_event",
+  "order_external_ref",
+  "outbox_event",
+  "audit_log",
+  "migration_row_error",
+]);
 /** Tables whose tenant_id is nullable by design. */
 const NULLABLE_TENANT = new Set(["file_object", "webhook_inbox"]);
 /** Global tables that carry a tenant_id only as routing data, filled in after the fact. */
@@ -198,6 +207,8 @@ describe("schema conventions", () => {
     expect(await check("sync_job")).toEqual([...SYNC_JOB_STATUSES].sort());
     expect(await check("document_job")).toEqual([...DOCUMENT_JOB_STATUSES].sort());
     expect(await check("data_export")).toEqual([...DATA_EXPORT_STATUSES].sort());
+    expect(await check("migration_job")).toEqual([...MIGRATION_JOB_STATUSES].sort());
+    expect(await check("store_cutover")).toEqual([...STORE_CUTOVER_STATUSES].sort());
   });
 
   it("every transition uses known statuses", async () => {
@@ -207,6 +218,8 @@ describe("schema conventions", () => {
       ["sync_job_status_transition", SYNC_JOB_STATUSES],
       ["document_job_status_transition", DOCUMENT_JOB_STATUSES],
       ["data_export_status_transition", DATA_EXPORT_STATUSES],
+      ["migration_job_status_transition", MIGRATION_JOB_STATUSES],
+      ["store_cutover_status_transition", STORE_CUTOVER_STATUSES],
     ] as const) {
       const rows = await q<{ from_status: string; to_status: string }>(`SELECT from_status, to_status FROM ${table}`);
       expect(rows.length).toBeGreaterThan(0);
@@ -226,7 +239,15 @@ describe("schema conventions", () => {
     const rows = await q<{ tbl: string; def: string }>(`
       SELECT c.relname AS tbl, pg_get_triggerdef(t.oid) AS def FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
        WHERE t.tgname = 'status_transition_trg' AND NOT c.relispartition ORDER BY 1`);
-    expect(rows.map((r) => r.tbl)).toEqual(["data_export", "document_job", "order", "shipment", "sync_job"]);
+    expect(rows.map((r) => r.tbl)).toEqual([
+      "data_export",
+      "document_job",
+      "migration_job",
+      "order",
+      "shipment",
+      "store_cutover",
+      "sync_job",
+    ]);
     for (const r of rows) expect(r.def).toContain(`enforce_status_transition('${r.tbl}')`);
   });
 });

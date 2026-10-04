@@ -1,6 +1,8 @@
+import type { ListingRow } from "../catalog/catalog.repository";
+import { dataOf } from "../catalog/listings.service";
 import type { StockTarget } from "../channel/stores.service";
 import type { RuleRow } from "./inventory.repository";
-import type { AllocationRule, PlanStore } from "./stock-plan";
+import type { AllocationRule, PlanListing, PlanStore } from "./stock-plan";
 
 /** Database rows to the inputs of the pure stock plan (stock-plan.ts). */
 export function toPlanStore(t: StockTarget): PlanStore {
@@ -31,5 +33,18 @@ export function toRule(r: RuleRow): AllocationRule {
     buffer: r.buffer,
     priority: r.priority,
     active: r.active,
+  };
+}
+
+/** A mapped listing; its stock keys are the locations it reported at its last pull. */
+export function toPlanListing(l: ListingRow): PlanListing {
+  return {
+    id: l.id,
+    storeId: l.storeId,
+    variantId: l.variantId!,
+    externalItemId: l.externalItemId,
+    externalVariantId: l.externalVariantId,
+    status: l.status,
+    stockKeys: Object.keys(dataOf(l).stockByWarehouse ?? {}),
   };
 }
