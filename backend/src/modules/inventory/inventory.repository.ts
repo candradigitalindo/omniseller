@@ -489,4 +489,31 @@ export class InventoryRepository {
       .orderBy(asc(stockMovement.id))
       .limit(limit);
   }
+
+  /** Established stock of active variants in these warehouses, with names (restock list, FR-STK-07). */
+  async restockCandidates(tx: Tx, warehouseIds: string[], search: string | undefined) {
+    if (warehouseIds.length === 0) return [];
+    const like = search ? `%${search.replace(/[%_\\]/g, "\\$&")}%` : null;
+    return tx
+      .select({
+        variantId: inventory.variantId,
+        warehouseId: inventory.warehouseId,
+        available: inventory.available,
+        minStock: inventory.minStock,
+        sku: catalogVariantV.sku,
+        productName: catalogVariantV.productName,
+        variantName: catalogVariantV.variantName,
+      })
+      .from(inventory)
+      .innerJoin(catalogVariantV, eq(catalogVariantV.variantId, inventory.variantId))
+      .where(
+        and(
+          inArray(inventory.warehouseId, warehouseIds),
+          isNotNull(inventory.stockSetAt),
+          eq(catalogVariantV.variantStatus, "active"),
+          eq(catalogVariantV.productStatus, "active"),
+          like ? or(ilike(catalogVariantV.sku, like), ilike(catalogVariantV.productName, like)) : undefined,
+        ),
+      );
+  }
 }

@@ -28,6 +28,7 @@ import { MigrationWorkerModule } from "../../src/modules/migration/migration.mod
 import { EMAIL_SENDER, type MemoryEmailSender } from "../../src/modules/notification/email";
 import { NotificationModule } from "../../src/modules/notification/notification.module";
 import { OrdersModule, OrdersWorkerModule } from "../../src/modules/orders/orders.module";
+import { ReportingWorkerModule } from "../../src/modules/reporting/reporting.module";
 import { SyncModule } from "../../src/modules/sync/sync.module";
 import { STOCK_PUSH_BATCH } from "../../src/scheduler/stock-flush";
 import { configureWebhookApp } from "../../src/webhook/webhook-app";
@@ -144,6 +145,7 @@ export async function startWorker(infra: TestInfra, system: DbHandle, opts: { ma
       FulfillmentWorkerModule,
       ExportsWorkerModule,
       MigrationWorkerModule,
+      ReportingWorkerModule,
     ],
   }).compile();
   const ctx = await moduleRef.init();

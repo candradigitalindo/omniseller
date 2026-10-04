@@ -1,15 +1,15 @@
 # Modul inventory
 
 ## Tanggung jawab
-Gudang, stok, pergerakan stok, aturan alokasi, dan push stok ke marketplace (PRD 6.3, 6.3.1: FR-STK-01 sampai 06, FR-WHS-04, 05, 09, FR-MFS-02, FR-MIG-05; backend doc 8.13 dan 9.4). Stock opname, transfer, pembelian, dan cadangan kampanye menyusul.
+Gudang, stok, pergerakan stok, aturan alokasi, dan push stok ke marketplace (PRD 6.3, 6.3.1: FR-STK-01 sampai 07, FR-WHS-04, 05, 09, FR-MFS-02, FR-MIG-05; backend doc 8.13, 8.20, dan 9.4). Stock opname, transfer, pembelian, dan cadangan kampanye menyusul.
 
 ## Tabel yang dimiliki
 - `warehouse`, `inventory`, `stock_movement`, `stock_allocation_rule`, `listing_stock_state`, `stock_count`, `stock_count_line`, `stock_transfer`, `stock_transfer_line`, `campaign_stock_hold`.
-- Membaca listing lewat `ListingsService` (catalog), toko dan gudang marketplace lewat `StoresService` (channel), dan varian lewat view `catalog_variant_v` yang diekspor catalog.
+- Membaca listing lewat `ListingsService` (catalog), toko dan gudang marketplace lewat `StoresService` (channel), varian lewat view `catalog_variant_v` yang diekspor catalog, dan penjualan per varian dan gudang lewat `OrdersService.unitsByStockIn` (perlu restock).
 
 ## Modul Nest
 - `InventoryModule` (`inventory-core.module.ts`, api dan worker): `WarehousesService`, `InventoryService`, `InventoryRepository`. Tidak mengimpor catalog atau channel, karena channel bergantung padanya.
-- `InventoryStockModule` (api dan worker): `StockOverviewService`, `InitialStockService`, `AllocationRulesService`, `StockComparisonService`.
+- `InventoryStockModule` (api dan worker): `StockOverviewService`, `InitialStockService`, `AllocationRulesService`, `StockComparisonService`, `RestockService`. Mengimpor `OrdersModule`; orders mengimpor `InventoryModule` dari berkas lain, jadi tidak ada siklus.
 - `InventoryWorkerModule` (worker): `StockPushService`, `StockTriggersService`, `StockAlertsService`.
 - `InventoryHttpModule` (api): `WarehousesController`, `InventoryController`, `StockRulesController`.
 
@@ -19,6 +19,10 @@ Gudang, stok, pergerakan stok, aturan alokasi, dan push stok ke marketplace (PRD
 - `StockOverviewService.list`: daftar stok dengan status push per toko.
 - `StockComparisonService.compareIn(tx, ctx, storeId)`: per listing, stok di marketplace (tarikan terakhir, per lokasi) dibanding yang akan dikirim OmniSeller bila toko `live`, dari `planStockPush` tanpa mengirim apa pun (mode paralel, backend doc 8.19).
 - `InventoryService.importInitialIn(tx, ctx, lines, {note, reference})`: stok awal dari berkas migrasi, hanya untuk stok yang belum pernah ditetapkan (mutasi `migration_initial` dengan referensi job).
+- `RestockService` (backend doc 8.20, FR-STK-07):
+  - `list(ctx, {windowDays, coverDays, targetDays, warehouseId, q, needed, limit})`: per varian dan gudang, terjual per hari, cukup untuk berapa hari, saran jumlah pesan, dan alasan.
+  - `csv(ctx, query)`: semua baris sebagai CSV.
+  - Keputusannya ada di `restock-plan.ts` dengan uji unit.
 - `InitialStockService.fromStore(ctx, storeId, dryRun)`. Error: `store.not_found`, `store.orders_importing` (impor pesanan toko belum selesai).
 - `AllocationRulesService`: `list`, `get`, `create`, `update` (`If-Match`), `remove`, `requestResync`. Error: `store.not_found`, `channel_warehouse.not_found`, `stock_rule.not_found`, `stock_rule.duplicate`, `store.not_live`, `row.stale`.
 - Hanya worker: `StockPushService.push(ctx, marks)` (penolakan marketplace yang baru diumumkan sebagai `sync.stock_push_failed`), `StockTriggersService` (`markPairs`, `listingMapped`, `listingUnmapped`, `resyncStore`), `StockAlertsService.check(ctx, pairs)` (notifikasi `stock.critical`).
@@ -31,6 +35,11 @@ Gudang, stok, pergerakan stok, aturan alokasi, dan push stok ke marketplace (PRD
 - Push: toko `read_only`, tidak aktif, atau dengan gudang penjual belum dipetakan tidak pernah dikirimi; gudang yang dikelola marketplace tidak pernah dikirimi; setiap listing dikirim utuh dengan semua lokasinya; satu gudang fisik tidak ditampilkan dua kali dalam satu listing; nilai yang sudah diterima marketplace tidak dikirim lagi kecuali dipaksa (mode `live`, pemetaan, dorong ulang).
 - Kegagalan sementara diulang BullMQ; penolakan marketplace dicatat di `listing_stock_state` dan dicoba lagi saat stoknya berubah. Penolakan pertama setelah berhasil (`push_fail_count` menjadi 1) diumumkan ke pengguna dengan `settings:store`; penolakan berikutnya tidak.
 - Stok kritis (FR-NTF-01, backend doc 8.17): `inventory.stock_alert` menyimpan tingkat yang sudah diumumkan (`low` di bawah atau sama dengan minimum, `out` habis); diumumkan hanya saat memburuk, dan pulih di atas minimum mengosongkannya. Stok yang belum ditetapkan dan varian atau produk yang diarsipkan tidak diumumkan.
+- Perlu restock:
+  - Kecepatan jual adalah unit pesanan yang dipenuhi penjual sendiri dalam 7, 14, atau 30 hari terakhir, per gudang baris pesanan.
+  - Target restock adalah `max(ceil(per hari × targetDays), min_stock + 1)`; saran pesan adalah target dikurangi stok tersedia.
+  - Alasan: `out` (habis, padahal laku atau punya minimum), `below_min`, dan `low_cover` (cukup untuk kurang dari `coverDays` hari).
+  - Hanya stok yang sudah ditetapkan, dari varian dan produk aktif.
 - Penyesuaian, opname, dan stok awal masuk `audit_log` (trigger `audit_manual_trg` pada `stock_movement`, FR-USR-04).
 
 ## Event
@@ -54,6 +63,7 @@ Gudang, stok, pergerakan stok, aturan alokasi, dan push stok ke marketplace (PRD
 | GET | `/v1/inventory`, `/v1/inventory/summary`, `/v1/inventory/movements` | `inventory:read` |
 | POST | `/v1/inventory/adjustments`, `/v1/inventory/initial-stock` | `inventory:adjust` |
 | PUT | `/v1/inventory/{variantId}/warehouses/{warehouseId}` | `inventory:adjust` |
+| GET | `/v1/inventory/restock`, `/v1/inventory/restock/export` | `inventory:read` |
 | POST | `/v1/inventory/resync` | `settings:store` |
 | GET, POST | `/v1/stock-allocation-rules` | `settings:store` |
 | GET, PATCH, DELETE | `/v1/stock-allocation-rules/{id}` | `settings:store` |
@@ -61,4 +71,4 @@ Gudang, stok, pergerakan stok, aturan alokasi, dan push stok ke marketplace (PRD
 ## Keputusan khusus modul
 - Gudang pertama (`UTAMA`) dibuat modul identity saat bisnis mendaftar; pembuatan dan pengubahan gudang menyusul.
 - Logika push ada di `stock-plan.ts` sebagai fungsi murni dengan uji unit; service hanya memuat data, memanggil marketplace, dan mencatat.
-- Deteksi perubahan stok di luar OmniSeller (FR-MIG-07, webhook TikTok Shop tipe 71) menyusul. Peringatan stok minimum (FR-STK-07) kini berupa notifikasi in-app `stock.critical`; email dan WhatsApp menyusul bersama pengaturan notifikasi.
+- Deteksi perubahan stok di luar OmniSeller (FR-MIG-07, webhook TikTok Shop tipe 71) menyusul. Peringatan stok minimum (FR-STK-07) berupa notifikasi in-app `stock.critical` dan bagian stok di email ringkasan harian (modul reporting); WhatsApp menyusul bersama pengaturan notifikasi. Purchase order dari daftar perlu restock menyusul bersama modul pembelian (FR-STK-16).

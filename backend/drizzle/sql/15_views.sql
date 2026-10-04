@@ -3,7 +3,7 @@
 -- underlying tables exactly as if the caller queried them. Recreated on every migrate; grants follow
 -- in 40_grants.sql.
 
--- catalog: live variants with their product, for stock lists and reports (inventory module).
+-- catalog: live variants with their product, for stock lists and reports (inventory, orders, reporting).
 DROP VIEW IF EXISTS catalog_variant_v;
 CREATE VIEW catalog_variant_v WITH (security_invoker = true) AS
 SELECT v.tenant_id,
@@ -17,6 +17,7 @@ SELECT v.tenant_id,
        p.sku AS product_sku,
        p.name AS product_name,
        p.status AS product_status,
+       p.category_path,
        coalesce(
          (SELECT i.source_url FROM product_image i
            WHERE i.tenant_id = v.tenant_id AND i.product_id = v.product_id AND i.variant_id = v.id

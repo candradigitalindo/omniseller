@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Inject, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Inject, Param, Post, Put, Query } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { ZodResponse } from "nestjs-zod";
 import type { RequestContext } from "../../common/context/request-context";
@@ -10,15 +10,22 @@ import {
   NotificationPageDto,
   NotificationQueryDto,
   notificationView,
+  PreferenceKindParamDto,
+  PreferenceListDto,
+  SetPreferenceDto,
   UnreadCountDto,
 } from "./dto";
 import { NotificationInboxService } from "./inbox.service";
+import { NotificationPreferencesService } from "./preferences.service";
 
 /** The signed-in user's in-app notifications (FR-NTF-01): every user reads only their own. */
 @ApiTags("notifications")
 @Controller("v1/notifications")
 export class NotificationsController {
-  constructor(@Inject(NotificationInboxService) private readonly inbox: NotificationInboxService) {}
+  constructor(
+    @Inject(NotificationInboxService) private readonly inbox: NotificationInboxService,
+    @Inject(NotificationPreferencesService) private readonly preferences: NotificationPreferencesService,
+  ) {}
 
   @Get()
   @Isolation("self")
@@ -46,5 +53,21 @@ export class NotificationsController {
   @ZodResponse({ type: MarkedDto })
   async markRead(@Ctx() ctx: RequestContext, @Body() body: MarkReadDto) {
     return { marked: await this.inbox.markRead(ctx, body.all ? null : (body.ids ?? [])) };
+  }
+
+  /** The caller's own choices (UI L44); for now the daily operational email (FR-NTF-02). */
+  @Get("preferences")
+  @Isolation("self")
+  @ZodResponse({ type: PreferenceListDto })
+  async listPreferences(@Ctx() ctx: RequestContext) {
+    return { items: await this.preferences.list(ctx) };
+  }
+
+  @Put("preferences/:kind")
+  @Isolation("self")
+  @ZodResponse({ type: PreferenceListDto })
+  async setPreference(@Ctx() ctx: RequestContext, @Param() p: PreferenceKindParamDto, @Body() body: SetPreferenceDto) {
+    await this.preferences.set(ctx, p.kind, body);
+    return { items: await this.preferences.list(ctx) };
   }
 }

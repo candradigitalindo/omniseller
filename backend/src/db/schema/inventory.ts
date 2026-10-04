@@ -103,5 +103,6 @@ export const catalogVariantV = pgView("catalog_variant_v", {
   productSku: text("product_sku").notNull(),
   productName: text("product_name").notNull(),
   productStatus: text("product_status").$type<"active" | "archived">().notNull(),
+  categoryPath: text("category_path"),
   imageUrl: text("image_url"),
 }).existing();

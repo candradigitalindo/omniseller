@@ -7,6 +7,7 @@ import { IDENTITY_JOBS } from "../modules/identity/identity.jobs";
 import { INVENTORY_JOBS } from "../modules/inventory/inventory.jobs";
 import { MIGRATION_JOBS } from "../modules/migration/migration.jobs";
 import { ORDER_JOBS } from "../modules/orders/orders.jobs";
+import { REPORTING_JOBS } from "../modules/reporting/reporting.jobs";
 import { SYNC_JOBS } from "../modules/sync/sync.jobs";
 import type { EventDef, JobDef } from "./define";
 
@@ -60,6 +61,7 @@ export const JOB_DEFINITIONS: readonly JobDef[] = [
   ...FULFILLMENT_JOBS,
   ...EXPORT_JOBS,
   ...MIGRATION_JOBS,
+  ...REPORTING_JOBS,
   ...FILES_JOBS,
   ...SYNC_JOBS,
 ];

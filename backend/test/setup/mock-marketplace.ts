@@ -59,6 +59,8 @@ export interface MockShopeeOrder {
   update_time: number;
   pay_time?: number;
   ship_by_date?: number;
+  /** When the courier picked the parcel up (shipped). */
+  pickup_done_time?: number;
   cod?: boolean;
   total_amount?: number;
   currency?: string;

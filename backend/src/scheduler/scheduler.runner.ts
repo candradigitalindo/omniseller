@@ -18,6 +18,7 @@ import {
   sweepWebhookInbox,
   WAREHOUSE_POLL_SLOT_MS,
 } from "./channel-scans";
+import { DIGEST_SCAN_MS, scanDailyDigests } from "./digest-scan";
 import {
   FILE_CLEANUP_SLOT_MS,
   SLA_ALERT_SLOT_MS,
@@ -72,6 +73,7 @@ export class SchedulerRunner implements OnApplicationBootstrap, OnApplicationShu
     );
     this.every(SLA_ALERT_SLOT_MS, "order.sla_scan", () => scanSlaAlerts(this.system, this.queues, this.registry));
     this.every(SLA_ALERT_SLOT_MS, "order.new_scan", () => scanNewOrderNotices(this.system, this.queues, this.registry));
+    this.every(DIGEST_SCAN_MS, "digest.scan", () => scanDailyDigests(this.system, this.queues, this.registry));
     this.every(FILE_CLEANUP_SLOT_MS, "files.cleanup_scan", () =>
       scanExpiredFiles(this.system, this.queues, this.registry),
     );

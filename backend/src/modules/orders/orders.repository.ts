@@ -504,4 +504,214 @@ export class OrdersRepository {
       .from(o)
       .where(inArray(o.id, ids));
   }
+
+  // ---- sales report (reporting, FR-RPT-02): sold orders by order time, in the caller's scope ----
+
+  /** Sold orders per calendar bucket of the business's time zone (day, ISO week from Monday, month). */
+  async salesBuckets(
+    tx: Tx,
+    f: OrderListFilter,
+    from: Date,
+    to: Date,
+    unit: "day" | "week" | "month",
+    timezone: string,
+  ): Promise<{ bucket: string; orders: number; revenue: number }[]> {
+    const rows = await tx
+      .select({
+        bucket: sql<string>`to_char(date_trunc(${unit}, ${o.orderedAt} AT TIME ZONE ${timezone}), 'YYYY-MM-DD')`,
+        n: sql<number>`count(*)::int`,
+        revenue: sql<string>`coalesce(sum(${o.total}), 0)::bigint`,
+      })
+      .from(o)
+      .where(this.sold(f, from, to))
+      // by position: each mention of a parameter is another expression for PostgreSQL
+      .groupBy(sql`1`)
+      .orderBy(sql`1`);
+    return rows.map((r) => ({ bucket: r.bucket, orders: r.n, revenue: Number(r.revenue) }));
+  }
+
+  /** Sold orders per channel, store, or the buyer's province (as written in the address). */
+  async salesBy(
+    tx: Tx,
+    f: OrderListFilter,
+    from: Date,
+    to: Date,
+    by: "channel" | "store" | "province",
+  ): Promise<{ key: string | null; label: string | null; orders: number; revenue: number }[]> {
+    const province = sql`nullif(btrim(${o.shippingAddress}->>'province'), '')`;
+    const key =
+      by === "channel"
+        ? sql<string>`${o.channel}`
+        : by === "store"
+          ? sql<string>`${o.storeId}`
+          : sql<string>`lower(${province})`;
+    const rows = await tx
+      .select({
+        key,
+        label: by === "province" ? sql<string | null>`min(${province})` : sql<string | null>`null`,
+        n: sql<number>`count(*)::int`,
+        revenue: sql<string>`coalesce(sum(${o.total}), 0)::bigint`,
+      })
+      .from(o)
+      .where(this.sold(f, from, to))
+      .groupBy(sql`1`)
+      .orderBy(desc(sql`coalesce(sum(${o.total}), 0)`));
+    return rows.map((r) => ({ key: r.key, label: r.label, orders: r.n, revenue: Number(r.revenue) }));
+  }
+
+  /** Sold orders per weekday (1 Monday to 7 Sunday) and hour of the business's time zone. */
+  async salesByHour(
+    tx: Tx,
+    f: OrderListFilter,
+    from: Date,
+    to: Date,
+    timezone: string,
+  ): Promise<{ weekday: number; hour: number; orders: number; revenue: number }[]> {
+    const rows = await tx
+      .select({
+        weekday: sql<number>`extract(isodow from ${o.orderedAt} AT TIME ZONE ${timezone})::int`,
+        hour: sql<number>`extract(hour from ${o.orderedAt} AT TIME ZONE ${timezone})::int`,
+        n: sql<number>`count(*)::int`,
+        revenue: sql<string>`coalesce(sum(${o.total}), 0)::bigint`,
+      })
+      .from(o)
+      .where(this.sold(f, from, to))
+      .groupBy(sql`1`, sql`2`)
+      .orderBy(sql`1`, sql`2`);
+    return rows.map((r) => ({ weekday: r.weekday, hour: r.hour, orders: r.n, revenue: Number(r.revenue) }));
+  }
+
+  /**
+   * Lines of sold orders per variant (unmapped lines per marketplace SKU) or per product category:
+   * units after cancellations, line totals, and how many orders. Largest revenue first.
+   */
+  async itemSales(
+    tx: Tx,
+    f: OrderListFilter,
+    from: Date,
+    to: Date,
+    by: "variant" | "category",
+    limit: number | null,
+  ): Promise<
+    {
+      variantId: string | null;
+      sku: string;
+      title: string;
+      category: string | null;
+      units: number;
+      orders: number;
+      revenue: number;
+    }[]
+  > {
+    const units = sql<number>`coalesce(sum(${orderItem.qty} - ${orderItem.cancelledQty}), 0)::int`;
+    const revenue = sql<string>`coalesce(sum(${orderItem.lineTotal}), 0)::bigint`;
+    const base = {
+      units,
+      orders: sql<number>`count(distinct ${orderItem.orderId})::int`,
+      revenue,
+    };
+    const q =
+      by === "variant"
+        ? tx
+            .select({
+              variantId: orderItem.variantId,
+              sku: sql<string>`min(${orderItem.skuSnapshot})`,
+              title: sql<string>`min(${orderItem.titleSnapshot})`,
+              category: sql<string | null>`null`,
+              ...base,
+            })
+            .from(orderItem)
+            .innerJoin(o, and(eq(o.tenantId, orderItem.tenantId), eq(o.id, orderItem.orderId)))
+            .where(this.sold(f, from, to))
+            .groupBy(
+              orderItem.variantId,
+              sql`CASE WHEN ${orderItem.variantId} IS NULL THEN ${orderItem.skuSnapshot} END`,
+            )
+        : tx
+            .select({
+              variantId: sql<string | null>`null`,
+              sku: sql<string>`''`,
+              title: sql<string>`''`,
+              category: sql<string | null>`${catalogVariantV.categoryPath}`,
+              ...base,
+            })
+            .from(orderItem)
+            .innerJoin(o, and(eq(o.tenantId, orderItem.tenantId), eq(o.id, orderItem.orderId)))
+            .leftJoin(catalogVariantV, eq(catalogVariantV.variantId, orderItem.variantId))
+            .where(this.sold(f, from, to))
+            .groupBy(catalogVariantV.categoryPath);
+    const ordered = q.orderBy(desc(sql`coalesce(sum(${orderItem.lineTotal}), 0)`), desc(units));
+    const rows = limit === null ? await ordered : await ordered.limit(limit);
+    return rows.map((r) => ({
+      variantId: r.variantId,
+      sku: r.sku,
+      title: r.title,
+      category: r.category,
+      units: r.units,
+      orders: r.orders,
+      revenue: Number(r.revenue),
+    }));
+  }
+
+  /** Units sold (after cancellations) in sold orders of the period. */
+  async unitsSold(tx: Tx, f: OrderListFilter, from: Date, to: Date): Promise<number> {
+    const [r] = await tx
+      .select({ n: sql<number>`coalesce(sum(${orderItem.qty} - ${orderItem.cancelledQty}), 0)::int` })
+      .from(orderItem)
+      .innerJoin(o, and(eq(o.tenantId, orderItem.tenantId), eq(o.id, orderItem.orderId)))
+      .where(this.sold(f, from, to));
+    return r?.n ?? 0;
+  }
+
+  /** Orders placed in the period that were paid, and how many of them were cancelled afterwards. */
+  async cancellations(tx: Tx, f: OrderListFilter, from: Date, to: Date): Promise<{ paid: number; cancelled: number }> {
+    const [r] = await tx
+      .select({
+        paid: sql<number>`count(*) FILTER (WHERE ${o.paidAt} IS NOT NULL)::int`,
+        cancelled: sql<number>`count(*) FILTER (WHERE ${o.paidAt} IS NOT NULL AND ${o.status} = 'cancelled')::int`,
+      })
+      .from(o)
+      .where(this.where({ ...f, from, to }));
+    return { paid: r?.paid ?? 0, cancelled: r?.cancelled ?? 0 };
+  }
+
+  /** Orders handed to the courier in the period (by `shipped_at`), cancelled ones left out. */
+  async shipped(tx: Tx, f: OrderListFilter, from: Date, to: Date): Promise<{ orders: number; revenue: number }> {
+    const [r] = await tx
+      .select({ n: sql<number>`count(*)::int`, revenue: sql<string>`coalesce(sum(${o.total}), 0)::bigint` })
+      .from(o)
+      .where(and(this.where(f), gte(o.shippedAt, from), lt(o.shippedAt, to), ne(o.status, "cancelled")));
+    return { orders: r?.n ?? 0, revenue: Number(r?.revenue ?? 0) };
+  }
+
+  /**
+   * Units sold per variant and warehouse in the period (restock list, FR-STK-07): seller-fulfilled
+   * sold orders, each line in its own warehouse or the order's.
+   */
+  async unitsByStock(
+    tx: Tx,
+    f: OrderListFilter,
+    from: Date,
+    to: Date,
+  ): Promise<{ variantId: string; warehouseId: string; units: number }[]> {
+    const warehouse = sql<string>`coalesce(${orderItem.warehouseId}, ${o.warehouseId})`;
+    const rows = await tx
+      .select({
+        variantId: sql<string>`${orderItem.variantId}`,
+        warehouseId: warehouse,
+        units: sql<number>`sum(${orderItem.qty} - ${orderItem.cancelledQty})::int`,
+      })
+      .from(orderItem)
+      .innerJoin(o, and(eq(o.tenantId, orderItem.tenantId), eq(o.id, orderItem.orderId)))
+      .where(
+        and(
+          this.sold(f, from, to),
+          eq(o.fulfillmentMode, "seller"),
+          isNotNull(orderItem.variantId),
+          sql`${warehouse} IS NOT NULL`,
+        ),
+      )
+      .groupBy(sql`1`, sql`2`);
+    return rows.filter((r) => r.units > 0);
+  }
 }

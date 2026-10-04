@@ -10,6 +10,7 @@ import { pageSchema, paginationQuery } from "../../common/http/pagination";
 import type { InitialStockLine } from "./initial-stock.service";
 import type { InventoryRow, MovementRow, RuleRow, StockSummary } from "./inventory.repository";
 import type { AdjustmentResult } from "./inventory.service";
+import type { RestockItem } from "./restock.service";
 import type { StockItem } from "./stock-overview.service";
 
 /** Request and response DTOs of the inventory endpoints (backend doc 10.6). */
@@ -345,5 +346,65 @@ export function ruleView(r: RuleRow): z.infer<typeof ruleSchema> {
     active: r.active,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
+  };
+}
+
+// ---- restock list (FR-STK-07) ----
+
+export class RestockQueryDto extends createZodDto(
+  z.object({
+    /** Days of sales the pace is measured over. */
+    window: z
+      .enum(["7", "14", "30"])
+      .default("30")
+      .transform((v) => Number(v) as 7 | 14 | 30),
+    /** Stock lasting fewer days than this needs restocking. */
+    coverDays: z.coerce.number().int().min(1).max(365).default(14),
+    /** A restock should last this many days. */
+    targetDays: z.coerce.number().int().min(1).max(365).default(30),
+    warehouseId: ulidSchema.optional(),
+    q: z.string().trim().max(100).optional(),
+    /** All established stock instead of only what needs restocking. */
+    all: z.enum(["true", "false"]).default("false"),
+    limit: z.coerce.number().int().min(1).max(1000).default(200),
+  }),
+) {}
+
+const restockItemSchema = z.object({
+  /** The variant. */
+  id: ulidSchema,
+  sku: z.string(),
+  productName: z.string(),
+  variantName: z.string(),
+  warehouseId: ulidSchema,
+  warehouse: z.string(),
+  available: count,
+  minStock: count.nullable(),
+  unitsSold: count,
+  dailyRate: z.number(),
+  daysOfCover: z.number().nullable(),
+  suggested: count,
+  reason: z.enum(["out", "below_min", "low_cover"]).nullable(),
+});
+
+export class RestockListDto extends createZodDto(
+  z.object({ items: z.array(restockItemSchema), total: z.number().int(), needed: z.number().int() }),
+) {}
+
+export function restockItemView(i: RestockItem): z.infer<typeof restockItemSchema> {
+  return {
+    id: i.variantId,
+    sku: i.sku,
+    productName: i.productName,
+    variantName: i.variantName,
+    warehouseId: i.warehouseId,
+    warehouse: i.warehouse,
+    available: i.available,
+    minStock: i.minStock,
+    unitsSold: i.unitsSold,
+    dailyRate: i.dailyRate,
+    daysOfCover: i.daysOfCover,
+    suggested: i.suggested,
+    reason: i.reason,
   };
 }

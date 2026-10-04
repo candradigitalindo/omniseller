@@ -67,6 +67,12 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
 
 export const orderStatusLabel = (s: OrderStatus) => STATUS_LABELS[s];
 
+/** Narrowing of the sales figures: one store, one channel. */
+export interface SalesFilter {
+  storeId?: string | undefined;
+  channel?: string | undefined;
+}
+
 /**
  * Orders for sellers (PRD 6.4: FR-ORD-02, 03, 05, 06, 07, 08, 10, 13, 14, 15): the unified queue and
  * its counts, one order in full, and the seller's actions. Reads respect the store scope and, for
@@ -215,6 +221,64 @@ export class OrdersService {
 
   grossProfitIn(tx: Tx, ctx: RequestContext, filter: { storeId?: string | undefined }, from: Date, to: Date) {
     return this.repo.grossProfit(tx, { ...filter, ...this.scope(ctx) }, from, to);
+  }
+
+  // ---- sales report (reporting, FR-RPT-02) and restock velocity (FR-STK-07) ----
+
+  salesBucketsIn(
+    tx: Tx,
+    ctx: RequestContext,
+    filter: SalesFilter,
+    from: Date,
+    to: Date,
+    unit: "day" | "week" | "month",
+    timezone: string,
+  ) {
+    return this.repo.salesBuckets(tx, { ...filter, ...this.scope(ctx) }, from, to, unit, timezone);
+  }
+
+  salesByIn(
+    tx: Tx,
+    ctx: RequestContext,
+    filter: SalesFilter,
+    from: Date,
+    to: Date,
+    by: "channel" | "store" | "province",
+  ) {
+    return this.repo.salesBy(tx, { ...filter, ...this.scope(ctx) }, from, to, by);
+  }
+
+  salesByHourIn(tx: Tx, ctx: RequestContext, filter: SalesFilter, from: Date, to: Date, timezone: string) {
+    return this.repo.salesByHour(tx, { ...filter, ...this.scope(ctx) }, from, to, timezone);
+  }
+
+  itemSalesIn(
+    tx: Tx,
+    ctx: RequestContext,
+    filter: SalesFilter,
+    from: Date,
+    to: Date,
+    by: "variant" | "category",
+    limit: number | null,
+  ) {
+    return this.repo.itemSales(tx, { ...filter, ...this.scope(ctx) }, from, to, by, limit);
+  }
+
+  unitsSoldIn(tx: Tx, ctx: RequestContext, filter: SalesFilter, from: Date, to: Date) {
+    return this.repo.unitsSold(tx, { ...filter, ...this.scope(ctx) }, from, to);
+  }
+
+  cancellationsIn(tx: Tx, ctx: RequestContext, filter: SalesFilter, from: Date, to: Date) {
+    return this.repo.cancellations(tx, { ...filter, ...this.scope(ctx) }, from, to);
+  }
+
+  shippedIn(tx: Tx, ctx: RequestContext, filter: SalesFilter, from: Date, to: Date) {
+    return this.repo.shipped(tx, { ...filter, ...this.scope(ctx) }, from, to);
+  }
+
+  /** Units sold per variant and warehouse, seller-fulfilled, in the caller's scope (FR-STK-07). */
+  unitsByStockIn(tx: Tx, ctx: RequestContext, from: Date, to: Date) {
+    return this.repo.unitsByStock(tx, this.scope(ctx), from, to);
   }
 
   /** The most urgent orders still to ship: past or within 6 hours of the ship-by deadline. */

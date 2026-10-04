@@ -309,6 +309,11 @@ describe("tenant isolation generated from openapi.json", () => {
     expect(theirs.body.urgentOrders).toEqual([]);
     expect(theirs.body.stores).toEqual([]);
     expect(theirs.body.tasks).toEqual([]);
+    expect((await a.c.get("/v1/reports/sales")).body.summary).toMatchObject({ orders: 1, revenue: 50000 });
+    const theirSales = await b.c.get("/v1/reports/sales");
+    expect(theirSales.status).toBe(200);
+    expect(theirSales.body.summary).toMatchObject({ orders: 0, revenue: 0, paidOrders: 0 });
+    expect(theirSales.body.byStore).toEqual([]);
   });
 
   it("tenant A's resources are still intact afterwards", async () => {

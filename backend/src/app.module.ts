@@ -30,7 +30,7 @@ import { MigrationHttpModule, MigrationWorkerModule } from "./modules/migration/
 import { NotificationHttpModule, NotificationModule } from "./modules/notification/notification.module";
 import { OrdersHttpModule, OrdersModule, OrdersWorkerModule } from "./modules/orders/orders.module";
 import { HealthController } from "./modules/platform/health.controller";
-import { ReportingHttpModule } from "./modules/reporting/reporting.module";
+import { ReportingHttpModule, ReportingWorkerModule } from "./modules/reporting/reporting.module";
 import { SyncModule, WebhookHttpModule } from "./modules/sync/sync.module";
 import { SchedulerRunner } from "./scheduler/scheduler.runner";
 import { WorkerRunner } from "./worker/worker.runner";
@@ -126,6 +126,7 @@ export class AppModule {
             FulfillmentWorkerModule,
             ExportsWorkerModule,
             MigrationWorkerModule,
+            ReportingWorkerModule,
           ],
           providers: [WorkerRunner],
         };

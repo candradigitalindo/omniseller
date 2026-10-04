@@ -52,3 +52,21 @@ export function notificationView(n: NotificationRow): z.infer<typeof notificatio
     createdAt: n.createdAt.toISOString(),
   };
 }
+
+const preferenceSchema = z.object({
+  kind: z.string(),
+  label: z.string(),
+  email: z.boolean(),
+  /** What applies while the user has not chosen. */
+  emailByDefault: z.boolean(),
+});
+export class PreferenceListDto extends createZodDto(z.object({ items: z.array(preferenceSchema) })) {}
+export class PreferenceKindParamDto extends createZodDto(
+  z.object({
+    kind: z
+      .string()
+      .regex(/^[a-z_]+(\.[a-z_]+)+$/)
+      .max(60),
+  }),
+) {}
+export class SetPreferenceDto extends createZodDto(z.object({ email: z.boolean() })) {}

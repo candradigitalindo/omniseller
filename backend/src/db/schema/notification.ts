@@ -1,4 +1,4 @@
-import { jsonb, pgTable, text } from "drizzle-orm/pg-core";
+import { boolean, date, integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
 import { baseColumns, tstz, ulid } from "../columns";
 
 export type NotificationSeverity = "info" | "warning" | "critical";
@@ -15,4 +15,21 @@ export const notification = pgTable("notification", {
   data: jsonb("data").$type<Record<string, unknown>>().notNull().default({}),
   channelsSent: jsonb("channels_sent").$type<Record<string, unknown>>().notNull().default({}),
   readAt: tstz("read_at"),
+});
+
+/** What a user wants per kind of notification (UI L44); no row means the kind's default. */
+export const notificationPreference = pgTable("notification_preference", {
+  ...baseColumns(),
+  userId: ulid("user_id").notNull(),
+  kind: text("kind").notNull(),
+  inApp: boolean("in_app").notNull().default(true),
+  email: boolean("email").notNull().default(false),
+  whatsapp: boolean("whatsapp").notNull().default(false),
+});
+
+/** One daily operational email run per business and local date (PRD FR-NTF-02). */
+export const dailyDigest = pgTable("daily_digest", {
+  ...baseColumns(),
+  digestDate: date("digest_date", { mode: "string" }).notNull(),
+  recipients: integer("recipients").notNull().default(0),
 });

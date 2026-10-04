@@ -28,7 +28,7 @@ import { MigrationCutoverController, MigrationImportsController } from "../../mo
 import { NotificationsController } from "../../modules/notification/inbox.controller";
 import { OrdersController } from "../../modules/orders/orders.controllers";
 import { HealthController } from "../../modules/platform/health.controller";
-import { DashboardController } from "../../modules/reporting/reporting.controller";
+import { DashboardController, ReportsController } from "../../modules/reporting/reporting.controller";
 import { WebhooksController } from "../../modules/sync/webhooks.controller";
 
 /**
@@ -60,6 +60,7 @@ const CONTROLLERS = [
   FilesController,
   NotificationsController,
   DashboardController,
+  ReportsController,
   ExportsController,
   MigrationImportsController,
   MigrationCutoverController,

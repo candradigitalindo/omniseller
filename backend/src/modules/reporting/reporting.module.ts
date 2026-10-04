@@ -3,17 +3,29 @@ import { CatalogModule } from "../catalog/catalog.module";
 import { ChannelModule } from "../channel/channel.module";
 import { IdentityModule } from "../identity/identity.module";
 import { InventoryModule } from "../inventory/inventory-core.module";
+import { NotificationInboxModule } from "../notification/notification.module";
 import { OrdersModule } from "../orders/orders.module";
 import { DashboardService } from "./dashboard.service";
-import { DashboardController } from "./reporting.controller";
+import { DigestRepository } from "./digest.repository";
+import { DigestService } from "./digest.service";
+import { DashboardController, ReportsController } from "./reporting.controller";
+import { SalesReportService } from "./sales-report.service";
 
-/** Reports read other modules' data through their services; this module owns no tables (backend doc 11). */
+/** Reports read other modules' data through their services; the module owns only `daily_digest` (backend doc 11). */
 @Module({
   imports: [OrdersModule, InventoryModule, CatalogModule, ChannelModule, IdentityModule],
-  providers: [DashboardService],
-  exports: [DashboardService],
+  providers: [DashboardService, SalesReportService],
+  exports: [DashboardService, SalesReportService],
 })
 export class ReportingModule {}
 
-@Module({ imports: [ReportingModule], controllers: [DashboardController] })
+@Module({ imports: [ReportingModule], controllers: [DashboardController, ReportsController] })
 export class ReportingHttpModule {}
+
+/** Worker only: the daily operational email (FR-NTF-02). */
+@Module({
+  imports: [ReportingModule, OrdersModule, InventoryModule, ChannelModule, IdentityModule, NotificationInboxModule],
+  providers: [DigestRepository, DigestService],
+  exports: [DigestService],
+})
+export class ReportingWorkerModule {}

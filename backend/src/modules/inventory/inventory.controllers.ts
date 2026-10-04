@@ -13,7 +13,7 @@ import {
   Req,
   Res,
 } from "@nestjs/common";
-import { ApiTags } from "@nestjs/swagger";
+import { ApiOkResponse, ApiProduces, ApiTags } from "@nestjs/swagger";
 import { ulidSchema } from "@omniseller/shared";
 import type { Response } from "express";
 import { createZodDto, ZodResponse } from "nestjs-zod";
@@ -39,11 +39,14 @@ import {
   MovementPageDto,
   MovementQueryDto,
   movementView,
+  RestockListDto,
+  RestockQueryDto,
   ResyncStockDto,
   RuleDto,
   RuleIdParamDto,
   RuleListDto,
   RuleQueryDto,
+  restockItemView,
   ruleView,
   StockPageDto,
   StockQueryDto,
@@ -54,6 +57,7 @@ import {
 } from "./dto";
 import { InitialStockService } from "./initial-stock.service";
 import { InventoryService } from "./inventory.service";
+import { RestockService } from "./restock.service";
 import { StockOverviewService } from "./stock-overview.service";
 import { WarehousesService } from "./warehouses.service";
 
@@ -94,7 +98,48 @@ export class InventoryController {
     @Inject(StockOverviewService) private readonly overview: StockOverviewService,
     @Inject(InitialStockService) private readonly initial: InitialStockService,
     @Inject(AllocationRulesService) private readonly rules: AllocationRulesService,
+    @Inject(RestockService) private readonly restock: RestockService,
   ) {}
+
+  /** "Perlu restock" (FR-STK-07): what sells faster than its stock lasts, and how much to order. */
+  @Get("restock")
+  @RequirePermission("inventory:read")
+  @Isolation({ fixture: "variant" })
+  @ZodResponse({ type: RestockListDto })
+  async restockList(@Ctx() ctx: RequestContext, @Query() q: RestockQueryDto) {
+    const r = await this.restock.list(ctx, {
+      windowDays: q.window,
+      coverDays: q.coverDays,
+      targetDays: q.targetDays,
+      warehouseId: q.warehouseId,
+      q: q.q,
+      needed: q.all === "false",
+      limit: q.limit,
+    });
+    return { items: r.items.map(restockItemView), total: r.total, needed: r.needed };
+  }
+
+  /** The restock list as CSV, every line. */
+  @Get("restock/export")
+  @RequirePermission("inventory:read")
+  @Isolation({ fixture: "variant" })
+  @ApiProduces("text/csv")
+  @ApiOkResponse({ schema: { type: "string" }, description: "CSV, pemisah ;" })
+  async restockCsv(@Ctx() ctx: RequestContext, @Query() q: RestockQueryDto, @Res() res: Response): Promise<void> {
+    const csv = await this.restock.csv(ctx, {
+      windowDays: q.window,
+      coverDays: q.coverDays,
+      targetDays: q.targetDays,
+      warehouseId: q.warehouseId,
+      q: q.q,
+      needed: q.all === "false",
+      limit: q.limit,
+    });
+    res.setHeader("content-type", "text/csv; charset=utf-8");
+    res.setHeader("content-disposition", 'attachment; filename="perlu-restock.csv"');
+    res.setHeader("cache-control", "private, no-store");
+    res.send(csv);
+  }
 
   /** L19: stock per variant and warehouse, with the push state per store. */
   @Get()

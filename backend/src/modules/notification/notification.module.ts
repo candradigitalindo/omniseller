@@ -4,6 +4,7 @@ import { createEmailSender, EMAIL_SENDER } from "./email";
 import { NotificationsController } from "./inbox.controller";
 import { InboxRepository } from "./inbox.repository";
 import { NotificationInboxService } from "./inbox.service";
+import { NotificationPreferencesService } from "./preferences.service";
 
 /** Email delivery for the worker process (EMAIL_TRANSPORT, SMTP_URL, EMAIL_FROM). */
 @Global()
@@ -21,8 +22,8 @@ export class NotificationModule {
 /** In-app notifications (api and worker): other modules write them, users read their own. */
 @Module({
   imports: [IdentityModule],
-  providers: [InboxRepository, NotificationInboxService],
-  exports: [NotificationInboxService],
+  providers: [InboxRepository, NotificationInboxService, NotificationPreferencesService],
+  exports: [NotificationInboxService, NotificationPreferencesService],
 })
 export class NotificationInboxModule {}
 

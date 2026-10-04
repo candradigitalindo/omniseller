@@ -4,8 +4,8 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.10 |
-| Tanggal | 30 September 2026 |
+| Versi dokumen | 1.11 |
+| Tanggal | 4 Oktober 2026 |
 | Status | Draft untuk review |
 | Pemilik dokumen | Candra Syahputra |
 | Nama produk | OmniSeller (nama sementara, dapat diganti) |
@@ -1278,7 +1278,7 @@ Seluruh dokumen ditinjau konsultan hukum sebagai bagian gerbang kepatuhan (12.6)
 | Stok dan gudang daerah (6.3, 6.3.1) | Diberikan pesanan SKU A dari gudang Shopee Sidoarjo, ketika webhook diterima, maka reservasi terjadi di Gudang Surabaya dan stok SKU A terkirim ke semua listing terkait dalam waktu kurang dari 60 detik dengan nilai absolut yang sama. Sinkron stok tidak aktif selama ada gudang marketplace belum terpetakan | Uji integrasi dengan webhook tiruan dan sandbox, pengukuran latensi p95 |
 | Pesanan (6.4) | Webhook yang sama dikirim dua kali tidak menghasilkan pesanan ganda. Pesanan dengan SKU belum terpetakan ditandai bermasalah dan tidak menyentuh stok. 500 pesanan diproses massal tanpa kegagalan akibat batas permintaan | Uji idempotensi, uji beban |
 | Pengiriman (6.5) | 500 label menjadi satu PDF dalam waktu kurang dari 30 detik dengan urutan sesuai pick list. Label thermal 100 x 150 mm tercetak utuh pada dua model printer uji. Scan verifikasi menolak SKU yang salah | Uji cetak fisik, uji end-to-end |
-| Dasbor dan laporan (6.10) | Angka penjualan hari ini sama persis dengan jumlah pesanan berstatus Dikirim atau lebih pada hari itu. Dasbor termuat dalam waktu kurang dari 2 detik pada tenant dengan 10.000 pesanan aktif | Rekonsiliasi query, uji performa |
+| Dasbor dan laporan (6.10) | Angka penjualan hari ini sama persis dengan jumlah dan nilai pesanan yang sudah dibayar dan tidak dibatalkan, menurut waktu pesan pada hari itu di zona waktu bisnis (seperti Shopee dan TikTok Shop menghitung penjualan). Laporan penjualan juga menampilkan pesanan yang diserahkan ke kurir pada periode itu sebagai angka terpisah. Dasbor termuat dalam waktu kurang dari 2 detik pada tenant dengan 10.000 pesanan aktif | Rekonsiliasi query, uji performa |
 | Pengguna dan audit (6.11) | Pengguna berperan Gudang tidak dapat membuka halaman harga dan menerima 403 dari API. Setiap perubahan harga, stok, dan pembatalan tercatat dengan nilai sebelum dan sesudah | Uji akses otomatis per matriks peran dan endpoint |
 | Migrasi (6.20) | Dalam mode paralel tidak ada satu pun permintaan push stok ke marketplace. Cutover ditolak bila masih ada listing belum terpetakan | Uji negatif terhadap log connector |
 | Keuangan (6.7, Fase 3) | Minimal 95% baris settlement Shopee cocok otomatis ke pesanan. Selisih Rp1 atau lebih ditandai | Dataset settlement nyata teranonimkan |
@@ -1698,6 +1698,7 @@ Pengecualian: gangguan API marketplace, gangguan ekspedisi, dan keadaan kahar ti
 | 1.8 | 30 September 2026 | Rujukan ke DOKUMEN-UI-UX.md di 9.4 | Candra Syahputra |
 | 1.9 | 30 September 2026 | Rujukan ke DOKUMEN-UI-UX-MOBILE.md di 9.4 | Candra Syahputra |
 | 1.10 | 1 Oktober 2026 | Hasil verifikasi dokumentasi resmi saat implementasi koneksi toko: pedoman merek "Tokopedia & Shop" (5.1, 5.6), rincian otorisasi dan token Shopee serta TikTok Shop (11.1), siklus token dan masa izin seller (11.3) | Candra Syahputra |
+| 1.11 | 4 Oktober 2026 | Definisi penjualan di kriteria penerimaan 13.2 diputuskan Owner: pesanan yang sudah dibayar dan tidak dibatalkan, menurut waktu pesan di zona waktu bisnis; pesanan yang diserahkan ke kurir menjadi angka terpisah di laporan penjualan | Candra Syahputra |
 
 ### 18.6 Referensi riset (diakses 30 September 2026)
 
