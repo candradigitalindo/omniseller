@@ -42,6 +42,17 @@ export interface OrderStockMove {
   qty: number;
 }
 
+/** Returned units of one request item received into a warehouse (FR-RET-03, 06). */
+export interface ReturnStockMove {
+  returnItemId: string;
+  variantId: string;
+  warehouseId: string;
+  /** Back in sellable stock. */
+  sellable: number;
+  /** Into quarantine: in the warehouse, never sold or pushed. */
+  damaged: number;
+}
+
 /** Establishes a quantity: lock, compute the difference, move or confirm. */
 export interface EstablishLine {
   variantId: string;
@@ -273,6 +284,35 @@ export class InventoryService {
     }
     await this.changedIn(tx, ctx, [...changed.values()]);
     return { shortfalls };
+  }
+
+  /**
+   * Returned goods received (FR-RET-03, 06), inside the receipt's transaction: sellable units go back on
+   * hand (`return_restock`) and reach the marketplaces through inventory.changed; damaged units go to
+   * quarantine (`return_quarantine`, the damaged count), which nothing sells. Rows are locked in a fixed
+   * order (variant, warehouse), as for orders.
+   */
+  async returnMovementsIn(tx: Tx, ctx: RequestContext, moves: ReturnStockMove[], note: string | null): Promise<void> {
+    const changed = new Map<string, { variantId: string; warehouseId: string }>();
+    const ordered = [...moves].sort((a, b) => (a.variantId + a.warehouseId < b.variantId + b.warehouseId ? -1 : 1));
+    const actorUserId = ctx.actor.type === "user" ? ctx.actor.id : null;
+    for (const m of ordered) {
+      const base = {
+        tenantId: ctx.tenantId,
+        variantId: m.variantId,
+        warehouseId: m.warehouseId,
+        referenceType: "return_item" as const,
+        referenceId: m.returnItemId,
+        note,
+        actorUserId,
+      };
+      if (m.sellable > 0) {
+        await this.repo.applyMovement(tx, { ...base, type: "return_restock", onHand: m.sellable });
+        changed.set(`${m.variantId}|${m.warehouseId}`, { variantId: m.variantId, warehouseId: m.warehouseId });
+      }
+      if (m.damaged > 0) await this.repo.applyMovement(tx, { ...base, type: "return_quarantine", damaged: m.damaged });
+    }
+    await this.changedIn(tx, ctx, [...changed.values()]);
   }
 
   /** Available and established per (variant, warehouse), keyed `${variantId}|${warehouseId}`. */

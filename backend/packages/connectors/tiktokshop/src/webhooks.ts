@@ -53,8 +53,11 @@ const TOPIC_KINDS: Record<string, WebhookEventKind> = {
   SELLER_DEAUTHORIZATION: "authorization.revoked",
   UPCOMING_AUTHORIZATION_EXPIRATION: "authorization.expiring",
   ORDER_STATUS_CHANGE: "order.status_changed",
-  // a buyer cancellation request or an address change: the order is read again
+  // a buyer cancellation request or an address change: the order is read again (its cancellation
+  // request follows the order's flag)
   CANCELLATION_STATUS_CHANGE: "order.status_changed",
+  // the return is read again by its id, and its order with it
+  RETURN_STATUS_CHANGE: "return.changed",
   RECIPIENT_ADDRESS_UPDATE: "order.status_changed",
   // packages combined, split, or cancelled: the orders are read again with their new packages
   PACKAGE_UPDATE: "order.status_changed",
@@ -110,6 +113,11 @@ export function parseTiktokWebhook(rawBody: Buffer): NormalizedWebhookEvent[] {
   if (kind === "listing.changed") {
     if (data.product_id !== undefined && data.product_id !== null) event.data.externalItemId = String(data.product_id);
     if (typeof data.status === "string") event.data.status = data.status;
+  }
+  if (kind === "return.changed") {
+    if (data.order_id !== undefined && data.order_id !== null) event.data.externalOrderId = String(data.order_id);
+    if (data.return_id !== undefined && data.return_id !== null) event.data.externalReturnId = String(data.return_id);
+    if (typeof data.return_status === "string") event.data.status = data.return_status;
   }
   if (kind === "order.status_changed") {
     if (data.order_id !== undefined) event.data.externalOrderId = String(data.order_id);

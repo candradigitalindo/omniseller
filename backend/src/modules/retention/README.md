@@ -13,6 +13,7 @@ Tidak ada. Data dihapus lewat service modul pemiliknya, di transaksi pendek per 
 
 ## Aturan
 - Urutan per toko:
+  0. pengajuan retur, pembatalan, dan paket kembali toko itu, 500 per transaksi beserta barangnya (`ReturnsService.deleteStoreReturnsIn`; backend doc 8.26). Pengajuan merujuk pesanannya, jadi dihapus lebih dulu;
   1. pesanan, 200 per transaksi: pengiriman dan paketnya dihapus serta label dan dokumen PDF pesanan itu kedaluwarsa (`FulfillmentService.deleteForOrdersIn`); stok yang masih ditahan dilepas, lalu pesanan dihapus beserta baris, riwayat, masalah, referensi, dan tagnya (`OrdersService.deleteOrdersIn`);
   2. listing, 500 per transaksi, beserta status push stoknya (`ListingsService.deleteStoreListingsIn`);
   3. log sinkron, 1.000 per transaksi (`SyncLogService.deleteStoreLogIn`);

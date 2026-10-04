@@ -430,6 +430,11 @@ export class StoresService {
     return withTenantTx(this.db, ctx, (tx) => this.repo.syncCursor(tx, storeId, resource));
   }
 
+  /** Records where a pull of another resource (`returns`) got to; the store row is left alone. */
+  async saveSyncCursor(ctx: RequestContext, storeId: string, resource: string, cursor: string): Promise<void> {
+    await withTenantTx(this.db, ctx, (tx) => this.repo.advanceSyncCursor(tx, ctx.tenantId, storeId, resource, cursor));
+  }
+
   /** Records a finished pull: its cursor and `last_product_sync_at` or `last_order_sync_at`. */
   async recordPull(
     ctx: RequestContext,

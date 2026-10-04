@@ -31,6 +31,7 @@ import { NotificationModule, NotificationWorkerModule } from "../../src/modules/
 import { OrdersModule, OrdersWorkerModule } from "../../src/modules/orders/orders.module";
 import { ReportingWorkerModule } from "../../src/modules/reporting/reporting.module";
 import { RetentionWorkerModule } from "../../src/modules/retention/retention.module";
+import { ReturnsModule, ReturnsWorkerModule } from "../../src/modules/returns/returns.module";
 import { SyncModule } from "../../src/modules/sync/sync.module";
 import { STOCK_PUSH_BATCH } from "../../src/scheduler/stock-flush";
 import { configureWebhookApp } from "../../src/webhook/webhook-app";
@@ -151,6 +152,8 @@ export async function startWorker(infra: TestInfra, system: DbHandle, opts: { ma
       FilesModule.forEnv(env),
       FulfillmentModule,
       FulfillmentWorkerModule,
+      ReturnsModule,
+      ReturnsWorkerModule,
       ExportsWorkerModule,
       MigrationWorkerModule,
       ReportingWorkerModule,

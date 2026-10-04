@@ -1,6 +1,8 @@
 import {
   LISTING_DRAFT_STATUSES,
   ORDER_STATUSES,
+  RETURN_KINDS,
+  RETURN_REQUEST_STATUSES,
   SHIPMENT_STATUSES,
   STOCK_ADJUSTMENT_REASONS,
   type StockMovementType,
@@ -48,6 +50,27 @@ const DRAFT_STATES: Record<(typeof LISTING_DRAFT_STATUSES)[number], string> = {
   failed: "gagal diterbitkan (lihat kolom galat)",
 };
 
+const RETURN_STATES: Record<(typeof RETURN_REQUEST_STATUSES)[number], string> = {
+  requested: "menunggu keputusan penjual",
+  negotiating: "penjual menawarkan solusi lain, menunggu pembeli",
+  accepted: "disetujui; untuk retur, pembeli mengirim barang kembali",
+  in_transit: "barang dalam perjalanan kembali",
+  rejected: "ditolak penjual",
+  disputed: "diputuskan marketplace (sanggahan atau arbitrase)",
+  refunded: "dana dikembalikan ke pembeli",
+  cancelled: "dibatalkan pembeli atau ditutup marketplace sebelum diputuskan",
+  closed: "selesai tanpa pengembalian dana (atau paket kembali sudah diterima)",
+};
+
+const RETURN_KIND_LABELS: Record<(typeof RETURN_KINDS)[number], string> = {
+  return_refund: "retur barang dan pengembalian dana",
+  refund_only: "pengembalian dana tanpa retur barang",
+  replacement: "penggantian barang",
+  exchange: "penukaran barang",
+  cancellation: "permintaan pembatalan dari pembeli sebelum dikirim",
+  rto: "paket kembali karena pesanan dibatalkan setelah dikirim",
+};
+
 export interface ReadmeInput {
   business: string;
   timezone: string;
@@ -75,7 +98,9 @@ export function exportReadme(p: ReadmeInput): string {
     "- Uang dalam rupiah, bilangan bulat tanpa pemisah ribuan. Ya/tidak ditulis ya dan tidak.",
     "- Teks yang diawali =, +, -, atau @ diberi awalan ' agar spreadsheet tidak menjalankannya sebagai rumus.",
     "- Kolom id menghubungkan berkas: item_pesanan.id_pesanan dan pengiriman.id_pesanan ke pesanan.id,",
-    "  id_toko ke toko.id, id_gudang ke gudang.id, id_varian antara stok, mutasi_stok, listing, dan item_pesanan.",
+    "  id_toko ke toko.id, id_gudang ke gudang.id, id_varian antara stok, mutasi_stok, listing, dan item_pesanan,",
+    "  retur.id_pesanan ke pesanan.id, retur_barang.id_retur ke retur.id, retur_barang.id_baris_pesanan ke",
+    "  item_pesanan.id.",
     "- produk.csv memakai kolom templat impor produk, jadi bisa diimpor ulang ke OmniSeller.",
     "",
     "STATUS PESANAN (pesanan.status)",
@@ -86,6 +111,12 @@ export function exportReadme(p: ReadmeInput): string {
     "",
     "STATUS DRAF SALINAN LISTING (draf_listing.status)",
     ...LISTING_DRAFT_STATUSES.map((s) => `- ${s}: ${DRAFT_STATES[s]}`),
+    "",
+    "JENIS RETUR (retur.jenis)",
+    ...RETURN_KINDS.map((k) => `- ${k}: ${RETURN_KIND_LABELS[k]}`),
+    "",
+    "STATUS RETUR (retur.status)",
+    ...RETURN_REQUEST_STATUSES.map((s) => `- ${s}: ${RETURN_STATES[s]}`),
     "",
     "JENIS MUTASI STOK (mutasi_stok.jenis)",
     ...Object.entries(MOVEMENT_TYPES).map(([k, v]) => `- ${k}: ${v}`),

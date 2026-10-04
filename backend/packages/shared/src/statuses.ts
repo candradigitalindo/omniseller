@@ -75,6 +75,26 @@ export type ListingCopyStatus = (typeof LISTING_COPY_STATUSES)[number];
 export const LISTING_DRAFT_STATUSES = ["preparing", "draft", "publishing", "published", "failed"] as const;
 export type ListingDraftStatus = (typeof LISTING_DRAFT_STATUSES)[number];
 
+/**
+ * A buyer's return, refund, or cancellation request, or a parcel coming back (FR-RET-01, 06; backend
+ * doc 8.26). refunded, cancelled, and closed are final; a marketplace may open a request again.
+ */
+export const RETURN_REQUEST_STATUSES = [
+  "requested",
+  "negotiating",
+  "accepted",
+  "in_transit",
+  "rejected",
+  "disputed",
+  "refunded",
+  "cancelled",
+  "closed",
+] as const;
+export type ReturnRequestStatus = (typeof RETURN_REQUEST_STATUSES)[number];
+
+export const RETURN_KINDS = ["return_refund", "refund_only", "replacement", "exchange", "cancellation", "rto"] as const;
+export type ReturnRequestKind = (typeof RETURN_KINDS)[number];
+
 /** A store's switch from parallel mode to OmniSeller (FR-MIG-06); undone within 24 hours. */
 export const STORE_CUTOVER_STATUSES = ["done", "undone"] as const;
 export type StoreCutoverStatus = (typeof STORE_CUTOVER_STATUSES)[number];

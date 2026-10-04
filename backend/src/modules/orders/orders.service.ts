@@ -218,6 +218,16 @@ export class OrdersService {
     return out;
   }
 
+  /** Order ids by marketplace order id in one store (returns); unknown ones are left out. */
+  async idMapByExternalIn(tx: Tx, storeId: string, externalOrderIds: string[]): Promise<Map<string, string>> {
+    const out = new Map<string, string>();
+    for (const ext of new Set(externalOrderIds)) {
+      const id = await this.repo.refOf(tx, storeId, ext);
+      if (id) out.set(ext, id);
+    }
+    return out;
+  }
+
   /** Tag names of these orders, for printed documents (packing lists, custom labels). */
   async tagsIn(tx: Tx, orderIds: string[]): Promise<Map<string, string[]>> {
     const out = new Map<string, string[]>();

@@ -5979,6 +5979,422 @@
         }
       }
     },
+    "/v1/returns": {
+      "get": {
+        "operationId": "ReturnsController_list",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "group",
+            "required": false,
+            "in": "query",
+            "description": "tab layar Retur & Batal: retur dan refund, pembatalan, paket kembali",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "returns",
+                "cancellations",
+                "rto"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "requested",
+                "negotiating",
+                "accepted",
+                "in_transit",
+                "rejected",
+                "disputed",
+                "refunded",
+                "cancelled",
+                "closed"
+              ]
+            }
+          },
+          {
+            "name": "awaitingDecision",
+            "required": false,
+            "in": "query",
+            "description": "hanya yang menunggu keputusan penjual",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          },
+          {
+            "name": "toReceive",
+            "required": false,
+            "in": "query",
+            "description": "hanya barang yang akan kembali dan belum diterima",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          },
+          {
+            "name": "storeId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "warehouseId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "orderId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnPageDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "returns"
+        ],
+        "x-isolation": {
+          "fixture": "return_request"
+        }
+      }
+    },
+    "/v1/returns/summary": {
+      "get": {
+        "operationId": "ReturnsController_summary",
+        "parameters": [
+          {
+            "name": "storeId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "warehouseId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnSummaryDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "returns"
+        ],
+        "x-isolation": {
+          "fixture": "return_request"
+        }
+      }
+    },
+    "/v1/returns/{id}": {
+      "get": {
+        "operationId": "ReturnsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "returns"
+        ],
+        "x-isolation": {
+          "fixture": "return_request"
+        }
+      }
+    },
+    "/v1/returns/{id}/refresh": {
+      "post": {
+        "operationId": "ReturnsController_refresh",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshReturnDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "returns"
+        ],
+        "x-isolation": {
+          "fixture": "return_request"
+        }
+      }
+    },
+    "/v1/returns/{id}/evidence": {
+      "post": {
+        "operationId": "ReturnsController_addEvidence",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddEvidenceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "returns"
+        ],
+        "x-isolation": {
+          "fixture": "return_request"
+        }
+      }
+    },
+    "/v1/returns/{id}/accept": {
+      "post": {
+        "operationId": "ReturnsController_accept",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptReturnDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "returns"
+        ],
+        "x-isolation": {
+          "fixture": "return_request"
+        }
+      }
+    },
+    "/v1/returns/{id}/reject": {
+      "post": {
+        "operationId": "ReturnsController_reject",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectReturnDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "returns"
+        ],
+        "x-isolation": {
+          "fixture": "return_request"
+        }
+      }
+    },
+    "/v1/returns/{id}/receive": {
+      "post": {
+        "operationId": "ReturnsController_receive",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceiveReturnDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "returns"
+        ],
+        "x-isolation": {
+          "fixture": "return_request"
+        }
+      }
+    },
     "/v1/notifications": {
       "get": {
         "operationId": "NotificationsController_list",
@@ -16870,6 +17286,12 @@
                   "type": "integer",
                   "minimum": -9007199254740991,
                   "maximum": 9007199254740991
+                },
+                "returnedQty": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "unit yang sudah diterima kembali (retur, paket kembali)"
                 }
               },
               "required": [
@@ -16887,7 +17309,8 @@
                 "listingId",
                 "warehouseId",
                 "reservedQty",
-                "shippedQty"
+                "shippedQty",
+                "returnedQty"
               ],
               "additionalProperties": false
             }
@@ -22357,6 +22780,1608 @@
           "printJob"
         ],
         "additionalProperties": false
+      },
+      "ReturnPageDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "store": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "channel": {
+                          "type": "string"
+                        },
+                        "channelName": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "channel",
+                        "channelName"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "orderId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "externalOrderId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "warehouseId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "return_refund",
+                    "refund_only",
+                    "replacement",
+                    "exchange",
+                    "cancellation",
+                    "rto"
+                  ]
+                },
+                "externalReturnId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "requested",
+                    "negotiating",
+                    "accepted",
+                    "in_transit",
+                    "rejected",
+                    "disputed",
+                    "refunded",
+                    "cancelled",
+                    "closed"
+                  ]
+                },
+                "statusChangedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "externalStatus": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "initiator": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "buyer",
+                        "seller",
+                        "marketplace"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reasonCode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "reason": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "evidence": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "image",
+                          "video"
+                        ]
+                      },
+                      "url": {
+                        "type": "string",
+                        "description": "alamat foto atau video di marketplace"
+                      },
+                      "thumbnailUrl": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "by": {
+                        "type": "string",
+                        "enum": [
+                          "buyer",
+                          "seller",
+                          "marketplace"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "url",
+                      "thumbnailUrl",
+                      "by"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "refundAmount": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "currency": {
+                  "type": "string"
+                },
+                "respondByAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "marketplace memutuskan sendiri setelah ini (FR-RET-07)"
+                },
+                "sellerAction": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "awaitingDecision": {
+                  "type": "boolean",
+                  "description": "menunggu keputusan penjual sekarang"
+                },
+                "goodsReturn": {
+                  "type": "boolean",
+                  "description": "barang dikirim kembali ke gudang penjual"
+                },
+                "returnTrackingNumber": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "returnCarrier": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "decisions": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string",
+                            "description": "dikirim kembali sebagai `decision`"
+                          },
+                          "action": {
+                            "type": "string",
+                            "enum": [
+                              "accept",
+                              "reject"
+                            ]
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "reasons": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "code": {
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string"
+                                },
+                                "evidence": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "module": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "requirement": {
+                                        "type": "string"
+                                      },
+                                      "required": {
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": [
+                                      "module",
+                                      "requirement",
+                                      "required"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "description": "bukti yang diminta marketplace untuk alasan ini (Shopee); kosong bila foto bebas"
+                                }
+                              },
+                              "required": [
+                                "code",
+                                "label",
+                                "evidence"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "needsEmail": {
+                            "type": "boolean",
+                            "description": "marketplace meminta email kontak penjual (sanggahan Shopee)"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "action",
+                          "label",
+                          "reasons",
+                          "needsEmail"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "keputusan yang bisa diambil sekarang; null selagi dibaca ulang dari marketplace"
+                },
+                "decisionsReadAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sellerEvidence": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "fileId": {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                      },
+                      "contentType": {
+                        "type": "string"
+                      },
+                      "size": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "uploadedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      }
+                    },
+                    "required": [
+                      "fileId",
+                      "contentType",
+                      "size",
+                      "uploadedAt"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "response": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "decision": {
+                          "type": "string"
+                        },
+                        "action": {
+                          "type": "string",
+                          "enum": [
+                            "accept",
+                            "reject"
+                          ]
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "reason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "reasonLabel": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "comment": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "evidence": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "fileId": {
+                                "type": "string",
+                                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                              },
+                              "module": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "fileId",
+                              "module"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "pending",
+                            "sent",
+                            "failed"
+                          ]
+                        },
+                        "error": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "decidedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "decidedBy": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "decision",
+                        "action",
+                        "label",
+                        "reason",
+                        "reasonLabel",
+                        "comment",
+                        "evidence",
+                        "status",
+                        "error",
+                        "decidedAt",
+                        "decidedBy"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "keputusan penjual terakhir dan status pengirimannya ke marketplace"
+                },
+                "receivedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "receivedBy": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "receivedWarehouseId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "receiptNote": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                      },
+                      "orderItemId": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "baris pesanan asal; null bila pesanan tidak punya listing itu"
+                      },
+                      "sku": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "title": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "qty": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "refundAmount": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "sellableQty": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "damagedQty": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "missingQty": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "receivedAt": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "orderItemId",
+                      "sku",
+                      "title",
+                      "qty",
+                      "refundAmount",
+                      "sellableQty",
+                      "damagedQty",
+                      "missingQty",
+                      "receivedAt"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "id",
+                "store",
+                "orderId",
+                "externalOrderId",
+                "warehouseId",
+                "kind",
+                "externalReturnId",
+                "status",
+                "statusChangedAt",
+                "externalStatus",
+                "initiator",
+                "reasonCode",
+                "reason",
+                "evidence",
+                "refundAmount",
+                "currency",
+                "respondByAt",
+                "sellerAction",
+                "awaitingDecision",
+                "goodsReturn",
+                "returnTrackingNumber",
+                "returnCarrier",
+                "decisions",
+                "decisionsReadAt",
+                "sellerEvidence",
+                "response",
+                "receivedAt",
+                "receivedBy",
+                "receivedWarehouseId",
+                "receiptNote",
+                "items",
+                "createdAt",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "next_cursor": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "ReturnSummaryDto_Output": {
+        "type": "object",
+        "properties": {
+          "awaitingDecision": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "menunggu keputusan penjual"
+          },
+          "dueSoon": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "menunggu keputusan dengan tenggat dalam 12 jam"
+          },
+          "toReceive": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "barang akan kembali dan belum diterima gudang"
+          },
+          "cancellations": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "permintaan pembatalan pembeli yang terbuka"
+          },
+          "rto": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "paket kembali (RTO) yang belum diterima"
+          },
+          "failedResponses": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "keputusan yang gagal dikirim ke marketplace"
+          }
+        },
+        "required": [
+          "awaitingDecision",
+          "dueSoon",
+          "toReceive",
+          "cancellations",
+          "rto",
+          "failedResponses"
+        ],
+        "additionalProperties": false
+      },
+      "ReturnDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "store": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "channel": {
+                    "type": "string"
+                  },
+                  "channelName": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "channel",
+                  "channelName"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "orderId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "externalOrderId": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "warehouseId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "return_refund",
+              "refund_only",
+              "replacement",
+              "exchange",
+              "cancellation",
+              "rto"
+            ]
+          },
+          "externalReturnId": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "requested",
+              "negotiating",
+              "accepted",
+              "in_transit",
+              "rejected",
+              "disputed",
+              "refunded",
+              "cancelled",
+              "closed"
+            ]
+          },
+          "statusChangedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "externalStatus": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "initiator": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "buyer",
+                  "seller",
+                  "marketplace"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reasonCode": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "reason": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "image",
+                    "video"
+                  ]
+                },
+                "url": {
+                  "type": "string",
+                  "description": "alamat foto atau video di marketplace"
+                },
+                "thumbnailUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "by": {
+                  "type": "string",
+                  "enum": [
+                    "buyer",
+                    "seller",
+                    "marketplace"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "url",
+                "thumbnailUrl",
+                "by"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "refundAmount": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "currency": {
+            "type": "string"
+          },
+          "respondByAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "marketplace memutuskan sendiri setelah ini (FR-RET-07)"
+          },
+          "sellerAction": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "awaitingDecision": {
+            "type": "boolean",
+            "description": "menunggu keputusan penjual sekarang"
+          },
+          "goodsReturn": {
+            "type": "boolean",
+            "description": "barang dikirim kembali ke gudang penjual"
+          },
+          "returnTrackingNumber": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "returnCarrier": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "decisions": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "description": "dikirim kembali sebagai `decision`"
+                    },
+                    "action": {
+                      "type": "string",
+                      "enum": [
+                        "accept",
+                        "reject"
+                      ]
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "reasons": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "code": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "evidence": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "module": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "requirement": {
+                                  "type": "string"
+                                },
+                                "required": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": [
+                                "module",
+                                "requirement",
+                                "required"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "bukti yang diminta marketplace untuk alasan ini (Shopee); kosong bila foto bebas"
+                          }
+                        },
+                        "required": [
+                          "code",
+                          "label",
+                          "evidence"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "needsEmail": {
+                      "type": "boolean",
+                      "description": "marketplace meminta email kontak penjual (sanggahan Shopee)"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "action",
+                    "label",
+                    "reasons",
+                    "needsEmail"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "keputusan yang bisa diambil sekarang; null selagi dibaca ulang dari marketplace"
+          },
+          "decisionsReadAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sellerEvidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "fileId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "contentType": {
+                  "type": "string"
+                },
+                "size": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "uploadedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "fileId",
+                "contentType",
+                "size",
+                "uploadedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "response": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "decision": {
+                    "type": "string"
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "accept",
+                      "reject"
+                    ]
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "reasonLabel": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "comment": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "evidence": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "fileId": {
+                          "type": "string",
+                          "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                        },
+                        "module": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "fileId",
+                        "module"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "pending",
+                      "sent",
+                      "failed"
+                    ]
+                  },
+                  "error": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "decidedAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "decidedBy": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "decision",
+                  "action",
+                  "label",
+                  "reason",
+                  "reasonLabel",
+                  "comment",
+                  "evidence",
+                  "status",
+                  "error",
+                  "decidedAt",
+                  "decidedBy"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "keputusan penjual terakhir dan status pengirimannya ke marketplace"
+          },
+          "receivedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "receivedBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "receivedWarehouseId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "receiptNote": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "orderItemId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "baris pesanan asal; null bila pesanan tidak punya listing itu"
+                },
+                "sku": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "title": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "qty": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "refundAmount": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sellableQty": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "damagedQty": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "missingQty": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "receivedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "orderItemId",
+                "sku",
+                "title",
+                "qty",
+                "refundAmount",
+                "sellableQty",
+                "damagedQty",
+                "missingQty",
+                "receivedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "store",
+          "orderId",
+          "externalOrderId",
+          "warehouseId",
+          "kind",
+          "externalReturnId",
+          "status",
+          "statusChangedAt",
+          "externalStatus",
+          "initiator",
+          "reasonCode",
+          "reason",
+          "evidence",
+          "refundAmount",
+          "currency",
+          "respondByAt",
+          "sellerAction",
+          "awaitingDecision",
+          "goodsReturn",
+          "returnTrackingNumber",
+          "returnCarrier",
+          "decisions",
+          "decisionsReadAt",
+          "sellerEvidence",
+          "response",
+          "receivedAt",
+          "receivedBy",
+          "receivedWarehouseId",
+          "receiptNote",
+          "items",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "RefreshReturnDto_Output": {
+        "type": "object",
+        "properties": {
+          "requested": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "requested"
+        ],
+        "additionalProperties": false
+      },
+      "AddEvidenceDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 7000000,
+            "pattern": "^[A-Za-z0-9+/=\\r\\n]+$"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      },
+      "EvidenceDto_Output": {
+        "type": "object",
+        "properties": {
+          "fileId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "uploadedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "fileId",
+          "contentType",
+          "size",
+          "uploadedAt"
+        ],
+        "additionalProperties": false
+      },
+      "AcceptReturnDto": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "description": "kode keputusan dari `decisions`; boleh kosong bila hanya ada satu",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "RejectReturnDto": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "reason": {
+            "description": "kode alasan dari `decisions[].reasons`",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "evidence": {
+            "maxItems": 9,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "fileId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "module": {
+                  "description": "bukti mana yang dijawab foto ini (Shopee)",
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100
+                }
+              },
+              "required": [
+                "fileId"
+              ]
+            }
+          },
+          "email": {
+            "description": "email kontak penjual; wajib untuk sanggahan Shopee",
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          }
+        }
+      },
+      "ReceiveReturnDto": {
+        "type": "object",
+        "properties": {
+          "warehouseId": {
+            "description": "gudang yang menerima; bawaan gudang pesanannya",
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "items": {
+            "minItems": 1,
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "returnItemId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "sellable": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100000,
+                  "description": "layak jual, kembali ke stok"
+                },
+                "damaged": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100000,
+                  "description": "rusak, masuk stok karantina"
+                },
+                "missing": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100000,
+                  "description": "tidak diterima"
+                }
+              },
+              "required": [
+                "returnItemId",
+                "sellable",
+                "damaged",
+                "missing"
+              ]
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
       },
       "NotificationPageDto_Output": {
         "type": "object",

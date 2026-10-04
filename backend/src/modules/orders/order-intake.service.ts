@@ -22,7 +22,12 @@ import {
   statusSteps,
   warehouseFixed,
 } from "./order-plan";
-import { orderStatusChanged } from "./orders.events";
+import {
+  orderCancelledAfterShipping,
+  orderCancelRequestChanged,
+  orderReturnStarted,
+  orderStatusChanged,
+} from "./orders.events";
 import { type OrderItemRow, type OrderRow, OrdersRepository } from "./orders.repository";
 
 export interface IntakeResult {
@@ -170,6 +175,26 @@ export class OrderIntakeService {
         { orderId: current.id, from: current.status, to: step.to, actorType: actor.type, actorId: actor.id },
         current.id,
       );
+      // the returns module follows (backend doc 8.26): a return the marketplace started is read at once,
+      // and the parcel of an order cancelled after it shipped is expected back
+      if (step.to === "return_in_progress" && actor.type === "marketplace") {
+        await this.outbox.enqueue(
+          tx,
+          ctx,
+          orderReturnStarted,
+          { orderId: current.id, storeId: current.storeId, at: at.toISOString() },
+          current.id,
+        );
+      }
+      if (step.to === "cancelled" && current.status === "shipped" && current.fulfillmentMode === "seller") {
+        await this.outbox.enqueue(
+          tx,
+          ctx,
+          orderCancelledAfterShipping,
+          { orderId: current.id, storeId: current.storeId },
+          current.id,
+        );
+      }
       current = { ...current, ...patch };
     }
     return current;
@@ -204,6 +229,40 @@ export class OrderIntakeService {
     payload: Record<string, unknown> = {},
   ): Promise<void> {
     await this.event(tx, ctx, orderId, type, actor, { payload });
+  }
+
+  /**
+   * Returned goods came back to a warehouse (returns module, FR-RET-03): the units received count as
+   * returned on their lines, the history says what came back, and an order in return_in_progress whose
+   * every shipped unit is back becomes returned. Lines never count more than they shipped.
+   */
+  async returnReceivedIn(
+    tx: Tx,
+    ctx: RequestContext,
+    orderId: string,
+    lines: { orderItemId: string; qty: number }[],
+    actor: Actor,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
+    const o = await this.repo.get(tx, orderId, true);
+    if (!o) return;
+    const items = await this.repo.items(tx, [orderId]);
+    for (const line of lines) {
+      const item = items.find((i) => i.id === line.orderItemId);
+      if (!item || line.qty <= 0) continue;
+      const returned = Math.min(item.shippedQty, item.returnedQty + line.qty);
+      if (returned !== item.returnedQty) await this.repo.updateItem(tx, item.id, { returnedQty: returned });
+      item.returnedQty = returned;
+    }
+    await this.event(tx, ctx, orderId, "return_received", actor, { payload });
+    const shipped = items.filter((i) => i.shippedQty > 0);
+    if (
+      o.status === "return_in_progress" &&
+      shipped.length > 0 &&
+      shipped.every((i) => i.returnedQty >= i.shippedQty)
+    ) {
+      await this.stepIn(tx, ctx, o, [{ to: "returned", via: "any" }], actor, payload);
+    }
   }
 
   /** Courier and tracking number learned from the shipment (Shopee gives the number only to logistics APIs). */
@@ -339,6 +398,15 @@ export class OrderIntakeService {
           ...(allocation ? { allocation: allocation.reason, warehouseId: allocation.warehouseId } : {}),
         },
       });
+      if (snap.cancelRequested) {
+        await this.outbox.enqueue(
+          tx,
+          ctx,
+          orderCancelRequestChanged,
+          { orderId: id, storeId: store.id, requested: true },
+          id,
+        );
+      }
       let o = (await this.repo.get(tx, id))!;
       if (fulfillment === "seller" && HOLD_STATUSES.has(status)) await this.intakeChecksIn(tx, ctx, o, snap);
       o = await this.settleIn(tx, ctx, o, await this.repo.items(tx, [id]), {
@@ -353,6 +421,15 @@ export class OrderIntakeService {
       return { orderId: existingId, outcome: "stale", unknownItemIds: [] };
     }
     await this.repo.update(tx, existingId, fields);
+    if (current.cancelRequested !== snap.cancelRequested) {
+      await this.outbox.enqueue(
+        tx,
+        ctx,
+        orderCancelRequestChanged,
+        { orderId: existingId, storeId: store.id, requested: snap.cancelRequested },
+        existingId,
+      );
+    }
     // lines: quantities and cancellations change; new lines are rare but possible
     const items = await this.repo.items(tx, [existingId]);
     for (const line of snap.items) {

@@ -29,6 +29,14 @@ import {
   scanSlaAlerts,
 } from "./order-scans";
 import { OutboxRelayRunner } from "./outbox-relay";
+import {
+  RETURN_DUE_SLOT_MS,
+  RETURN_NOTICE_SLOT_MS,
+  RETURN_POLL_SLOT_MS,
+  scanReturnDue,
+  scanReturnNotices,
+  scanReturnPolls,
+} from "./return-scans";
 import { flushStockDirty } from "./stock-flush";
 import { scanTracking, TRACKING_SCAN_MS } from "./tracking-scan";
 
@@ -84,6 +92,11 @@ export class SchedulerRunner implements OnApplicationBootstrap, OnApplicationShu
     this.every(FILE_CLEANUP_SLOT_MS, "files.cleanup_scan", () =>
       scanExpiredFiles(this.system, this.queues, this.registry),
     );
+    this.every(RETURN_POLL_SLOT_MS, "mp.poll.returns", () => scanReturnPolls(this.system, this.queues, this.registry));
+    this.every(RETURN_NOTICE_SLOT_MS, "return.new_scan", () =>
+      scanReturnNotices(this.system, this.queues, this.registry),
+    );
+    this.every(RETURN_DUE_SLOT_MS, "return.due_scan", () => scanReturnDue(this.system, this.queues, this.registry));
     log.info("scheduler started");
   }
 

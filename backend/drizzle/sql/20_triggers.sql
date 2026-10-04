@@ -40,6 +40,8 @@ SELECT ensure_trigger('listing_copy', 'status_transition_trg',
   'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON listing_copy FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''listing_copy'')');
 SELECT ensure_trigger('listing_draft', 'status_transition_trg',
   'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON listing_draft FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''listing_draft'')');
+SELECT ensure_trigger('return_request', 'status_transition_trg',
+  'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON return_request FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''return_request'')');
 
 -- Inventory guard
 SELECT ensure_trigger('inventory', 'inventory_guard_trg',
@@ -124,6 +126,13 @@ SELECT ensure_trigger('listing_draft', 'audit_trg',
   'CREATE TRIGGER audit_trg AFTER UPDATE OF status OR DELETE ON listing_draft FOR EACH ROW
      EXECUTE FUNCTION audit_row(''listing_draft'', ''description'', ''description_html'', ''attributes'', ''images'',
                                 ''size_chart'', ''variants'', ''source'', ''problems'')');
+-- Returns (FR-RET-02, 03; backend doc 8.26): who answered a request and how, and who received the goods.
+-- The buyer's reason and photos, the seller's comment and contact email, and the photos stay out of the log.
+SELECT ensure_trigger('return_request', 'audit_trg',
+  'CREATE TRIGGER audit_trg AFTER UPDATE OF response_status, received_at ON return_request FOR EACH ROW
+     WHEN ((OLD.response_status, OLD.received_at) IS DISTINCT FROM (NEW.response_status, NEW.received_at))
+     EXECUTE FUNCTION audit_row(''return_request'', ''reason'', ''evidence'', ''decisions'', ''response'',
+                                ''seller_evidence'')');
 SELECT ensure_trigger('data_export', 'audit_download_trg',
   'CREATE TRIGGER audit_download_trg AFTER UPDATE ON data_export FOR EACH ROW
      WHEN (OLD.download_count IS DISTINCT FROM NEW.download_count)

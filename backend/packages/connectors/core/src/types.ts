@@ -537,6 +537,150 @@ export interface CancelReason {
   needsItems: boolean;
 }
 
+/**
+ * What a buyer's after-sales request asks for (backend doc 8.26): the money back after sending the
+ * items back, the money back without sending anything, another unit, another variant, or the order
+ * cancelled before it ships.
+ */
+export type ReturnKind = "return_refund" | "refund_only" | "replacement" | "exchange" | "cancellation";
+
+/**
+ * Where a buyer's request stands at the marketplace (backend doc 8.26):
+ * - requested: waiting for the seller's decision, until `respondBy`
+ * - negotiating: the seller offered another solution (a partial refund); the buyer decides
+ * - accepted: agreed; for a return the buyer is to send the items back
+ * - in_transit: the buyer sent the items back
+ * - rejected: the seller said no; the buyer may still take it to the marketplace
+ * - disputed: the marketplace decides (Shopee dispute, TikTok Shop arbitration)
+ * - refunded: the buyer is refunded; final
+ * - cancelled: withdrawn by the buyer or closed by the marketplace before a decision; final
+ * - closed: finished otherwise (another unit sent, the seller's side upheld, closed by Shopee); final
+ */
+export type ReturnState =
+  | "requested"
+  | "negotiating"
+  | "accepted"
+  | "in_transit"
+  | "rejected"
+  | "disputed"
+  | "refunded"
+  | "cancelled"
+  | "closed";
+
+/** Units of one listing variant in a request. */
+export interface NormalizedReturnItem {
+  /** Listing item and variant, as in NormalizedOrderItem ("" variant for items without variants). */
+  externalItemId: string;
+  externalVariantId: string;
+  quantity: number;
+  sku: string | null;
+  title: string | null;
+  /** Refund for these units in whole rupiah, when the marketplace says. */
+  refundAmount: number | null;
+}
+
+/** A photo or video attached to a request; marketplace URLs, shown to the seller as they are. */
+export interface ReturnEvidence {
+  type: "image" | "video";
+  url: string;
+  thumbnailUrl: string | null;
+  /** Who attached it. */
+  by: "buyer" | "seller" | "marketplace";
+}
+
+export interface NormalizedReturn {
+  /**
+   * Shopee return_sn, TikTok Shop return_id or cancel_id. A Shopee cancellation request has no id of
+   * its own: its order_sn.
+   */
+  externalReturnId: string;
+  externalOrderId: string;
+  kind: ReturnKind;
+  state: ReturnState;
+  /** Marketplace status as received, shown next to the internal one. */
+  externalStatus: string;
+  /** Who started the request. */
+  initiator: "buyer" | "seller" | "marketplace" | null;
+  /** Marketplace reason code. */
+  reasonCode: string | null;
+  /** The reason in words (the buyer's own text where the marketplace keeps it). Never logged. */
+  reason: string | null;
+  /** Photos and videos in the request itself; more may come from `details`. */
+  evidence: ReturnEvidence[];
+  /** Refund to the buyer in whole rupiah, when the marketplace says. */
+  refundAmount: number | null;
+  currency: string;
+  /** The seller must decide by then, or the marketplace decides for them (TikTok Shop approves). */
+  respondBy: Date | null;
+  /** The marketplace's name for what it waits for from the seller, when it says; null when nothing. */
+  sellerAction: string | null;
+  /** The items travel back to the seller. */
+  goodsReturn: boolean;
+  returnTrackingNumber: string | null;
+  returnCarrier: string | null;
+  createdAt: Date;
+  /** Marketplace update time; a snapshot older than the stored one is ignored. */
+  updatedAt: Date;
+  items: NormalizedReturnItem[];
+}
+
+export interface ReturnPage {
+  returns: NormalizedReturn[];
+  /** Opaque, pass back to get the next page; null when the time range is exhausted. */
+  nextCursor: string | null;
+}
+
+/** A reason the seller can give to reject, with the evidence the marketplace asks for. */
+export interface ReturnRejectReason {
+  code: string;
+  label: string;
+  /** What to photograph (Shopee evidence modules); empty when photos are free-form or not asked. */
+  evidence: { module: number; requirement: string; required: boolean }[];
+}
+
+/** One decision the seller can take now. */
+export interface ReturnDecision {
+  /** Sent back with `respond`. */
+  code: string;
+  action: "accept" | "reject";
+  /** Indonesian label for the seller. */
+  label: string;
+  /** Reasons to choose from; a rejection needs one when the list is not empty. */
+  reasons: ReturnRejectReason[];
+  /** The marketplace needs the seller's contact email with this decision (Shopee disputes). */
+  needsEmail: boolean;
+}
+
+export interface ReturnDetails {
+  decisions: ReturnDecision[];
+  /** Photos and videos read separately (TikTok Shop records, Shopee buyer videos); null when not read. */
+  evidence: ReturnEvidence[] | null;
+}
+
+/** A photo uploaded for a rejection. */
+export interface UploadedEvidence {
+  ref: string;
+  contentType: string;
+  width: number | null;
+  height: number | null;
+}
+
+export interface ReturnResponse {
+  externalReturnId: string;
+  externalOrderId: string;
+  kind: ReturnKind;
+  /** ReturnDecision.code. */
+  decision: string;
+  /** ReturnRejectReason.code, for a rejection. */
+  reason: string | null;
+  comment: string | null;
+  /** Photos from `uploadEvidence`, with the evidence module each answers where the reason has them. */
+  evidence: (UploadedEvidence & { module: number | null })[];
+  email: string | null;
+  /** The same key for every retry of one decision (TikTok Shop idempotency_key). */
+  idempotencyKey: string;
+}
+
 export type WebhookEventKind =
   | "authorization.granted"
   | "authorization.revoked"
@@ -545,6 +689,7 @@ export type WebhookEventKind =
   | "order.tracking_updated"
   | "shipment.document_ready"
   | "listing.changed"
+  | "return.changed"
   | "other";
 
 export interface NormalizedWebhookEvent {
@@ -566,6 +711,8 @@ export interface NormalizedWebhookEvent {
     externalPackageId?: string;
     externalItemId?: string;
     status?: string;
+    /** `return.changed`: the request (TikTok Shop return_id). */
+    externalReturnId?: string;
   };
 }
 
@@ -730,6 +877,32 @@ export interface MarketplaceConnector {
       shop: ShopCredentials,
       orders: { externalOrderId: string; externalPackageIds: string[] }[],
     ): Promise<TrackingResult[]>;
+  };
+
+  /**
+   * Buyers' after-sales requests (PRD FR-RET-01, 02; backend doc 8.26): returns and refunds, and requests
+   * to cancel an order before it ships. Personal data the marketplaces return with them (buyer email,
+   * pickup address) is never read into these types.
+   */
+  returns: {
+    /** One page of return requests updated in [from, to). The connector splits long ranges. */
+    listReturns(shop: ShopCredentials, input: { from: Date; to: Date; cursor?: string | null }): Promise<ReturnPage>;
+    /** Current state of specific return requests. Unknown ids are left out. */
+    getReturns(shop: ShopCredentials, externalReturnIds: string[]): Promise<NormalizedReturn[]>;
+    /** The buyers' cancellation requests of these orders (kind `cancellation`), open or answered. */
+    cancellations(shop: ShopCredentials, externalOrderIds: string[]): Promise<NormalizedReturn[]>;
+    /** What the seller may decide now, and evidence the request listing leaves out. */
+    details(
+      shop: ShopCredentials,
+      request: Pick<NormalizedReturn, "externalReturnId" | "externalOrderId" | "kind" | "externalStatus">,
+    ): Promise<ReturnDetails>;
+    /** Uploads one photo for a rejection (JPEG or PNG). */
+    uploadEvidence(
+      shop: ShopCredentials,
+      input: { externalReturnId: string; kind: ReturnKind; bytes: Uint8Array; contentType: string },
+    ): Promise<UploadedEvidence>;
+    /** Sends the seller's decision. */
+    respond(shop: ShopCredentials, response: ReturnResponse): Promise<void>;
   };
 
   inventory: {

@@ -10,6 +10,7 @@ import {
   solidPng,
   tiktokProductCall,
 } from "./mock-products";
+import { MockReturnState, shopeeReturnCall, tiktokReturnCall } from "./mock-returns";
 
 /**
  * A fake Shopee Open Platform and TikTok Shop Partner API for integration tests (backend doc 13.2).
@@ -100,6 +101,8 @@ export interface MockShopeeOrder {
   };
   cancel_by?: string;
   cancel_reason?: string;
+  /** The buyer's reason while the order is IN_CANCEL. */
+  buyer_cancel_reason?: string;
   /** Warehouse of every line, as product_location_id (defaults to IDZ). */
   location?: string;
   /** What v2.logistics.get_tracking_info answers for the order. */
@@ -369,6 +372,8 @@ export class MockMarketplace {
 
   // ---- product creation (FR-PRD-13) ----
   readonly products = new MockProductState();
+  // ---- returns, refunds, and cancellation requests (FR-RET-01, 02) ----
+  readonly returns = new MockReturnState();
   /** Image downloads (`/img/...`), to prove each image is fetched once per upload. */
   readonly imageDownloads: string[] = [];
 
@@ -561,6 +566,17 @@ export class MockMarketplace {
         ok,
         (error, message, status = 400) => this.shopeeError(error, message, status),
         (id) => `${this.url}/shopee-img/${id}`,
+      ).then((r) => r ?? this.shopeeError("error_param", "Permission denied. The request path is incorrect.", 404));
+    }
+
+    if (call.path.startsWith("/api/v2/returns/") || call.path === "/api/v2/order/handle_buyer_cancellation") {
+      return shopeeReturnCall(
+        this.returns,
+        call,
+        shop,
+        ok,
+        (error, message, status = 400) => this.shopeeError(error, message, status),
+        (id) => `${this.url}/shopee-proof/${id}.jpg`,
       ).then((r) => r ?? this.shopeeError("error_param", "Permission denied. The request path is incorrect.", 404));
     }
 
@@ -1228,6 +1244,17 @@ export class MockMarketplace {
         (code, message, data = {}) => this.tiktokReply(code, message, data),
         (uri) => `${this.url}/tts-img/${encodeURIComponent(uri)}`,
       ).then((r) => r ?? this.tiktokReply(36009009, "Invalid path.", {}, 404));
+    }
+
+    if (call.path.startsWith("/return_refund/") && call.path !== "/return_refund/202602/cancellations") {
+      const r = tiktokReturnCall(
+        this.returns,
+        call,
+        shop,
+        (code, message, data = {}) => this.tiktokReply(code, message, data),
+        this.products.tiktokImages,
+      );
+      if (r) return r;
     }
 
     switch (`${call.method} ${call.path}`) {

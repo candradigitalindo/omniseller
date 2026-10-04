@@ -8,6 +8,7 @@ import {
   ORDER_STATUSES,
   PERMISSION_CODES,
   PRINT_JOB_STATUSES,
+  RETURN_REQUEST_STATUSES,
   SHIPMENT_STATUSES,
   STORE_CUTOVER_STATUSES,
   SYNC_JOB_STATUSES,
@@ -201,7 +202,7 @@ describe("schema conventions", () => {
     const check = async (table: string) => {
       const [row] = await q<{ def: string }>(
         `SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint
-          WHERE conrelid = $1::regclass AND contype = 'c' AND pg_get_constraintdef(oid) LIKE '%status%ANY%'`,
+          WHERE conrelid = $1::regclass AND contype = 'c' AND pg_get_constraintdef(oid) LIKE 'CHECK ((status = ANY%'`,
         [`"${table}"`],
       );
       return [...row!.def.matchAll(/'([a-z_]+)'::text/g)].map((m) => m[1]).sort();
@@ -217,6 +218,7 @@ describe("schema conventions", () => {
     expect(await check("handover")).toEqual([...HANDOVER_STATUSES].sort());
     expect(await check("listing_copy")).toEqual([...LISTING_COPY_STATUSES].sort());
     expect(await check("listing_draft")).toEqual([...LISTING_DRAFT_STATUSES].sort());
+    expect(await check("return_request")).toEqual([...RETURN_REQUEST_STATUSES].sort());
   });
 
   it("every transition uses known statuses", async () => {
@@ -232,6 +234,7 @@ describe("schema conventions", () => {
       ["handover_status_transition", HANDOVER_STATUSES],
       ["listing_copy_status_transition", LISTING_COPY_STATUSES],
       ["listing_draft_status_transition", LISTING_DRAFT_STATUSES],
+      ["return_request_status_transition", RETURN_REQUEST_STATUSES],
     ] as const) {
       const rows = await q<{ from_status: string; to_status: string }>(`SELECT from_status, to_status FROM ${table}`);
       expect(rows.length).toBeGreaterThan(0);
@@ -260,6 +263,7 @@ describe("schema conventions", () => {
       "migration_job",
       "order",
       "print_job",
+      "return_request",
       "shipment",
       "store_cutover",
       "sync_job",

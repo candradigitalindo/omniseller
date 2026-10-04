@@ -11,6 +11,7 @@ export * from "./migration";
 export * from "./notification";
 export * from "./orders";
 export * from "./platform";
+export * from "./returns";
 export * from "./security";
 export * from "./status-transitions";
 export * from "./sync";

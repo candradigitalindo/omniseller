@@ -11,6 +11,7 @@ import { NOTIFICATION_JOBS } from "../modules/notification/notification.jobs";
 import { ORDER_JOBS } from "../modules/orders/orders.jobs";
 import { REPORTING_JOBS } from "../modules/reporting/reporting.jobs";
 import { RETENTION_JOBS } from "../modules/retention/retention.jobs";
+import { RETURN_JOBS } from "../modules/returns/returns.jobs";
 import { SYNC_JOBS } from "../modules/sync/sync.jobs";
 import type { EventDef, JobDef } from "./define";
 
@@ -64,6 +65,7 @@ export const JOB_DEFINITIONS: readonly JobDef[] = [
   ...INVENTORY_JOBS,
   ...ORDER_JOBS,
   ...FULFILLMENT_JOBS,
+  ...RETURN_JOBS,
   ...EXPORT_JOBS,
   ...MIGRATION_JOBS,
   ...REPORTING_JOBS,

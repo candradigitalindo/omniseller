@@ -267,6 +267,7 @@ const itemSchema = z.object({
   warehouseId: ulidSchema.nullable(),
   reservedQty: z.number().int(),
   shippedQty: z.number().int(),
+  returnedQty: z.number().int().describe("unit yang sudah diterima kembali (retur, paket kembali)"),
 });
 
 const eventSchema = z.object({
@@ -417,6 +418,7 @@ export function orderDetailView(
         warehouseId: i.warehouseId,
         reservedQty: i.reservedQty,
         shippedQty: i.shippedQty,
+        returnedQty: i.returnedQty,
       };
     }),
     buyerUsername: o.buyerUsername,

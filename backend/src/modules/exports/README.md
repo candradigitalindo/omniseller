@@ -5,7 +5,7 @@ Ekspor seluruh data bisnis kapan saja tanpa biaya (PRD FR-MIG-09, backend doc 8.
 
 ## Tabel yang dimiliki
 - `data_export` (mesin status di backend doc 7.9).
-- Data dibaca lewat `exportSheets()` setiap modul pemilik: `StoresService` (`toko.csv`), `WarehousesService` (`gudang.csv`), `ProductTransferService` (`produk.csv`), `ListingsService` (`listing.csv`), `ListingCopyService` (`draf_listing.csv`, `pemetaan_kategori.csv`), `InventoryService` (`stok.csv`, `mutasi_stok.csv`), `OrdersService` (`pesanan.csv`, `item_pesanan.csv`), `FulfillmentService` (`pengiriman.csv`), `HandoverService` (`serah_terima.csv`). Nama toko, kode gudang, dan nama pengguna lewat `StoresService.namesIn`, `WarehousesService.codesIn`, `UsersService.namesIn`. ZIP disimpan lewat `FilesService.saveFile`.
+- Data dibaca lewat `exportSheets()` setiap modul pemilik: `StoresService` (`toko.csv`), `WarehousesService` (`gudang.csv`), `ProductTransferService` (`produk.csv`), `ListingsService` (`listing.csv`), `ListingCopyService` (`draf_listing.csv`, `pemetaan_kategori.csv`), `InventoryService` (`stok.csv`, `mutasi_stok.csv`), `OrdersService` (`pesanan.csv`, `item_pesanan.csv`), `FulfillmentService` (`pengiriman.csv`), `HandoverService` (`serah_terima.csv`), `ReturnsService` (`retur.csv`, `retur_barang.csv`). Nama toko, kode gudang, dan nama pengguna lewat `StoresService.namesIn`, `WarehousesService.codesIn`, `UsersService.namesIn`. ZIP disimpan lewat `FilesService.saveFile`.
 
 ## Service publik
 - `ExportsService` (api): `request`, `list`, `get`, `download`.

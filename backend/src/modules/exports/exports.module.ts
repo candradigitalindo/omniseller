@@ -7,6 +7,7 @@ import { InventoryModule } from "../inventory/inventory-core.module";
 import { ListingCopyModule } from "../listing-copy/listing-copy.module";
 import { NotificationInboxModule } from "../notification/notification.module";
 import { OrdersModule } from "../orders/orders.module";
+import { ReturnsModule } from "../returns/returns.module";
 import { ExportRenderService } from "./export-render.service";
 import { ExportsController } from "./exports.controller";
 import { ExportsRepository } from "./exports.repository";
@@ -27,6 +28,7 @@ export class ExportsModule {}
     FulfillmentModule,
     NotificationInboxModule,
     ListingCopyModule,
+    ReturnsModule,
   ],
   providers: [ExportsRepository, ExportRenderService],
   exports: [ExportRenderService],

@@ -15,6 +15,7 @@ import { shopeeInventory } from "./inventory.js";
 import { shopeeLogistics } from "./logistics.js";
 import { shopeeOrders } from "./orders.js";
 import { shopeeProducts } from "./products.js";
+import { shopeeReturns } from "./returns.js";
 import { parseShopeePush, verifyShopeePush } from "./webhooks.js";
 
 export const SHOPEE_MANIFEST: ConnectorManifest = {
@@ -326,6 +327,8 @@ export function createShopeeConnector(config: ShopeeConfig): MarketplaceConnecto
     orders: shopeeOrders(client),
 
     fulfillment: shopeeLogistics(client),
+
+    returns: shopeeReturns(client),
 
     inventory: shopeeInventory(client, SHOPEE_DEFAULT_WAREHOUSE_ID),
 

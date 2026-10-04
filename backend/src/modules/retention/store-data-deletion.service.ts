@@ -13,6 +13,7 @@ import { InventoryService } from "../inventory/inventory.service";
 import { CategoriesService } from "../listing-copy/categories.service";
 import { ListingCopyService } from "../listing-copy/listing-copy.service";
 import { OrdersService } from "../orders/orders.service";
+import { ReturnsService } from "../returns/returns.service";
 import { SyncLogService } from "../sync/sync-log.service";
 
 const log = logger.forModule("retention");
@@ -23,6 +24,7 @@ const LISTING_BATCH = 500;
 const SYNC_LOG_BATCH = 1000;
 /** Listing copies (each with its drafts) and cached categories. */
 const COPY_BATCH = 50;
+const RETURN_BATCH = 500;
 const CATEGORY_BATCH = 2000;
 /** One job works this long, then the rest continues in the next job (a large store takes several). */
 export const DELETION_BUDGET_MS = 20_000;
@@ -50,6 +52,7 @@ export class StoreDataDeletionService {
     @Inject(SyncLogService) private readonly syncLog: SyncLogService,
     @Inject(ListingCopyService) private readonly copies: ListingCopyService,
     @Inject(CategoriesService) private readonly categories: CategoriesService,
+    @Inject(ReturnsService) private readonly returns: ReturnsService,
     @Inject(OUTBOX) private readonly outbox: Outbox,
   ) {}
 
@@ -58,6 +61,8 @@ export class StoreDataDeletionService {
     if (!store?.dataDeletionRequestedAt || store.dataDeletedAt || store.status !== "disconnected") return "skipped";
     const until = Date.now() + budgetMs;
     const steps: [string, number, (tx: Tx) => Promise<number>][] = [
+      // requests name their orders: they go first
+      ["returns", RETURN_BATCH, (tx) => this.returns.deleteStoreReturnsIn(tx, storeId, RETURN_BATCH)],
       [
         "orders",
         ORDER_BATCH,

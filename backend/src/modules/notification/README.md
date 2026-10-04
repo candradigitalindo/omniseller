@@ -51,6 +51,7 @@ Notifikasi untuk pengguna OmniSeller (PRD FR-NTF-01, FR-NTF-02; backend doc 7.8.
   - `stock.critical` dan `sync.stock_push_failed` (inventory);
   - `store.reauth_required`, `store.authorization_expiring`, `store.warehouses_changed`, `store.connection_lost` (juga email), dan `store.connection_restored` (channel, backend doc 8.23);
   - `export.ready` dan `export.failed` (exports);
-  - `migration.validated`, `migration.invalid`, `migration.imported`, dan `migration.failed` (migration).
-- **Ringkasan email harian ada di modul `reporting`** (`DigestService`). Modul ini hanya menyimpan pilihan dan templatnya, karena orders, inventory, dan channel mengimpor `NotificationInboxModule`.
+  - `migration.validated`, `migration.invalid`, `migration.imported`, dan `migration.failed` (migration);
+  - `return.new` (pengajuan retur atau pembatalan menunggu keputusan, bagi `return:respond`), `return.parcel_back` (paket kembali, bagi `return:receive`), dan `return.due_soon` (tenggat dalam 12 jam; returns, backend doc 8.26).
+- **Ringkasan email harian ada di modul `reporting`** (`DigestService`). Modul ini hanya menyimpan pilihan dan templatnya, karena orders, inventory, channel, dan returns mengimpor `NotificationInboxModule`.
 - **Menyusul bersama layar pengaturan notifikasi (L44):** email dan WhatsApp untuk jenis lain sesuai preferensi (jalur email `notification.email` sudah ada), dan kolom `in_app` serta `whatsapp`, yang sudah ada di tabel tetapi belum dibaca.

@@ -53,6 +53,7 @@ pnpm test:int            # needs TEST_PG_ADMIN_URL + TEST_REDIS_URL, or Docker f
 - `src/realtime/`: `RealtimeGateway` (Socket.IO on the api's HTTP server, Redis adapter, device-token handshake) and `REALTIME` (Redis emitter every process uses: `toDevice`, `disconnectDevice`)
 - `src/modules/fulfillment/`: `print.service.ts` (print jobs and the agent's routes), `print-agents.service.ts` (pairing, printers, revoking, test page), `scan.service.ts` (`orderIn`: the order behind a scanned order or tracking number), `packing.service.ts`, `handover.service.ts`, and their pure rules in `scan-plan.ts`; `src/modules/identity/devices.service.ts`: device rows and tokens
 - `src/common/cost-visibility.ts`: `seesCost(ctx)`, who may see cost prices
+- `src/modules/returns/`: buyers' returns, refunds, and cancellation requests, and parcels of orders cancelled after shipping (RTO): `ReturnsService` (lists, decisions, evidence photos, receipts into stock or quarantine), `ReturnSyncService` (worker: pulls, decisions, sending them, RTO), `ReturnAlertsService`, pure rules in `return-plan.ts`; connector part `returns`; `test/setup/mock-returns.ts`: the fake marketplaces' return APIs
 
 ## How to add things
 Module: section 15.4. Table: 15.5 (write the SQL migration first, then the Drizzle mirror). Endpoint: 15.6. Job: 15.7. Connector: 15.8. Event: 15.9.
@@ -123,6 +124,14 @@ NestJS injection always uses explicit `@Inject(TOKEN)`; do not rely on construct
 - No `Promise.all` over queries inside one transaction: await them one by one. A pg client runs one query at a time anyway, pg 8.23 deprecates overlapping `client.query` (a DeprecationWarning in every process), and pg 9 will throw. The last such places were removed in M14.
 - Locking both a shipment and its order (courier handover): lock shipments first, then orders, the same order the worker's `followOrder` uses.
 - A print job may exist before its file: it waits for its document (`document_id`) until the worker attaches the file, and `print_job.file_object_id` is SET NULL when the file expires.
+
+- A versioned migration cannot call `gen_ulid()` or anything else from `drizzle/sql/`: on a fresh database the repeatable files run after every migration. Data changes that need them go in `90_seeds.sql`, idempotent; a new permission reaches the built-in roles of existing businesses there, because built-in roles never change after signup (new businesses copy `SYSTEM_ROLES`).
+- What a seller may decide on a return is read by the worker into `return_request.decisions`, valid only for `decisions_for` (the marketplace status it was read for). The api refuses a decision while they are stale (409 `return.decisions_stale`); it never asks the marketplace itself.
+- Reading decisions claims the rows first (`decisions_claimed_at`, `FOR UPDATE SKIP LOCKED`, taken over after 5 minutes). Without the claim, pulls and continuations running together read the same requests again: the smoke run read every request four times.
+- A burst of orders entering TO_RETURN shares one `return.pull`: the job id comes from the event's `at` per 10 seconds, the job waits 10 seconds, and a pull whose returns cursor is newer than `at` stops. A new event that makes a per-store marketplace read should coalesce the same way.
+- Receiving returned goods locks the order before the stock rows, as order changes do, then moves stock through `InventoryService.returnMovementsIn`; order lines count returned units only through `OrderIntakeService.returnReceivedIn`.
+- A Shopee buyer's cancellation request has no id of its own: its `external_return_id` is the order_sn, kept apart from return ids by `(kind = 'cancellation')` in the unique index.
+- Shopee return snapshots carry the buyer's email and pickup address: connectors never read those fields. The buyer's reason text and photos stay out of logs and of the audit log (`audit_row` skips those columns).
 
 ## Definition of done
 Tests per section 13.3 (integration tests run as the application roles, never as a superuser), migration checklist 12.3, docs updated (module README and the backend doc section you touched), PR checklist 15.11.

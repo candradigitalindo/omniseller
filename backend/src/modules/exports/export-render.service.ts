@@ -21,6 +21,7 @@ import { WarehousesService } from "../inventory/warehouses.service";
 import { ListingCopyService } from "../listing-copy/listing-copy.service";
 import { NotificationInboxService } from "../notification/inbox.service";
 import { OrdersService } from "../orders/orders.service";
+import { ReturnsService } from "../returns/returns.service";
 import { writeCsvFile } from "./csv-file";
 import { ExportsRepository } from "./exports.repository";
 import { exportReadme } from "./readme";
@@ -62,6 +63,7 @@ export class ExportRenderService {
     @Inject(HandoverService) private readonly handovers: HandoverService,
     @Inject(NotificationInboxService) private readonly inbox: NotificationInboxService,
     @Inject(ListingCopyService) private readonly listingCopies: ListingCopyService,
+    @Inject(ReturnsService) private readonly returns: ReturnsService,
   ) {}
 
   /** Every sheet, in ZIP order: the business's setup, the catalog, stock, then orders. */
@@ -76,6 +78,7 @@ export class ExportRenderService {
       ...this.orders.exportSheets(),
       ...this.fulfillment.exportSheets(),
       ...this.handovers.exportSheets(),
+      ...this.returns.exportSheets(),
     ];
   }
 

@@ -25,6 +25,8 @@ SELECT gen_ulid(), p.code, split_part(p.code, ':', 1), p.description
     ('shipment:print', 'Cetak label dan dokumen'),
     ('shipment:pack', 'Kemas dengan scan'),
     ('shipment:handover', 'Serah terima kurir'),
+    ('return:respond', 'Tanggapi retur dan pembatalan'),
+    ('return:receive', 'Terima barang retur'),
     ('inventory:read', 'Lihat stok'),
     ('inventory:adjust', 'Sesuaikan stok'),
     ('inventory:count', 'Stock opname'),
@@ -59,6 +61,17 @@ INSERT INTO role_permission (id, tenant_id, role_id, permission_id)
 SELECT gen_ulid(), r.tenant_id, r.id, p.id
   FROM role r CROSS JOIN permission p
  WHERE r.is_system AND r.name = 'Owner'
+ON CONFLICT (role_id, permission_id) DO NOTHING;
+
+-- Built-in roles never change after signup (new businesses copy SYSTEM_ROLES), so permissions added later
+-- reach the built-in roles of existing businesses here: answering and receiving returns (0016).
+INSERT INTO role_permission (id, tenant_id, role_id, permission_id)
+SELECT gen_ulid(), r.tenant_id, r.id, p.id
+  FROM role r
+  JOIN (VALUES ('Admin', 'return:respond'), ('Admin', 'return:receive'), ('CS', 'return:respond'),
+               ('Gudang', 'return:receive')) AS g(role_name, code) ON g.role_name = r.name
+  JOIN permission p ON p.code = g.code
+ WHERE r.is_system
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 
 -- Order status machine (backend doc 7.9).
@@ -215,6 +228,18 @@ SELECT gen_ulid(), t.f, t.t, 'any'
     ('failed', 'preparing'),
     ('failed', 'publishing')
   ) AS t(f, t)
+ON CONFLICT (from_status, to_status) DO NOTHING;
+
+-- Returns (backend doc 8.26): a request follows the marketplace, which may jump between any open status
+-- (a late snapshot, arbitration). refunded, cancelled, and closed are final; only the marketplace opens a
+-- request again (a Shopee buyer asks to cancel the same order twice). An rto closes when it is received.
+INSERT INTO return_request_status_transition (id, from_status, to_status, via)
+SELECT gen_ulid(), f.s, t.s, CASE WHEN f.s IN ('refunded', 'cancelled', 'closed') THEN 'marketplace' ELSE 'any' END
+  FROM unnest(ARRAY['requested', 'negotiating', 'accepted', 'in_transit', 'rejected', 'disputed', 'refunded',
+                    'cancelled', 'closed']) AS f(s)
+ CROSS JOIN unnest(ARRAY['requested', 'negotiating', 'accepted', 'in_transit', 'rejected', 'disputed', 'refunded',
+                         'cancelled', 'closed']) AS t(s)
+ WHERE f.s <> t.s AND (f.s NOT IN ('refunded', 'cancelled', 'closed') OR t.s = 'requested')
 ON CONFLICT (from_status, to_status) DO NOTHING;
 
 -- Full data export (backend doc 8.18): rendered once by the worker. A failed or stuck export is not

@@ -5,4 +5,5 @@ export * from "./fulfillment.js";
 export * from "./inventory.js";
 export * from "./orders.js";
 export * from "./products.js";
+export * from "./returns.js";
 export * from "./webhooks.js";

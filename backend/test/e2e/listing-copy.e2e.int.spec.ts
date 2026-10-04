@@ -5,16 +5,7 @@ import { systemContext } from "../../src/common/context/request-context";
 import { PublishBusyError } from "../../src/modules/listing-copy/copy-worker.service";
 import { listingDraftPublishJob } from "../../src/modules/listing-copy/listing-copy.jobs";
 import { StoreDataDeletionService } from "../../src/modules/retention/store-data-deletion.service";
-import {
-  type Client,
-  client,
-  PASSWORD,
-  signup,
-  startApi,
-  startWorker,
-  tokenFrom,
-  uniqueEmail,
-} from "../setup/app";
+import { type Client, client, PASSWORD, signup, startApi, startWorker, tokenFrom, uniqueEmail } from "../setup/app";
 import { testHandles } from "../setup/handles";
 import { MockMarketplace, type MockShopeeItem, type MockTiktokProduct } from "../setup/mock-marketplace";
 
@@ -108,7 +99,11 @@ async function connectTiktok(c: Client, tenantId: string, products: MockTiktokPr
     ],
     products,
   };
-  const sellerId = mock.addTiktokSeller({ openId: `70100000010${String(n).padStart(8, "0")}`, name: shop.name, shops: [shop] });
+  const sellerId = mock.addTiktokSeller({
+    openId: `70100000010${String(n).padStart(8, "0")}`,
+    name: shop.name,
+    shops: [shop],
+  });
   const started = await c.post("/v1/store-authorizations", { channel: "tiktokshop" });
   await c.post("/v1/store-authorizations/callback", {
     channel: "tiktokshop",
@@ -143,7 +138,12 @@ async function kaosProduct(c: Client, warehouseId: string, stock: Record<string,
   expect(res.status).toBe(201);
   const ids = Object.fromEntries((res.body.variants as { id: string; sku: string }[]).map((v) => [v.sku, v.id]));
   const adjusted = await c.post("/v1/inventory/adjustments", {
-    lines: Object.entries(stock).map(([sku, quantity]) => ({ variantId: ids[sku], warehouseId, mode: "set", quantity })),
+    lines: Object.entries(stock).map(([sku, quantity]) => ({
+      variantId: ids[sku],
+      warehouseId,
+      mode: "set",
+      quantity,
+    })),
     reason: "correction",
   });
   expect(adjusted.status).toBe(200);
@@ -165,7 +165,11 @@ function shopeeKaos(itemId: number, over: Partial<MockShopeeItem> = {}): MockSho
     dimension: { package_length: 30, package_width: 20, package_height: 3 },
     images: [img("kaos-1.png"), img("kaos-2.png")],
     attributes: [
-      { attribute_id: 100134, original_attribute_name: "Bahan", attribute_value_list: [{ value_id: 1234, original_value_name: "Katun" }] },
+      {
+        attribute_id: 100134,
+        original_attribute_name: "Bahan",
+        attribute_value_list: [{ value_id: 1234, original_value_name: "Katun" }],
+      },
       {
         attribute_id: 100037,
         original_attribute_name: "Negara Asal",
@@ -223,7 +227,9 @@ async function draftsOf(c: Client, copyId: string) {
 }
 
 const recommendCalls = () =>
-  mock.calls.filter((c) => c.path === "/product/202309/categories/recommend" || c.path === "/api/v2/product/category_recommend");
+  mock.calls.filter(
+    (c) => c.path === "/product/202309/categories/recommend" || c.path === "/api/v2/product/category_recommend",
+  );
 
 describe("copying Shopee listings to Tokopedia & Shop (FR-PRD-13)", () => {
   it("drafts with a recommended category, attributes and brand by name, then publishes with uploaded images and OmniSeller stock", async () => {
@@ -233,7 +239,12 @@ describe("copying Shopee listings to Tokopedia & Shop (FR-PRD-13)", () => {
     const dst = await connectTiktok(c, tenantId, [], warehouseId);
     await goLive(c, dst.storeId);
     const listings = await listingsOf(c, src.storeId);
-    expect(listings.filter((l) => l.mapping).map((l) => l.sku).sort()).toEqual(["KAOS-HTM-L", "KAOS-HTM-M", "KAOS-PTH-M"]);
+    expect(
+      listings
+        .filter((l) => l.mapping)
+        .map((l) => l.sku)
+        .sort(),
+    ).toEqual(["KAOS-HTM-L", "KAOS-HTM-M", "KAOS-PTH-M"]);
 
     const requested = await c.post("/v1/listing-copies", {
       sourceStoreId: src.storeId,
@@ -285,7 +296,9 @@ describe("copying Shopee listings to Tokopedia & Shop (FR-PRD-13)", () => {
       { attributeId: "100392", name: "Bahan", values: [{ valueId: "1000040", name: "Katun", unit: null }] },
       { attributeId: "100393", name: "Negara Asal", values: [{ valueId: "1000100", name: "Indonesia", unit: null }] },
     ]);
-    expect(kaos.variants.map((v: { sku: string; variantId: string; price: number }) => [v.sku, v.variantId, v.price])).toEqual([
+    expect(
+      kaos.variants.map((v: { sku: string; variantId: string; price: number }) => [v.sku, v.variantId, v.price]),
+    ).toEqual([
       ["KAOS-HTM-M", variants["KAOS-HTM-M"], 55_000],
       ["KAOS-HTM-L", variants["KAOS-HTM-L"], 57_000],
       ["KAOS-PTH-M", variants["KAOS-PTH-M"], 55_000],
@@ -299,7 +312,10 @@ describe("copying Shopee listings to Tokopedia & Shop (FR-PRD-13)", () => {
 
     const early = await c.post("/v1/listing-drafts/publish", { draftIds: [kaos.id] });
     expect(early.status).toBe(202);
-    expect(early.body).toMatchObject({ queued: [], refused: [{ draftId: kaos.id, code: "listing_draft.has_problems" }] });
+    expect(early.body).toMatchObject({
+      queued: [],
+      refused: [{ draftId: kaos.id, code: "listing_draft.has_problems" }],
+    });
 
     const set = await c.post("/v1/listing-drafts/attributes", {
       draftIds: [kaos.id, topi.id],
@@ -318,7 +334,10 @@ describe("copying Shopee listings to Tokopedia & Shop (FR-PRD-13)", () => {
     // edits with If-Match: a stale version is refused
     const etag = String((await c.get(`/v1/listing-drafts/${topi.id}`)).headers.etag);
     const edited = await c
-      .patch(`/v1/listing-drafts/${topi.id}`, { title: "Topi Rajut Wol Hangat Musim Hujan", variants: [{ key: "v1", price: 47_000 }] })
+      .patch(`/v1/listing-drafts/${topi.id}`, {
+        title: "Topi Rajut Wol Hangat Musim Hujan",
+        variants: [{ key: "v1", price: 47_000 }],
+      })
       .set("If-Match", etag);
     expect(edited.status).toBe(200);
     expect(edited.body).toMatchObject({ title: "Topi Rajut Wol Hangat Musim Hujan", variants: [{ price: 47_000 }] });
@@ -364,12 +383,18 @@ describe("copying Shopee listings to Tokopedia & Shop (FR-PRD-13)", () => {
     );
     // stock is what OmniSeller would push to this store: 7, nothing (0), 3
     expect(
-      kaosBody.skus.map((s: { seller_sku: string; inventory: { warehouse_id: string; quantity?: number }[]; sales_attributes: { sku_img?: unknown }[] }) => [
-        s.seller_sku,
-        s.inventory[0]!.warehouse_id,
-        s.inventory[0]!.quantity ?? 0,
-        s.sales_attributes[0]!.sku_img !== undefined,
-      ]),
+      kaosBody.skus.map(
+        (s: {
+          seller_sku: string;
+          inventory: { warehouse_id: string; quantity?: number }[];
+          sales_attributes: { sku_img?: unknown }[];
+        }) => [
+          s.seller_sku,
+          s.inventory[0]!.warehouse_id,
+          s.inventory[0]!.quantity ?? 0,
+          s.sales_attributes[0]!.sku_img !== undefined,
+        ],
+      ),
     ).toEqual([
       ["KAOS-HTM-M", dst.warehouse, 7, true],
       ["KAOS-HTM-L", dst.warehouse, 0, true],
@@ -377,7 +402,11 @@ describe("copying Shopee listings to Tokopedia & Shop (FR-PRD-13)", () => {
     ]);
     const topiBody = created.find((b) => b.title.startsWith("Topi"))!;
     expect(topiBody.skus).toEqual([
-      expect.objectContaining({ seller_sku: "TOPI-01", price: { amount: "47000", currency: "IDR" }, inventory: [{ warehouse_id: dst.warehouse }] }),
+      expect.objectContaining({
+        seller_sku: "TOPI-01",
+        price: { amount: "47000", currency: "IDR" },
+        inventory: [{ warehouse_id: dst.warehouse }],
+      }),
     ]);
     expect(topiBody.skus[0].sales_attributes).toBeUndefined();
 
@@ -434,9 +463,29 @@ describe("copying Tokopedia & Shop to Shopee, and Shopee to Shopee", () => {
       ],
       packageWeightKg: "0.3",
       skus: [
-        { id: "1729800000001000001", seller_sku: "KAOS-HTM-M", price: 59_000, attrs: { Warna: "Hitam", Ukuran: "M" }, inventory: {}, image: img("tts-hitam.png") },
-        { id: "1729800000001000002", seller_sku: "KAOS-HTM-L", price: 61_000, attrs: { Warna: "Hitam", Ukuran: "L" }, inventory: {} },
-        { id: "1729800000001000003", seller_sku: "KAOS-PTH-M", price: 59_000, attrs: { Warna: "Putih", Ukuran: "M" }, inventory: {}, image: img("tts-putih.png") },
+        {
+          id: "1729800000001000001",
+          seller_sku: "KAOS-HTM-M",
+          price: 59_000,
+          attrs: { Warna: "Hitam", Ukuran: "M" },
+          inventory: {},
+          image: img("tts-hitam.png"),
+        },
+        {
+          id: "1729800000001000002",
+          seller_sku: "KAOS-HTM-L",
+          price: 61_000,
+          attrs: { Warna: "Hitam", Ukuran: "L" },
+          inventory: {},
+        },
+        {
+          id: "1729800000001000003",
+          seller_sku: "KAOS-PTH-M",
+          price: 59_000,
+          attrs: { Warna: "Putih", Ukuran: "M" },
+          inventory: {},
+          image: img("tts-putih.png"),
+        },
       ],
     };
     const src = await connectTiktok(c, tenantId, [product], warehouseId);
@@ -491,12 +540,15 @@ describe("copying Tokopedia & Shop to Shopee, and Shopee to Shopee", () => {
     });
     expect(add.image.image_id_list).toHaveLength(1);
     const tiers = JSON.parse(mock.callsTo("POST", "/api/v2/product/init_tier_variation").at(-1)!.body);
-    expect(tiers.standardise_tier_variation[0].variation_option_list.map((o: { image_id?: string }) => !!o.image_id)).toEqual([
-      true,
-      true,
-    ]);
+    expect(
+      tiers.standardise_tier_variation[0].variation_option_list.map((o: { image_id?: string }) => !!o.image_id),
+    ).toEqual([true, true]);
     // stock without a location (shop without multi-warehouse): 5, 2, 0
-    expect(tiers.model.map((m: { seller_stock: unknown }) => m.seller_stock)).toEqual([[{ stock: 5 }], [{ stock: 2 }], [{ stock: 0 }]]);
+    expect(tiers.model.map((m: { seller_stock: unknown }) => m.seller_stock)).toEqual([
+      [{ stock: 5 }],
+      [{ stock: 2 }],
+      [{ stock: 0 }],
+    ]);
     expect((await c.get(`/v1/listing-drafts/${d.id}`)).body.status).toBe("published");
     const mapped = (await listingsOf(c, dst.storeId)).filter((l) => l.mapping?.source === "copied");
     expect(mapped.map((l) => l.mapping!.variantId).sort()).toEqual(Object.values(variants).sort());
@@ -540,7 +592,11 @@ describe("publishing failures and recovery", () => {
     // a store still in parallel mode: published with stock 0
     const d = (await c.get(`/v1/listing-drafts/${draft!.id}`)).body;
     expect(d.problems.map((p: { code: string }) => p.code)).toEqual(["attribute_required", "store_read_only"]);
-    await c.post("/v1/listing-drafts/attributes", { draftIds: [d.id], attributeId: "102254", values: [{ valueId: "1000058" }] });
+    await c.post("/v1/listing-drafts/attributes", {
+      draftIds: [d.id],
+      attributeId: "102254",
+      values: [{ valueId: "1000058" }],
+    });
 
     mock.products.tiktokCreateFailures.push("The product name contains restricted words.");
     await c.post("/v1/listing-drafts/publish", { draftIds: [d.id] });
@@ -565,7 +621,9 @@ describe("publishing failures and recovery", () => {
       `${d.id}-2`,
     ]);
     const created = bodies.find((b) => b.idempotency_key === `${d.id}-2`)!;
-    expect(created.skus.every((s: { inventory: { quantity?: number }[] }) => s.inventory[0]!.quantity === undefined)).toBe(true);
+    expect(
+      created.skus.every((s: { inventory: { quantity?: number }[] }) => s.inventory[0]!.quantity === undefined),
+    ).toBe(true);
   });
 
   it("continues a Shopee item whose variations failed, without creating the item twice", async () => {
@@ -604,7 +662,11 @@ describe("publishing failures and recovery", () => {
     await drain(tenantId);
     const ids = (await draftsOf(c, res.body.items[0].id)).map((d) => d.id);
     expect(ids).toHaveLength(12);
-    await c.post("/v1/listing-drafts/attributes", { draftIds: ids, attributeId: "102254", values: [{ valueId: "1000059" }] });
+    await c.post("/v1/listing-drafts/attributes", {
+      draftIds: ids,
+      attributeId: "102254",
+      values: [{ valueId: "1000059" }],
+    });
     expect((await c.post("/v1/listing-drafts/publish", { draftIds: ids })).body.queued).toHaveLength(12);
     const before = mock.callsTo("POST", "/product/202309/products").length;
     // as BullMQ runs them: twelve at once (the pool has ten connections), and a second run of the first
@@ -634,7 +696,11 @@ describe("publishing failures and recovery", () => {
     const res = await c.post("/v1/listing-copies", { sourceStoreId: src.storeId, targetStoreIds: [dst.storeId] });
     await drain(tenantId);
     const [draft] = await draftsOf(c, res.body.items[0].id);
-    await c.post("/v1/listing-drafts/attributes", { draftIds: [draft!.id], attributeId: "102254", values: [{ valueId: "1000059" }] });
+    await c.post("/v1/listing-drafts/attributes", {
+      draftIds: [draft!.id],
+      attributeId: "102254",
+      values: [{ valueId: "1000059" }],
+    });
     await c.post("/v1/listing-drafts/publish", { draftIds: [draft!.id] });
     const claimedAgo = (minutes: number) =>
       h.system.db.execute(
@@ -713,18 +779,30 @@ describe("categories and moving drafts to another category", () => {
     const src = await connectShopee(c, tenantId, [shopeeKaos(5601)]);
     const dst = await connectTiktok(c, tenantId, [], warehouseId);
     // nothing read yet for this store
-    expect((await c.get(`/v1/stores/${dst.storeId}/categories`)).body).toMatchObject({ items: [], total: 0, refreshedAt: null });
+    expect((await c.get(`/v1/stores/${dst.storeId}/categories`)).body).toMatchObject({
+      items: [],
+      total: 0,
+      refreshedAt: null,
+    });
     expect((await c.post(`/v1/stores/${dst.storeId}/categories/refresh`)).body).toMatchObject({ requested: true });
     expect(await drain(tenantId)).toContain("channel_category.refresh");
     const top = (await c.get(`/v1/stores/${dst.storeId}/categories`)).body;
     expect(top.total).toBe(6);
     expect(top.items.map((x: { name: string }) => x.name)).toEqual(["Aksesoris", "Obat", "Pakaian Pria"]);
-    expect((await c.get(`/v1/stores/${dst.storeId}/categories?parentId=601152`)).body.items.map((x: { path: string }) => x.path)).toEqual([
-      "Pakaian Pria > Kaos",
-      "Pakaian Pria > Kemeja",
-    ]);
+    expect(
+      (await c.get(`/v1/stores/${dst.storeId}/categories?parentId=601152`)).body.items.map(
+        (x: { path: string }) => x.path,
+      ),
+    ).toEqual(["Pakaian Pria > Kaos", "Pakaian Pria > Kemeja"]);
     expect((await c.get(`/v1/stores/${dst.storeId}/categories?q=kem`)).body.items).toEqual([
-      { categoryId: "601227", parentId: "601152", name: "Kemeja", path: "Pakaian Pria > Kemeja", isLeaf: true, permitted: true },
+      {
+        categoryId: "601227",
+        parentId: "601152",
+        name: "Kemeja",
+        path: "Pakaian Pria > Kemeja",
+        isLeaf: true,
+        permitted: true,
+      },
     ]);
     expect((await c.post(`/v1/stores/${dst.storeId}/categories/refresh`)).body.requested).toBe(false);
     const pending = (await c.get(`/v1/stores/${dst.storeId}/categories/601227`)).body;
@@ -773,7 +851,11 @@ describe("categories and moving drafts to another category", () => {
 describe("copies: whole stores, cancelling, idempotency, validation, scope, and deletion", () => {
   it("copies a whole store, skips open drafts, cancels, and replays an Idempotency-Key", async () => {
     const { c, tenantId, warehouseId } = await business();
-    const src = await connectShopee(c, tenantId, [shopeeKaos(5701), shopeeTopi(5702), shopeeKaos(5703, { item_name: "Kaos Lengan Panjang Katun Combed 30s" })]);
+    const src = await connectShopee(c, tenantId, [
+      shopeeKaos(5701),
+      shopeeTopi(5702),
+      shopeeKaos(5703, { item_name: "Kaos Lengan Panjang Katun Combed 30s" }),
+    ]);
     const dst = await connectTiktok(c, tenantId, [], warehouseId);
     const first = await c
       .post("/v1/listing-copies", { sourceStoreId: src.storeId, targetStoreIds: [dst.storeId], skipListed: false })
@@ -783,7 +865,9 @@ describe("copies: whole stores, cancelling, idempotency, validation, scope, and 
       .post("/v1/listing-copies", { sourceStoreId: src.storeId, targetStoreIds: [dst.storeId], skipListed: false })
       .set("Idempotency-Key", "salin-toko-0001");
     expect(replay.headers["idempotent-replayed"]).toBe("true");
-    expect(replay.body.items.map((x: { id: string }) => x.id)).toEqual(first.body.items.map((x: { id: string }) => x.id));
+    expect(replay.body.items.map((x: { id: string }) => x.id)).toEqual(
+      first.body.items.map((x: { id: string }) => x.id),
+    );
     await drain(tenantId);
     expect((await c.get(`/v1/listing-copies/${first.body.items[0].id}`)).body).toMatchObject({
       status: "ready",
@@ -825,7 +909,10 @@ describe("copies: whole stores, cancelling, idempotency, validation, scope, and 
     expect(manual.status).toBe(201);
     const same = await c.post("/v1/listing-copies", { sourceStoreId: src.storeId, targetStoreIds: [src.storeId] });
     expect(same.status).toBe(422);
-    const toManual = await c.post("/v1/listing-copies", { sourceStoreId: src.storeId, targetStoreIds: [manual.body.id] });
+    const toManual = await c.post("/v1/listing-copies", {
+      sourceStoreId: src.storeId,
+      targetStoreIds: [manual.body.id],
+    });
     expect(toManual.body.code).toBe("store.manual");
     const otherListing = (await listingsOf(c, other.storeId))[0]!;
     const mixed = await c.post("/v1/listing-copies", {
@@ -843,7 +930,9 @@ describe("copies: whole stores, cancelling, idempotency, validation, scope, and 
     // Gudang may read the catalog, not copy or publish
     const { member: gudang } = await addMember(c, tenantId, "Gudang");
     expect((await gudang.get(`/v1/listing-drafts/${draft!.id}`)).status).toBe(200);
-    expect((await gudang.post("/v1/listing-copies", { sourceStoreId: src.storeId, targetStoreIds: [dst.storeId] })).status).toBe(403);
+    expect(
+      (await gudang.post("/v1/listing-copies", { sourceStoreId: src.storeId, targetStoreIds: [dst.storeId] })).status,
+    ).toBe(403);
     expect((await gudang.post("/v1/listing-drafts/publish", { draftIds: [draft!.id] })).status).toBe(403);
     // an Admin limited to the source store does not see copies into another store
     const { member: admin } = await addMember(c, tenantId, "Admin");
@@ -853,7 +942,9 @@ describe("copies: whole stores, cancelling, idempotency, validation, scope, and 
     expect((await admin.get(`/v1/listing-copies/${copy.body.items[0].id}`)).status).toBe(404);
     expect((await admin.get(`/v1/listing-drafts/${draft!.id}`)).status).toBe(404);
     expect((await admin.get("/v1/listing-copies")).body.items).toEqual([]);
-    expect((await admin.post("/v1/listing-copies", { sourceStoreId: src.storeId, targetStoreIds: [dst.storeId] })).status).toBe(404);
+    expect(
+      (await admin.post("/v1/listing-copies", { sourceStoreId: src.storeId, targetStoreIds: [dst.storeId] })).status,
+    ).toBe(404);
 
     // the source store goes without its data: its copies and drafts go too
     expect((await c.post(`/v1/stores/${src.storeId}/disconnect`, { keepData: false })).status).toBe(200);

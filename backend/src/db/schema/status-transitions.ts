@@ -20,3 +20,4 @@ export const printJobStatusTransition = pgTable("print_job_status_transition", t
 export const handoverStatusTransition = pgTable("handover_status_transition", transitionColumns());
 export const listingCopyStatusTransition = pgTable("listing_copy_status_transition", transitionColumns());
 export const listingDraftStatusTransition = pgTable("listing_draft_status_transition", transitionColumns());
+export const returnRequestStatusTransition = pgTable("return_request_status_transition", transitionColumns());

@@ -148,4 +148,6 @@ const refresh: NonNullable<WebhookConsumers["order.status_changed"]>[number] = a
 export const ORDER_WEBHOOK_CONSUMERS: WebhookConsumers = {
   "order.status_changed": [refresh],
   "order.tracking_updated": [refresh],
+  // a return moved: the order's own status may have too
+  "return.changed": [refresh],
 };

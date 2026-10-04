@@ -5,6 +5,7 @@ import { FulfillmentModule } from "../fulfillment/fulfillment.module";
 import { InventoryModule } from "../inventory/inventory-core.module";
 import { ListingCopyModule } from "../listing-copy/listing-copy.module";
 import { OrdersModule } from "../orders/orders.module";
+import { ReturnsModule } from "../returns/returns.module";
 import { SyncModule } from "../sync/sync.module";
 import { StoreDataDeletionService } from "./store-data-deletion.service";
 
@@ -21,6 +22,7 @@ import { StoreDataDeletionService } from "./store-data-deletion.service";
     InventoryModule,
     SyncModule,
     ListingCopyModule,
+    ReturnsModule,
   ],
   providers: [StoreDataDeletionService],
   exports: [StoreDataDeletionService],

@@ -15,6 +15,7 @@ import { tiktokFulfillment } from "./fulfillment.js";
 import { TIKTOK_MAX_STOCK, tiktokInventory } from "./inventory.js";
 import { tiktokOrders } from "./orders.js";
 import { tiktokProducts } from "./products.js";
+import { tiktokReturns } from "./returns.js";
 import { parseTiktokWebhook, TIKTOK_WEBHOOK_TOPICS, verifyTiktokWebhook } from "./webhooks.js";
 
 /**
@@ -239,6 +240,8 @@ export function createTiktokShopConnector(config: TiktokShopConfig): Marketplace
     orders: tiktokOrders(client),
 
     fulfillment: tiktokFulfillment(client),
+
+    returns: tiktokReturns(client),
 
     inventory: tiktokInventory(client),
 

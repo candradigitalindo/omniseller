@@ -40,6 +40,7 @@ import { NotificationsController } from "../../modules/notification/inbox.contro
 import { OrdersController, TagsController } from "../../modules/orders/orders.controllers";
 import { HealthController } from "../../modules/platform/health.controller";
 import { DashboardController, ReportsController } from "../../modules/reporting/reporting.controller";
+import { ReturnsController } from "../../modules/returns/returns.controllers";
 import { WebhooksController } from "../../modules/sync/webhooks.controller";
 
 /**
@@ -84,6 +85,7 @@ const CONTROLLERS = [
   StoreCategoriesController,
   ListingCopiesController,
   ListingDraftsController,
+  ReturnsController,
 ];
 
 /** Same test nestjs-zod's pipe applies (its helper is not exported from the package root). */

@@ -156,6 +156,13 @@ const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: s
     values: [{ valueId: "1000059" }],
   }),
   ListingDraftsController_publish: ({ a: ids }) => ({ draftIds: [ids.listing_draft!] }),
+  ReturnsController_refresh: () => ({}),
+  ReturnsController_addEvidence: () => ({ content: Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10]).toString("base64") }),
+  ReturnsController_accept: () => ({}),
+  ReturnsController_reject: () => ({ reason: "seller_reject_apply_product_has_been_packed" }),
+  ReturnsController_receive: ({ a: ids }) => ({
+    items: [{ returnItemId: ids.return_item!, sellable: 0, damaged: 0, missing: 1 }],
+  }),
 };
 
 /** A print agent's client: its device token instead of a session. */
@@ -293,7 +300,10 @@ beforeAll(async () => {
   });
   // a copy of A's store into itself is impossible; the fixture copies between two stores of A (8.25)
   await withTenantTx(h.worker, userCtx(tenantId), async (tx) => {
-    const otherStoreId = await createStore(tx, tenantId, { warehouseId: fixtures.warehouse!.id, channel: "tiktokshop" });
+    const otherStoreId = await createStore(tx, tenantId, {
+      warehouseId: fixtures.warehouse!.id,
+      channel: "tiktokshop",
+    });
     await tx.execute(sql`INSERT INTO channel_category (id, tenant_id, store_id, external_id, name, path, is_leaf, seen_at)
                          VALUES (${newId()}, ${tenantId}, ${fixtures.store!.id}, '601226', 'Kaos', 'Pakaian Pria > Kaos', true, now())`);
     fixtures.channel_category = { id: "601226" };
@@ -309,6 +319,21 @@ beforeAll(async () => {
                                  'Kaos Tenant A',
                                  '{"channel":"shopee","category":{"externalId":"100017","name":null,"path":null},"brand":null,"attributes":[],"extras":{},"notes":[]}'::jsonb)`);
     fixtures.listing_draft = { id: draftId };
+  });
+  // a buyer's return of A's order waiting for a decision, as the worker would have read it (8.26)
+  await withTenantTx(h.worker, userCtx(tenantId), async (tx) => {
+    const returnId = newId();
+    await tx.execute(sql`INSERT INTO return_request (id, tenant_id, store_id, order_id, warehouse_id, kind, external_return_id,
+                                                     status, external_status, goods_return, decisions, decisions_for)
+                         VALUES (${returnId}, ${tenantId}, ${fixtures.store!.id}, ${fixtures.order!.id}, ${fixtures.warehouse!.id},
+                                 'return_refund', 'RET-A-0001', 'requested', 'REQUESTED', true,
+                                 '[{"code":"confirm","action":"accept","label":"Setujui","reasons":[],"needsEmail":false}]'::jsonb,
+                                 'REQUESTED')`);
+    fixtures.return_request = { id: returnId };
+    const itemId = newId();
+    await tx.execute(sql`INSERT INTO return_item (id, tenant_id, return_request_id, sku, title, qty)
+                         VALUES (${itemId}, ${tenantId}, ${returnId}, 'A-KAOS-1', 'Kaos Tenant A', 1)`);
+    fixtures.return_item = { id: itemId };
   });
   const theirs = await b.c.post("/v1/print-agents", { name: "Agen B" });
   expect(theirs.status).toBe(201);
@@ -492,10 +517,18 @@ describe("tenant isolation generated from openapi.json", () => {
       courier: "SPX Standard",
       parcels: 1,
     });
-    expect((await a.c.get(`/v1/listing-copies/${fixtures.listing_copy!.id}`)).body).toMatchObject({ status: "preparing" });
+    expect((await a.c.get(`/v1/listing-copies/${fixtures.listing_copy!.id}`)).body).toMatchObject({
+      status: "preparing",
+    });
     expect((await a.c.get(`/v1/listing-drafts/${fixtures.listing_draft!.id}`)).body).toMatchObject({
       status: "draft",
       title: "Kaos Tenant A",
+    });
+    expect((await a.c.get(`/v1/returns/${fixtures.return_request!.id}`)).body).toMatchObject({
+      status: "requested",
+      response: null,
+      receivedAt: null,
+      sellerEvidence: [],
     });
     // B's callback attempt with A's state did not consume it
     expect((await a.c.get(`/v1/store-authorizations/${fixtures.store_authorization!.id}`)).body.status).toBe("pending");
