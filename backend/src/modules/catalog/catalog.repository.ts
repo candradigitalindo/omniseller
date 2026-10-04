@@ -475,24 +475,56 @@ export class CatalogRepository {
   /**
    * FR-PRD-02: maps every unmapped live listing whose SKU equals exactly one live variant's SKU
    * (ignoring case and surrounding spaces). Ambiguous SKUs stay unmapped for a person to decide.
+   *
+   * Read one table at a time (the listings, then the variants by SKU through their unique index), never
+   * a join of the two: right after a large catalog pull, before autovacuum analyzed the new listings,
+   * the planner turned that join into a scan of every variant per listing and the statement timed out.
+   * The update maps only listings still unmapped, so a person mapping one meanwhile keeps their choice.
    */
   async autoMapBySku(tx: Tx, storeId?: string): Promise<{ listingId: string; variantId: string }[]> {
-    const storeFilter = storeId ? sql`AND l2.store_id = ${storeId}` : sql``;
-    const r = await tx.execute<{ id: string; variant_id: string }>(sql`
-      UPDATE channel_listing l
-         SET variant_id = m.variant_id, mapping_source = 'auto_sku', mapped_at = now(),
-             updated_at = now(), row_version = l.row_version + 1
-        FROM (SELECT l2.id AS listing_id, min(v.id) AS variant_id
-                FROM channel_listing l2
-                JOIN variant v ON v.tenant_id = l2.tenant_id AND v.deleted_at IS NULL AND v.status = 'active'
-                              AND lower(btrim(v.sku)) = lower(btrim(l2.external_sku))
-               WHERE l2.variant_id IS NULL AND l2.external_sku IS NOT NULL AND btrim(l2.external_sku) <> ''
-                 AND l2.status <> 'deleted' ${storeFilter}
-               GROUP BY l2.id
-              HAVING count(*) = 1) m
-       WHERE l.id = m.listing_id
-      RETURNING l.id, l.variant_id`);
-    return r.rows.map((x) => ({ listingId: x.id, variantId: x.variant_id }));
+    const l = channelListing;
+    const unmapped = await tx
+      .select({ id: l.id, sku: l.externalSku })
+      .from(l)
+      .where(
+        and(
+          isNull(l.variantId),
+          isNotNull(l.externalSku),
+          sql`btrim(${l.externalSku}) <> ''`,
+          ne(l.status, "deleted"),
+          storeId ? eq(l.storeId, storeId) : undefined,
+        ),
+      );
+    const skus = [...new Set(unmapped.map((u) => normSku(u.sku)).filter((s): s is string => !!s))];
+    const active = new Map<string, string[]>();
+    for (let i = 0; i < skus.length; i += 1_000) {
+      for (const [sku, rows] of await this.variantsByNormSku(tx, skus.slice(i, i + 1_000))) {
+        active.set(
+          sku,
+          rows.filter((v) => v.status === "active").map((v) => v.id),
+        );
+      }
+    }
+    const pairs = unmapped.flatMap((u) => {
+      const ids = active.get(normSku(u.sku)!) ?? [];
+      return ids.length === 1 ? [{ listingId: u.id, variantId: ids[0]! }] : [];
+    });
+    const mapped: { listingId: string; variantId: string }[] = [];
+    for (let i = 0; i < pairs.length; i += 1_000) {
+      const values = sql.join(
+        pairs.slice(i, i + 1_000).map((p) => sql`(${p.listingId}, ${p.variantId})`),
+        sql`, `,
+      );
+      const r = await tx.execute<{ id: string; variant_id: string }>(sql`
+        UPDATE channel_listing l
+           SET variant_id = m.variant_id, mapping_source = 'auto_sku', mapped_at = now(),
+               updated_at = now(), row_version = l.row_version + 1
+          FROM (VALUES ${values}) AS m(listing_id, variant_id)
+         WHERE l.id = m.listing_id AND l.variant_id IS NULL
+        RETURNING l.id, l.variant_id`);
+      mapped.push(...r.rows.map((x) => ({ listingId: x.id, variantId: x.variant_id })));
+    }
+    return mapped;
   }
 
   /** FR-PRD-03: up to three variants per listing whose product name resembles the listing title. */

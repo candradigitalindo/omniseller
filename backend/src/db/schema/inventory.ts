@@ -1,4 +1,4 @@
-import type { StockMovementType } from "@omniseller/shared";
+import type { StockCountStatus, StockMovementType, StockTransferStatus } from "@omniseller/shared";
 import { sql } from "drizzle-orm";
 import { bigint, boolean, integer, jsonb, pgTable, pgView, text } from "drizzle-orm/pg-core";
 import { appendOnlyColumns, baseColumns, qty, tstz, ulid } from "../columns";
@@ -100,6 +100,70 @@ export const listingStockState = pgTable("listing_stock_state", {
   lastError: text("last_error"),
   pushFailCount: integer("push_fail_count").notNull().default(0),
   lastAttemptAt: tstz("last_attempt_at"),
+});
+
+// ---- stock counts and transfers (PRD FR-STK-08, 09; backend doc 8.27) ----
+
+export const stockCount = pgTable("stock_count", {
+  ...baseColumns(),
+  number: text("number").notNull(),
+  warehouseId: ulid("warehouse_id").notNull(),
+  mode: text("mode").$type<"full" | "partial">().notNull(),
+  blind: boolean("blind").notNull().default(true),
+  status: text("status").$type<StockCountStatus>().notNull().default("counting"),
+  statusChangedAt: tstz("status_changed_at").notNull().defaultNow(),
+  note: text("note"),
+  createdBy: ulid("created_by"),
+  submittedAt: tstz("submitted_at"),
+  submittedBy: ulid("submitted_by"),
+  applyRequestedAt: tstz("apply_requested_at"),
+  applyRequestedBy: ulid("apply_requested_by"),
+  zeroUncounted: boolean("zero_uncounted").notNull().default(false),
+  appliedAt: tstz("applied_at"),
+});
+
+export const stockCountLine = pgTable("stock_count_line", {
+  ...baseColumns(),
+  stockCountId: ulid("stock_count_id").notNull(),
+  variantId: ulid("variant_id").notNull(),
+  sku: text("sku").notNull(),
+  productName: text("product_name").notNull(),
+  variantName: text("variant_name").notNull(),
+  barcode: text("barcode"),
+  binLocation: text("bin_location"),
+  expectedQty: qty("expected_qty").notNull(),
+  countedQty: qty("counted_qty"),
+  diff: qty("diff").generatedAlwaysAs(sql`counted_qty - expected_qty`),
+  countedAt: tstz("counted_at"),
+  countedBy: ulid("counted_by"),
+  added: boolean("added").notNull().default(false),
+  appliedDelta: qty("applied_delta"),
+});
+
+export const stockTransfer = pgTable("stock_transfer", {
+  ...baseColumns(),
+  number: text("number").notNull(),
+  fromWarehouseId: ulid("from_warehouse_id").notNull(),
+  toWarehouseId: ulid("to_warehouse_id").notNull(),
+  status: text("status").$type<StockTransferStatus>().notNull().default("draft"),
+  statusChangedAt: tstz("status_changed_at").notNull().defaultNow(),
+  note: text("note"),
+  createdBy: ulid("created_by"),
+  sentAt: tstz("sent_at"),
+  sentBy: ulid("sent_by"),
+  receivedAt: tstz("received_at"),
+  receivedBy: ulid("received_by"),
+  receiptNote: text("receipt_note"),
+  cancelledAt: tstz("cancelled_at"),
+  cancelledBy: ulid("cancelled_by"),
+});
+
+export const stockTransferLine = pgTable("stock_transfer_line", {
+  ...baseColumns(),
+  stockTransferId: ulid("stock_transfer_id").notNull(),
+  variantId: ulid("variant_id").notNull(),
+  qty: qty("qty").notNull(),
+  receivedQty: qty("received_qty"),
 });
 
 /** Read-only view exported by the catalog module (drizzle/sql/15_views.sql); RLS of the caller applies. */

@@ -3,6 +3,7 @@ import { CatalogModule } from "../catalog/catalog.module";
 import { ChannelModule } from "../channel/channel.module";
 import { FulfillmentModule } from "../fulfillment/fulfillment.module";
 import { IdentityModule } from "../identity/identity.module";
+import { InventoryStockModule } from "../inventory/inventory.module";
 import { InventoryModule } from "../inventory/inventory-core.module";
 import { ListingCopyModule } from "../listing-copy/listing-copy.module";
 import { NotificationInboxModule } from "../notification/notification.module";
@@ -23,6 +24,7 @@ export class ExportsModule {}
     IdentityModule,
     ChannelModule,
     InventoryModule,
+    InventoryStockModule,
     CatalogModule,
     OrdersModule,
     FulfillmentModule,

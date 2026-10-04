@@ -35,9 +35,9 @@ describe("migration runner (ADR-027)", () => {
     );
   });
 
-  it("gives the built-in roles of a business created earlier the permissions added since (returns, 0016)", async () => {
+  it("gives the built-in roles of a business created earlier the permissions added since (returns 0016, transfers 0017)", async () => {
     const { tenantId, ctx } = await createTenant(h.api);
-    // built-in roles as an older signup left them: nothing about returns
+    // built-in roles as an older signup left them: nothing about returns or transfers
     await withTenantTx(h.api, ctx, async (tx) => {
       for (const name of ["Admin", "CS", "Gudang", "Viewer"]) {
         await tx.execute(
@@ -50,12 +50,13 @@ describe("migration runner (ADR-027)", () => {
       tx.execute<{ name: string; code: string }>(sql`
         SELECT r.name, p.code FROM role r JOIN role_permission rp ON rp.role_id = r.id
           JOIN permission p ON p.id = rp.permission_id
-         WHERE p.code LIKE 'return:%' ORDER BY 1, 2`),
+         WHERE p.code LIKE 'return:%' OR p.code = 'inventory:transfer' ORDER BY 1, 2`),
     );
     expect(granted.rows).toEqual([
       { name: "Admin", code: "return:receive" },
       { name: "Admin", code: "return:respond" },
       { name: "CS", code: "return:respond" },
+      { name: "Gudang", code: "inventory:transfer" },
       { name: "Gudang", code: "return:receive" },
     ]);
   });

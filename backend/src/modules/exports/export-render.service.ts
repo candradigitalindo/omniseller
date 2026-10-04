@@ -17,6 +17,8 @@ import { HandoverService } from "../fulfillment/handover.service";
 import { TenantsService } from "../identity/tenants.service";
 import { UsersService } from "../identity/users.service";
 import { InventoryService } from "../inventory/inventory.service";
+import { StockCountService } from "../inventory/stock-count.service";
+import { StockTransferService } from "../inventory/stock-transfer.service";
 import { WarehousesService } from "../inventory/warehouses.service";
 import { ListingCopyService } from "../listing-copy/listing-copy.service";
 import { NotificationInboxService } from "../notification/inbox.service";
@@ -64,6 +66,8 @@ export class ExportRenderService {
     @Inject(NotificationInboxService) private readonly inbox: NotificationInboxService,
     @Inject(ListingCopyService) private readonly listingCopies: ListingCopyService,
     @Inject(ReturnsService) private readonly returns: ReturnsService,
+    @Inject(StockCountService) private readonly stockCounts: StockCountService,
+    @Inject(StockTransferService) private readonly stockTransfers: StockTransferService,
   ) {}
 
   /** Every sheet, in ZIP order: the business's setup, the catalog, stock, then orders. */
@@ -75,6 +79,8 @@ export class ExportRenderService {
       ...this.listings.exportSheets(),
       ...this.listingCopies.exportSheets(),
       ...this.inventory.exportSheets(),
+      ...this.stockCounts.exportSheets(),
+      ...this.stockTransfers.exportSheets(),
       ...this.orders.exportSheets(),
       ...this.fulfillment.exportSheets(),
       ...this.handovers.exportSheets(),

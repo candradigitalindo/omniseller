@@ -28,3 +28,13 @@ export const stockResyncRequested = defineEvent({
     force: z.boolean(),
   }),
 });
+
+/**
+ * A stock count was approved (FR-STK-08): the worker applies its lines in batches and marks it applied.
+ * Written again to continue a large count, or when the seller asks after a failure.
+ */
+export const stockCountApplyRequested = defineEvent({
+  type: "stock_count.apply_requested",
+  aggregate: "stock_count",
+  schema: z.object({ stockCountId: ulidSchema }),
+});

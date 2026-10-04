@@ -28,6 +28,7 @@ Produk master dan variannya, listing marketplace, dan pemetaan keduanya (PRD 6.2
 - Produk punya maksimal tiga atribut. Setiap varian mengisi tepat semua atribut dengan nilai tidak kosong, dan kombinasinya unik per produk.
 - Upsert listing tidak pernah mengubah pemetaan. `variant_id`, `mapping_source`, dan `mapped_at` terisi bersama atau kosong bersama (CHECK). Sumber pemetaan: `auto_sku`, `manual`, `created`, dan `copied` (listing yang dibuat dengan menyalin listing varian itu dari toko lain).
 - Pemetaan otomatis hanya bila SKU listing cocok dengan tepat satu varian aktif. Pemetaan ke varian arsip ditolak.
+- `autoMapBySku` membaca listing dan varian dalam query terpisah (varian lewat indeks SKU per 1.000), bukan join: join itu salah rencana tepat setelah tarikan katalog besar, sebelum statistik planner menyusul, dan melewati batas waktu pernyataan.
 - Produk yang variannya masih dipetakan listing tidak bisa dihapus; arsipkan saja.
 - Status listing hanya berubah dari jawaban marketplace: setelah aktif atau nonaktif dikirim, item dibaca ulang.
 - "Stok habis" (FR-PRD-09) bukan status tersendiri: listing `active` dengan `stock = 0` di respons.

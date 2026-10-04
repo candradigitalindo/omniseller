@@ -1,4 +1,10 @@
-import { ConflictError, NotFoundError, ValidationError } from "../../common/errors/domain-errors";
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  UnprocessableError,
+  ValidationError,
+} from "../../common/errors/domain-errors";
 
 export const warehouseNotFound = (path: string) =>
   new ValidationError([{ path, message: "Gudang tidak ditemukan, tidak aktif, atau di luar cakupan Anda." }]);
@@ -50,4 +56,65 @@ export const storeNotLive = () =>
   new ConflictError(
     "store.not_live",
     "Toko ini masih mode baca saja atau belum terhubung, jadi stok belum didorong ke marketplace.",
+  );
+
+// ---- stock counts and transfers (FR-STK-08, 09; backend doc 8.27) ----
+
+export const rowStale = () =>
+  new ConflictError("row.stale", "Data sudah diubah orang lain. Muat ulang lalu coba lagi.");
+export const stockOpsProblems = (problems: { path: string; message: string }[]) => new ValidationError(problems);
+export const warehouseHasOpenDocuments = (counts: number, transfers: number) =>
+  new ConflictError(
+    "warehouse.has_open_documents",
+    `Gudang ini masih dipakai ${[
+      counts > 0 ? `${counts} stok opname` : "",
+      transfers > 0 ? `${transfers} transfer stok` : "",
+    ]
+      .filter(Boolean)
+      .join(" dan ")} yang belum selesai. Selesaikan atau batalkan dulu.`,
+  );
+export const stockCountNotFound = () => new NotFoundError("stock_count.not_found", "Stok opname tidak ditemukan.");
+export const stockCountOpenExists = (number: string) =>
+  new ConflictError(
+    "stock_count.open_exists",
+    `Gudang ini masih punya stok opname ${number} yang belum selesai. Lanjutkan, terapkan, atau batalkan dulu.`,
+  );
+export const stockCountClosed = () =>
+  new ConflictError("stock_count.closed", "Stok opname ini sudah diterapkan atau dibatalkan.");
+export const stockCountTooLarge = (max: number) =>
+  new UnprocessableError(
+    "stock_count.too_large",
+    `Lebih dari ${max.toLocaleString("id-ID")} SKU dalam satu opname. Hitung per rak (opname parsial).`,
+  );
+export const stockCountEmpty = () =>
+  new UnprocessableError("stock_count.empty", "Tidak ada SKU yang cocok dengan pilihan ini.");
+export const stockCountNotCounting = () =>
+  new ConflictError("stock_count.not_counting", "Stok opname ini sedang ditinjau, sudah diterapkan, atau dibatalkan.");
+export const stockCountNotInReview = () =>
+  new ConflictError("stock_count.not_in_review", "Stok opname ini tidak sedang menunggu persetujuan.");
+export const stockCountApplying = () =>
+  new ConflictError("stock_count.apply_requested", "Stok opname ini sudah disetujui dan sedang diterapkan ke stok.");
+export const stockCountHidden = () =>
+  new ValidationError([
+    { path: "filter", message: "Selisih baru terlihat setelah hitungan dikirim untuk ditinjau (opname buta)." },
+  ]);
+export const scanUnknown = () =>
+  new ValidationError([{ path: "code", message: "Barcode atau SKU ini tidak dikenal." }]);
+export const stockTransferNotFound = () =>
+  new NotFoundError("stock_transfer.not_found", "Transfer stok tidak ditemukan.");
+export const stockTransferNotDraft = () =>
+  new ConflictError("stock_transfer.not_draft", "Transfer ini sudah dikirim atau dibatalkan.");
+export const stockTransferNotSent = () =>
+  new ConflictError("stock_transfer.not_sent", "Transfer ini belum dikirim, sudah diterima, atau dibatalkan.");
+export const stockTransferClosed = () =>
+  new ConflictError("stock_transfer.closed", "Transfer ini sudah diterima atau dibatalkan.");
+export const stockTransferOriginOnly = () =>
+  new ForbiddenError(
+    "stock_transfer.origin_only",
+    "Hanya pengguna yang memegang gudang asal yang bisa mengubah, mengirim, atau membatalkan transfer ini.",
+  );
+export const stockTransferDestinationOnly = () =>
+  new ForbiddenError(
+    "stock_transfer.destination_only",
+    "Hanya pengguna yang memegang gudang tujuan yang bisa mencatat penerimaan transfer ini.",
   );

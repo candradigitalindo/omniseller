@@ -62,6 +62,7 @@ export const SYSTEM_ROLES: Record<string, readonly Permission[]> = {
     "return:receive",
     "inventory:read",
     "inventory:count",
+    "inventory:transfer",
     "catalog:read",
   ],
   CS: ["order:read", "order:tag", "return:respond", "chat:read", "chat:write", "catalog:read", "inventory:read"],

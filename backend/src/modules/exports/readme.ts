@@ -5,6 +5,8 @@ import {
   RETURN_REQUEST_STATUSES,
   SHIPMENT_STATUSES,
   STOCK_ADJUSTMENT_REASONS,
+  STOCK_COUNT_STATUSES,
+  STOCK_TRANSFER_STATUSES,
   type StockMovementType,
 } from "@omniseller/shared";
 import { isoInZone } from "../../common/time-zone";
@@ -71,6 +73,20 @@ const RETURN_KIND_LABELS: Record<(typeof RETURN_KINDS)[number], string> = {
   rto: "paket kembali karena pesanan dibatalkan setelah dikirim",
 };
 
+const COUNT_STATES: Record<(typeof STOCK_COUNT_STATUSES)[number], string> = {
+  counting: "sedang dihitung",
+  review: "menunggu persetujuan (terapkan atau hitung ulang)",
+  applied: "disetujui dan diterapkan ke stok",
+  cancelled: "dibatalkan sebelum diterapkan; stok tidak berubah",
+};
+
+const TRANSFER_STATES: Record<(typeof STOCK_TRANSFER_STATUSES)[number], string> = {
+  draft: "draf, belum dikirim",
+  sent: "dikirim; stok sudah keluar dari gudang asal",
+  received: "diterima di gudang tujuan",
+  cancelled: "dibatalkan; barang yang sudah dikirim kembali ke gudang asal",
+};
+
 export interface ReadmeInput {
   business: string;
   timezone: string;
@@ -100,7 +116,8 @@ export function exportReadme(p: ReadmeInput): string {
     "- Kolom id menghubungkan berkas: item_pesanan.id_pesanan dan pengiriman.id_pesanan ke pesanan.id,",
     "  id_toko ke toko.id, id_gudang ke gudang.id, id_varian antara stok, mutasi_stok, listing, dan item_pesanan,",
     "  retur.id_pesanan ke pesanan.id, retur_barang.id_retur ke retur.id, retur_barang.id_baris_pesanan ke",
-    "  item_pesanan.id.",
+    "  item_pesanan.id, stok_opname_baris.id_opname ke stok_opname.id, transfer_stok_baris.id_transfer ke",
+    "  transfer_stok.id. mutasi_stok.id_referensi menunjuk baris opname atau transfer yang menggerakkan stok.",
     "- produk.csv memakai kolom templat impor produk, jadi bisa diimpor ulang ke OmniSeller.",
     "",
     "STATUS PESANAN (pesanan.status)",
@@ -117,6 +134,12 @@ export function exportReadme(p: ReadmeInput): string {
     "",
     "STATUS RETUR (retur.status)",
     ...RETURN_REQUEST_STATUSES.map((s) => `- ${s}: ${RETURN_STATES[s]}`),
+    "",
+    "STATUS STOK OPNAME (stok_opname.status)",
+    ...STOCK_COUNT_STATUSES.map((s) => `- ${s}: ${COUNT_STATES[s]}`),
+    "",
+    "STATUS TRANSFER STOK (transfer_stok.status)",
+    ...STOCK_TRANSFER_STATUSES.map((s) => `- ${s}: ${TRANSFER_STATES[s]}`),
     "",
     "JENIS MUTASI STOK (mutasi_stok.jenis)",
     ...Object.entries(MOVEMENT_TYPES).map(([k, v]) => `- ${k}: ${v}`),

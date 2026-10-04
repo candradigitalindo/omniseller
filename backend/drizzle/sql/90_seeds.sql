@@ -64,12 +64,14 @@ SELECT gen_ulid(), r.tenant_id, r.id, p.id
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 
 -- Built-in roles never change after signup (new businesses copy SYSTEM_ROLES), so permissions added later
--- reach the built-in roles of existing businesses here: answering and receiving returns (0016).
+-- reach the built-in roles of existing businesses here: answering and receiving returns (0016), and
+-- transfers for warehouse staff (0017).
 INSERT INTO role_permission (id, tenant_id, role_id, permission_id)
 SELECT gen_ulid(), r.tenant_id, r.id, p.id
   FROM role r
   JOIN (VALUES ('Admin', 'return:respond'), ('Admin', 'return:receive'), ('CS', 'return:respond'),
-               ('Gudang', 'return:receive')) AS g(role_name, code) ON g.role_name = r.name
+               ('Gudang', 'return:receive'), ('Gudang', 'inventory:transfer')) AS g(role_name, code)
+    ON g.role_name = r.name
   JOIN permission p ON p.code = g.code
  WHERE r.is_system
 ON CONFLICT (role_id, permission_id) DO NOTHING;
@@ -240,6 +242,31 @@ SELECT gen_ulid(), f.s, t.s, CASE WHEN f.s IN ('refunded', 'cancelled', 'closed'
  CROSS JOIN unnest(ARRAY['requested', 'negotiating', 'accepted', 'in_transit', 'rejected', 'disputed', 'refunded',
                          'cancelled', 'closed']) AS t(s)
  WHERE f.s <> t.s AND (f.s NOT IN ('refunded', 'cancelled', 'closed') OR t.s = 'requested')
+ON CONFLICT (from_status, to_status) DO NOTHING;
+
+-- Stock counts (backend doc 8.27): counted, sent for review, counted again or applied; stopped any time
+-- before it is applied.
+INSERT INTO stock_count_status_transition (id, from_status, to_status, via)
+SELECT gen_ulid(), t.f, t.t, 'any'
+  FROM (VALUES
+    ('counting', 'review'),
+    ('review', 'counting'),
+    ('review', 'applied'),
+    ('counting', 'cancelled'),
+    ('review', 'cancelled')
+  ) AS t(f, t)
+ON CONFLICT (from_status, to_status) DO NOTHING;
+
+-- Stock transfers (backend doc 8.27): sent once, received once; cancelled before it arrives (the goods of
+-- a sent transfer go back to the warehouse they left).
+INSERT INTO stock_transfer_status_transition (id, from_status, to_status, via)
+SELECT gen_ulid(), t.f, t.t, 'any'
+  FROM (VALUES
+    ('draft', 'sent'),
+    ('draft', 'cancelled'),
+    ('sent', 'received'),
+    ('sent', 'cancelled')
+  ) AS t(f, t)
 ON CONFLICT (from_status, to_status) DO NOTHING;
 
 -- Full data export (backend doc 8.18): rendered once by the worker. A failed or stuck export is not

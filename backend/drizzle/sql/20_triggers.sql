@@ -42,6 +42,10 @@ SELECT ensure_trigger('listing_draft', 'status_transition_trg',
   'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON listing_draft FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''listing_draft'')');
 SELECT ensure_trigger('return_request', 'status_transition_trg',
   'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON return_request FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''return_request'')');
+SELECT ensure_trigger('stock_count', 'status_transition_trg',
+  'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON stock_count FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''stock_count'')');
+SELECT ensure_trigger('stock_transfer', 'status_transition_trg',
+  'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON stock_transfer FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''stock_transfer'')');
 
 -- Inventory guard
 SELECT ensure_trigger('inventory', 'inventory_guard_trg',
@@ -133,6 +137,13 @@ SELECT ensure_trigger('return_request', 'audit_trg',
      WHEN ((OLD.response_status, OLD.received_at) IS DISTINCT FROM (NEW.response_status, NEW.received_at))
      EXECUTE FUNCTION audit_row(''return_request'', ''reason'', ''evidence'', ''decisions'', ''response'',
                                 ''seller_evidence'')');
+-- Stock counts and transfers (FR-STK-08, 09; backend doc 8.27): who started, sent for review, approved,
+-- sent, received, or cancelled them. The stock itself is in the audited count_apply movements.
+SELECT ensure_trigger('stock_count', 'audit_trg',
+  'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF status, apply_requested_at ON stock_count FOR EACH ROW
+     EXECUTE FUNCTION audit_row()');
+SELECT ensure_trigger('stock_transfer', 'audit_trg',
+  'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF status ON stock_transfer FOR EACH ROW EXECUTE FUNCTION audit_row()');
 SELECT ensure_trigger('data_export', 'audit_download_trg',
   'CREATE TRIGGER audit_download_trg AFTER UPDATE ON data_export FOR EACH ROW
      WHEN (OLD.download_count IS DISTINCT FROM NEW.download_count)

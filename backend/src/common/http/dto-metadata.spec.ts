@@ -30,6 +30,7 @@ import {
   StockRulesController,
   WarehousesController,
 } from "../../modules/inventory/inventory.controllers";
+import { StockCountsController, StockTransfersController } from "../../modules/inventory/stock-ops.controllers";
 import {
   ListingCopiesController,
   ListingDraftsController,
@@ -86,6 +87,8 @@ const CONTROLLERS = [
   ListingCopiesController,
   ListingDraftsController,
   ReturnsController,
+  StockCountsController,
+  StockTransfersController,
 ];
 
 /** Same test nestjs-zod's pipe applies (its helper is not exported from the package root). */

@@ -10,6 +10,8 @@ import {
   PRINT_JOB_STATUSES,
   RETURN_REQUEST_STATUSES,
   SHIPMENT_STATUSES,
+  STOCK_COUNT_STATUSES,
+  STOCK_TRANSFER_STATUSES,
   STORE_CUTOVER_STATUSES,
   SYNC_JOB_STATUSES,
 } from "@omniseller/shared";
@@ -219,6 +221,8 @@ describe("schema conventions", () => {
     expect(await check("listing_copy")).toEqual([...LISTING_COPY_STATUSES].sort());
     expect(await check("listing_draft")).toEqual([...LISTING_DRAFT_STATUSES].sort());
     expect(await check("return_request")).toEqual([...RETURN_REQUEST_STATUSES].sort());
+    expect(await check("stock_count")).toEqual([...STOCK_COUNT_STATUSES].sort());
+    expect(await check("stock_transfer")).toEqual([...STOCK_TRANSFER_STATUSES].sort());
   });
 
   it("every transition uses known statuses", async () => {
@@ -235,6 +239,8 @@ describe("schema conventions", () => {
       ["listing_copy_status_transition", LISTING_COPY_STATUSES],
       ["listing_draft_status_transition", LISTING_DRAFT_STATUSES],
       ["return_request_status_transition", RETURN_REQUEST_STATUSES],
+      ["stock_count_status_transition", STOCK_COUNT_STATUSES],
+      ["stock_transfer_status_transition", STOCK_TRANSFER_STATUSES],
     ] as const) {
       const rows = await q<{ from_status: string; to_status: string }>(`SELECT from_status, to_status FROM ${table}`);
       expect(rows.length).toBeGreaterThan(0);
@@ -265,6 +271,8 @@ describe("schema conventions", () => {
       "print_job",
       "return_request",
       "shipment",
+      "stock_count",
+      "stock_transfer",
       "store_cutover",
       "sync_job",
     ]);

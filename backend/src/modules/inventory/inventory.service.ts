@@ -11,6 +11,7 @@ import { type Allocation, type AllocationLine, chooseWarehouse } from "./allocat
 import { duplicateLine, stockInsufficient, variantNotFound, warehouseNotFound } from "./inventory.errors";
 import { inventoryChanged } from "./inventory.events";
 import { InventoryRepository, type MovementRow, type StockSummary, type VariantInfo } from "./inventory.repository";
+import { countApplyDelta } from "./stock-ops-plan";
 import { alertWorsened, type StockAlert, stockAlertOf } from "./stock-plan";
 import { WarehousesService, type WarehouseView } from "./warehouses.service";
 
@@ -51,6 +52,22 @@ export interface ReturnStockMove {
   sellable: number;
   /** Into quarantine: in the warehouse, never sold or pushed. */
   damaged: number;
+}
+
+/** A counted line of an approved stock count (FR-STK-08). */
+export interface CountApplyLine {
+  lineId: string;
+  variantId: string;
+  counted: number;
+  /** On hand when it was counted; null for a line not counted, approved as none. */
+  expected: number | null;
+}
+
+/** One line of a stock transfer (FR-STK-09). */
+export interface TransferMoveLine {
+  lineId: string;
+  variantId: string;
+  qty: number;
 }
 
 /** Establishes a quantity: lock, compute the difference, move or confirm. */
@@ -313,6 +330,94 @@ export class InventoryService {
       if (m.damaged > 0) await this.repo.applyMovement(tx, { ...base, type: "return_quarantine", damaged: m.damaged });
     }
     await this.changedIn(tx, ctx, [...changed.values()]);
+  }
+
+  /**
+   * A stock count's approved lines (FR-STK-08), inside one batch's transaction. Each line moves on-hand
+   * stock by what the counter found against the quantity of the moment it was counted
+   * (`countApplyDelta`), as `count_apply`, or confirms the quantity when nothing differs: both establish
+   * the stock (ADR-036), and inventory.changed carries it to the marketplaces. A line without `expected`
+   * (not counted, approved as none) is measured against the stock now. Rows are locked in variant order.
+   */
+  async countMovementsIn(
+    tx: Tx,
+    ctx: RequestContext,
+    warehouseId: string,
+    lines: CountApplyLine[],
+    meta: { note: string; actorUserId: string | null },
+  ): Promise<Map<string, { delta: number; expected: number }>> {
+    const out = new Map<string, { delta: number; expected: number }>();
+    const ordered = [...lines].sort((a, b) => (a.variantId < b.variantId ? -1 : a.variantId > b.variantId ? 1 : 0));
+    for (const l of ordered) {
+      const row = await this.repo.lockRow(tx, ctx.tenantId, l.variantId, warehouseId);
+      const expected = l.expected ?? row.onHand;
+      const delta = countApplyDelta(l.counted, expected, row.onHand);
+      if (delta === 0) {
+        await this.repo.confirmStock(tx, ctx.tenantId, l.variantId, warehouseId);
+      } else {
+        await this.repo.applyMovement(tx, {
+          tenantId: ctx.tenantId,
+          variantId: l.variantId,
+          warehouseId,
+          type: "count_apply",
+          onHand: delta,
+          referenceType: "stock_count_line",
+          referenceId: l.lineId,
+          note: meta.note,
+          actorUserId: meta.actorUserId,
+        });
+      }
+      out.set(l.lineId, { delta, expected });
+    }
+    await this.changedIn(
+      tx,
+      ctx,
+      ordered.map((l) => ({ variantId: l.variantId, warehouseId })),
+    );
+    return out;
+  }
+
+  /**
+   * Goods of a transfer between warehouses (FR-STK-09), inside the transfer's transaction. `out` takes
+   * every line from the origin, only if each is available there (on hand, neither reserved for orders
+   * nor held back): when one is short nothing moves and the short lines are returned. `in` puts units on
+   * hand (at the destination when received, back at the origin when a sent transfer is cancelled).
+   * Neither establishes the quantity (ADR-036): a warehouse whose stock nobody counted stays unpushed.
+   */
+  async transferMovementsIn(
+    tx: Tx,
+    ctx: RequestContext,
+    move: { direction: "out" | "in"; warehouseId: string; lines: TransferMoveLine[]; note: string },
+  ): Promise<{ short: { lineId: string; available: number }[] }> {
+    const ordered = [...move.lines]
+      .filter((l) => l.qty > 0)
+      .sort((a, b) => (a.variantId < b.variantId ? -1 : a.variantId > b.variantId ? 1 : 0));
+    const short: { lineId: string; available: number }[] = [];
+    for (const l of ordered) {
+      const row = await this.repo.lockRow(tx, ctx.tenantId, l.variantId, move.warehouseId);
+      const available = row.available ?? row.onHand - row.reserved - row.buffer;
+      if (move.direction === "out" && available < l.qty) short.push({ lineId: l.lineId, available });
+    }
+    if (short.length > 0) return { short };
+    for (const l of ordered) {
+      await this.repo.applyMovement(tx, {
+        tenantId: ctx.tenantId,
+        variantId: l.variantId,
+        warehouseId: move.warehouseId,
+        type: move.direction === "out" ? "transfer_out" : "transfer_in",
+        onHand: move.direction === "out" ? -l.qty : l.qty,
+        referenceType: "stock_transfer_line",
+        referenceId: l.lineId,
+        note: move.note,
+        actorUserId: ctx.actor.type === "user" ? ctx.actor.id : null,
+      });
+    }
+    await this.changedIn(
+      tx,
+      ctx,
+      ordered.map((l) => ({ variantId: l.variantId, warehouseId: move.warehouseId })),
+    );
+    return { short };
   }
 
   /** Available and established per (variant, warehouse), keyed `${variantId}|${warehouseId}`. */

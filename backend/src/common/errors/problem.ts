@@ -61,6 +61,7 @@ const UNIQUE_CONSTRAINT_CODES: Record<string, string> = {
   product_tenant_sku_uq: "product.sku_taken",
   channel_listing_external_uq: "listing.duplicate",
   warehouse_tenant_code_uq: "warehouse.code_taken",
+  stock_count_open_uq: "stock_count.open_exists",
   user_tenant_email_uq: "user.email_taken",
   tenant_slug_key: "tenant.slug_taken",
 };

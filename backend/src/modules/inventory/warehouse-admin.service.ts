@@ -11,12 +11,14 @@ import { StoresService } from "../channel/stores.service";
 import { OrdersService } from "../orders/orders.service";
 import {
   warehouseCodeTaken,
+  warehouseHasOpenDocuments,
   warehouseHasOrders,
   warehouseHasStock,
   warehouseInUse,
   warehouseIsDefault,
 } from "./inventory.errors";
 import { InventoryRepository } from "./inventory.repository";
+import { StockOpsRepository } from "./stock-ops.repository";
 import { WarehousesService, type WarehouseView } from "./warehouses.service";
 
 export interface WarehouseInput {
@@ -45,7 +47,8 @@ const uniqueViolation = (err: unknown) => {
  * More than one physical warehouse (PRD 14 MVP-2, FR-STK-01, backend doc 8.21): add, change, make the
  * default, and delete. A warehouse is deleted (soft: `deleted_at`, inactive) only when nothing depends
  * on it: it is not the default, no store uses it as its default warehouse or through a mapped
- * marketplace warehouse, no order still has to ship from it, and it holds no stock. Codes stay taken
+ * marketplace warehouse, no order still has to ship from it, no stock count or transfer involving it is
+ * still open, and it holds no stock. Codes stay taken
  * after deletion. Every change is in audit_log (trigger on `warehouse`).
  */
 @Injectable()
@@ -56,6 +59,7 @@ export class WarehouseAdminService {
     @Inject(InventoryRepository) private readonly repo: InventoryRepository,
     @Inject(StoresService) private readonly stores: StoresService,
     @Inject(OrdersService) private readonly orders: OrdersService,
+    @Inject(StockOpsRepository) private readonly stockOps: StockOpsRepository,
   ) {}
 
   async create(ctx: RequestContext, input: WarehouseInput & { isDefault?: boolean }): Promise<WarehouseView> {
@@ -128,6 +132,8 @@ export class WarehouseAdminService {
       if (stores.length > 0) throw warehouseInUse(stores);
       const orders = await this.orders.openInWarehouseIn(tx, id);
       if (orders > 0) throw warehouseHasOrders(orders);
+      const open = await this.stockOps.openDocumentsIn(tx, id);
+      if (open.counts + open.transfers > 0) throw warehouseHasOpenDocuments(open.counts, open.transfers);
       const held = await this.repo.heldIn(tx, id);
       if (held > 0) throw warehouseHasStock(held);
       await this.warehouses.updateIn(tx, id, { deletedAt: new Date(), active: false });

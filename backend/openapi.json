@@ -1649,6 +1649,797 @@
         }
       }
     },
+    "/v1/stock-counts": {
+      "post": {
+        "operationId": "StockCountsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStockCountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockCountDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stock-counts"
+        ],
+        "x-isolation": {
+          "fixture": "stock_count"
+        }
+      },
+      "get": {
+        "operationId": "StockCountsController_list",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "counting",
+                "review",
+                "applied",
+                "cancelled"
+              ]
+            }
+          },
+          {
+            "name": "warehouseId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockCountPageDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stock-counts"
+        ],
+        "x-isolation": {
+          "fixture": "stock_count"
+        }
+      }
+    },
+    "/v1/stock-counts/{id}": {
+      "get": {
+        "operationId": "StockCountsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockCountDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stock-counts"
+        ],
+        "x-isolation": {
+          "fixture": "stock_count"
+        }
+      }
+    },
+    "/v1/stock-counts/{id}/lines": {
+      "get": {
+        "operationId": "StockCountsController_lines",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "filter",
+            "required": false,
+            "in": "query",
+            "description": "differences hanya setelah hitungan dikirim untuk ditinjau bila opname buta",
+            "schema": {
+              "default": "all",
+              "type": "string",
+              "enum": [
+                "all",
+                "uncounted",
+                "counted",
+                "differences"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "SKU, nama produk, rak, atau barcode",
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockCountLinePageDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stock-counts"
+        ],
+        "x-isolation": {
+          "fixture": "stock_count"
+        }
+      },
+      "put": {
+        "operationId": "StockCountsController_record",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordCountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockCountLinesDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stock-counts"
+        ],
+        "x-isolation": {
+          "fixture": "stock_count"
+        }
+      }
+    },
+    "/v1/stock-counts/{id}/scan": {
+      "post": {
+        "operationId": "StockCountsController_scan",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanCountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanCountResultDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stock-counts"
+        ],
+        "x-isolation": {
+          "fixture": "stock_count"
+        }
+      }
+    },
+    "/v1/stock-counts/{id}/submit": {
+      "post": {
+        "operationId": "StockCountsController_submit",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockCountDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stock-counts"
+        ],
+        "x-isolation": {
+          "fixture": "stock_count"
+        }
+      }
+    },
+    "/v1/stock-counts/{id}/reopen": {
+      "post": {
+        "operationId": "StockCountsController_reopen",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockCountDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stock-counts"
+        ],
+        "x-isolation": {
+          "fixture": "stock_count"
+        }
+      }
+    },
+    "/v1/stock-counts/{id}/apply": {
+      "post": {
+        "operationId": "StockCountsController_apply",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyStockCountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockCountDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stock-counts"
+        ],
+        "x-isolation": {
+          "fixture": "stock_count"
+        }
+      }
+    },
+    "/v1/stock-counts/{id}/cancel": {
+      "post": {
+        "operationId": "StockCountsController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockCountDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stock-counts"
+        ],
+        "x-isolation": {
+          "fixture": "stock_count"
+        }
+      }
+    },
+    "/v1/stock-transfers": {
+      "post": {
+        "operationId": "StockTransfersController_create",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "8-100 karakter; mencegah transfer ganda",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStockTransferDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockTransferDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stock-transfers"
+        ],
+        "x-isolation": {
+          "fixture": "stock_transfer"
+        }
+      },
+      "get": {
+        "operationId": "StockTransfersController_list",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "sent",
+                "received",
+                "cancelled"
+              ]
+            }
+          },
+          {
+            "name": "warehouseId",
+            "required": false,
+            "in": "query",
+            "description": "transfer yang keluar dari atau masuk ke gudang ini",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "direction",
+            "required": false,
+            "in": "query",
+            "description": "out: keluar; in: masuk (dengan warehouseId atau cakupan Anda)",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "out",
+                "in"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockTransferPageDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stock-transfers"
+        ],
+        "x-isolation": {
+          "fixture": "stock_transfer"
+        }
+      }
+    },
+    "/v1/stock-transfers/destinations": {
+      "get": {
+        "operationId": "StockTransfersController_destinations",
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferDestinationsDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stock-transfers"
+        ],
+        "x-isolation": {
+          "fixture": "warehouse"
+        }
+      }
+    },
+    "/v1/stock-transfers/{id}": {
+      "get": {
+        "operationId": "StockTransfersController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockTransferDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stock-transfers"
+        ],
+        "x-isolation": {
+          "fixture": "stock_transfer"
+        }
+      },
+      "patch": {
+        "operationId": "StockTransfersController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "row_version yang terakhir dilihat, contoh \"3\"",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStockTransferDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockTransferDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stock-transfers"
+        ],
+        "x-isolation": {
+          "fixture": "stock_transfer"
+        }
+      }
+    },
+    "/v1/stock-transfers/{id}/send": {
+      "post": {
+        "operationId": "StockTransfersController_send",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockTransferDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stock-transfers"
+        ],
+        "x-isolation": {
+          "fixture": "stock_transfer"
+        }
+      }
+    },
+    "/v1/stock-transfers/{id}/receive": {
+      "post": {
+        "operationId": "StockTransfersController_receive",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceiveStockTransferDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockTransferDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stock-transfers"
+        ],
+        "x-isolation": {
+          "fixture": "stock_transfer"
+        }
+      }
+    },
+    "/v1/stock-transfers/{id}/cancel": {
+      "post": {
+        "operationId": "StockTransfersController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockTransferDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stock-transfers"
+        ],
+        "x-isolation": {
+          "fixture": "stock_transfer"
+        }
+      }
+    },
     "/v1/channels": {
       "get": {
         "operationId": "ChannelsController_list",
@@ -9992,6 +10783,1927 @@
           },
           "active": {
             "type": "boolean"
+          }
+        }
+      },
+      "CreateStockCountDto": {
+        "type": "object",
+        "properties": {
+          "warehouseId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "full",
+              "partial"
+            ],
+            "description": "full: semua SKU gudang; partial: varian atau rak tertentu"
+          },
+          "variantIds": {
+            "description": "opname parsial: varian yang dihitung",
+            "maxItems": 5000,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+            }
+          },
+          "binPrefix": {
+            "description": "opname parsial: rak yang lokasinya diawali teks ini, misalnya `A-01`",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "blind": {
+            "description": "sembunyikan jumlah sistem selama menghitung; bawaan ya",
+            "type": "boolean"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "warehouseId",
+          "mode"
+        ]
+      },
+      "StockCountDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "number": {
+            "type": "string"
+          },
+          "warehouse": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  "code": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "code",
+                  "name"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "full",
+              "partial"
+            ]
+          },
+          "blind": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "counting",
+              "review",
+              "applied",
+              "cancelled"
+            ]
+          },
+          "statusChangedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "note": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "submittedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "submittedBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "applyRequestedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "disetujui; stok sedang atau sudah diterapkan"
+          },
+          "applyRequestedBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "zeroUncounted": {
+            "type": "boolean"
+          },
+          "appliedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stats": {
+            "type": "object",
+            "properties": {
+              "lines": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "counted": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "differences": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "null selama opname buta masih dihitung"
+              },
+              "added": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "SKU yang ditemukan di rak tetapi tidak ada di daftar"
+              }
+            },
+            "required": [
+              "lines",
+              "counted",
+              "differences",
+              "added"
+            ],
+            "additionalProperties": false
+          },
+          "difference": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "unitsOver": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "unitsUnder": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "value": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "selisih nilai pada HPP; null tanpa izin finance:read"
+                  }
+                },
+                "required": [
+                  "unitsOver",
+                  "unitsUnder",
+                  "value"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null selama opname buta masih dihitung"
+          },
+          "rowVersion": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "warehouse",
+          "mode",
+          "blind",
+          "status",
+          "statusChangedAt",
+          "note",
+          "createdBy",
+          "submittedAt",
+          "submittedBy",
+          "applyRequestedAt",
+          "applyRequestedBy",
+          "zeroUncounted",
+          "appliedAt",
+          "stats",
+          "difference",
+          "rowVersion",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "StockCountPageDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "number": {
+                  "type": "string"
+                },
+                "warehouse": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "code",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "full",
+                    "partial"
+                  ]
+                },
+                "blind": {
+                  "type": "boolean"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "counting",
+                    "review",
+                    "applied",
+                    "cancelled"
+                  ]
+                },
+                "statusChangedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "note": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "createdBy": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "submittedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "submittedBy": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "applyRequestedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "disetujui; stok sedang atau sudah diterapkan"
+                },
+                "applyRequestedBy": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "zeroUncounted": {
+                  "type": "boolean"
+                },
+                "appliedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "stats": {
+                  "type": "object",
+                  "properties": {
+                    "lines": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "counted": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "differences": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null selama opname buta masih dihitung"
+                    },
+                    "added": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "SKU yang ditemukan di rak tetapi tidak ada di daftar"
+                    }
+                  },
+                  "required": [
+                    "lines",
+                    "counted",
+                    "differences",
+                    "added"
+                  ],
+                  "additionalProperties": false
+                },
+                "difference": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "unitsOver": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "unitsUnder": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "selisih nilai pada HPP; null tanpa izin finance:read"
+                        }
+                      },
+                      "required": [
+                        "unitsOver",
+                        "unitsUnder",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "null selama opname buta masih dihitung"
+                },
+                "rowVersion": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "id",
+                "number",
+                "warehouse",
+                "mode",
+                "blind",
+                "status",
+                "statusChangedAt",
+                "note",
+                "createdBy",
+                "submittedAt",
+                "submittedBy",
+                "applyRequestedAt",
+                "applyRequestedBy",
+                "zeroUncounted",
+                "appliedAt",
+                "stats",
+                "difference",
+                "rowVersion",
+                "createdAt",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "next_cursor": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "StockCountLinePageDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "variantId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "sku": {
+                  "type": "string",
+                  "description": "SKU, nama, barcode, dan rak saat baris didaftar atau ditemukan"
+                },
+                "productName": {
+                  "type": "string"
+                },
+                "variantName": {
+                  "type": "string"
+                },
+                "barcode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "binLocation": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "expectedQty": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "jumlah sistem saat dihitung; null selama opname buta masih dihitung"
+                },
+                "countedQty": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "diff": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "dihitung dikurangi sistem; null bila belum dihitung atau masih buta"
+                },
+                "reserved": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "unit pesanan terbuka di gudang ini sekarang; null selama opname buta"
+                },
+                "added": {
+                  "type": "boolean",
+                  "description": "ditemukan di rak, tidak ada di daftar"
+                },
+                "countedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "countedBy": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "appliedDelta": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "perubahan stok saat diterapkan"
+                }
+              },
+              "required": [
+                "id",
+                "variantId",
+                "sku",
+                "productName",
+                "variantName",
+                "barcode",
+                "binLocation",
+                "expectedQty",
+                "countedQty",
+                "diff",
+                "reserved",
+                "added",
+                "countedAt",
+                "countedBy",
+                "appliedDelta"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "next_cursor": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "RecordCountDto": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "minItems": 1,
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "variantId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "qty": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 10000000
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "set",
+                    "add"
+                  ],
+                  "description": "set: jumlah di rak; add: tambahkan unit yang dipindai"
+                }
+              },
+              "required": [
+                "variantId",
+                "qty",
+                "mode"
+              ]
+            }
+          }
+        },
+        "required": [
+          "lines"
+        ]
+      },
+      "StockCountLinesDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "variantId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "sku": {
+                  "type": "string",
+                  "description": "SKU, nama, barcode, dan rak saat baris didaftar atau ditemukan"
+                },
+                "productName": {
+                  "type": "string"
+                },
+                "variantName": {
+                  "type": "string"
+                },
+                "barcode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "binLocation": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "expectedQty": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "jumlah sistem saat dihitung; null selama opname buta masih dihitung"
+                },
+                "countedQty": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "diff": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "dihitung dikurangi sistem; null bila belum dihitung atau masih buta"
+                },
+                "reserved": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "unit pesanan terbuka di gudang ini sekarang; null selama opname buta"
+                },
+                "added": {
+                  "type": "boolean",
+                  "description": "ditemukan di rak, tidak ada di daftar"
+                },
+                "countedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "countedBy": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "appliedDelta": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "perubahan stok saat diterapkan"
+                }
+              },
+              "required": [
+                "id",
+                "variantId",
+                "sku",
+                "productName",
+                "variantName",
+                "barcode",
+                "binLocation",
+                "expectedQty",
+                "countedQty",
+                "diff",
+                "reserved",
+                "added",
+                "countedAt",
+                "countedBy",
+                "appliedDelta"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "ScanCountDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "barcode atau SKU yang dipindai"
+          },
+          "qty": {
+            "default": 1,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "ScanCountResultDto_Output": {
+        "type": "object",
+        "properties": {
+          "matchedBy": {
+            "type": "string",
+            "enum": [
+              "barcode",
+              "sku"
+            ]
+          },
+          "line": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "variantId": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "sku": {
+                "type": "string",
+                "description": "SKU, nama, barcode, dan rak saat baris didaftar atau ditemukan"
+              },
+              "productName": {
+                "type": "string"
+              },
+              "variantName": {
+                "type": "string"
+              },
+              "barcode": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "binLocation": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "expectedQty": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "jumlah sistem saat dihitung; null selama opname buta masih dihitung"
+              },
+              "countedQty": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "diff": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "dihitung dikurangi sistem; null bila belum dihitung atau masih buta"
+              },
+              "reserved": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "unit pesanan terbuka di gudang ini sekarang; null selama opname buta"
+              },
+              "added": {
+                "type": "boolean",
+                "description": "ditemukan di rak, tidak ada di daftar"
+              },
+              "countedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "countedBy": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "appliedDelta": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "perubahan stok saat diterapkan"
+              }
+            },
+            "required": [
+              "id",
+              "variantId",
+              "sku",
+              "productName",
+              "variantName",
+              "barcode",
+              "binLocation",
+              "expectedQty",
+              "countedQty",
+              "diff",
+              "reserved",
+              "added",
+              "countedAt",
+              "countedBy",
+              "appliedDelta"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "matchedBy",
+          "line"
+        ],
+        "additionalProperties": false
+      },
+      "ApplyStockCountDto": {
+        "type": "object",
+        "properties": {
+          "zeroUncounted": {
+            "default": false,
+            "description": "SKU yang tidak dihitung dianggap habis (0); bawaan: dibiarkan seperti catatan",
+            "type": "boolean"
+          }
+        }
+      },
+      "CreateStockTransferDto": {
+        "type": "object",
+        "properties": {
+          "fromWarehouseId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "toWarehouseId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lines": {
+            "minItems": 1,
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "variantId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "qty": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10000000
+                }
+              },
+              "required": [
+                "variantId",
+                "qty"
+              ]
+            }
+          }
+        },
+        "required": [
+          "fromWarehouseId",
+          "toWarehouseId",
+          "lines"
+        ]
+      },
+      "StockTransferDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "number": {
+            "type": "string"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  "code": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "code",
+                  "name"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  "code": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "code",
+                  "name"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "sent",
+              "received",
+              "cancelled"
+            ]
+          },
+          "statusChangedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "note": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sentAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sentBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "receivedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "receivedBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "receiptNote": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cancelledAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cancelledBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "units": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "jumlah unit dikirim"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "variantId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "sku": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "productName": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "variantName": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "qty": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "receivedQty": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "missingQty": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "dikirim tetapi tidak tiba"
+                }
+              },
+              "required": [
+                "id",
+                "variantId",
+                "sku",
+                "productName",
+                "variantName",
+                "qty",
+                "receivedQty",
+                "missingQty"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "rowVersion": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "from",
+          "to",
+          "status",
+          "statusChangedAt",
+          "note",
+          "createdBy",
+          "sentAt",
+          "sentBy",
+          "receivedAt",
+          "receivedBy",
+          "receiptNote",
+          "cancelledAt",
+          "cancelledBy",
+          "units",
+          "lines",
+          "rowVersion",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "StockTransferPageDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "number": {
+                  "type": "string"
+                },
+                "from": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "code",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "to": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "code",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "draft",
+                    "sent",
+                    "received",
+                    "cancelled"
+                  ]
+                },
+                "statusChangedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "note": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "createdBy": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sentAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sentBy": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "receivedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "receivedBy": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "receiptNote": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "cancelledAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "cancelledBy": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "units": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "jumlah unit dikirim"
+                },
+                "lines": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                      },
+                      "variantId": {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                      },
+                      "sku": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "productName": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "variantName": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "qty": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "receivedQty": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "missingQty": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "dikirim tetapi tidak tiba"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "variantId",
+                      "sku",
+                      "productName",
+                      "variantName",
+                      "qty",
+                      "receivedQty",
+                      "missingQty"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "rowVersion": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "id",
+                "number",
+                "from",
+                "to",
+                "status",
+                "statusChangedAt",
+                "note",
+                "createdBy",
+                "sentAt",
+                "sentBy",
+                "receivedAt",
+                "receivedBy",
+                "receiptNote",
+                "cancelledAt",
+                "cancelledBy",
+                "units",
+                "lines",
+                "rowVersion",
+                "createdAt",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "next_cursor": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "TransferDestinationsDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "code": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "code",
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateStockTransferDto": {
+        "type": "object",
+        "properties": {
+          "toWarehouseId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lines": {
+            "description": "menggantikan semua baris",
+            "minItems": 1,
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "variantId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "qty": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10000000
+                }
+              },
+              "required": [
+                "variantId",
+                "qty"
+              ]
+            }
+          }
+        }
+      },
+      "ReceiveStockTransferDto": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "description": "hanya baris yang tidak tiba lengkap; baris lain dianggap diterima penuh",
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "lineId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "receivedQty": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 10000000
+                }
+              },
+              "required": [
+                "lineId",
+                "receivedQty"
+              ]
+            }
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },

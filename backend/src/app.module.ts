@@ -25,7 +25,12 @@ import {
 } from "./modules/fulfillment/fulfillment.module";
 import { IdentityHttpModule } from "./modules/identity/identity.http.module";
 import { IdentityModule } from "./modules/identity/identity.module";
-import { InventoryHttpModule, InventoryModule, InventoryWorkerModule } from "./modules/inventory/inventory.module";
+import {
+  InventoryHttpModule,
+  InventoryModule,
+  InventoryStockModule,
+  InventoryWorkerModule,
+} from "./modules/inventory/inventory.module";
 import {
   ListingCopyHttpModule,
   ListingCopyModule,
@@ -137,6 +142,7 @@ export class AppModule {
             ListingCopyModule,
             ListingCopyWorkerModule,
             InventoryWorkerModule,
+            InventoryStockModule,
             OrdersModule,
             OrdersWorkerModule,
             FilesModule.forEnv(env),

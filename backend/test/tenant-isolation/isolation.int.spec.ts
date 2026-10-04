@@ -163,6 +163,22 @@ const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: s
   ReturnsController_receive: ({ a: ids }) => ({
     items: [{ returnItemId: ids.return_item!, sellable: 0, damaged: 0, missing: 1 }],
   }),
+  StockCountsController_create: ({ a: ids }) => ({ warehouseId: ids.warehouse!, mode: "full" }),
+  StockCountsController_record: ({ a: ids }) => ({ lines: [{ variantId: ids.variant!, qty: 99, mode: "set" }] }),
+  StockCountsController_scan: () => ({ code: "A-KAOS-1" }),
+  StockCountsController_submit: () => ({}),
+  StockCountsController_reopen: () => ({}),
+  StockCountsController_apply: () => ({ zeroUncounted: true }),
+  StockCountsController_cancel: () => ({}),
+  StockTransfersController_create: ({ a: ids }) => ({
+    fromWarehouseId: ids.warehouse!,
+    toWarehouseId: ids.second_warehouse!,
+    lines: [{ variantId: ids.variant!, qty: 1 }],
+  }),
+  StockTransfersController_update: () => ({ note: "Penyusup" }),
+  StockTransfersController_send: () => ({}),
+  StockTransfersController_receive: () => ({}),
+  StockTransfersController_cancel: () => ({}),
 };
 
 /** A print agent's client: its device token instead of a session. */
@@ -225,6 +241,27 @@ beforeAll(async () => {
     reason: "correction",
   });
   fixtures.stock_movement = { id: adjusted.body.items[0].movementId };
+  // a stock count being counted and a transfer draft to a second warehouse (8.27)
+  const counting = await a.c.post("/v1/stock-counts", { warehouseId: fixtures.warehouse.id, mode: "full" });
+  expect(counting.status).toBe(201);
+  fixtures.stock_count = { id: counting.body.id };
+  expect(
+    (
+      await a.c.put(`/v1/stock-counts/${counting.body.id}/lines`, {
+        lines: [{ variantId: fixtures.variant.id, qty: 6, mode: "set" }],
+      })
+    ).status,
+  ).toBe(200);
+  const second = await a.c.post("/v1/warehouses", { code: "A-DUA", name: "Gudang Dua A" });
+  expect(second.status).toBe(201);
+  fixtures.second_warehouse = { id: second.body.id };
+  const draft = await a.c.post("/v1/stock-transfers", {
+    fromWarehouseId: fixtures.warehouse.id,
+    toWarehouseId: second.body.id,
+    lines: [{ variantId: fixtures.variant.id, qty: 2 }],
+  });
+  expect(draft.status).toBe(201);
+  fixtures.stock_transfer = { id: draft.body.id };
   const rule = await a.c.post("/v1/stock-allocation-rules", { storeId: fixtures.store!.id, mode: "all", buffer: 2 });
   expect(rule.status).toBe(201);
   fixtures.stock_rule = { id: rule.body.id };
@@ -529,6 +566,19 @@ describe("tenant isolation generated from openapi.json", () => {
       response: null,
       receivedAt: null,
       sellerEvidence: [],
+    });
+    expect((await a.c.get(`/v1/stock-counts/${fixtures.stock_count!.id}`)).body).toMatchObject({
+      status: "counting",
+      applyRequestedAt: null,
+      stats: { counted: 1 },
+    });
+    expect((await a.c.get(`/v1/stock-counts/${fixtures.stock_count!.id}/lines`)).body.items).toEqual([
+      expect.objectContaining({ variantId: fixtures.variant!.id, countedQty: 6, expectedQty: null }),
+    ]);
+    expect((await a.c.get(`/v1/stock-transfers/${fixtures.stock_transfer!.id}`)).body).toMatchObject({
+      status: "draft",
+      note: null,
+      lines: [{ qty: 2, receivedQty: null }],
     });
     // B's callback attempt with A's state did not consume it
     expect((await a.c.get(`/v1/store-authorizations/${fixtures.store_authorization!.id}`)).body.status).toBe("pending");

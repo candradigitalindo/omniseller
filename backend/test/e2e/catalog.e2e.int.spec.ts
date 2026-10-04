@@ -248,6 +248,57 @@ describe("listing pull and mapping (FR-INT-04, FR-PRD-02, 03)", () => {
     expect((await c.delete(`/v1/products/${product.id}`)).status).toBe(409);
   });
 
+  it("auto-maps only live listings of the chosen store, and only to active variants", async () => {
+    const { c, me } = await signup(api);
+    const items = (base: number): MockShopeeItem[] =>
+      ["AM-1", "AM-2", "AM-3"].map((sku, i) => ({
+        item_id: base + i,
+        item_name: `Barang ${sku}`,
+        item_sku: sku,
+        item_status: "NORMAL",
+        update_time: 1_700_000_000,
+        price: 10_000,
+        stock: 5,
+      }));
+    // the stores come first: their listings arrive with nothing to map to
+    const a = await connectShopee(c, me.tenant.id, items(300));
+    const b = await connectShopee(c, me.tenant.id, items(310));
+    const product = (
+      await c.post("/v1/products", {
+        sku: "AM",
+        name: "Produk AM",
+        attributeNames: ["Ukuran"],
+        variants: ["AM-1", "AM-2", "AM-3"].map((sku, i) => ({
+          sku,
+          attributes: { Ukuran: String(i + 1) },
+          basePrice: 10_000,
+          weightG: 100,
+        })),
+      })
+    ).body;
+    const am2 = (product.variants as { id: string; sku: string }[]).find((v) => v.sku === "AM-2")!.id;
+    expect((await c.patch(`/v1/products/${product.id}/variants/${am2}`, { status: "archived" })).status).toBe(200);
+    // the marketplace deleted store A's AM-3
+    await h.system.db.execute(
+      sql`UPDATE channel_listing SET status = 'deleted' WHERE store_id = ${a.storeId} AND external_sku = 'AM-3'`,
+    );
+    const mapping = async (storeId: string) =>
+      Object.fromEntries(
+        (
+          await h.system.db.execute<{ external_sku: string; mapping_source: string | null }>(
+            sql`SELECT external_sku, mapping_source FROM channel_listing WHERE store_id = ${storeId}`,
+          )
+        ).rows.map((r) => [r.external_sku, r.mapping_source]),
+      );
+
+    expect((await c.post("/v1/listings/auto-map", { storeId: a.storeId })).body).toEqual({ mapped: 1 });
+    expect(await mapping(a.storeId)).toEqual({ "AM-1": "auto_sku", "AM-2": null, "AM-3": null });
+    expect(await mapping(b.storeId)).toEqual({ "AM-1": null, "AM-2": null, "AM-3": null });
+    // without a store: every store of the business
+    expect((await c.post("/v1/listings/auto-map", {})).body).toEqual({ mapped: 2 });
+    expect(await mapping(b.storeId)).toEqual({ "AM-1": "auto_sku", "AM-2": null, "AM-3": "auto_sku" });
+  });
+
   it("creates master products from listings and maps manually", async () => {
     const { c, me } = await signup(api);
     const existing = (

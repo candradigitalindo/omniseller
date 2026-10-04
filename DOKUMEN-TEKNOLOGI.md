@@ -2,11 +2,11 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.16 |
+| Versi dokumen | 1.17 |
 | Tanggal | 4 Oktober 2026 |
 | Status | Keputusan final untuk implementasi |
 | Pemilik dokumen | Candra Syahputra |
-| Dokumen induk | DOKUMEN-SPESIFIKASI-APLIKASI.md versi 1.11 (PRD); rincian backend di DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.17 |
+| Dokumen induk | DOKUMEN-SPESIFIKASI-APLIKASI.md versi 1.11 (PRD); rincian backend di DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.18 |
 | Audiens | Tech lead, engineer backend, frontend, mobile, DevOps, QA |
 
 Dokumen ini menetapkan teknologi yang dipakai OmniSeller. Setiap lapisan memiliki **satu keputusan**, bukan daftar pilihan. Alasan dan konsekuensinya dicatat agar keputusan dapat ditinjau ulang dengan dasar yang jelas, bukan diganti karena selera. Perubahan keputusan hanya melalui ADR baru (bagian 25).
@@ -348,7 +348,7 @@ Tabel bervolume tinggi dipartisi **range pada kolom `id`** (ULID terurut waktu) 
 | `research` | Pengumpulan dan parsing riset | 5 per domain | 2 kali |
 | `settlement` | Tarik dan rekonsiliasi settlement | 2 | 3 kali |
 | `export` | Ekspor data penuh tenant: CSV dari satu snapshot basis data, digabung ZIP, diunggah ke R2 | 1 (satu transaksi snapshot dan direktori sementara per job) | 1 kali; permintaan berikutnya membuat ekspor baru |
-| `import` | Validasi dan impor berkas migrasi dari aplikasi lain (sampai 10.000 baris dalam satu transaksi); penghapusan data toko yang diputus tanpa menyimpan data (transaksi pendek per batch, 20 detik per job lalu dilanjutkan) | 2 | Impor 1 kali, penjual memvalidasi atau mengimpor ulang; penghapusan 5 kali dengan backoff |
+| `import` | Validasi dan impor berkas migrasi dari aplikasi lain (sampai 10.000 baris dalam satu transaksi); penghapusan data toko yang diputus tanpa menyimpan data (transaksi pendek per batch, 20 detik per job lalu dilanjutkan); penerapan stok opname yang disetujui (500 baris per transaksi, 10.000 baris per job lalu dilanjutkan) | 2 | Impor 1 kali, penjual memvalidasi atau mengimpor ulang; penghapusan dan penerapan opname 5 kali dengan backoff (baris yang sudah diterapkan dilewati) |
 
 - Konkurensi di tabel ini berlaku per proses worker (`QUEUE_CONCURRENCY` di `backend/src/jobs/queues.ts`).
 - `jobId` selalu berupa kunci idempoten dengan pemisah `|` (misalnya `order.ingest|{store_id}|{event_id}`), sehingga pekerjaan ganda ditolak oleh BullMQ. BullMQ 5 menolak id kustom yang mengandung `:`. Aksi yang sah berulang untuk entitas yang sama (dorongan stok, dorongan harga) menyertakan kunci kejadian di id-nya, karena BullMQ juga menolak id milik job yang sudah selesai tetapi masih disimpan (`removeOnComplete` satu jam).
@@ -1032,3 +1032,4 @@ export interface MarketplaceConnector {
 | 1.14 | 4 Oktober 2026 | Hasil implementasi agen cetak: Socket.IO 4.8 di proses api tanpa `@nestjs/websockets`, dengan adapter dan emitter Redis; event `print.job` dan `print.cancelled` ke room `device:<id>`; agen hanya memakai transport WebSocket (7.3). Protokol agen dirinci: token perangkat, PDF lewat redirect ke URL R2 bertanda tangan, laporan status lewat REST, dan daftar pekerjaan tertunda sebagai jaring pengaman (12) | Candra Syahputra |
 | 1.15 | 4 Oktober 2026 | Hasil implementasi salin listing antar toko: bagian connector `products` (26.4) untuk Shopee (`add_item` dengan `init_tier_variation` standar, unggah `media_space`) dan TikTok Shop (Create Product dengan kunci idempoten, Upload Product Image); unggah multipart di core; variabel `SHOPEE_VARIANT_DELAY_MS` dan `PRODUCT_IMAGE_HOSTS` (26.2) | Candra Syahputra |
 | 1.16 | 4 Oktober 2026 | Hasil implementasi retur: bagian connector `returns` (26.4) untuk Shopee (`v2.returns` daftar, detail, alasan sanggahan, `convert_image`, `confirm`, `dispute`; `handle_buyer_cancellation`) dan TikTok Shop (Search Returns dan Search Cancellations 202602, Get Decision Eligibility 202601, Get Return Records, Approve 202309, Reject Return 202606 dengan kunci idempoten, foto lewat Upload Product Image); webhook tipe 12 `return.changed`; Shopee tanpa push retur ditarik setiap 10 menit (antrean `mp.poll`) | Candra Syahputra |
+| 1.17 | 4 Oktober 2026 | Hasil implementasi stok opname dan transfer stok: antrean `import` juga menerapkan stok opname yang disetujui (7.1); tidak ada pustaka atau layanan baru | Candra Syahputra |

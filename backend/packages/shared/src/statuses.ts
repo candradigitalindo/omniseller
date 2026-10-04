@@ -95,6 +95,14 @@ export type ReturnRequestStatus = (typeof RETURN_REQUEST_STATUSES)[number];
 export const RETURN_KINDS = ["return_refund", "refund_only", "replacement", "exchange", "cancellation", "rto"] as const;
 export type ReturnRequestKind = (typeof RETURN_KINDS)[number];
 
+/** A stock count (FR-STK-08): counted, reviewed, applied by the worker; cancelled before that. */
+export const STOCK_COUNT_STATUSES = ["counting", "review", "applied", "cancelled"] as const;
+export type StockCountStatus = (typeof STOCK_COUNT_STATUSES)[number];
+
+/** A stock transfer between warehouses (FR-STK-09). */
+export const STOCK_TRANSFER_STATUSES = ["draft", "sent", "received", "cancelled"] as const;
+export type StockTransferStatus = (typeof STOCK_TRANSFER_STATUSES)[number];
+
 /** A store's switch from parallel mode to OmniSeller (FR-MIG-06); undone within 24 hours. */
 export const STORE_CUTOVER_STATUSES = ["done", "undone"] as const;
 export type StoreCutoverStatus = (typeof STORE_CUTOVER_STATUSES)[number];

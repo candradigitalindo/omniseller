@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { CatalogModule } from "../catalog/catalog.module";
 import { ChannelModule } from "../channel/channel.module";
+import { IdentityModule } from "../identity/identity.module";
 import { NotificationInboxModule } from "../notification/notification.module";
 import { OrdersModule } from "../orders/orders.module";
 import { AllocationRulesService } from "./allocation-rules.service";
@@ -10,8 +11,12 @@ import { InventoryModule } from "./inventory-core.module";
 import { RestockService } from "./restock.service";
 import { StockAlertsService } from "./stock-alerts.service";
 import { StockComparisonService } from "./stock-comparison.service";
+import { StockCountService } from "./stock-count.service";
+import { StockCountsController, StockTransfersController } from "./stock-ops.controllers";
+import { StockOpsRepository } from "./stock-ops.repository";
 import { StockOverviewService } from "./stock-overview.service";
 import { StockPushService } from "./stock-push.service";
+import { StockTransferService } from "./stock-transfer.service";
 import { StockTriggersService } from "./stock-triggers.service";
 import { WarehouseAdminService } from "./warehouse-admin.service";
 
@@ -24,10 +29,20 @@ const STOCK = [
   StockComparisonService,
   RestockService,
   WarehouseAdminService,
+  StockOpsRepository,
+  StockCountService,
+  StockTransferService,
 ];
 
-/** Stock list with push state, initial stock, allocation rules, comparison with the marketplace (api and worker). */
-@Module({ imports: [InventoryModule, CatalogModule, ChannelModule, OrdersModule], providers: STOCK, exports: STOCK })
+/**
+ * Stock list with push state, initial stock, allocation rules, comparison with the marketplace, stock
+ * counts and transfers (api and worker; the worker applies approved counts).
+ */
+@Module({
+  imports: [InventoryModule, CatalogModule, ChannelModule, OrdersModule, IdentityModule, NotificationInboxModule],
+  providers: STOCK,
+  exports: STOCK,
+})
 export class InventoryStockModule {}
 
 /** The stock pusher and its triggers: worker only, marketplaces are called through MarketplaceGateway. */
@@ -40,6 +55,12 @@ export class InventoryWorkerModule {}
 
 @Module({
   imports: [InventoryModule, InventoryStockModule],
-  controllers: [WarehousesController, InventoryController, StockRulesController],
+  controllers: [
+    WarehousesController,
+    InventoryController,
+    StockRulesController,
+    StockCountsController,
+    StockTransfersController,
+  ],
 })
 export class InventoryHttpModule {}

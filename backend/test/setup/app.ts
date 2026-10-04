@@ -23,7 +23,11 @@ import { ExportsWorkerModule } from "../../src/modules/exports/exports.module";
 import { FilesModule } from "../../src/modules/files/files.module";
 import { FulfillmentModule, FulfillmentWorkerModule } from "../../src/modules/fulfillment/fulfillment.module";
 import { IdentityModule } from "../../src/modules/identity/identity.module";
-import { InventoryModule, InventoryWorkerModule } from "../../src/modules/inventory/inventory.module";
+import {
+  InventoryModule,
+  InventoryStockModule,
+  InventoryWorkerModule,
+} from "../../src/modules/inventory/inventory.module";
 import { ListingCopyModule, ListingCopyWorkerModule } from "../../src/modules/listing-copy/listing-copy.module";
 import { MigrationWorkerModule } from "../../src/modules/migration/migration.module";
 import { EMAIL_SENDER, type MemoryEmailSender } from "../../src/modules/notification/email";
@@ -147,6 +151,7 @@ export async function startWorker(infra: TestInfra, system: DbHandle, opts: { ma
       ListingCopyModule,
       ListingCopyWorkerModule,
       InventoryWorkerModule,
+      InventoryStockModule,
       OrdersModule,
       OrdersWorkerModule,
       FilesModule.forEnv(env),

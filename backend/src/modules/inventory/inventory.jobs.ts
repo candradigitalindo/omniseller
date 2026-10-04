@@ -9,8 +9,9 @@ import {
   channelWarehouseMappingChanged,
   storeSyncModeChanged,
 } from "../channel/channel.events";
-import { inventoryChanged, stockResyncRequested } from "./inventory.events";
+import { inventoryChanged, stockCountApplyRequested, stockResyncRequested } from "./inventory.events";
 import { StockAlertsService } from "./stock-alerts.service";
+import { StockCountService } from "./stock-count.service";
 import { StockPushService } from "./stock-push.service";
 import { StockTriggersService } from "./stock-triggers.service";
 
@@ -111,6 +112,22 @@ export const stockStoreResyncJob = defineJob({
   },
 });
 
+/**
+ * An approved stock count is applied (FR-STK-08, backend doc 8.27): 500 lines per transaction, up to
+ * 10,000 lines per job, then the next job continues. Lines already applied are skipped on a retry.
+ */
+export const stockCountApplyJob = defineJob({
+  queue: "import",
+  name: "stock_count.apply",
+  schema: z.object({ stockCountId: ulidSchema }),
+  triggeredBy: [stockCountApplyRequested],
+  options: { attempts: 5, backoff: { type: "exponential", delay: 5_000 } },
+  jobId: (p, meta) => jobKey("stock_count.apply", p.stockCountId, meta.eventId ?? "direct"),
+  handler: async (p, run) => {
+    await run.deps.resolve(StockCountService).apply(run.ctx, p.stockCountId);
+  },
+});
+
 export const INVENTORY_JOBS = [
   stockMarkDirtyJob,
   stockAlertJob,
@@ -118,4 +135,5 @@ export const INVENTORY_JOBS = [
   stockListingMappedJob,
   stockListingUnmappedJob,
   stockStoreResyncJob,
+  stockCountApplyJob,
 ];
