@@ -43,6 +43,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { useStores } from "@/features/stores/use-store-modes";
 import { api, unwrap } from "@/lib/api/client";
 import { errorMessage } from "@/lib/api/errors";
 import type { components } from "@/lib/api/schema";
@@ -136,7 +137,9 @@ function OrderDetailContent({ order: o }: { order: OrderDetail }) {
   const [dialog, setDialog] = useState<"arrange" | "cancel" | "ship" | null>(null);
   const [waitingLabel, setWaitingLabel] = useState(false);
   const channel = o.store?.channel ?? null;
-  const primary = primaryActionOf({ ...o, channel }, can);
+  const readOnly = useStores().readOnly(o.store?.id);
+  // the api refuses seller steps on a read-only store's orders (store.read_only)
+  const primary = readOnly ? null : primaryActionOf({ ...o, channel }, can);
 
   const shipments = useQuery({
     queryKey: ["orders", "shipments", o.id],
@@ -193,12 +196,13 @@ function OrderDetailContent({ order: o }: { order: OrderDetail }) {
   const busy = actions.busy || prepareLabel.isPending || manual.isPending;
 
   const menuArrange =
+    !readOnly &&
     primary !== "arrange" &&
     channel !== "manual" &&
     o.fulfillmentMode === "seller" &&
     ARRANGEABLE.has(o.status) &&
     can("shipment:arrange");
-  const menuCancel = canCancel(o) && can("order:cancel");
+  const menuCancel = !readOnly && canCancel(o) && can("order:cancel");
   const step = stepOf(o.status);
   const openProblems = o.problems.filter((p) => !p.resolvedAt);
 
@@ -236,6 +240,11 @@ function OrderDetailContent({ order: o }: { order: OrderDetail }) {
         {o.cancelRequested && o.status !== "cancelled" ? (
           <Banner tone="warning" icon={AlertTriangle}>
             {t("buyerAskedCancel")}
+          </Banner>
+        ) : null}
+        {readOnly ? (
+          <Banner tone="warning" icon={AlertTriangle}>
+            {t("storeReadOnly", { store: readOnly.name })}
           </Banner>
         ) : null}
         {o.fulfillmentMode === "marketplace" ? (

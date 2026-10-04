@@ -39,7 +39,7 @@ export const NAV: readonly NavGroup[] = [
     key: "groupSales",
     items: [
       { key: "orders", href: "/pesanan", icon: ShoppingBag, permission: "order:read", ready: true },
-      { key: "returns", href: "/retur", icon: RotateCcw, permission: "order:read", ready: false },
+      { key: "returns", href: "/retur", icon: RotateCcw, permission: "order:read", ready: true },
     ],
   },
   {

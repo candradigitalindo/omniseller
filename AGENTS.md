@@ -147,6 +147,7 @@ NestJS injection always uses explicit `@Inject(TOKEN)`; do not rely on construct
 - API types are generated from `backend/openapi.json`: after a contract change run `pnpm openapi:emit` in `backend/`, then `pnpm api:types` here. Never write response types by hand.
 - Every call goes through `api` and `unwrap` (`src/lib/api/client.ts`); UI text lives only in `messages/id.json`; dates use the business's time zone (`useTimeZone`); actions without permission are hidden (`useCan`).
 - Buyer data never goes to `console`, `localStorage`, or URLs.
+- Seller actions on a read-only store's orders and returns are refused (409 `store.read_only`): screens hide them with `useStores().readOnly(storeId)` and say where to act instead.
 
 ## Definition of done
 Tests per section 13.3 (integration tests run as the application roles, never as a superuser), migration checklist 12.3, docs updated (module README and the backend doc section you touched), PR checklist 15.11.

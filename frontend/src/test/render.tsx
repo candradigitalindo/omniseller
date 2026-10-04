@@ -17,6 +17,8 @@ export const ALL_PERMISSIONS: Permission[] = [
   "shipment:print",
   "shipment:pack",
   "shipment:handover",
+  "return:respond",
+  "return:receive",
   "inventory:read",
   "inventory:adjust",
   "finance:read",

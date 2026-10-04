@@ -14,6 +14,8 @@ globalThis.ResizeObserver ??= ResizeObserverStub;
 Element.prototype.scrollIntoView ??= () => {};
 Element.prototype.hasPointerCapture ??= () => false;
 Element.prototype.releasePointerCapture ??= () => {};
+URL.createObjectURL ??= () => "blob:preview";
+URL.revokeObjectURL ??= () => {};
 
 afterEach(() => {
   cleanup();

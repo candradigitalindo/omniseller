@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { returnNoticeHref } from "@/features/returns/return-meta";
 import { criticalStockHref } from "@/features/stock/stock-meta";
 import { api, unwrap } from "@/lib/api/client";
 import type { components } from "@/lib/api/schema";
@@ -32,6 +33,10 @@ export function noticeHref(notice: Pick<Notice, "kind" | "data">): string | null
       return "/pesanan?due=soon";
     case "stock.critical":
       return criticalStockHref(stockItems(notice.data));
+    case "return.new":
+    case "return.due_soon":
+    case "return.parcel_back":
+      return returnNoticeHref(notice.kind, notice.data);
     default:
       return null;
   }

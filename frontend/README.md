@@ -2,7 +2,7 @@
 
 Web app OmniSeller untuk penjual: Next.js 16 (App Router), React 19, Tailwind CSS 4, shadcn/ui, TanStack Query, dan klien API bertipe dari `backend/openapi.json`. Keputusan teknologinya ada di `DOKUMEN-TEKNOLOGI.md` bagian 9 dan ADR-039; spesifikasi layar di `DOKUMEN-UI-UX.md`.
 
-Layar yang sudah ada: masuk, daftar, lupa dan atur ulang kata sandi, undangan (L49 dan sekitarnya), Ringkasan (L01), Pesanan dengan panel detail (L03, L04), Stok dengan dialog Sesuaikan stok (L19), dan Toko Terhubung dengan wizard hubungkan toko dan halaman callback otorisasi (L40).
+Layar yang sudah ada: masuk, daftar, lupa dan atur ulang kata sandi, undangan (L49 dan sekitarnya), Ringkasan (L01), Pesanan dengan panel detail (L03, L04), Retur & Batal dengan keputusan, foto bukti, dan penerimaan barang (L09), Stok dengan dialog Sesuaikan stok (L19), dan Toko Terhubung dengan wizard hubungkan toko dan halaman callback otorisasi (L40).
 
 ## Menjalankan
 
@@ -31,7 +31,7 @@ Web app memanggil api di origin-nya sendiri (`/v1/...`), jadi cookie sesi `os_se
 messages/id.json           semua teks antarmuka (next-intl); kuncinya dicek tipe
 src/app/                   rute: (auth) masuk, daftar, sandi, undangan; (app) layar di dalam shell
 src/proxy.ts               tanpa cookie sesi, halaman aplikasi dialihkan ke /masuk?next=
-src/features/<area>/       layar per area: auth, dashboard, orders, stock, stores
+src/features/<area>/       layar per area: auth, dashboard, orders, returns, stock, stores
 src/components/ui/         komponen shadcn/ui (Radix), disesuaikan dengan token desain
 src/components/common/     PageHeader, StatusPill, SlaPill, EmptyState, ErrorState, Field, FilterChip, ikon kanal
 src/components/shell/      sidebar, bar atas, navigasi bawah, notifikasi, menu pengguna
@@ -49,6 +49,7 @@ src/test/                  harness tes: renderApp, mockApi, next/navigation tiru
 - Teks antarmuka hanya di `messages/id.json`, Bahasa Indonesia, kalimat lengkap. Angka di dalam teks memakai `{count, number}`.
 - Tanggal ditampilkan dalam zona waktu bisnis: `formatDateTime(value, useTimeZone())`, bukan zona waktu browser. Uang selalu `formatRupiah`.
 - Aksi yang tidak diizinkan disembunyikan (`useCan()`); api tetap menolaknya dengan 403.
+- Toko yang masih mode uji berdampingan (`syncMode: read_only`): api menolak langkah penjual pada pesanan dan retur tokonya (409 `store.read_only`). Layar menyembunyikan aksi itu lewat `useStores().readOnly(storeId)` dan menjelaskan di mana harus dikerjakan; penerimaan barang retur tetap boleh.
 - Filter daftar disimpan di URL (`useUrlParams`), sehingga tampilan bisa dibagikan dan notifikasi bisa menautkan ke daftar yang sudah tersaring.
 - Status selalu ikon, teks, dan warna sekaligus (`StatusPill`). Ikon kanal di samping namanya yang tertulis memakai `decorative`, agar pembaca layar tidak menyebut nama dua kali.
 - Data pembeli (nama, telepon, alamat) tidak boleh masuk `console`, `localStorage`, atau URL.
@@ -68,3 +69,5 @@ Tes berada di samping kodenya (`*.test.ts`, `*.test.tsx`). Tes komponen memakai 
 - Komponen yang memakai `useSearchParams` dibungkus `Suspense` di halamannya, atau build gagal saat prerender.
 - Next 16: middleware bernama `proxy.ts`, `params` halaman adalah Promise, dan `error.tsx` menerima `retry`. Panduan versi terpasang ada di `node_modules/next/dist/docs/`.
 - Dialog dan sheet Radix butuh judul; saat memuat pakai `SheetTitle` dengan `sr-only`.
+- Pesan error formulir di dalam dialog yang bergulir diletakkan di dekat tombol yang memicunya (`FormAlert`), bukan di atas: penolakan api dari tombol di bawah tidak terlihat bila pesannya di luar layar.
+- jsdom tidak punya `URL.createObjectURL`; `src/test/setup.ts` memasang penggantinya untuk pratinjau foto.

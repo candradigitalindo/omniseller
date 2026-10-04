@@ -12,7 +12,7 @@ describe("sidebar (DOKUMEN-UI-UX 7.1)", () => {
     const owner = visibleNav(holding("order:read", "inventory:read", "catalog:read", "settings:store"));
     expect(owner.map((g) => [g.key, g.items.map((i) => i.key)])).toEqual([
       ["groupHome", ["overview"]],
-      ["groupSales", ["orders"]],
+      ["groupSales", ["orders", "returns"]],
       ["groupStock", ["stock"]],
       ["groupSettings", ["stores"]],
     ]);

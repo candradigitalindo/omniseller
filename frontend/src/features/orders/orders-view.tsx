@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useStores } from "@/features/stores/use-store-modes";
 import { useUrlParams } from "@/hooks/use-url-params";
 import { api, unwrap } from "@/lib/api/client";
 import { formatNumber, formatRupiah } from "@/lib/format";
@@ -115,7 +116,10 @@ export function OrdersView() {
   const allSelected = orders.length > 0 && orders.every((o) => selected.has(o.id));
   const ids = [...selected];
   const newCount = summary.data?.statuses.new ?? 0;
-  const newWithoutProblems = orders.filter((o) => o.status === "new" && !o.problems.some((p) => !p.resolvedAt));
+  const stores = useStores();
+  const newWithoutProblems = orders.filter(
+    (o) => o.status === "new" && !o.problems.some((p) => !p.resolvedAt) && !stores.readOnly(o.store?.id),
+  );
 
   return (
     <>
