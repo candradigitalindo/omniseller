@@ -32,6 +32,11 @@ export const marketplaceManagedWarehouse = () =>
     "channel_warehouse.marketplace_managed",
     "Gudang ini dikelola marketplace, stoknya tidak diatur dari gudang Anda.",
   );
+/** A manual sales channel has no marketplace behind it (backend doc 8.21). */
+export const storeIsManual = () =>
+  new UnprocessableError("store.manual", "Saluran pesanan manual tidak terhubung ke marketplace.");
+export const manualStoreNotFound = () =>
+  new NotFoundError("store.not_found", "Saluran pesanan manual tidak ditemukan.");
 export const warehouseNotFound = (path: string) =>
   new ValidationError([{ path, message: "Gudang tidak ditemukan atau tidak aktif." }]);
 

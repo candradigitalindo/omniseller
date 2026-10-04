@@ -7,12 +7,22 @@ import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
-import { storeNotFound } from "../channel/channel.errors";
+import { storeIsManual, storeNotFound } from "../channel/channel.errors";
 import { CONNECTORS, type ConnectorRegistry } from "../channel/connector-registry";
-import { channelDisplayName, StoresService } from "../channel/stores.service";
+import { channelDisplayName, isManualChannel, StoresService } from "../channel/stores.service";
+import { InventoryService } from "../inventory/inventory.service";
 import { OrderIntakeService } from "./order-intake.service";
-import { SLA_WARNING_MS } from "./order-plan";
-import { cancelReasonInvalid, orderNotCancellable, orderNotFound, problemNotFound } from "./orders.errors";
+import { MANUAL_CANCEL_REASONS, MOVABLE, SLA_WARNING_MS, warehouseFixed } from "./order-plan";
+import {
+  cancelReasonInvalid,
+  orderNotCancellable,
+  orderNotFound,
+  orderStatusInvalid,
+  orderStoreReadOnly,
+  orderWarehouseNotFound,
+  problemNotFound,
+  warehouseFixedByMarketplace,
+} from "./orders.errors";
 import { orderCancelRequested, orderPullRequested } from "./orders.events";
 import {
   type OrderEventRow,
@@ -24,12 +34,14 @@ import {
   OrdersRepository,
   type ShipByCursor,
 } from "./orders.repository";
+import { type OrderTagRef, TagsRepository } from "./tags.repository";
 
 export interface OrderView {
   order: OrderRow;
   store: { id: string; name: string; channel: string } | null;
   items: OrderItemRow[];
   problems: OrderProblemRow[];
+  tags: OrderTagRef[];
 }
 
 export interface ActionResult {
@@ -88,6 +100,8 @@ export class OrdersService {
     @Inject(StoresService) private readonly stores: StoresService,
     @Inject(CONNECTORS) private readonly connectors: ConnectorRegistry,
     @Inject(OUTBOX) private readonly outbox: Outbox,
+    @Inject(TagsRepository) private readonly tags: TagsRepository,
+    @Inject(InventoryService) private readonly inventory: InventoryService,
   ) {}
 
   private scope(ctx: RequestContext): Pick<OrderListFilter, "storeScope" | "warehouseScope"> {
@@ -110,12 +124,18 @@ export class OrdersService {
     return o;
   }
 
+  /** One order in the caller's store and warehouse scope, inside the caller's transaction, or 404. */
+  visibleIn(tx: Tx, ctx: RequestContext, id: string, forUpdate = false): Promise<OrderRow> {
+    return this.load(tx, ctx, id, forUpdate);
+  }
+
   private async views(tx: Tx, ctx: RequestContext, orders: OrderRow[]): Promise<OrderView[]> {
     const ids = orders.map((o) => o.id);
-    const [items, problems, stores] = await Promise.all([
+    const [items, problems, stores, tags] = await Promise.all([
       this.repo.items(tx, ids),
       this.repo.problems(tx, ids, true),
       this.stores.listIn(tx, ctx),
+      this.tags.ofOrders(tx, ids),
     ]);
     const storeOf = new Map(stores.map((s) => [s.id, { id: s.id, name: s.name, channel: s.channel }]));
     return orders.map((o) => ({
@@ -123,7 +143,14 @@ export class OrdersService {
       store: storeOf.get(o.storeId) ?? null,
       items: items.filter((i) => i.orderId === o.id),
       problems: problems.filter((p) => p.orderId === o.id),
+      tags: tags.filter((t) => t.orderId === o.id),
     }));
+  }
+
+  /** How many active seller warehouses the order's store has: more than one fixes the warehouse. */
+  private async sellerWarehousesIn(tx: Tx, storeId: string): Promise<number> {
+    const target = (await this.stores.stockTargetsIn(tx, [storeId])).get(storeId);
+    return target?.warehouses.filter((w) => w.active && w.kind === "seller").length ?? 0;
   }
 
   /**
@@ -184,6 +211,11 @@ export class OrdersService {
       this.repo.codOutstanding(tx, f),
     ]);
     return { statuses, overdue, dueSoon, codOutstanding: cod };
+  }
+
+  /** Orders still to ship from a warehouse, whatever the caller's scope: it cannot be deleted (8.21). */
+  openInWarehouseIn(tx: Tx, warehouseId: string): Promise<number> {
+    return this.repo.openInWarehouse(tx, warehouseId);
   }
 
   /** Orders of one store per status since a moment (parallel mode, FR-MIG-05), in the caller's scope. */
@@ -293,11 +325,43 @@ export class OrdersService {
     return rows.slice(0, limit);
   }
 
-  async get(ctx: RequestContext, id: string): Promise<OrderView & { events: OrderEventRow[] }> {
+  async get(
+    ctx: RequestContext,
+    id: string,
+  ): Promise<OrderView & { events: OrderEventRow[]; warehouseFixed: boolean }> {
     return withTenantTx(this.db, ctx, async (tx) => {
       const o = await this.load(tx, ctx, id);
       const [view] = await this.views(tx, ctx, [o]);
-      return { ...view!, problems: await this.repo.problems(tx, [id]), events: await this.repo.events(tx, id) };
+      return {
+        ...view!,
+        problems: await this.repo.problems(tx, [id]),
+        events: await this.repo.events(tx, id),
+        warehouseFixed:
+          o.fulfillmentMode === "marketplace" ||
+          warehouseFixed(o.channel, await this.sellerWarehousesIn(tx, o.storeId)),
+      };
+    });
+  }
+
+  /**
+   * FR-ORD-12: moves an order nobody packed yet to another warehouse; its reservations follow. Orders a
+   * marketplace placed in its warehouse (stores with more than one seller warehouse) stay (FR-WHS-07).
+   */
+  async changeWarehouse(ctx: RequestContext, id: string, warehouseId: string): Promise<void> {
+    await withTenantTx(this.db, ctx, async (tx) => {
+      const o = await this.load(tx, ctx, id, true);
+      if (o.fulfillmentMode === "marketplace") throw warehouseFixedByMarketplace();
+      if (!MOVABLE.has(o.status)) {
+        throw orderStatusInvalid(STATUS_LABELS[o.status], "Belum Dibayar, Baru, Bermasalah, atau Siap Dikemas");
+      }
+      if (warehouseFixed(o.channel, await this.sellerWarehousesIn(tx, o.storeId))) throw warehouseFixedByMarketplace();
+      const store = (await this.stores.stockTargetsIn(tx, [o.storeId])).get(o.storeId);
+      if (store?.store.syncMode !== "live") throw orderStoreReadOnly();
+      if ((await this.inventory.warehousesIn(tx, ctx, warehouseId)).length === 0) {
+        throw orderWarehouseNotFound("warehouseId");
+      }
+      if (warehouseId === o.warehouseId) return;
+      await this.intake.moveWarehouseIn(tx, ctx, o, warehouseId, { type: "user", id: ctx.actor.id });
     });
   }
 
@@ -374,10 +438,11 @@ export class OrdersService {
     return this.step(ctx, orderIds, "ready_to_pack", "packed");
   }
 
-  /** Reasons the marketplace accepts for this order in its current status. */
+  /** Reasons the marketplace accepts for this order in its current status (manual orders: OmniSeller's). */
   async cancelReasons(ctx: RequestContext, id: string): Promise<CancelReason[]> {
     const o = await withTenantTx(this.db, ctx, (tx) => this.load(tx, ctx, id));
     if (!SELLER_CANCELLABLE.has(o.status) || o.fulfillmentMode === "marketplace") return [];
+    if (isManualChannel(o.channel)) return MANUAL_CANCEL_REASONS.map((r) => ({ ...r }));
     try {
       return this.connectors.get(o.channel).orders.cancelReasons(o.externalStatus ?? "");
     } catch {
@@ -385,11 +450,26 @@ export class OrdersService {
     }
   }
 
-  /** FR-ORD-13: the worker cancels at the marketplace; the released stock follows its answer (202). */
+  /**
+   * FR-ORD-13: the worker cancels at the marketplace; the released stock follows its answer (202). A
+   * manual order has no marketplace to ask: it is cancelled here and now, and its stock returns.
+   */
   async requestCancel(ctx: RequestContext, id: string, reason: string): Promise<void> {
     const reasons = await this.cancelReasons(ctx, id);
     await withTenantTx(this.db, ctx, async (tx) => {
       const o = await this.load(tx, ctx, id, true);
+      if (isManualChannel(o.channel)) {
+        if (!SELLER_CANCELLABLE.has(o.status)) throw orderNotCancellable(false);
+        const chosen = reasons.find((r) => r.code === reason);
+        if (!chosen) throw cancelReasonInvalid(reasons.map((r) => r.code));
+        const actor = { type: "user" as const, id: ctx.actor.id };
+        // the same history entry as a marketplace cancellation, so it is audited the same way
+        await this.intake.recordIn(tx, ctx, id, "cancel_requested", actor, { reason, label: chosen.label });
+        await this.repo.update(tx, id, { cancelReason: chosen.label, cancelledBy: "seller" });
+        const cancelled = await this.intake.stepIn(tx, ctx, o, [{ to: "cancelled", via: "any" }], actor);
+        await this.intake.settleIn(tx, ctx, cancelled, await this.repo.items(tx, [id]));
+        return;
+      }
       const store = (await this.stores.stockTargetsIn(tx, [o.storeId])).get(o.storeId);
       if (!store) throw storeNotFound();
       if (store.store.syncMode !== "live" || !store.usable || !SELLER_CANCELLABLE.has(o.status)) {
@@ -456,7 +536,8 @@ export class OrdersService {
 
   /** Reads the store's orders again from the marketplace (202). */
   async requestSync(ctx: RequestContext, storeId: string): Promise<void> {
-    await this.stores.get(ctx, storeId); // 404 outside the caller's tenant or scope
+    const view = await this.stores.get(ctx, storeId); // 404 outside the caller's tenant or scope
+    if (isManualChannel(view.store.channel)) throw storeIsManual();
     await withTenantTx(this.db, ctx, (tx) =>
       this.outbox.enqueue(tx, ctx, orderPullRequested, { storeId, mode: "incremental" }, storeId),
     );
@@ -519,12 +600,18 @@ export class OrdersService {
           "catatan_internal",
           "sumber",
           "id_toko",
+          "metode_bayar",
+          "tag",
         ],
         pages: (tx, l) =>
           keysetPages(
             (after) => this.repo.ordersPage(tx, after, EXPORT_PAGE_SIZE),
-            (rows) =>
-              rows.map((o) => {
+            async (rows) => {
+              const tags = await this.tags.ofOrders(
+                tx,
+                rows.map((o) => o.id),
+              );
+              return rows.map((o) => {
                 const a = o.shippingAddress ?? {};
                 return [
                   o.id,
@@ -571,8 +658,14 @@ export class OrdersService {
                   o.internalNote,
                   o.source,
                   o.storeId,
+                  o.paymentMethod,
+                  tags
+                    .filter((t) => t.orderId === o.id)
+                    .map((t) => t.name)
+                    .join(", "),
                 ];
-              }),
+              });
+            },
           ),
       },
       {

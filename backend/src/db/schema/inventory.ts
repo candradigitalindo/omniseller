@@ -3,11 +3,23 @@ import { sql } from "drizzle-orm";
 import { bigint, boolean, integer, jsonb, pgTable, pgView, text } from "drizzle-orm/pg-core";
 import { appendOnlyColumns, baseColumns, qty, tstz, ulid } from "../columns";
 
+/** Where a warehouse is and who answers there: the sender on manual-order labels (FR-WHS-08). */
+export interface WarehouseAddress {
+  contactName?: string;
+  phone?: string;
+  line1?: string;
+  district?: string;
+  city?: string;
+  /** Canonical province name when OmniSeller knows it (common/region.ts), for allocation by distance. */
+  province?: string;
+  postalCode?: string;
+}
+
 export const warehouse = pgTable("warehouse", {
   ...baseColumns(),
   code: text("code").notNull(),
   name: text("name").notNull(),
-  address: jsonb("address").$type<Record<string, unknown>>().notNull(),
+  address: jsonb("address").$type<WarehouseAddress>().notNull(),
   isDefault: boolean("is_default").notNull().default(false),
   active: boolean("active").notNull().default(true),
   deletedAt: tstz("deleted_at"),
@@ -100,6 +112,9 @@ export const catalogVariantV = pgView("catalog_variant_v", {
   variantStatus: text("variant_status").$type<"active" | "archived">().notNull(),
   barcode: text("barcode"),
   costPrice: bigint("cost_price", { mode: "number" }).notNull(),
+  /** Selling price before channel adjustments: the default price of a manual order line. */
+  basePrice: bigint("base_price", { mode: "number" }).notNull(),
+  weightG: integer("weight_g").notNull(),
   productSku: text("product_sku").notNull(),
   productName: text("product_name").notNull(),
   productStatus: text("product_status").$type<"active" | "archived">().notNull(),

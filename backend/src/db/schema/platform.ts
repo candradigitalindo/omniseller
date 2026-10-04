@@ -15,6 +15,24 @@ export const featureFlagOverride = pgTable("feature_flag_override", {
   enabled: boolean("enabled").notNull(),
 });
 
+/** Document numbers per business, kind, and period (manual orders, later purchase orders). */
+export const documentSequence = pgTable("document_sequence", {
+  ...baseColumns(),
+  kind: text("kind").notNull(),
+  period: text("period").notNull(),
+  nextValue: bigint("next_value", { mode: "number" }).notNull(),
+});
+
+/** Idempotency-Key of requests that create records, written with the record (backend doc 10.2). */
+export const idempotencyRecord = pgTable("idempotency_record", {
+  ...baseColumns(),
+  scope: text("scope").notNull(),
+  key: text("key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  resourceId: ulid("resource_id").notNull(),
+  createdBy: ulid("created_by"),
+});
+
 export type FilePurpose =
   | "product_image"
   | "label"

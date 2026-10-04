@@ -5,6 +5,7 @@ import { jobKey } from "../../jobs/job-id";
 import type { WebhookConsumers } from "../sync/webhook-consumer";
 import type { StoreStatusReason } from "./channel.errors";
 import {
+  channelWarehouseChanged,
   storeAuthorizationExpiring,
   storeAuthorizationReceived,
   storeConnected,
@@ -108,6 +109,19 @@ export const storeExpiryNoticeJob = defineJob({
   },
 });
 
+/** FR-WHS-10: marketplace warehouses appeared or disappeared; the people who manage the store are told. */
+export const storeWarehousesNoticeJob = defineJob({
+  queue: "notify",
+  name: "store.warehouses_notice",
+  schema: z.object({ storeId: ulidSchema, added: z.number().int(), removed: z.number().int() }),
+  triggeredBy: [channelWarehouseChanged],
+  options: { attempts: 3, backoff: { type: "exponential", delay: 5_000 } },
+  jobId: (p, meta) => jobKey("store.warehouses_notice", p.storeId, meta.eventId ?? "direct"),
+  handler: async (p, run) => {
+    await run.deps.resolve(ChannelAlertsService).warehousesChanged(run.ctx, p.storeId, p.added, p.removed);
+  },
+});
+
 export const CHANNEL_JOBS = [
   storeAuthorizeJob,
   storeWarehousesSyncJob,
@@ -115,6 +129,7 @@ export const CHANNEL_JOBS = [
   storeTokenRefreshJob,
   storeReauthNoticeJob,
   storeExpiryNoticeJob,
+  storeWarehousesNoticeJob,
 ];
 
 /** Shopee authorize_type values of a code 2 push, and TikTok Shop's deauthorization message. */

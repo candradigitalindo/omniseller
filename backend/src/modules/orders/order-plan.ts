@@ -286,3 +286,64 @@ export function slaAlertDue(
   if (sla.state === "overdue") return sent === "overdue" ? null : "overdue";
   return sent === null ? "warning" : null;
 }
+
+// ---- manual orders (PRD FR-ORD-09, 12; backend doc 8.21) ----
+
+/** Reasons a seller cancels a manual order for; marketplace orders use the marketplace's own list. */
+export const MANUAL_CANCEL_REASONS = [
+  { code: "buyer_request", label: "Pembeli membatalkan", needsItems: false },
+  { code: "out_of_stock", label: "Stok habis", needsItems: false },
+  { code: "unpaid", label: "Pembayaran tidak diterima", needsItems: false },
+  { code: "duplicate", label: "Pesanan dobel", needsItems: false },
+  { code: "other", label: "Alasan lain", needsItems: false },
+] as const;
+
+/**
+ * Money of a manual order, in the marketplace orders' terms: a line is unit price times quantity, the
+ * subtotal adds the lines, the order discount (a seller voucher) comes off it, and the buyer's shipping
+ * fee is added on top.
+ */
+export function manualTotals(
+  lines: readonly { unitPrice: number; qty: number }[],
+  discount: number,
+  shippingFee: number,
+): { subtotal: number; total: number } {
+  const subtotal = lines.reduce((n, l) => n + l.unitPrice * l.qty, 0);
+  return { subtotal, total: subtotal - discount + shippingFee };
+}
+
+/** "MN-2610-0007": manual order 7 of October 2026 (the business's local month). */
+export const manualOrderNumber = (period: string, n: number): string => `MN-${period}-${String(n).padStart(4, "0")}`;
+
+const SELLER_PATH: readonly OrderStatus[] = [
+  "new",
+  "ready_to_pack",
+  "packed",
+  "ready_to_ship",
+  "shipped",
+  "delivered",
+  "completed",
+];
+
+/**
+ * Every seller step from `current` to `target`, none skipped (a manual order has no marketplace to
+ * report facts that skip steps). Null when the target is not ahead on that path.
+ */
+export function pathTo(current: OrderStatus, target: OrderStatus): StatusStep[] | null {
+  const from = SELLER_PATH.indexOf(current);
+  const to = SELLER_PATH.indexOf(target);
+  if (from < 0 || to <= from) return null;
+  return SELLER_PATH.slice(from + 1, to + 1).map((s) => ({ to: s, via: "any" }));
+}
+
+/** Statuses in which an order may still change warehouse: nothing has been packed (FR-ORD-12). */
+export const MOVABLE: ReadonlySet<OrderStatus> = new Set(["unpaid", "new", "problem", "ready_to_pack"]);
+
+/**
+ * A marketplace placed the order in its warehouse (FR-WHS-06, 07) when its store has more than one
+ * active seller warehouse: such orders are never moved. Manual orders and orders of stores without
+ * multi-warehouse are placed by OmniSeller and can be (FR-ORD-12).
+ */
+export function warehouseFixed(channel: string, sellerWarehouses: number): boolean {
+  return channel !== "manual" && sellerWarehouses > 1;
+}

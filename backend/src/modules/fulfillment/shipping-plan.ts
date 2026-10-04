@@ -42,6 +42,12 @@ export interface ArrangeCheck {
 
 /** Why the shipment of this order cannot be arranged now, or null when it can. */
 export function arrangeRefusal(c: ArrangeCheck): Refusal | null {
+  if (c.channel === "manual") {
+    return {
+      code: "order.manual",
+      message: "Pesanan manual dikirim sendiri: cetak labelnya, lalu tandai dikirim dengan nomor resi.",
+    };
+  }
   if (!c.store) return { code: "store.not_found", message: "Toko pesanan ini tidak ditemukan." };
   if (!c.store.live) {
     return {
@@ -83,6 +89,20 @@ export function arrangeRefusal(c: ArrangeCheck): Refusal | null {
   if (c.shipment && !c.shipment.lastError) {
     return { code: "shipment.in_progress", message: "Pengiriman pesanan ini sedang diatur." };
   }
+  return null;
+}
+
+/** Manual orders whose label OmniSeller draws (FR-WHS-08): paid or COD, an address, not finished. */
+const MANUAL_LABEL: ReadonlySet<OrderStatus> = new Set([...PICKABLE, "shipped", "delivered"]);
+
+/** Why OmniSeller cannot draw this manual order's label, or null when it can. */
+export function manualLabelRefusal(o: { status: OrderStatus; hasAddress: boolean }): Refusal | null {
+  if (o.status === "unpaid") return { code: "order.unpaid", message: "Pesanan belum dibayar." };
+  if (o.status === "problem") return { code: "order.has_problems", message: "Selesaikan masalah pesanan ini dulu." };
+  if (!MANUAL_LABEL.has(o.status)) {
+    return { code: "order.status_invalid", message: "Pesanan sudah selesai atau dibatalkan." };
+  }
+  if (!o.hasAddress) return { code: "order.no_address", message: "Pesanan ini tanpa alamat kirim." };
   return null;
 }
 

@@ -3,7 +3,7 @@ import type { NormalizedOrder, NormalizedOrderItem, NormalizedRecipient } from "
 import { newId, newIdAt, type OrderStatus } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
 import type { Tx } from "../../db/client";
-import type { OrderProblemCode } from "../../db/schema";
+import type { OrderProblemCode, order, orderItem } from "../../db/schema";
 import { withStatusSource } from "../../db/tenant-tx";
 import { OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
@@ -20,6 +20,7 @@ import {
   problemStep,
   type StatusStep,
   statusSteps,
+  warehouseFixed,
 } from "./order-plan";
 import { orderStatusChanged } from "./orders.events";
 import { type OrderItemRow, type OrderRow, OrdersRepository } from "./orders.repository";
@@ -145,8 +146,11 @@ export class OrderIntakeService {
         ...(step.to === "cancelled" && !current.cancelledAt ? { cancelledAt: at } : {}),
         ...(step.to === "shipped" && !current.shippedAt ? { shippedAt: at } : {}),
         ...(step.to === "delivered" && !current.deliveredAt ? { deliveredAt: at } : {}),
-        // paid now: a new order for the seller (FR-NTF-01)
-        ...(step.to === "new" && current.status === "unpaid" && current.fulfillmentMode === "seller"
+        // paid now: a new order for the seller (FR-NTF-01); manual orders were typed in by the team
+        ...(step.to === "new" &&
+        current.status === "unpaid" &&
+        current.fulfillmentMode === "seller" &&
+        current.channel !== "manual"
           ? { notifyNew: true }
           : {}),
       };
@@ -234,6 +238,7 @@ export class OrderIntakeService {
       snap.items.map((i) => [i.externalLineId, this.place(target, i.externalWarehouseId ?? snap.externalWarehouseId)]),
     );
     const orderPlace = [...placements.values()][0] ?? this.place(target, snap.externalWarehouseId);
+    const sellerWarehouses = target.warehouses.filter((w) => w.active && w.kind === "seller").length;
     const fields = {
       externalStatus: snap.externalStatus,
       platform: snap.platform,
@@ -274,6 +279,28 @@ export class OrderIntakeService {
         snap.fulfillment === "marketplace" || (orderPlace.managed && snap.items.length > 0) ? "marketplace" : "seller";
       const status = initialStatus({ state: snap.state, fulfillment });
       const id = newIdAt(snap.createdAt);
+      // FR-ORD-12: a store without multi-warehouse that asked for it ships each new order from the
+      // nearest warehouse that has every item, instead of its mapped warehouse
+      let allocation: { warehouseId: string; reason: string } | null = null;
+      if (
+        fulfillment === "seller" &&
+        HOLD_STATUSES.has(status) &&
+        store.settings.autoAllocate === true &&
+        !warehouseFixed(store.channel, sellerWarehouses)
+      ) {
+        const a = await this.inventory.allocateIn(tx, {
+          lines: snap.items.flatMap((i) => {
+            const variantId = listingOf(i)?.variantId;
+            return variantId ? [{ variantId, qty: i.quantity - i.cancelledQuantity }] : [];
+          }),
+          buyerProvince: snap.recipientAvailable ? (snap.recipient?.province ?? null) : null,
+          home: orderPlace.warehouseId ?? store.defaultWarehouseId,
+        });
+        if (a.warehouseId) {
+          allocation = { warehouseId: a.warehouseId, reason: a.reason };
+          for (const [line, place] of placements) placements.set(line, { ...place, warehouseId: a.warehouseId });
+        }
+      }
       await this.repo.insertOrder(tx, {
         id,
         tenantId: ctx.tenantId,
@@ -283,7 +310,7 @@ export class OrderIntakeService {
         status,
         fulfillmentMode: fulfillment,
         channelWarehouseId: orderPlace.channelWarehouseId,
-        warehouseId: orderPlace.warehouseId,
+        warehouseId: allocation?.warehouseId ?? orderPlace.warehouseId,
         orderedAt: snap.createdAt,
         completedAt: status === "completed" ? snap.updatedAt : null,
         // the 90-day import is history, not news: only orders after it are announced (FR-NTF-01)
@@ -305,7 +332,11 @@ export class OrderIntakeService {
       );
       await this.event(tx, ctx, id, "created", MARKETPLACE, {
         toStatus: status,
-        payload: { externalStatus: snap.externalStatus, source: meta.source },
+        payload: {
+          externalStatus: snap.externalStatus,
+          source: meta.source,
+          ...(allocation ? { allocation: allocation.reason, warehouseId: allocation.warehouseId } : {}),
+        },
       });
       let o = (await this.repo.get(tx, id))!;
       if (fulfillment === "seller" && HOLD_STATUSES.has(status)) await this.intakeChecksIn(tx, ctx, o, snap);
@@ -388,6 +419,67 @@ export class OrderIntakeService {
       lineTotal: i.lineTotal,
       warehouseId: place.warehouseId,
     };
+  }
+
+  /**
+   * An order OmniSeller itself creates (manual orders, FR-ORD-09): the order, its reference, its lines,
+   * and the first history entry, then reservations and problems like any order. The caller has checked
+   * what it holds; the address is not judged (the seller typed it).
+   */
+  async createIn(
+    tx: Tx,
+    ctx: RequestContext,
+    input: {
+      order: typeof order.$inferInsert & { id: string };
+      items: (typeof orderItem.$inferInsert)[];
+      actor: Actor;
+      payload: Record<string, unknown>;
+    },
+  ): Promise<OrderRow> {
+    const o = input.order;
+    await this.repo.insertOrder(tx, o);
+    await this.repo.insertRef(tx, {
+      id: newId(),
+      tenantId: ctx.tenantId,
+      storeId: o.storeId,
+      externalOrderId: o.externalOrderId,
+      orderId: o.id,
+    });
+    await this.repo.insertItems(tx, input.items);
+    await this.event(tx, ctx, o.id, "created", input.actor, { toStatus: o.status, payload: input.payload });
+    return this.settleIn(tx, ctx, (await this.repo.get(tx, o.id))!, await this.repo.items(tx, [o.id]));
+  }
+
+  /**
+   * Moves an order nothing was packed for to another warehouse (FR-ORD-12): the reservations of the old
+   * warehouse are released, the lines and the order point at the new one, and settling reserves there
+   * and re-judges the stock problems. The caller has checked that the order may move.
+   */
+  async moveWarehouseIn(
+    tx: Tx,
+    ctx: RequestContext,
+    o: OrderRow,
+    warehouseId: string,
+    actor: Actor,
+  ): Promise<OrderRow> {
+    const items = await this.repo.items(tx, [o.id]);
+    await this.inventory.orderMovementsIn(
+      tx,
+      ctx,
+      items
+        .filter((i) => i.reservedQty > 0 && i.variantId && i.warehouseId)
+        .map((i) => ({
+          orderItemId: i.id,
+          variantId: i.variantId!,
+          warehouseId: i.warehouseId!,
+          type: "order_release" as const,
+          qty: i.reservedQty,
+        })),
+    );
+    for (const i of items) await this.repo.updateItem(tx, i.id, { warehouseId, reservedQty: 0 });
+    await this.repo.update(tx, o.id, { warehouseId });
+    await this.event(tx, ctx, o.id, "warehouse_changed", actor, { payload: { from: o.warehouseId, to: warehouseId } });
+    return this.settleIn(tx, ctx, { ...o, warehouseId }, await this.repo.items(tx, [o.id]));
   }
 
   /** Checks made once, when the order comes in: duplicate order and unusual value (FR-ORD-06). */

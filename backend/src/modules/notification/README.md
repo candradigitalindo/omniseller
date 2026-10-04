@@ -43,7 +43,7 @@ Notifikasi untuk pengguna OmniSeller (PRD FR-NTF-01, FR-NTF-02; backend doc 7.8.
 - **Jenis notifikasi** (backend doc 8.17):
   - `order.new` dan `order.sla` (modul orders);
   - `stock.critical` dan `sync.stock_push_failed` (inventory);
-  - `store.reauth_required` dan `store.authorization_expiring` (channel);
+  - `store.reauth_required`, `store.authorization_expiring`, dan `store.warehouses_changed` (channel);
   - `export.ready` dan `export.failed` (exports);
   - `migration.validated`, `migration.invalid`, `migration.imported`, dan `migration.failed` (migration).
 - **Ringkasan email harian ada di modul `reporting`** (`DigestService`). Modul ini hanya menyimpan pilihan dan templatnya, karena orders, inventory, dan channel mengimpor `NotificationInboxModule`.

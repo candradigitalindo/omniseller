@@ -8,7 +8,7 @@ import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
-import { publicWebUrl, StoresService, statusMessage } from "../channel/stores.service";
+import { isManualChannel, publicWebUrl, StoresService, statusMessage } from "../channel/stores.service";
 import { TenantsService } from "../identity/tenants.service";
 import { UsersService } from "../identity/users.service";
 import { InventoryService } from "../inventory/inventory.service";
@@ -168,7 +168,7 @@ export class DigestService {
       const now = new Date();
       stores = [];
       for (const s of await this.stores.listIn(tx, ctx)) {
-        if (s.status === "disconnected") continue;
+        if (s.status === "disconnected" || isManualChannel(s.channel)) continue;
         const h = storeHealth(
           {
             status: s.status,

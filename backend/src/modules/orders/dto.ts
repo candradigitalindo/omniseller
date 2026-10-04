@@ -3,11 +3,12 @@ import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 import type { RequestContext } from "../../common/context/request-context";
 import { MAX_LIMIT, pageSchema } from "../../common/http/pagination";
-import type { OrderProblemCode } from "../../db/schema";
+import { type OrderProblemCode, PAYMENT_METHODS } from "../../db/schema";
 import { channelDisplayName } from "../channel/stores.service";
 import { slaOf } from "./order-plan";
 import type { OrderEventRow, OrderItemRow, OrderProblemRow } from "./orders.repository";
 import { type ActionResult, type OrderView, orderStatusLabel } from "./orders.service";
+import type { OrderTagRef, TagRow } from "./tags.repository";
 
 /** Request and response DTOs of the order endpoints (backend doc 10.6). */
 
@@ -44,6 +45,7 @@ export class OrderQueryDto extends createZodDto(
     problem: z.enum(PROBLEM_CODES).optional(),
     cod: z.enum(["true", "false"]).optional(),
     due: z.enum(["overdue", "soon"]).optional().describe("overdue: lewat batas kirim; soon: batas kirim dalam 6 jam"),
+    tagId: ulidSchema.optional().describe("pesanan yang memakai tag ini (FR-ORD-04)"),
     sort: z.enum(["newest", "ship_by"]).default("newest"),
   }),
 ) {}
@@ -62,6 +64,145 @@ export class CancelOrderDto extends createZodDto(
 export class OrderNoteDto extends createZodDto(z.object({ note: z.string().max(2000).nullable() })) {}
 export class ResolveProblemDto extends createZodDto(z.object({ resolution: z.string().trim().max(500).optional() })) {}
 export class OrderSyncDto extends createZodDto(z.object({ storeId: ulidSchema })) {}
+
+// ---- manual orders (FR-ORD-09, 12) and tags (FR-ORD-04), backend doc 8.21 ----
+
+const phone = z
+  .string()
+  .trim()
+  .regex(/^\+?[0-9][0-9 ()-]{5,19}$/, "Nomor telepon tidak valid.");
+const manualAddress = z.object({
+  name: z.string().trim().min(1).max(100).optional().describe("penerima; bawaan nama pembeli"),
+  phone: phone.optional().describe("telepon penerima; bawaan telepon pembeli"),
+  line1: z.string().trim().min(5).max(300),
+  district: z.string().trim().max(100).optional(),
+  city: z.string().trim().max(100).optional(),
+  province: z.string().trim().max(100).optional().describe("dipakai untuk mencari gudang terdekat"),
+  postalCode: z
+    .string()
+    .trim()
+    .regex(/^[0-9]{5}$/, "Kode pos 5 angka.")
+    .optional(),
+});
+const money = (max: number) => z.number().int().min(0).max(max);
+const DAY_MS = 86_400_000;
+const notFuture = (v: string | undefined) => !v || Date.parse(v) <= Date.now() + 60_000;
+
+export class CreateManualOrderDto extends createZodDto(
+  z
+    .object({
+      storeId: ulidSchema
+        .optional()
+        .describe("saluran pesanan manual; kosong: saluran pertama, dibuat otomatis bila belum ada"),
+      warehouseId: ulidSchema.optional().describe("kosong: gudang terdekat dengan pembeli yang stoknya cukup"),
+      buyer: z.object({ name: z.string().trim().min(1).max(100), phone: phone.optional() }),
+      shippingAddress: manualAddress.nullable().optional().describe("kosong: diambil pembeli atau dijual di tempat"),
+      items: z
+        .array(
+          z.object({
+            variantId: ulidSchema,
+            qty: z.number().int().min(1).max(9999),
+            unitPrice: money(1_000_000_000).optional().describe("harga per unit; kosong: harga dasar varian"),
+          }),
+        )
+        .min(1)
+        .max(100)
+        .refine((items) => new Set(items.map((i) => i.variantId)).size === items.length, {
+          message: "Satu varian cukup satu baris; ubah jumlahnya.",
+        }),
+      shippingFee: money(100_000_000).default(0).describe("ongkir yang dibayar pembeli"),
+      discount: money(10_000_000_000).default(0).describe("potongan untuk seluruh pesanan"),
+      paymentMethod: z.enum(PAYMENT_METHODS),
+      paid: z
+        .boolean()
+        .optional()
+        .describe("sudah dibayar; bawaan: tunai sudah, lainnya belum. COD dibayar saat barang diterima"),
+      shippingProvider: z.string().trim().min(1).max(60).optional(),
+      shippingService: z.string().trim().min(1).max(60).optional(),
+      buyerNote: z.string().trim().max(1000).optional(),
+      internalNote: z.string().trim().max(2000).optional(),
+      orderedAt: iso.optional().describe("waktu pesanan; bawaan sekarang, paling lama 90 hari ke belakang"),
+    })
+    .refine((v) => notFuture(v.orderedAt) && (!v.orderedAt || Date.parse(v.orderedAt) >= Date.now() - 90 * DAY_MS), {
+      path: ["orderedAt"],
+      message: "Waktu pesanan tidak boleh di masa depan atau lebih dari 90 hari lalu.",
+    }),
+) {}
+
+export class UpdateManualOrderDto extends createZodDto(
+  z
+    .object({
+      buyer: z
+        .object({ name: z.string().trim().min(1).max(100).optional(), phone: phone.nullable().optional() })
+        .optional(),
+      shippingAddress: manualAddress.nullable().optional().describe("menggantikan seluruh alamat; null: tanpa kirim"),
+      shippingProvider: z.string().trim().min(1).max(60).nullable().optional(),
+      shippingService: z.string().trim().min(1).max(60).nullable().optional(),
+      trackingNumber: z.string().trim().min(3).max(60).nullable().optional(),
+      buyerNote: z.string().trim().max(1000).nullable().optional(),
+    })
+    .refine((v) => Object.keys(v).length > 0, { message: "Tidak ada yang diubah." }),
+) {}
+
+export class PayOrderDto extends createZodDto(
+  z
+    .object({ paidAt: iso.optional().describe("bawaan sekarang") })
+    .refine((v) => notFuture(v.paidAt), { path: ["paidAt"], message: "Waktu bayar tidak boleh di masa depan." }),
+) {}
+
+export class ShipOrderDto extends createZodDto(
+  z.object({
+    shippingProvider: z.string().trim().min(1).max(60).optional().describe("kurir, misalnya JNE atau J&T Express"),
+    trackingNumber: z.string().trim().min(3).max(60).optional().describe("nomor resi"),
+  }),
+) {}
+
+export class ChangeWarehouseDto extends createZodDto(z.object({ warehouseId: ulidSchema })) {}
+
+const tagRefSchema = z.object({ id: ulidSchema, name: z.string(), color: z.string().nullable() });
+const color = z
+  .string()
+  .regex(/^#[0-9A-Fa-f]{6}$/, "Warna heksadesimal, contoh #1E6B8C.")
+  .transform((c) => c.toUpperCase());
+export class CreateTagDto extends createZodDto(
+  z.object({ name: z.string().trim().min(1).max(30), color: color.nullable().optional() }),
+) {}
+export class UpdateTagDto extends createZodDto(
+  z
+    .object({ name: z.string().trim().min(1).max(30).optional(), color: color.nullable().optional() })
+    .refine((v) => Object.keys(v).length > 0, { message: "Tidak ada yang diubah." }),
+) {}
+export class TagIdParamDto extends createZodDto(z.object({ id: ulidSchema })) {}
+const tagSchema = tagRefSchema.extend({ orders: z.number().int().describe("pesanan yang memakai tag ini") });
+export class TagDto extends createZodDto(tagSchema) {}
+export class TagListDto extends createZodDto(z.object({ items: z.array(tagSchema) })) {}
+export const tagView = (t: TagRow & { orders?: number }): z.infer<typeof tagSchema> => ({
+  id: t.id,
+  name: t.name,
+  color: t.color,
+  orders: t.orders ?? 0,
+});
+const tagRefView = (t: OrderTagRef): z.infer<typeof tagRefSchema> => ({ id: t.id, name: t.name, color: t.color });
+
+export class OrderTagsDto extends createZodDto(
+  z
+    .object({
+      orderIds: z.array(ulidSchema).min(1).max(500),
+      add: z.array(ulidSchema).max(20).default([]),
+      remove: z.array(ulidSchema).max(20).default([]),
+    })
+    .refine((v) => v.add.length + v.remove.length > 0, {
+      path: ["add"],
+      message: "Pilih tag yang dipasang atau dilepas.",
+    }),
+) {}
+export class OrderTagsResultDto extends createZodDto(
+  z.object({ items: z.array(z.object({ orderId: ulidSchema, tags: z.array(tagRefSchema) })) }),
+) {}
+export const orderTagsView = (r: { orderId: string; tags: OrderTagRef[] }) => ({
+  orderId: r.orderId,
+  tags: r.tags.map(tagRefView),
+});
 
 const problemSchema = z.object({
   id: ulidSchema,
@@ -105,6 +246,7 @@ const listItemSchema = z.object({
   warehouseId: ulidSchema.nullable(),
   problems: z.array(problemSchema),
   cancelRequested: z.boolean(),
+  tags: z.array(tagRefSchema),
   orderedAt: iso,
 });
 export class OrderPageDto extends createZodDto(pageSchema(listItemSchema)) {}
@@ -157,6 +299,10 @@ const detailSchema = listItemSchema.extend({
   cancelledAt: iso.nullable(),
   cancelReason: z.string().nullable(),
   cancelledBy: z.string().nullable(),
+  paymentMethod: z.enum(PAYMENT_METHODS).nullable().describe("pesanan manual: cara bayar"),
+  warehouseFixed: z
+    .boolean()
+    .describe("gudang ditetapkan marketplace (toko multi-gudang); pesanan lain bisa pindah gudang sebelum dikemas"),
   events: z.array(eventSchema),
 });
 export class OrderDto extends createZodDto(detailSchema) {}
@@ -239,13 +385,14 @@ export function orderListView(v: OrderView, now = new Date()): z.infer<typeof li
     warehouseId: o.warehouseId,
     problems: v.problems.filter((p) => !p.resolvedAt).map(problemView),
     cancelRequested: o.cancelRequested,
+    tags: v.tags.map(tagRefView),
     orderedAt: o.orderedAt.toISOString(),
   };
 }
 
 export function orderDetailView(
   ctx: RequestContext,
-  v: OrderView & { events: OrderEventRow[] },
+  v: OrderView & { events: OrderEventRow[]; warehouseFixed: boolean },
 ): z.infer<typeof detailSchema> {
   const o = v.order;
   const show = canSeeAddress(ctx);
@@ -289,6 +436,8 @@ export function orderDetailView(
     cancelledAt: o.cancelledAt?.toISOString() ?? null,
     cancelReason: o.cancelReason,
     cancelledBy: o.cancelledBy,
+    paymentMethod: o.paymentMethod,
+    warehouseFixed: v.warehouseFixed,
     events: v.events.map((e) => ({
       id: e.id,
       type: e.type,

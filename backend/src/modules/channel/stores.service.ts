@@ -1,4 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
+import { newId } from "@omniseller/shared";
+import { sql } from "drizzle-orm";
 import type { RequestContext } from "../../common/context/request-context";
 import { ConflictError } from "../../common/errors/domain-errors";
 import { type ExportSheet, singlePage } from "../../common/export-sheet";
@@ -12,10 +14,12 @@ import type { Outbox } from "../../outbox/outbox";
 import { WarehousesService } from "../inventory/warehouses.service";
 import {
   channelWarehouseNotFound,
+  manualStoreNotFound,
   marketplaceManagedWarehouse,
   STORE_STATUS_REASONS,
   type StoreStatusReason,
   storeAlreadyDisconnected,
+  storeIsManual,
   storeNotActive,
   storeNotFound,
   storeUnmappedWarehouses,
@@ -51,7 +55,12 @@ export interface StockTarget {
   warehouses: ChannelWarehouseRow[];
 }
 
+/** Orders taken outside marketplaces (WhatsApp, Instagram, a shop counter) live in stores of this channel. */
+export const MANUAL_CHANNEL = "manual";
+export const isManualChannel = (channel: string): boolean => channel === MANUAL_CHANNEL;
+
 export function channelDisplayName(channel: string): string {
+  if (isManualChannel(channel)) return "Manual";
   return isSupportedChannel(channel) ? MANIFESTS[channel].displayName : channel;
 }
 
@@ -123,17 +132,27 @@ export class StoresService {
   }
 
   /**
-   * Name, default warehouse, and sync mode. `live` turns on stock push and order processing, so it
-   * needs a usable connection and every active seller warehouse mapped (FR-WHS-04).
+   * Name, default warehouse, sync mode, and automatic allocation (FR-ORD-12). `live` turns on stock push
+   * and order processing, so it needs a usable connection and every active seller warehouse mapped
+   * (FR-WHS-04). Manual sales channels have neither sync mode nor allocation setting: they are always
+   * live, and their orders are always allocated when no warehouse is chosen.
    */
   async update(
     ctx: RequestContext,
     id: string,
-    patch: { name?: string; defaultWarehouseId?: string | null; syncMode?: "read_only" | "live" },
+    patch: {
+      name?: string;
+      defaultWarehouseId?: string | null;
+      syncMode?: "read_only" | "live";
+      autoAllocate?: boolean;
+    },
     ifMatch?: number,
   ): Promise<StoreView> {
     return withTenantTx(this.db, ctx, async (tx) => {
       const store = await this.load(tx, ctx, id, true);
+      if (isManualChannel(store.channel) && (patch.syncMode !== undefined || patch.autoAllocate !== undefined)) {
+        throw storeIsManual();
+      }
       if (patch.defaultWarehouseId && !(await this.warehouses.findActiveIn(tx, patch.defaultWarehouseId))) {
         throw warehouseNotFound("defaultWarehouseId");
       }
@@ -146,6 +165,9 @@ export class StoresService {
           ...(patch.name !== undefined ? { name: patch.name } : {}),
           ...(patch.defaultWarehouseId !== undefined ? { defaultWarehouseId: patch.defaultWarehouseId } : {}),
           ...(modeChanges ? { syncMode: patch.syncMode, syncModeChangedAt: new Date() } : {}),
+          ...(patch.autoAllocate !== undefined
+            ? { settings: { ...store.settings, autoAllocate: patch.autoAllocate } }
+            : {}),
         },
         ifMatch,
       );
@@ -219,6 +241,7 @@ export class StoresService {
   async requestWarehouseSync(ctx: RequestContext, id: string): Promise<void> {
     await withTenantTx(this.db, ctx, async (tx) => {
       const store = await this.load(tx, ctx, id);
+      if (isManualChannel(store.channel)) throw storeIsManual();
       if (!USABLE.includes(store.status)) throw storeNotActive();
       await this.outbox.enqueue(tx, ctx, storeWarehousesSyncRequested, { storeId: id }, id);
     });
@@ -294,6 +317,67 @@ export class StoresService {
   /** Stores of the caller's scope, inside the caller's transaction. */
   async listIn(tx: Tx, ctx: RequestContext): Promise<StoreRow[]> {
     return this.repo.listStores(tx, ctx.storeScope);
+  }
+
+  // ---- manual sales channels (FR-ORD-09, backend doc 8.21) ----
+
+  /** A sales channel for orders taken outside marketplaces: WhatsApp, Instagram, a shop counter. */
+  async createManual(ctx: RequestContext, input: { name: string; defaultWarehouseId?: string | null }) {
+    return withTenantTx(
+      this.db,
+      ctx,
+      async (tx) => (await this.view(tx, [await this.insertManualIn(tx, ctx, input)]))[0]!,
+    );
+  }
+
+  private async insertManualIn(
+    tx: Tx,
+    ctx: RequestContext,
+    input: { name: string; defaultWarehouseId?: string | null },
+  ): Promise<StoreRow> {
+    if (input.defaultWarehouseId && !(await this.warehouses.findActiveIn(tx, input.defaultWarehouseId))) {
+      throw warehouseNotFound("defaultWarehouseId");
+    }
+    const id = newId();
+    const now = new Date();
+    await this.repo.insertStore(tx, {
+      id,
+      tenantId: ctx.tenantId,
+      channel: MANUAL_CHANNEL,
+      // unique across tenants like a marketplace shop id; nothing outside OmniSeller knows it
+      externalShopId: id,
+      name: input.name,
+      status: "active",
+      syncMode: "live",
+      defaultWarehouseId: input.defaultWarehouseId ?? null,
+      connectedAt: now,
+      statusChangedAt: now,
+    });
+    return (await this.repo.getStore(tx, id))!;
+  }
+
+  /**
+   * The manual sales channel an order is taken in, inside the caller's transaction: the one asked for
+   * (in the caller's scope, not disconnected), else the first one. A business without any gets
+   * "Pesanan Manual" with its first manual order, unless the caller is limited to some stores.
+   */
+  async manualStoreIn(tx: Tx, ctx: RequestContext, storeId?: string): Promise<StoreRow> {
+    if (storeId) {
+      const s = this.inScope(ctx, storeId) ? await this.repo.getStore(tx, storeId) : undefined;
+      if (!s || !isManualChannel(s.channel) || s.status === "disconnected") throw manualStoreNotFound();
+      return s;
+    }
+    // two first manual orders at once must not create two channels
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`${ctx.tenantId}:manual_store`}, 0))`);
+    const first = await this.repo.firstManualStore(tx, ctx.storeScope);
+    if (first) return first;
+    if (ctx.storeScope !== null) throw manualStoreNotFound();
+    return this.insertManualIn(tx, ctx, { name: "Pesanan Manual" });
+  }
+
+  /** Stores that use a warehouse (default warehouse, mapped marketplace warehouses): it cannot be deleted. */
+  warehouseUsageIn(tx: Tx, warehouseId: string) {
+    return this.repo.warehouseUsage(tx, warehouseId);
   }
 
   // ---- sync bookkeeping for other modules' pulls (worker) ----

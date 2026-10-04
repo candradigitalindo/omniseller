@@ -5,7 +5,7 @@ import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
 import { ListingsService } from "../catalog/listings.service";
 import type { StoreRow } from "../channel/channel.repository";
-import { StoresService } from "../channel/stores.service";
+import { isManualChannel, StoresService } from "../channel/stores.service";
 import {
   type ComparisonStatus,
   StockComparisonService,
@@ -82,7 +82,10 @@ export class ParallelModeService {
   /** Every connected store in the caller's scope, parallel ones with their checklist. */
   async summary(ctx: RequestContext): Promise<StoreState[]> {
     return withTenantTx(this.db, ctx, async (tx) => {
-      const stores = (await this.stores.listIn(tx, ctx)).filter((s) => s.status !== "disconnected");
+      // manual sales channels are not moved from another application
+      const stores = (await this.stores.listIn(tx, ctx)).filter(
+        (s) => s.status !== "disconnected" && !isManualChannel(s.channel),
+      );
       const cutovers = await this.repo.cutovers(
         tx,
         stores.map((s) => s.id),

@@ -4,12 +4,16 @@ import {
   detectProblems,
   initialStatus,
   itemStockPlan,
+  manualOrderNumber,
+  manualTotals,
   type ProblemInput,
+  pathTo,
   problemStep,
   SLA_WARNING_MS,
   slaAlertDue,
   slaOf,
   statusSteps,
+  warehouseFixed,
 } from "./order-plan";
 
 const seller = (state: Parameters<typeof initialStatus>[0]["state"]) => ({ state, fulfillment: "seller" as const });
@@ -196,5 +200,47 @@ describe("slaAlertDue (FR-SHP-10)", () => {
   it("says nothing about orders already shipped or without a deadline", () => {
     expect(slaAlertDue(later(-60_000), "shipped", null, now)).toBeNull();
     expect(slaAlertDue(null, "new", null, now)).toBeNull();
+  });
+});
+
+describe("manual orders (FR-ORD-09, 12)", () => {
+  it("adds up the lines, takes the discount off, and adds the shipping fee", () => {
+    expect(
+      manualTotals(
+        [
+          { unitPrice: 50_000, qty: 2 },
+          { unitPrice: 15_000, qty: 1 },
+        ],
+        10_000,
+        9_000,
+      ),
+    ).toEqual({ subtotal: 115_000, total: 114_000 });
+  });
+
+  it("numbers orders per local month", () => {
+    expect(manualOrderNumber("2610", 7)).toBe("MN-2610-0007");
+    expect(manualOrderNumber("2610", 12345)).toBe("MN-2610-12345");
+  });
+
+  it("walks every seller step to the target and refuses to go back", () => {
+    expect(pathTo("new", "shipped")?.map((s) => s.to)).toEqual(["ready_to_pack", "packed", "ready_to_ship", "shipped"]);
+    expect(pathTo("packed", "completed")?.map((s) => s.to)).toEqual([
+      "ready_to_ship",
+      "shipped",
+      "delivered",
+      "completed",
+    ]);
+    expect(pathTo("shipped", "shipped")).toBeNull();
+    expect(pathTo("delivered", "shipped")).toBeNull();
+    expect(pathTo("problem", "shipped")).toBeNull();
+    expect(pathTo("unpaid", "shipped")).toBeNull();
+    expect(pathTo("new", "shipped")!.every((s) => s.via === "any")).toBe(true);
+  });
+
+  it("keeps the marketplace's warehouse for multi-warehouse stores only", () => {
+    expect(warehouseFixed("shopee", 2)).toBe(true);
+    expect(warehouseFixed("shopee", 1)).toBe(false);
+    expect(warehouseFixed("tiktokshop", 0)).toBe(false);
+    expect(warehouseFixed("manual", 3)).toBe(false);
   });
 });

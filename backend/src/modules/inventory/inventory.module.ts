@@ -13,6 +13,7 @@ import { StockComparisonService } from "./stock-comparison.service";
 import { StockOverviewService } from "./stock-overview.service";
 import { StockPushService } from "./stock-push.service";
 import { StockTriggersService } from "./stock-triggers.service";
+import { WarehouseAdminService } from "./warehouse-admin.service";
 
 export { InventoryModule };
 
@@ -22,6 +23,7 @@ const STOCK = [
   AllocationRulesService,
   StockComparisonService,
   RestockService,
+  WarehouseAdminService,
 ];
 
 /** Stock list with push state, initial stock, allocation rules, comparison with the marketplace (api and worker). */

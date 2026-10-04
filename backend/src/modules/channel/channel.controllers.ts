@@ -17,6 +17,7 @@ import {
   ChannelWarehouseDto,
   ChannelWarehouseListDto,
   ChannelWarehouseParamDto,
+  CreateManualStoreDto,
   channelWarehouseView,
   DisconnectedStoreDto,
   MapChannelWarehouseDto,
@@ -108,6 +109,15 @@ export class StoresController {
   @ZodResponse({ type: StoreListDto })
   async list(@Ctx() ctx: RequestContext) {
     return { items: (await this.stores.list(ctx)).map(storeView) };
+  }
+
+  /** A sales channel for manual orders (FR-ORD-09): channel `manual`, always live, no marketplace. */
+  @Post("manual")
+  @RequirePermission("settings:store")
+  @Isolation("self")
+  @ZodResponse({ status: 201, type: StoreDto })
+  async createManual(@Ctx() ctx: RequestContext, @Body() body: CreateManualStoreDto) {
+    return storeView(await this.stores.createManual(ctx, body));
   }
 
   @Get(":id")

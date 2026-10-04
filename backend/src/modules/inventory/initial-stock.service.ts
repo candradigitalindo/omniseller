@@ -4,8 +4,8 @@ import type { DbHandle } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
 import { dataOf, ListingsService } from "../catalog/listings.service";
-import { storeNotFound } from "../channel/channel.errors";
-import { StoresService } from "../channel/stores.service";
+import { storeIsManual, storeNotFound } from "../channel/channel.errors";
+import { isManualChannel, StoresService } from "../channel/stores.service";
 import { ordersImporting } from "./inventory.errors";
 import { InventoryRepository } from "./inventory.repository";
 import { InventoryService } from "./inventory.service";
@@ -60,6 +60,7 @@ export class InitialStockService {
       if (!this.stores.inScope(ctx, storeId)) throw storeNotFound();
       const target = (await this.stores.stockTargetsIn(tx, [storeId])).get(storeId);
       if (!target) throw storeNotFound();
+      if (isManualChannel(target.store.channel)) throw storeIsManual();
       // open orders reserve stock as they are imported; counting before that would hold them twice
       if (!target.store.lastOrderSyncAt) throw ordersImporting();
 

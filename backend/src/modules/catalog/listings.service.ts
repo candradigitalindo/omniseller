@@ -6,8 +6,8 @@ import type { ListingStatus } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
-import { storeNotActive } from "../channel/channel.errors";
-import { channelDisplayName, StoresService } from "../channel/stores.service";
+import { storeIsManual, storeNotActive } from "../channel/channel.errors";
+import { channelDisplayName, isManualChannel, StoresService } from "../channel/stores.service";
 import { listingNotFound, variantUnavailable } from "./catalog.errors";
 import { listingMapped, listingPullRequested, listingStatusPushRequested, listingUnmapped } from "./catalog.events";
 import { CatalogRepository, type ListingRow, type ListingWithVariant, normSku } from "./catalog.repository";
@@ -408,6 +408,7 @@ export class ListingsService {
   /** Pulls listings again: incremental by default, everything (and closing deleted ones) with `full`. */
   async requestPull(ctx: RequestContext, storeId: string, full: boolean): Promise<void> {
     const view = await this.stores.get(ctx, storeId);
+    if (isManualChannel(view.store.channel)) throw storeIsManual();
     if (!USABLE.has(view.store.status)) throw storeNotActive();
     await withTenantTx(this.db, ctx, (tx) =>
       this.outbox.enqueue(tx, ctx, listingPullRequested, { storeId, mode: full ? "full" : "incremental" }, storeId),

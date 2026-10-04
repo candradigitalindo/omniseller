@@ -246,3 +246,185 @@ export async function renderPickList(input: {
   });
   return { pdf: await doc.save(), pages: pages.length };
 }
+
+export interface ManualLabel {
+  number: string;
+  orderedAt: Date;
+  /** The business, printed above the order number. */
+  business: string;
+  /** The order's warehouse (FR-WHS-08): who answers there, phone, address. */
+  sender: { name: string; phone: string | null; address: string };
+  recipient: { name: string; phone: string | null; address: string };
+  /** "J&T Express · Reguler" */
+  courier: string | null;
+  trackingNumber: string | null;
+  /** Amount the courier collects; null for orders paid already. */
+  cod: number | null;
+  items: { sku: string; name: string; qty: number }[];
+  weightG: number | null;
+  note: string | null;
+}
+
+const BLACK = rgb(0, 0, 0);
+const WHITE = rgb(1, 1, 1);
+const day = new Intl.DateTimeFormat("id-ID", {
+  timeZone: "Asia/Jakarta",
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
+/** Words laid into lines no wider than `width`; the last allowed line ends with "…" when text remains. */
+function wrap(font: PDFFont, text: string, size: number, width: number, maxLines: number): string[] {
+  const lines: string[] = [];
+  let line = "";
+  const words = text.split(" ").filter(Boolean);
+  for (const [i, word] of words.entries()) {
+    const next = line ? `${line} ${word}` : word;
+    if (font.widthOfTextAtSize(next, size) <= width) {
+      line = next;
+      continue;
+    }
+    if (line) lines.push(line);
+    line = word;
+    if (lines.length === maxLines) {
+      lines[maxLines - 1] = clip(font, `${lines[maxLines - 1]} ${words.slice(i).join(" ")}`, size, width);
+      return lines;
+    }
+  }
+  if (line) lines.push(lines.length === maxLines ? "" : line);
+  return lines.filter(Boolean).map((l) => clip(font, l, size, width));
+}
+
+/**
+ * The address label of a manual order (FR-ORD-09, FR-WHS-08), 100 x 150 mm: order number, courier and
+ * tracking number, the amount to collect for COD, recipient, the sender as the order's warehouse, and
+ * what is in the parcel. Marketplace orders use the marketplace's own label instead.
+ */
+export async function renderManualLabel(label: ManualLabel): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  doc.registerFontkit(fontkit);
+  doc.setTitle(`Label ${label.number}`);
+  doc.setCreator("OmniSeller");
+  doc.setProducer("OmniSeller");
+  const regular = await doc.embedFont(fonts().regular, { subset: true });
+  const bold = await doc.embedFont(fonts().bold, { subset: true });
+  const supported = new Set(regular.getCharacterSet());
+  const t = (s: string) => drawable(supported, s);
+  const page = doc.addPage([THERMAL_PAGE.width, THERMAL_PAGE.height]);
+  const m = 3 * MM;
+  const width = THERMAL_PAGE.width - 2 * m;
+  let y = THERMAL_PAGE.height - m;
+  const rule = () => {
+    page.drawLine({ start: { x: m, y }, end: { x: m + width, y }, thickness: 0.8, color: BLACK });
+    y -= 6;
+  };
+  const right = (text: string, font: PDFFont, size: number, at: number, color = BLACK) =>
+    page.drawText(text, { x: m + width - font.widthOfTextAtSize(text, size), y: at, size, font, color });
+
+  // header: business and order number, courier and date
+  const number = t(label.number);
+  right(number, bold, 11, y - 11);
+  const leftWidth = width - bold.widthOfTextAtSize(number, 11) - 8;
+  page.drawText(clip(bold, t(label.business), 10, leftWidth), { x: m, y: y - 11, size: 10, font: bold });
+  y -= 24;
+  right(day.format(label.orderedAt), regular, 8, y, GRAY);
+  if (label.courier) page.drawText(clip(regular, t(label.courier), 9, leftWidth), { x: m, y, size: 9, font: regular });
+  y -= 8;
+  rule();
+
+  if (label.trackingNumber) {
+    page.drawText("Resi", { x: m, y: y - 8, size: 7.5, font: regular, color: GRAY });
+    page.drawText(clip(bold, t(label.trackingNumber), 15, width), { x: m, y: y - 24, size: 15, font: bold });
+    y -= 32;
+  }
+
+  // what the courier collects
+  const box = 24;
+  if (label.cod !== null) {
+    page.drawRectangle({ x: m, y: y - box, width, height: box, color: BLACK });
+    const text = `COD  Rp${label.cod.toLocaleString("id-ID")}`;
+    page.drawText(text, {
+      x: m + (width - bold.widthOfTextAtSize(text, 14)) / 2,
+      y: y - 17,
+      size: 14,
+      font: bold,
+      color: WHITE,
+    });
+  } else {
+    page.drawRectangle({ x: m, y: y - box, width, height: box, borderColor: BLACK, borderWidth: 1 });
+    const text = "NON-COD";
+    page.drawText(text, { x: m + (width - bold.widthOfTextAtSize(text, 11)) / 2, y: y - 16, size: 11, font: bold });
+  }
+  y -= box + 10;
+
+  // recipient
+  page.drawText("PENERIMA", { x: m, y: y - 7, size: 7.5, font: bold, color: GRAY });
+  y -= 20;
+  page.drawText(clip(bold, t(label.recipient.name), 12, width), { x: m, y, size: 12, font: bold });
+  y -= 14;
+  if (label.recipient.phone) {
+    page.drawText(t(label.recipient.phone), { x: m, y, size: 10, font: regular });
+    y -= 13;
+  }
+  for (const line of wrap(regular, t(label.recipient.address), 9.5, width, 5)) {
+    page.drawText(line, { x: m, y, size: 9.5, font: regular });
+    y -= 12;
+  }
+  y -= 2;
+  rule();
+
+  // sender: the order's warehouse
+  page.drawText("PENGIRIM", { x: m, y: y - 7, size: 7.5, font: bold, color: GRAY });
+  y -= 18;
+  const sender = [label.sender.name, label.sender.phone].filter(Boolean).join(" · ");
+  page.drawText(clip(bold, t(sender), 9.5, width), { x: m, y, size: 9.5, font: bold });
+  y -= 11;
+  for (const line of wrap(regular, t(label.sender.address), 8.5, width, 3)) {
+    page.drawText(line, { x: m, y, size: 8.5, font: regular });
+    y -= 10.5;
+  }
+  y -= 2;
+  rule();
+
+  // what is in the parcel, as many lines as fit above the footer
+  const units = label.items.reduce((n, i) => n + i.qty, 0);
+  page.drawText(`ISI PAKET (${units} barang)`, { x: m, y: y - 7, size: 7.5, font: bold, color: GRAY });
+  y -= 18;
+  const footer = m + (label.note ? 34 : 12);
+  const fits = Math.max(1, Math.floor((y - footer) / 10.5));
+  const shown = label.items.length > fits ? label.items.slice(0, fits - 1) : label.items;
+  for (const i of shown) {
+    page.drawText(clip(regular, t(`${i.qty}x  ${i.sku}  ${i.name}`), 8.5, width), {
+      x: m,
+      y,
+      size: 8.5,
+      font: regular,
+    });
+    y -= 10.5;
+  }
+  if (shown.length < label.items.length) {
+    page.drawText(`+${label.items.length - shown.length} baris lainnya`, {
+      x: m,
+      y,
+      size: 8.5,
+      font: regular,
+      color: GRAY,
+    });
+  }
+
+  // footer: weight and the buyer's note
+  let fy = m + 2;
+  if (label.weightG) {
+    const kg = `Berat ± ${(label.weightG / 1000).toLocaleString("id-ID", { maximumFractionDigits: 2 })} kg`;
+    right(kg, regular, 8, fy, GRAY);
+  }
+  if (label.note) {
+    fy += 10;
+    for (const line of wrap(regular, t(`Catatan: ${label.note}`), 8, width, 2).reverse()) {
+      page.drawText(line, { x: m, y: fy, size: 8, font: regular });
+      fy += 10;
+    }
+  }
+  return doc.save();
+}

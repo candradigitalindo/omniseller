@@ -7,6 +7,7 @@ import type { StockReferenceType } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
+import { type Allocation, type AllocationLine, chooseWarehouse } from "./allocation-plan";
 import { duplicateLine, stockInsufficient, variantNotFound, warehouseNotFound } from "./inventory.errors";
 import { inventoryChanged } from "./inventory.events";
 import { InventoryRepository, type MovementRow, type StockSummary, type VariantInfo } from "./inventory.repository";
@@ -282,6 +283,40 @@ export class InventoryService {
         { available: r.available ?? r.onHand - r.reserved - r.buffer, established: r.stockSetAt !== null },
       ]),
     );
+  }
+
+  /**
+   * The warehouse for an order no marketplace placed (PRD FR-ORD-12, backend doc 8.21): among the active
+   * warehouses (only those in `within` when given, the caller's warehouse scope), the nearest to the
+   * buyer that has every item in stock; else `home` or the default (allocation-plan.ts).
+   */
+  async allocateIn(
+    tx: Tx,
+    input: {
+      lines: readonly AllocationLine[];
+      buyerProvince: string | null;
+      home: string | null;
+      within?: ReadonlySet<string> | null;
+    },
+  ): Promise<Allocation> {
+    const warehouses = (await this.warehouses.activeIn(tx)).filter((w) => !input.within || input.within.has(w.id));
+    const stock = await this.stockIn(
+      tx,
+      input.lines.map((l) => l.variantId),
+      warehouses.map((w) => w.id),
+    );
+    return chooseWarehouse({
+      warehouses: warehouses.map((w) => ({
+        id: w.id,
+        name: w.name,
+        province: w.address.province ?? null,
+        isDefault: w.isDefault,
+      })),
+      lines: input.lines,
+      stock,
+      buyerProvince: input.buyerProvince,
+      home: input.home,
+    });
   }
 
   /** Critical stock in the caller's warehouses (dashboard, FR-RPT-01), with warehouse names. */

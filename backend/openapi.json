@@ -750,6 +750,171 @@
         "x-isolation": {
           "fixture": "warehouse"
         }
+      },
+      "post": {
+        "operationId": "WarehousesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWarehouseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WarehouseDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "warehouses"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/warehouses/{id}": {
+      "get": {
+        "operationId": "WarehousesController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WarehouseDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "warehouses"
+        ],
+        "x-isolation": {
+          "fixture": "warehouse"
+        }
+      },
+      "patch": {
+        "operationId": "WarehousesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWarehouseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WarehouseDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "warehouses"
+        ],
+        "x-isolation": {
+          "fixture": "warehouse"
+        }
+      },
+      "delete": {
+        "operationId": "WarehousesController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "warehouses"
+        ],
+        "x-isolation": {
+          "fixture": "warehouse"
+        }
+      }
+    },
+    "/v1/warehouses/{id}/default": {
+      "post": {
+        "operationId": "WarehousesController_makeDefault",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WarehouseDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "warehouses"
+        ],
+        "x-isolation": {
+          "fixture": "warehouse"
+        }
       }
     },
     "/v1/inventory/restock": {
@@ -1630,6 +1795,38 @@
         "x-isolation": {
           "fixture": "store"
         }
+      }
+    },
+    "/v1/stores/manual": {
+      "post": {
+        "operationId": "StoresController_createManual",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateManualStoreDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stores"
+        ],
+        "x-isolation": "self"
       }
     },
     "/v1/stores/{id}": {
@@ -2772,6 +2969,16 @@
             }
           },
           {
+            "name": "tagId",
+            "required": false,
+            "in": "query",
+            "description": "pesanan yang memakai tag ini (FR-ORD-04)",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          {
             "name": "sort",
             "required": false,
             "in": "query",
@@ -2914,6 +3121,84 @@
         }
       }
     },
+    "/v1/orders/manual": {
+      "post": {
+        "operationId": "OrdersController_createManual",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "8-100 karakter; mencegah pesanan ganda",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateManualOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "orders"
+        ],
+        "x-isolation": {
+          "fixture": "store"
+        }
+      }
+    },
+    "/v1/orders/tags": {
+      "post": {
+        "operationId": "OrdersController_setTags",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderTagsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderTagsResultDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "orders"
+        ],
+        "x-isolation": {
+          "fixture": "order"
+        }
+      }
+    },
     "/v1/orders/sync": {
       "post": {
         "operationId": "OrdersController_sync",
@@ -2965,6 +3250,207 @@
                 }
               }
             }
+          }
+        },
+        "tags": [
+          "orders"
+        ],
+        "x-isolation": {
+          "fixture": "order"
+        }
+      },
+      "patch": {
+        "operationId": "OrdersController_updateManual",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateManualOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "orders"
+        ],
+        "x-isolation": {
+          "fixture": "order"
+        }
+      }
+    },
+    "/v1/orders/{id}/pay": {
+      "post": {
+        "operationId": "OrdersController_pay",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "orders"
+        ],
+        "x-isolation": {
+          "fixture": "order"
+        }
+      }
+    },
+    "/v1/orders/{id}/ship": {
+      "post": {
+        "operationId": "OrdersController_ship",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShipOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "orders"
+        ],
+        "x-isolation": {
+          "fixture": "order"
+        }
+      }
+    },
+    "/v1/orders/{id}/complete": {
+      "post": {
+        "operationId": "OrdersController_complete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "orders"
+        ],
+        "x-isolation": {
+          "fixture": "order"
+        }
+      }
+    },
+    "/v1/orders/{id}/warehouse": {
+      "put": {
+        "operationId": "OrdersController_changeWarehouse",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeWarehouseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
           }
         },
         "tags": [
@@ -3126,6 +3612,129 @@
         ],
         "x-isolation": {
           "fixture": "order"
+        }
+      }
+    },
+    "/v1/tags": {
+      "get": {
+        "operationId": "TagsController_list",
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagListDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "orders"
+        ],
+        "x-isolation": {
+          "fixture": "tag"
+        }
+      },
+      "post": {
+        "operationId": "TagsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTagDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "orders"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/tags/{id}": {
+      "patch": {
+        "operationId": "TagsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTagDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "orders"
+        ],
+        "x-isolation": {
+          "fixture": "tag"
+        }
+      },
+      "delete": {
+        "operationId": "TagsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "orders"
+        ],
+        "x-isolation": {
+          "fixture": "tag"
         }
       }
     },
@@ -5501,10 +6110,35 @@
                 },
                 "address": {
                   "type": "object",
-                  "propertyNames": {
-                    "type": "string"
+                  "properties": {
+                    "contactName": {
+                      "type": "string"
+                    },
+                    "phone": {
+                      "type": "string"
+                    },
+                    "line1": {
+                      "type": "string"
+                    },
+                    "district": {
+                      "type": "string"
+                    },
+                    "city": {
+                      "type": "string"
+                    },
+                    "province": {
+                      "type": "string"
+                    },
+                    "postalCode": {
+                      "type": "string"
+                    }
                   },
-                  "additionalProperties": {}
+                  "additionalProperties": false
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                 }
               },
               "required": [
@@ -5513,7 +6147,8 @@
                 "name",
                 "isDefault",
                 "active",
-                "address"
+                "address",
+                "createdAt"
               ],
               "additionalProperties": false
             }
@@ -5523,6 +6158,175 @@
           "items"
         ],
         "additionalProperties": false
+      },
+      "CreateWarehouseDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Z0-9-]{2,20}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "address": {
+            "default": {},
+            "type": "object",
+            "properties": {
+              "contactName": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "phone": {
+                "type": "string",
+                "pattern": "^\\+?[0-9][0-9 ()-]{5,19}$"
+              },
+              "line1": {
+                "type": "string",
+                "maxLength": 300
+              },
+              "district": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "city": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "province": {
+                "description": "nama provinsi; nama yang dikenal disimpan dalam bentuk bakunya",
+                "type": "string",
+                "maxLength": 100
+              },
+              "postalCode": {
+                "type": "string",
+                "pattern": "^[0-9]{5}$"
+              }
+            }
+          },
+          "isDefault": {
+            "description": "jadikan gudang utama",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ]
+      },
+      "WarehouseDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "address": {
+            "type": "object",
+            "properties": {
+              "contactName": {
+                "type": "string"
+              },
+              "phone": {
+                "type": "string"
+              },
+              "line1": {
+                "type": "string"
+              },
+              "district": {
+                "type": "string"
+              },
+              "city": {
+                "type": "string"
+              },
+              "province": {
+                "type": "string"
+              },
+              "postalCode": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "isDefault",
+          "active",
+          "address",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateWarehouseDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Z0-9-]{2,20}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "address": {
+            "description": "menggantikan seluruh alamat",
+            "type": "object",
+            "properties": {
+              "contactName": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "phone": {
+                "type": "string",
+                "pattern": "^\\+?[0-9][0-9 ()-]{5,19}$"
+              },
+              "line1": {
+                "type": "string",
+                "maxLength": 300
+              },
+              "district": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "city": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "province": {
+                "description": "nama provinsi; nama yang dikenal disimpan dalam bentuk bakunya",
+                "type": "string",
+                "maxLength": 100
+              },
+              "postalCode": {
+                "type": "string",
+                "pattern": "^[0-9]{5}$"
+              }
+            }
+          }
+        }
       },
       "RestockListDto_Output": {
         "type": "object",
@@ -7421,6 +8225,10 @@
                   },
                   "additionalProperties": {}
                 },
+                "autoAllocate": {
+                  "type": "boolean",
+                  "description": "pesanan toko tanpa multi-gudang dikirim dari gudang terdekat yang stoknya cukup (FR-ORD-12)"
+                },
                 "createdAt": {
                   "type": "string",
                   "format": "date-time",
@@ -7451,6 +8259,7 @@
                 "lastProductSyncAt",
                 "lastOrderSyncAt",
                 "marketplaceInfo",
+                "autoAllocate",
                 "createdAt"
               ],
               "additionalProperties": false
@@ -7461,6 +8270,31 @@
           "items"
         ],
         "additionalProperties": false
+      },
+      "CreateManualStoreDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "defaultWarehouseId": {
+            "description": "gudang bawaan; kosong: dipilih otomatis per pesanan",
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name"
+        ]
       },
       "StoreDto_Output": {
         "type": "object",
@@ -7659,6 +8493,10 @@
             },
             "additionalProperties": {}
           },
+          "autoAllocate": {
+            "type": "boolean",
+            "description": "pesanan toko tanpa multi-gudang dikirim dari gudang terdekat yang stoknya cukup (FR-ORD-12)"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -7689,6 +8527,7 @@
           "lastProductSyncAt",
           "lastOrderSyncAt",
           "marketplaceInfo",
+          "autoAllocate",
           "createdAt"
         ],
         "additionalProperties": false
@@ -7718,6 +8557,10 @@
               "read_only",
               "live"
             ]
+          },
+          "autoAllocate": {
+            "description": "alokasi gudang otomatis untuk toko tanpa multi-gudang",
+            "type": "boolean"
           }
         }
       },
@@ -7921,6 +8764,10 @@
                 },
                 "additionalProperties": {}
               },
+              "autoAllocate": {
+                "type": "boolean",
+                "description": "pesanan toko tanpa multi-gudang dikirim dari gudang terdekat yang stoknya cukup (FR-ORD-12)"
+              },
               "createdAt": {
                 "type": "string",
                 "format": "date-time",
@@ -7951,6 +8798,7 @@
               "lastProductSyncAt",
               "lastOrderSyncAt",
               "marketplaceInfo",
+              "autoAllocate",
               "createdAt"
             ],
             "additionalProperties": false
@@ -10542,6 +11390,33 @@
                 "cancelRequested": {
                   "type": "boolean"
                 },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "color": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "color"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
                 "orderedAt": {
                   "type": "string",
                   "format": "date-time",
@@ -10571,6 +11446,7 @@
                 "warehouseId",
                 "problems",
                 "cancelRequested",
+                "tags",
                 "orderedAt"
               ],
               "additionalProperties": false
@@ -10698,16 +11574,171 @@
         ],
         "additionalProperties": false
       },
-      "OrderSyncDto": {
+      "CreateManualOrderDto": {
         "type": "object",
         "properties": {
           "storeId": {
+            "description": "saluran pesanan manual; kosong: saluran pertama, dibuat otomatis bila belum ada",
             "type": "string",
             "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "warehouseId": {
+            "description": "kosong: gudang terdekat dengan pembeli yang stoknya cukup",
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "buyer": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "phone": {
+                "type": "string",
+                "pattern": "^\\+?[0-9][0-9 ()-]{5,19}$"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "shippingAddress": {
+            "description": "kosong: diambil pembeli atau dijual di tempat",
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "description": "penerima; bawaan nama pembeli",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "phone": {
+                    "description": "telepon penerima; bawaan telepon pembeli",
+                    "type": "string",
+                    "pattern": "^\\+?[0-9][0-9 ()-]{5,19}$"
+                  },
+                  "line1": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 300
+                  },
+                  "district": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "city": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "province": {
+                    "description": "dipakai untuk mencari gudang terdekat",
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "postalCode": {
+                    "type": "string",
+                    "pattern": "^[0-9]{5}$"
+                  }
+                },
+                "required": [
+                  "line1"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "minItems": 1,
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "variantId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "qty": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9999
+                },
+                "unitPrice": {
+                  "description": "harga per unit; kosong: harga dasar varian",
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1000000000
+                }
+              },
+              "required": [
+                "variantId",
+                "qty"
+              ]
+            }
+          },
+          "shippingFee": {
+            "default": 0,
+            "description": "ongkir yang dibayar pembeli",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000000
+          },
+          "discount": {
+            "default": 0,
+            "description": "potongan untuk seluruh pesanan",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000000
+          },
+          "paymentMethod": {
+            "type": "string",
+            "enum": [
+              "transfer",
+              "cash",
+              "ewallet",
+              "cod",
+              "other"
+            ]
+          },
+          "paid": {
+            "description": "sudah dibayar; bawaan: tunai sudah, lainnya belum. COD dibayar saat barang diterima",
+            "type": "boolean"
+          },
+          "shippingProvider": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "shippingService": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "buyerNote": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "internalNote": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "orderedAt": {
+            "description": "waktu pesanan; bawaan sekarang, paling lama 90 hari ke belakang",
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
           }
         },
         "required": [
-          "storeId"
+          "buyer",
+          "items",
+          "paymentMethod"
         ]
       },
       "OrderDto_Output": {
@@ -10998,6 +12029,33 @@
           "cancelRequested": {
             "type": "boolean"
           },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "color": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "color"
+              ],
+              "additionalProperties": false
+            }
+          },
           "orderedAt": {
             "type": "string",
             "format": "date-time",
@@ -11253,6 +12311,28 @@
               "type": "string"
             }
           },
+          "paymentMethod": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "transfer",
+                  "cash",
+                  "ewallet",
+                  "cod",
+                  "other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "pesanan manual: cara bayar"
+          },
+          "warehouseFixed": {
+            "type": "boolean",
+            "description": "gudang ditetapkan marketplace (toko multi-gudang); pesanan lain bisa pindah gudang sebelum dikemas"
+          },
           "events": {
             "type": "array",
             "items": {
@@ -11379,6 +12459,7 @@
           "warehouseId",
           "problems",
           "cancelRequested",
+          "tags",
           "orderedAt",
           "items",
           "buyerUsername",
@@ -11398,9 +12479,273 @@
           "cancelledAt",
           "cancelReason",
           "cancelledBy",
+          "paymentMethod",
+          "warehouseFixed",
           "events"
         ],
         "additionalProperties": false
+      },
+      "OrderTagsDto": {
+        "type": "object",
+        "properties": {
+          "orderIds": {
+            "minItems": 1,
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+            }
+          },
+          "add": {
+            "default": [],
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+            }
+          },
+          "remove": {
+            "default": [],
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+            }
+          }
+        },
+        "required": [
+          "orderIds"
+        ]
+      },
+      "OrderTagsResultDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "orderId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "color": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "color"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "orderId",
+                "tags"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "OrderSyncDto": {
+        "type": "object",
+        "properties": {
+          "storeId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          }
+        },
+        "required": [
+          "storeId"
+        ]
+      },
+      "UpdateManualOrderDto": {
+        "type": "object",
+        "properties": {
+          "buyer": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "phone": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\+?[0-9][0-9 ()-]{5,19}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          },
+          "shippingAddress": {
+            "description": "menggantikan seluruh alamat; null: tanpa kirim",
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "description": "penerima; bawaan nama pembeli",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "phone": {
+                    "description": "telepon penerima; bawaan telepon pembeli",
+                    "type": "string",
+                    "pattern": "^\\+?[0-9][0-9 ()-]{5,19}$"
+                  },
+                  "line1": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 300
+                  },
+                  "district": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "city": {
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "province": {
+                    "description": "dipakai untuk mencari gudang terdekat",
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "postalCode": {
+                    "type": "string",
+                    "pattern": "^[0-9]{5}$"
+                  }
+                },
+                "required": [
+                  "line1"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shippingProvider": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "shippingService": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trackingNumber": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "buyerNote": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "PayOrderDto": {
+        "type": "object",
+        "properties": {
+          "paidAt": {
+            "description": "bawaan sekarang",
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        }
+      },
+      "ShipOrderDto": {
+        "type": "object",
+        "properties": {
+          "shippingProvider": {
+            "description": "kurir, misalnya JNE atau J&T Express",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "trackingNumber": {
+            "description": "nomor resi",
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 60
+          }
+        }
+      },
+      "ChangeWarehouseDto": {
+        "type": "object",
+        "properties": {
+          "warehouseId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          }
+        },
+        "required": [
+          "warehouseId"
+        ]
       },
       "CancelReasonsDto_Output": {
         "type": "object",
@@ -11473,6 +12818,125 @@
           "resolution": {
             "type": "string",
             "maxLength": 500
+          }
+        }
+      },
+      "TagListDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "color": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "orders": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "pesanan yang memakai tag ini"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "color",
+                "orders"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "CreateTagDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^#[0-9A-Fa-f]{6}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "TagDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "color": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "orders": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "pesanan yang memakai tag ini"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "color",
+          "orders"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateTagDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^#[0-9A-Fa-f]{6}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },

@@ -6,8 +6,8 @@ import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
-import { channelWarehouseNotFound, storeNotFound } from "../channel/channel.errors";
-import { StoresService } from "../channel/stores.service";
+import { channelWarehouseNotFound, storeIsManual, storeNotFound } from "../channel/channel.errors";
+import { isManualChannel, StoresService } from "../channel/stores.service";
 import { ruleDuplicate, ruleInvalid, ruleNotFound, storeNotLive, variantNotFound } from "./inventory.errors";
 import { stockResyncRequested } from "./inventory.events";
 import { InventoryRepository, type RuleRow } from "./inventory.repository";
@@ -58,6 +58,8 @@ export class AllocationRulesService {
         if (!this.stores.inScope(ctx, input.storeId)) throw storeNotFound();
         const target = (await this.stores.stockTargetsIn(tx, [input.storeId])).get(input.storeId);
         if (!target) throw storeNotFound();
+        // manual sales channels sell from OmniSeller's own stock: nothing is pushed to them
+        if (isManualChannel(target.store.channel)) throw storeIsManual();
         if (input.channelWarehouseId) {
           const cw = target.warehouses.find((w) => w.id === input.channelWarehouseId);
           if (cw?.kind !== "seller") throw channelWarehouseNotFound();
@@ -115,6 +117,7 @@ export class AllocationRulesService {
       if (!this.stores.inScope(ctx, storeId)) throw storeNotFound();
       const target = (await this.stores.stockTargetsIn(tx, [storeId])).get(storeId);
       if (!target) throw storeNotFound();
+      if (isManualChannel(target.store.channel)) throw storeIsManual();
       if (!target.usable || target.store.syncMode !== "live") throw storeNotLive();
       await this.outbox.enqueue(tx, ctx, stockResyncRequested, { storeId, force: true }, storeId);
     });

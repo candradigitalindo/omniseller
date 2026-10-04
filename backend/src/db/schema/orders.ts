@@ -18,6 +18,9 @@ export const pickWave = pgTable("pick_wave", {
   note: text("note"),
 });
 
+export const PAYMENT_METHODS = ["transfer", "cash", "ewallet", "cod", "other"] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
 export interface ShippingAddress {
   name?: string;
   phone?: string;
@@ -85,6 +88,8 @@ export const order = pgTable("order", {
   slaAlertLevel: text("sla_alert_level").$type<"warning" | "overdue">(),
   /** Waits for the next new-order notification (FR-NTF-01). */
   notifyNew: boolean("notify_new").notNull().default(false),
+  /** How a manual order is paid (FR-ORD-09); NULL for marketplace orders. */
+  paymentMethod: text("payment_method").$type<PaymentMethod>(),
 });
 
 /** Enforces (store_id, external_order_id) uniqueness, which the partitioned order table cannot. */

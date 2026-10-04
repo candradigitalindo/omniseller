@@ -5,15 +5,18 @@ import type { DbHandle } from "../../db/client";
 import type { DocumentResult } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
+import { isManualChannel } from "../channel/stores.service";
 import { FilesService } from "../files/files.service";
+import { TenantsService } from "../identity/tenants.service";
 import { InventoryService } from "../inventory/inventory.service";
-import { WarehousesService } from "../inventory/warehouses.service";
+import { addressLine, WarehousesService, type WarehouseView } from "../inventory/warehouses.service";
 import { OrderIntakeService } from "../orders/order-intake.service";
+import type { OrderItemRow, OrderRow } from "../orders/orders.repository";
 import { OrdersService } from "../orders/orders.service";
 import { type DocumentRow, FulfillmentRepository, type PackageRow, type ShipmentRow } from "./fulfillment.repository";
-import { composeLabels, renderPickList } from "./pdf";
+import { composeLabels, type ManualLabel, renderManualLabel, renderPickList } from "./pdf";
 import { type Missing, PickListBuilder } from "./pick-list.builder";
-import { labelSequence } from "./shipping-plan";
+import { labelSequence, manualLabelRefusal } from "./shipping-plan";
 
 const log = logger.forModule("fulfillment.documents");
 
@@ -68,6 +71,7 @@ export class DocumentRenderService {
     @Inject(InventoryService) private readonly inventory: InventoryService,
     @Inject(WarehousesService) private readonly warehouses: WarehousesService,
     @Inject(FilesService) private readonly files: FilesService,
+    @Inject(TenantsService) private readonly tenants: TenantsService,
   ) {}
 
   async render(ctx: RequestContext, documentId: string): Promise<void> {
@@ -119,6 +123,7 @@ export class DocumentRenderService {
 
   private async labels(ctx: RequestContext, doc: DocumentRow): Promise<Rendered> {
     const ids = doc.params.orderIds;
+    const business = (await this.tenants.profile(ctx)).name;
     const data = await withTenantTx(this.db, ctx, async (tx) => {
       const { orders, items } = await this.orders.readIn(tx, ids);
       const shipments = await this.repo.liveFor(tx, ids);
@@ -139,9 +144,13 @@ export class DocumentRenderService {
     });
 
     const missing: Missing[] = [];
+    // manual orders have no marketplace label: OmniSeller draws theirs (FR-WHS-08)
+    const manual = new Map(data.orders.filter((o) => isManualChannel(o.channel)).map((o) => [o.id, o]));
     const printable = data.orders.filter((o) => {
       const s = data.shipments.find((x) => x.orderId === o.id);
-      const why = whyNoLabel(s, s ? data.packages.filter((p) => p.shipmentId === s.id) : []);
+      const why = manual.has(o.id)
+        ? manualLabelRefusal({ status: o.status, hasAddress: !!o.shippingAddress?.line1 })
+        : whyNoLabel(s, s ? data.packages.filter((p) => p.shipmentId === s.id) : []);
       if (why) missing.push({ orderId: o.id, ...why });
       return !why;
     });
@@ -165,6 +174,12 @@ export class DocumentRenderService {
     const files: Uint8Array[] = [];
     const owner: string[] = [];
     for (const orderId of sequence) {
+      const own = manual.get(orderId);
+      if (own) {
+        files.push(await renderManualLabel(this.manualLabel(own, data, business)));
+        owner.push(orderId);
+        continue;
+      }
       const s = data.shipments.find((x) => x.orderId === orderId)!;
       const bytes: Uint8Array[] = [];
       for (const p of data.packages.filter((x) => x.shipmentId === s.id)) {
@@ -193,6 +208,53 @@ export class DocumentRenderService {
       pages: composed.pages,
       result: { orders: printed.length, labels: composed.labels, missing },
       printed,
+    };
+  }
+
+  /** What goes on a manual order's label; the sender is its warehouse (FR-WHS-08). */
+  private manualLabel(
+    o: OrderRow,
+    data: {
+      items: OrderItemRow[];
+      warehouses: WarehouseView[];
+      info: { variants: Map<string, { sku: string; productName: string; variantName: string; weightG: number }> };
+    },
+    business: string,
+  ): ManualLabel {
+    const w = data.warehouses.find((x) => x.id === o.warehouseId);
+    const a = o.shippingAddress ?? {};
+    const lines = data.items.filter((i) => i.orderId === o.id && i.qty - i.cancelledQty > 0);
+    const weights = lines.map((i) => (i.variantId ? data.info.variants.get(i.variantId)?.weightG : undefined));
+    return {
+      number: o.externalOrderId,
+      orderedAt: o.orderedAt,
+      business,
+      sender: {
+        name: w?.address.contactName ?? business,
+        phone: w?.address.phone ?? null,
+        address: w ? addressLine(w.address) || w.name : "",
+      },
+      recipient: {
+        name: a.name ?? o.buyerName ?? "",
+        phone: a.phone ?? o.buyerPhone,
+        address: [a.line1, a.district, a.city, a.province, a.postalCode].filter(Boolean).join(", "),
+      },
+      courier: [o.shippingProvider, o.shippingService].filter(Boolean).join(" · ") || null,
+      trackingNumber: o.trackingNumber,
+      cod: o.isCod ? o.total : null,
+      items: lines.map((i) => {
+        const v = i.variantId ? data.info.variants.get(i.variantId) : undefined;
+        const name = v
+          ? v.variantName !== v.productName
+            ? `${v.productName} ${v.variantName}`
+            : v.productName
+          : i.titleSnapshot;
+        return { sku: v?.sku ?? i.skuSnapshot, name, qty: i.qty - i.cancelledQty };
+      }),
+      weightG: weights.every((g) => g !== undefined)
+        ? lines.reduce((n, i, k) => n + weights[k]! * (i.qty - i.cancelledQty), 0)
+        : null,
+      note: o.buyerNote,
     };
   }
 

@@ -52,6 +52,8 @@ export interface OrderListFilter {
   cod?: boolean | undefined;
   /** Still to ship with a ship-by deadline before this moment ("Hampir terlambat"). */
   dueBefore?: Date | undefined;
+  /** Orders carrying this tag (FR-ORD-04). */
+  tagId?: string | undefined;
 }
 
 export type OrderSort = "newest" | "ship_by";
@@ -285,6 +287,9 @@ export class OrdersRepository {
         ? sql`EXISTS (SELECT 1 FROM order_problem p WHERE p.order_id = ${sql.raw('"order"."id"')}
                          AND p.code = ${f.problem} AND p.resolved_at IS NULL)`
         : undefined,
+      f.tagId
+        ? sql`EXISTS (SELECT 1 FROM order_tag t WHERE t.order_id = ${sql.raw('"order"."id"')} AND t.tag_id = ${f.tagId})`
+        : undefined,
       q
         ? or(
             ilike(o.externalOrderId, `%${q}%`),
@@ -443,6 +448,24 @@ export class OrdersRepository {
       costedRevenue: Number(r?.costedRevenue ?? 0),
       profit: Number(r?.profit ?? 0),
     };
+  }
+
+  /** Orders still to ship from a warehouse: the order's warehouse or one of its lines'. */
+  async openInWarehouse(tx: Tx, warehouseId: string): Promise<number> {
+    const [r] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(o)
+      .where(
+        and(
+          inArray(o.status, [...HOLD_STATUSES]),
+          or(
+            eq(o.warehouseId, warehouseId),
+            sql`EXISTS (SELECT 1 FROM order_item i WHERE i.order_id = ${sql.raw('"order"."id"')}
+                          AND i.warehouse_id = ${warehouseId})`,
+          ),
+        ),
+      );
+    return r?.n ?? 0;
   }
 
   /** COD orders whose money has not come in yet: not cancelled, not completed (FR-ORD-15). */

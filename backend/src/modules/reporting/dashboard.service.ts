@@ -5,7 +5,7 @@ import type { DbHandle } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
 import { ListingsService } from "../catalog/listings.service";
-import { StoresService, statusMessage } from "../channel/stores.service";
+import { isManualChannel, StoresService, statusMessage } from "../channel/stores.service";
 import { TenantsService } from "../identity/tenants.service";
 import { InventoryService } from "../inventory/inventory.service";
 import { slaOf } from "../orders/order-plan";
@@ -52,8 +52,12 @@ export class DashboardService {
     const window = rangeWindows(q.range, timezone, now);
     const chartDates = lastDates(timezone, now, CHART_DAYS);
     const topFrom = startOfDate(timezone, lastDates(timezone, now, TOP_DAYS)[0]!);
+    // manual sales channels have no connection whose health could fail
     const storeViews = (await this.stores.list(ctx)).filter(
-      (v) => v.store.status !== "disconnected" && (!q.storeId || v.store.id === q.storeId),
+      (v) =>
+        v.store.status !== "disconnected" &&
+        !isManualChannel(v.store.channel) &&
+        (!q.storeId || v.store.id === q.storeId),
     );
     const filter = { storeId: q.storeId };
 

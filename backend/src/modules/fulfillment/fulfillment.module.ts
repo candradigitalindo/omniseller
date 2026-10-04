@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ChannelModule } from "../channel/channel.module";
+import { IdentityModule } from "../identity/identity.module";
 import { InventoryModule } from "../inventory/inventory-core.module";
 import { OrdersModule, OrdersWorkerModule } from "../orders/orders.module";
 import { SyncModule } from "../sync/sync.module";
@@ -18,7 +19,15 @@ export class FulfillmentModule {}
 
 /** Worker only: arranging at the marketplace, labels, rendering documents. */
 @Module({
-  imports: [FulfillmentModule, OrdersModule, OrdersWorkerModule, InventoryModule, ChannelModule, SyncModule],
+  imports: [
+    FulfillmentModule,
+    OrdersModule,
+    OrdersWorkerModule,
+    InventoryModule,
+    ChannelModule,
+    SyncModule,
+    IdentityModule,
+  ],
   providers: [FulfillmentWorkerService, DocumentRenderService],
   exports: [FulfillmentWorkerService, DocumentRenderService],
 })

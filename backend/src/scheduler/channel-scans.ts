@@ -115,12 +115,13 @@ export async function scanTokenRefresh(
 /**
  * `mp.poll.orders` (every 5 min): an incremental order pull for every connected store, read-only ones
  * included (parallel mode still receives orders and holds stock, FR-MIG-05). It catches what webhooks
- * missed (FR-INT-05); one id per store per 5-minute slot.
+ * missed (FR-INT-05); one id per store per 5-minute slot. Manual sales channels have no marketplace.
  */
 export async function scanOrderPolls(system: DbHandle, queues: QueueRegistry, registry: JobRegistry, now = new Date()) {
   const rows = await withSystemTx(system, async (tx) => {
     const r = await tx.execute<{ store_id: string; tenant_id: string }>(sql`
-      SELECT id AS store_id, tenant_id FROM store WHERE status IN ('active', 'token_expiring') ORDER BY id`);
+      SELECT id AS store_id, tenant_id FROM store
+       WHERE status IN ('active', 'token_expiring') AND channel <> 'manual' ORDER BY id`);
     return r.rows;
   });
   const slot = `o${Math.floor(now.getTime() / ORDER_POLL_SLOT_MS)}`;
@@ -140,7 +141,7 @@ export async function scanOrderPolls(system: DbHandle, queues: QueueRegistry, re
 /**
  * `mp.poll.warehouses` (every 6 h): refreshes the marketplace warehouse list of every usable store,
  * re-checks per-shop webhook subscriptions (new topics reach shops connected earlier), and runs the
- * incremental listing pull (`mp.poll.products`).
+ * incremental listing pull (`mp.poll.products`). Manual sales channels are skipped.
  */
 export async function scanWarehousePolls(
   system: DbHandle,
@@ -150,7 +151,8 @@ export async function scanWarehousePolls(
 ) {
   const rows = await withSystemTx(system, async (tx) => {
     const r = await tx.execute<{ store_id: string; tenant_id: string }>(sql`
-      SELECT id AS store_id, tenant_id FROM store WHERE status IN ('active', 'token_expiring') ORDER BY id`);
+      SELECT id AS store_id, tenant_id FROM store
+       WHERE status IN ('active', 'token_expiring') AND channel <> 'manual' ORDER BY id`);
     return r.rows;
   });
   const slot = `p${Math.floor(now.getTime() / WAREHOUSE_POLL_SLOT_MS)}`;

@@ -1,7 +1,7 @@
 # Modul inventory
 
 ## Tanggung jawab
-Gudang, stok, pergerakan stok, aturan alokasi, dan push stok ke marketplace (PRD 6.3, 6.3.1: FR-STK-01 sampai 07, FR-WHS-04, 05, 09, FR-MFS-02, FR-MIG-05; backend doc 8.13, 8.20, dan 9.4). Stock opname, transfer, pembelian, dan cadangan kampanye menyusul.
+Gudang, stok, pergerakan stok, aturan alokasi, dan push stok ke marketplace (PRD 6.3, 6.3.1: FR-STK-01 sampai 07, FR-WHS-04, 05, 09, FR-ORD-12, FR-MFS-02, FR-MIG-05; backend doc 8.13, 8.20, 8.21, dan 9.4). Juga mengelola gudang fisik (tambah, ubah, gudang utama, hapus) dan memilih gudang untuk pesanan yang gudangnya tidak ditetapkan marketplace. Stock opname, transfer, pembelian, dan cadangan kampanye menyusul.
 
 ## Tabel yang dimiliki
 - `warehouse`, `inventory`, `stock_movement`, `stock_allocation_rule`, `listing_stock_state`, `stock_count`, `stock_count_line`, `stock_transfer`, `stock_transfer_line`, `campaign_stock_hold`.
@@ -9,12 +9,19 @@ Gudang, stok, pergerakan stok, aturan alokasi, dan push stok ke marketplace (PRD
 
 ## Modul Nest
 - `InventoryModule` (`inventory-core.module.ts`, api dan worker): `WarehousesService`, `InventoryService`, `InventoryRepository`. Tidak mengimpor catalog atau channel, karena channel bergantung padanya.
-- `InventoryStockModule` (api dan worker): `StockOverviewService`, `InitialStockService`, `AllocationRulesService`, `StockComparisonService`, `RestockService`. Mengimpor `OrdersModule`; orders mengimpor `InventoryModule` dari berkas lain, jadi tidak ada siklus.
+- `InventoryStockModule` (api dan worker): `StockOverviewService`, `InitialStockService`, `AllocationRulesService`, `StockComparisonService`, `RestockService`, `WarehouseAdminService`. Mengimpor `OrdersModule`; orders mengimpor `InventoryModule` dari berkas lain, jadi tidak ada siklus.
 - `InventoryWorkerModule` (worker): `StockPushService`, `StockTriggersService`, `StockAlertsService`.
 - `InventoryHttpModule` (api): `WarehousesController`, `InventoryController`, `StockRulesController`.
 
 ## Service publik
-- `WarehousesService`: `list(ctx)`, `visibleIn(tx, ctx)` (cakupan gudang pengguna), `activeIn(tx)`, `findActiveIn(tx, id)`, `codesIn(tx)` dan `exportSheets()` (`gudang.csv`, backend doc 8.18).
+- `WarehousesService`:
+  - baca: `list(ctx)`, `get(ctx, id)`, `visibleOneIn`, `visibleIn(tx, ctx)` (cakupan gudang pengguna), `activeIn(tx)`, `findActiveIn(tx, id)`;
+  - tulis, untuk `WarehouseAdminService`: `codeTakenIn`, `insertIn`, `updateIn` (`If-Match`), `clearDefaultIn`;
+  - ekspor: `codesIn(tx)` dan `exportSheets()` (`gudang.csv` dengan alamat per kolom, backend doc 8.18).
+
+  `addressLine` menulis alamat dalam satu baris.
+- `WarehouseAdminService` (backend doc 8.21): `create`, `update`, `makeDefault`, `remove`. Error: `warehouse.not_found`, `warehouse.code_taken`, `warehouse.is_default`, `warehouse.in_use`, `warehouse.has_orders`, `warehouse.has_stock`, `row.stale`.
+- `InventoryService.allocateIn(tx, {lines, buyerProvince, home, within})`: gudang terdekat yang memegang semua barang (FR-ORD-12). Keputusannya ada di `allocation-plan.ts` dengan uji unit; provinsi dan pulau di `common/region.ts`.
 - `InventoryService`: `adjust(ctx, {lines, reason, note})`, `establishIn(tx, ctx, lines, meta)` (stok awal, nanti opname), `orderMovementsIn(tx, ctx, moves)` (reservasi, pelepasan, dan pengiriman pesanan; kunci baris berurutan, kekurangan stok fisik dilaporkan), `stockIn`, `pickInfoIn(tx, pairs)` (lokasi rak dan nama varian untuk pick list dan urutan label, modul fulfillment), `setLocation`, `movements`, `summary`, `warehousesIn`; dasbor (8.16): `criticalIn` (stok yang ditetapkan, habis atau di bawah minimum, dalam cakupan gudang), `variantsIn`; peringatan: `stockAlertsIn`; ekspor (8.18): `exportSheets()` (`stok.csv`, `mutasi_stok.csv`). Error: validasi 422 (`lines.<i>.variantId`, `lines.<i>.warehouseId`, `lines.<i>.quantity` untuk stok fisik di bawah nol, `lines.<i>` untuk baris ganda).
 - `StockOverviewService.list`: daftar stok dengan status push per toko.
 - `StockComparisonService.compareIn(tx, ctx, storeId)`: per listing, stok di marketplace (tarikan terakhir, per lokasi) dibanding yang akan dikirim OmniSeller bila toko `live`, dari `planStockPush` tanpa mengirim apa pun (mode paralel, backend doc 8.19).
@@ -40,6 +47,12 @@ Gudang, stok, pergerakan stok, aturan alokasi, dan push stok ke marketplace (PRD
   - Target restock adalah `max(ceil(per hari × targetDays), min_stock + 1)`; saran pesan adalah target dikurangi stok tersedia.
   - Alasan: `out` (habis, padahal laku atau punya minimum), `below_min`, dan `low_cover` (cukup untuk kurang dari `coverDays` hari).
   - Hanya stok yang sudah ditetapkan, dari varian dan produk aktif.
+- Gudang:
+  - Kode unik termasuk gudang yang dihapus.
+  - Penghapusan lunak, hanya bila gudang bukan gudang utama, tidak dipakai toko (gudang bawaan atau pemetaan), tidak punya pesanan terbuka, dan tidak berisi stok.
+  - Nama provinsi di alamat disimpan dalam bentuk baku.
+  - Setiap perubahan diaudit.
+- Alokasi: pesanan tidak dipecah. Gudang yang memegang semua barang dari stok yang sudah ditetapkan didahulukan: provinsi pembeli, lalu pulau, lalu gudang pilihan, gudang utama, stok terbanyak, nama. Tanpa gudang seperti itu, pesanan masuk ke gudang pilihan atau gudang utama.
 - Penyesuaian, opname, dan stok awal masuk `audit_log` (trigger `audit_manual_trg` pada `stock_movement`, FR-USR-04).
 
 ## Event
@@ -59,7 +72,9 @@ Gudang, stok, pergerakan stok, aturan alokasi, dan push stok ke marketplace (PRD
 ## Endpoint
 | Metode | Path | Izin |
 |---|---|---|
-| GET | `/v1/warehouses` | `inventory:read` |
+| GET | `/v1/warehouses`, `/v1/warehouses/{id}` | `inventory:read` |
+| POST | `/v1/warehouses`, `/v1/warehouses/{id}/default` | `settings:warehouse` |
+| PATCH, DELETE | `/v1/warehouses/{id}` | `settings:warehouse` |
 | GET | `/v1/inventory`, `/v1/inventory/summary`, `/v1/inventory/movements` | `inventory:read` |
 | POST | `/v1/inventory/adjustments`, `/v1/inventory/initial-stock` | `inventory:adjust` |
 | PUT | `/v1/inventory/{variantId}/warehouses/{warehouseId}` | `inventory:adjust` |
@@ -69,6 +84,6 @@ Gudang, stok, pergerakan stok, aturan alokasi, dan push stok ke marketplace (PRD
 | GET, PATCH, DELETE | `/v1/stock-allocation-rules/{id}` | `settings:store` |
 
 ## Keputusan khusus modul
-- Gudang pertama (`UTAMA`) dibuat modul identity saat bisnis mendaftar; pembuatan dan pengubahan gudang menyusul.
+- Gudang pertama (`UTAMA`) dibuat modul identity saat bisnis mendaftar; gudang lain lewat `WarehouseAdminService`. Transfer stok antar gudang (FR-STK-09) menyusul; sementara ini dua penyesuaian.
 - Logika push ada di `stock-plan.ts` sebagai fungsi murni dengan uji unit; service hanya memuat data, memanggil marketplace, dan mencatat.
 - Deteksi perubahan stok di luar OmniSeller (FR-MIG-07, webhook TikTok Shop tipe 71) menyusul. Peringatan stok minimum (FR-STK-07) berupa notifikasi in-app `stock.critical` dan bagian stok di email ringkasan harian (modul reporting); WhatsApp menyusul bersama pengaturan notifikasi. Purchase order dari daftar perlu restock menyusul bersama modul pembelian (FR-STK-16).

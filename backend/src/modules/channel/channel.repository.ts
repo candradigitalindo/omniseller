@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { newId } from "@omniseller/shared";
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import type { Tx } from "../../db/client";
 import {
   channelWarehouse,
@@ -115,6 +115,46 @@ export class ChannelRepository {
     );
     const row = r.rows[0];
     return row ? { tenantId: row.tenant_id, storeId: row.store_id } : null;
+  }
+
+  /** The first manual sales channel still in use, in the caller's scope (null scope: every store). */
+  async firstManualStore(tx: Tx, scope: ReadonlySet<string> | null): Promise<StoreRow | undefined> {
+    if (scope && scope.size === 0) return undefined;
+    const [row] = await tx
+      .select()
+      .from(store)
+      .where(
+        and(
+          eq(store.channel, "manual"),
+          ne(store.status, "disconnected"),
+          scope ? inArray(store.id, [...scope]) : undefined,
+        ),
+      )
+      .orderBy(asc(store.id))
+      .limit(1);
+    return row;
+  }
+
+  /** Stores that use a warehouse: as their default warehouse, or through a marketplace warehouse mapped to it. */
+  async warehouseUsage(
+    tx: Tx,
+    warehouseId: string,
+  ): Promise<{
+    defaults: { id: string; name: string }[];
+    mappings: { storeId: string; storeName: string; name: string }[];
+  }> {
+    const defaults = await tx
+      .select({ id: store.id, name: store.name })
+      .from(store)
+      .where(eq(store.defaultWarehouseId, warehouseId))
+      .orderBy(store.name);
+    const mappings = await tx
+      .select({ storeId: channelWarehouse.storeId, storeName: store.name, name: channelWarehouse.name })
+      .from(channelWarehouse)
+      .innerJoin(store, eq(store.id, channelWarehouse.storeId))
+      .where(eq(channelWarehouse.warehouseId, warehouseId))
+      .orderBy(store.name, channelWarehouse.name);
+    return { defaults, mappings };
   }
 
   async insertStore(tx: Tx, row: typeof store.$inferInsert): Promise<void> {

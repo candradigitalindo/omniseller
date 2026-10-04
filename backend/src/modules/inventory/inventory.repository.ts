@@ -92,6 +92,25 @@ export class InventoryRepository {
       );
   }
 
+  /** Stock rows of a warehouse that still hold anything (on hand, reserved, buffer, damaged). */
+  async heldIn(tx: Tx, warehouseId: string): Promise<number> {
+    const [r] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(inventory)
+      .where(
+        and(
+          eq(inventory.warehouseId, warehouseId),
+          or(
+            sql`${inventory.onHand} <> 0`,
+            sql`${inventory.reserved} <> 0`,
+            sql`${inventory.buffer} <> 0`,
+            sql`${inventory.damaged} <> 0`,
+          ),
+        ),
+      );
+    return r?.n ?? 0;
+  }
+
   /** Creates the zero row if missing (ensure_inventory) and locks it for this transaction. */
   async lockRow(tx: Tx, tenantId: string, variantId: string, warehouseId: string): Promise<InventoryRow> {
     await tx.execute(sql`SELECT ensure_inventory(${newId()}, ${tenantId}, ${variantId}, ${warehouseId})`);

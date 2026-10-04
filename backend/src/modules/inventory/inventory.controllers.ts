@@ -59,34 +59,160 @@ import { InitialStockService } from "./initial-stock.service";
 import { InventoryService } from "./inventory.service";
 import { RestockService } from "./restock.service";
 import { StockOverviewService } from "./stock-overview.service";
-import { WarehousesService } from "./warehouses.service";
+import { WarehouseAdminService } from "./warehouse-admin.service";
+import { WarehousesService, type WarehouseView } from "./warehouses.service";
 
 function nextCursor(lastId: string | undefined, more: boolean): string | null {
   return more && lastId ? encodeCursor(lastId) : null;
 }
 
+const text = (max: number) => z.string().trim().max(max).optional();
+/** Sender details on manual-order labels (FR-WHS-08) and the province used to find the nearest warehouse. */
+const addressInput = z.object({
+  contactName: text(100),
+  phone: z
+    .string()
+    .trim()
+    .regex(/^\+?[0-9][0-9 ()-]{5,19}$/, "Nomor telepon tidak valid.")
+    .optional(),
+  line1: text(300),
+  district: text(100),
+  city: text(100),
+  province: text(100).describe("nama provinsi; nama yang dikenal disimpan dalam bentuk bakunya"),
+  postalCode: z
+    .string()
+    .trim()
+    .regex(/^[0-9]{5}$/, "Kode pos 5 angka.")
+    .optional(),
+});
+const addressOutput = z.object({
+  contactName: z.string().optional(),
+  phone: z.string().optional(),
+  line1: z.string().optional(),
+  district: z.string().optional(),
+  city: z.string().optional(),
+  province: z.string().optional(),
+  postalCode: z.string().optional(),
+});
 const warehouseSchema = z.object({
   id: ulidSchema,
   code: z.string(),
   name: z.string(),
   isDefault: z.boolean(),
   active: z.boolean(),
-  address: z.record(z.string(), z.unknown()),
+  address: addressOutput,
+  createdAt: z.iso.datetime(),
 });
+export class WarehouseDto extends createZodDto(warehouseSchema) {}
 export class WarehouseListDto extends createZodDto(z.object({ items: z.array(warehouseSchema) })) {}
+const code = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^[A-Z0-9-]{2,20}$/, "2 sampai 20 huruf besar, angka, atau tanda hubung.");
+export class CreateWarehouseDto extends createZodDto(
+  z.object({
+    code,
+    name: z.string().trim().min(1).max(80),
+    address: addressInput.default({}),
+    isDefault: z.boolean().optional().describe("jadikan gudang utama"),
+  }),
+) {}
+export class UpdateWarehouseDto extends createZodDto(
+  z
+    .object({
+      code: code.optional(),
+      name: z.string().trim().min(1).max(80).optional(),
+      address: addressInput.optional().describe("menggantikan seluruh alamat"),
+    })
+    .refine((v) => Object.keys(v).length > 0, { message: "Tidak ada yang diubah." }),
+) {}
+export class WarehouseIdParamDto extends createZodDto(z.object({ id: ulidSchema })) {}
+
+const warehouseView = (w: WarehouseView): z.infer<typeof warehouseSchema> => ({
+  id: w.id,
+  code: w.code,
+  name: w.name,
+  isDefault: w.isDefault,
+  active: w.active,
+  address: w.address,
+  createdAt: w.createdAt.toISOString(),
+});
 
 @ApiTags("warehouses")
 @Controller("v1/warehouses")
 @RequirePermission("inventory:read")
 export class WarehousesController {
-  constructor(@Inject(WarehousesService) private readonly warehouses: WarehousesService) {}
+  constructor(
+    @Inject(WarehousesService) private readonly warehouses: WarehousesService,
+    @Inject(WarehouseAdminService) private readonly admin: WarehouseAdminService,
+  ) {}
 
   /** Warehouses of the business, limited to the caller's warehouse scope. */
   @Get()
   @Isolation({ fixture: "warehouse" })
   @ZodResponse({ type: WarehouseListDto })
   async list(@Ctx() ctx: RequestContext) {
-    return { items: await this.warehouses.list(ctx) };
+    return { items: (await this.warehouses.list(ctx)).map(warehouseView) };
+  }
+
+  /** L20 "Tambah gudang" (backend doc 8.21). */
+  @Post()
+  @RequirePermission("settings:warehouse")
+  @Isolation("self")
+  @ZodResponse({ status: 201, type: WarehouseDto })
+  async create(
+    @Ctx() ctx: RequestContext,
+    @Body() body: CreateWarehouseDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const w = await this.admin.create(ctx, body);
+    res.setHeader("ETag", `"${w.rowVersion}"`);
+    return warehouseView(w);
+  }
+
+  @Get(":id")
+  @Isolation({ fixture: "warehouse" })
+  @ZodResponse({ type: WarehouseDto })
+  async get(@Ctx() ctx: RequestContext, @Param() p: WarehouseIdParamDto, @Res({ passthrough: true }) res: Response) {
+    const w = await this.warehouses.get(ctx, p.id);
+    res.setHeader("ETag", `"${w.rowVersion}"`);
+    return warehouseView(w);
+  }
+
+  @Patch(":id")
+  @RequirePermission("settings:warehouse")
+  @Isolation({ fixture: "warehouse" })
+  @ZodResponse({ type: WarehouseDto })
+  async update(
+    @Ctx() ctx: RequestContext,
+    @Param() p: WarehouseIdParamDto,
+    @Body() body: UpdateWarehouseDto,
+    @Req() req: AuthedRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const w = await this.admin.update(ctx, p.id, body, parseIfMatch(req));
+    res.setHeader("ETag", `"${w.rowVersion}"`);
+    return warehouseView(w);
+  }
+
+  /** The business's default warehouse (gudang utama). */
+  @Post(":id/default")
+  @HttpCode(200)
+  @RequirePermission("settings:warehouse")
+  @Isolation({ fixture: "warehouse" })
+  @ZodResponse({ type: WarehouseDto })
+  async makeDefault(@Ctx() ctx: RequestContext, @Param() p: WarehouseIdParamDto) {
+    return warehouseView(await this.admin.makeDefault(ctx, p.id));
+  }
+
+  /** Only a warehouse nothing depends on: 409 with the reason otherwise. */
+  @Delete(":id")
+  @HttpCode(204)
+  @RequirePermission("settings:warehouse")
+  @Isolation({ fixture: "warehouse" })
+  async remove(@Ctx() ctx: RequestContext, @Param() p: WarehouseIdParamDto): Promise<void> {
+    await this.admin.remove(ctx, p.id);
   }
 }
 

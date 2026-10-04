@@ -89,6 +89,23 @@ const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: s
   OrdersController_cancel: () => ({ reason: "OUT_OF_STOCK" }),
   OrdersController_note: () => ({ note: "Penyusup" }),
   OrdersController_resolveProblem: () => ({}),
+  OrdersController_createManual: ({ a: ids }) => ({
+    storeId: ids.store!,
+    buyer: { name: "Penyusup" },
+    items: [{ variantId: ids.variant!, qty: 1 }],
+    paymentMethod: "cash",
+  }),
+  OrdersController_setTags: ({ a: ids }) => ({ orderIds: [ids.order!], add: [ids.tag!] }),
+  OrdersController_updateManual: () => ({ buyerNote: "Penyusup" }),
+  OrdersController_pay: () => ({}),
+  OrdersController_ship: () => ({}),
+  OrdersController_complete: () => ({}),
+  OrdersController_changeWarehouse: ({ a: ids }) => ({ warehouseId: ids.warehouse! }),
+  TagsController_update: () => ({ name: "Penyusup" }),
+  TagsController_remove: () => ({}),
+  WarehousesController_update: () => ({ name: "Penyusup" }),
+  WarehousesController_makeDefault: () => ({}),
+  WarehousesController_remove: () => ({}),
   ShipmentsController_arrange: ({ a: ids }) => ({ orderIds: [ids.order!], method: "pickup" }),
   ShipmentsController_labels: ({ a: ids }) => ({ orderIds: [ids.order!] }),
   DocumentsController_create: ({ a: ids }) => ({ kind: "labels", orderIds: [ids.order!] }),
@@ -209,6 +226,10 @@ beforeAll(async () => {
                                  now() + interval '1 day')`);
     fixtures.store_cutover = { id: cutoverId };
   });
+  const tag = await a.c.post("/v1/tags", { name: "Prioritas A", color: "#1e6b8c" });
+  expect(tag.status).toBe(201);
+  fixtures.tag = { id: tag.body.id };
+  expect((await a.c.post("/v1/orders/tags", { orderIds: [fixtures.order!.id], add: [tag.body.id] })).status).toBe(200);
   const started = await a.c.post("/v1/store-authorizations", { channel: "shopee" });
   expect(started.status).toBe(201);
   fixtures.store_authorization = { id: started.body.id };
@@ -310,6 +331,7 @@ describe("tenant isolation generated from openapi.json", () => {
     expect(theirs.body.stores).toEqual([]);
     expect(theirs.body.tasks).toEqual([]);
     expect((await a.c.get("/v1/reports/sales")).body.summary).toMatchObject({ orders: 1, revenue: 50000 });
+    expect((await b.c.get("/v1/tags")).body.items).toEqual([]);
     const theirSales = await b.c.get("/v1/reports/sales");
     expect(theirSales.status).toBe(200);
     expect(theirSales.body.summary).toMatchObject({ orders: 0, revenue: 0, paidOrders: 0 });
@@ -341,7 +363,15 @@ describe("tenant isolation generated from openapi.json", () => {
       value: 0,
     });
     const order = (await a.c.get(`/v1/orders/${fixtures.order!.id}`)).body;
-    expect(order).toMatchObject({ status: "problem", internalNote: null });
+    expect(order).toMatchObject({ status: "problem", internalNote: null, warehouseId: fixtures.warehouse!.id });
+    expect(order.tags).toEqual([{ id: fixtures.tag!.id, name: "Prioritas A", color: "#1E6B8C" }]);
+    expect((await a.c.get("/v1/tags")).body.items).toEqual([
+      { id: fixtures.tag!.id, name: "Prioritas A", color: "#1E6B8C", orders: 1 },
+    ]);
+    expect((await a.c.get(`/v1/warehouses/${fixtures.warehouse!.id}`)).body).toMatchObject({
+      name: "Gudang Utama",
+      isDefault: true,
+    });
     expect(order.problems).toMatchObject([{ code: "high_value", resolvedAt: null }]);
     expect((await a.c.get(`/v1/documents/${fixtures.document!.id}`)).body).toMatchObject({
       status: "queued",

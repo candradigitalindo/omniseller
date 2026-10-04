@@ -126,6 +126,9 @@ const storeSchema = z.object({
   lastProductSyncAt: iso.nullable().describe("last finished listing pull"),
   lastOrderSyncAt: iso.nullable().describe("last finished order pull; null while the first 90-day import runs"),
   marketplaceInfo: z.record(z.string(), z.unknown()),
+  autoAllocate: z
+    .boolean()
+    .describe("pesanan toko tanpa multi-gudang dikirim dari gudang terdekat yang stoknya cukup (FR-ORD-12)"),
   createdAt: iso,
 });
 export class StoreDto extends createZodDto(storeSchema) {}
@@ -143,8 +146,20 @@ export class UpdateStoreDto extends createZodDto(
       name: z.string().trim().min(1).max(80).optional(),
       defaultWarehouseId: ulidSchema.nullable().optional(),
       syncMode: z.enum(["read_only", "live"]).optional(),
+      autoAllocate: z.boolean().optional().describe("alokasi gudang otomatis untuk toko tanpa multi-gudang"),
     })
     .refine((v) => Object.keys(v).length > 0, { message: "Tidak ada yang diubah." }),
+) {}
+
+/** A sales channel for manual orders (FR-ORD-09): WhatsApp, Instagram, a shop counter. */
+export class CreateManualStoreDto extends createZodDto(
+  z.object({
+    name: z.string().trim().min(1).max(80),
+    defaultWarehouseId: ulidSchema
+      .nullable()
+      .optional()
+      .describe("gudang bawaan; kosong: dipilih otomatis per pesanan"),
+  }),
 ) {}
 
 export function storeView(v: StoreView): z.infer<typeof storeSchema> {
@@ -173,6 +188,7 @@ export function storeView(v: StoreView): z.infer<typeof storeSchema> {
     lastProductSyncAt: s.lastProductSyncAt?.toISOString() ?? null,
     lastOrderSyncAt: s.lastOrderSyncAt?.toISOString() ?? null,
     marketplaceInfo: s.marketplaceInfo,
+    autoAllocate: s.settings.autoAllocate === true,
     createdAt: s.createdAt.toISOString(),
   };
 }

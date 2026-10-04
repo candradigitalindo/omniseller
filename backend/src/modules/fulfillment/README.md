@@ -1,7 +1,12 @@
 # Modul fulfillment
 
 ## Tanggung jawab
-Pengiriman pesanan marketplace (PRD 6.5: FR-SHP-01, 02, 06; FR-ORD-08, FR-WHS-08; backend doc 8.15): atur pickup atau drop-off lewat API marketplace, satuan maupun massal; label per paket; label banyak pesanan dalam satu PDF (thermal 100 x 150 mm atau A4 isi empat) mengikuti urutan pick list; pick list per gudang urut rak; pengiriman yang mengikuti status pesanannya.
+Pengiriman pesanan (PRD 6.5: FR-SHP-01, 02, 06; FR-ORD-08, FR-WHS-08; backend doc 8.15, 8.21):
+- atur pickup atau drop-off lewat API marketplace, satuan maupun massal;
+- label per paket;
+- label banyak pesanan dalam satu PDF (thermal 100 x 150 mm atau A4 isi empat) mengikuti urutan pick list, termasuk label pesanan manual yang digambar OmniSeller dengan pengirim dari gudang pesanan;
+- pick list per gudang urut rak;
+- pengiriman yang mengikuti status pesanannya.
 
 ## Tabel yang dimiliki
 - `shipment`, `shipment_package`, `document_job`; `print_job` menyusul bersama agen cetak.
@@ -14,6 +19,9 @@ Pengiriman pesanan marketplace (PRD 6.5: FR-SHP-01, 02, 06; FR-ORD-08, FR-WHS-08
 
 ## Aturan
 - Atur kirim untuk pesanan `new` (diterima dulu), `ready_to_pack`, dan `packed`; ditolak per pesanan dengan alasan (`arrangeRefusal` di `shipping-plan.ts`). Satu pengiriman hidup per pesanan (indeks unik parsial).
+- Pesanan manual tidak diatur lewat marketplace dan tidak punya baris `shipment`; atur kirim menolaknya dengan `order.manual`.
+  - Labelnya digambar saat dokumen label diminta (`renderManualLabel` di `pdf.ts`), selama pesanan sudah dibayar atau COD, tidak bermasalah, punya alamat, dan belum selesai (`manualLabelRefusal`).
+  - Isi label: nomor, kurir dan resi, tagihan COD, penerima, pengirim dari gudang (kontak, telepon, alamat), isi paket, berat, dan catatan pembeli. Nama bisnis dibaca lewat `TenantsService`.
 - Shopee diatur per kanal logistik dan gudang dengan `mass_ship_order` (50 paket); TikTok Shop per paket dengan Ship Package. Pickup memakai alamat dan slot yang disarankan marketplace; drop-off tanpa isian. Kanal yang butuh isian lain (cabang, nama pengirim, resi penjual, kurir sendiri) diserahkan ke Seller Center dengan pesan yang jelas.
 - Penolakan marketplace disimpan di `shipment.last_error`; pengiriman tetap `pending` dan boleh diatur lagi.
 - Label hanya disimpan lewat `FilesService` (privat, kedaluwarsa 30 hari): isinya nama, telepon, dan alamat pembeli. Isi dan URL label tidak pernah masuk log.

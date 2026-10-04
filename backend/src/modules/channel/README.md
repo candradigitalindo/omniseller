@@ -3,6 +3,8 @@
 ## Tanggung jawab
 Menghubungkan toko marketplace dan menjaga koneksinya tetap hidup (PRD 6.1, 6.3.1; backend doc 8.6, 8.11): tautan otorisasi, penukaran kode, token terenkripsi dan refresh-nya, status toko, impor dan pemetaan gudang marketplace, langganan webhook per toko, serta reaksi terhadap notifikasi otorisasi dari marketplace.
 
+Juga saluran pesanan manual: toko berkanal `manual` untuk pesanan WhatsApp, Instagram, atau toko offline (backend doc 8.21).
+
 Marketplace yang didukung: Shopee dan TikTok Shop. Di Indonesia TikTok Shop dan Tokopedia adalah satu toko, dan seller melihatnya sebagai "Tokopedia & Shop" (pedoman platform melarang merek TikTok di antarmuka pihak ketiga). Lazada dan Blibli menyusul di Fase 2.
 
 ## Tabel yang dimiliki
@@ -11,8 +13,8 @@ Marketplace yang didukung: Shopee dan TikTok Shop. Di Indonesia TikTok Shop dan 
 
 ## Service publik
 - `StoreAuthorizationService` (api): `start(ctx, {channel, storeId?})` mengembalikan `authorizeUrl`; `callback(ctx, {channel, state, code?, shopId?, mainAccountId?, error?})`; `get(ctx, id)`. Error: `channel.unsupported`, `channel.not_configured`, `store.not_found`, `store_authorization.invalid`, `store_authorization.not_found`.
-- `StoresService` (api dan worker): `list`, `listIn`, `get`, `inScope`, `stockTargetsIn` (toko beserta gudang marketplace, untuk modul inventory), `update` (nama, gudang default, `syncMode`; `If-Match`), `disconnect`, `requestWarehouseSync`, `channelWarehouses`, `mapChannelWarehouse`; untuk worker: `markReauthRequired`, `noteAuthorizationExpiry`, `reevaluateStatus`, `syncCursor`, `recordPull` (resource `listings` atau `orders`; mengisi `last_product_sync_at` atau `last_order_sync_at`); untuk ekspor data (backend doc 8.18): `namesIn`, `exportSheets` (`toko.csv`); untuk migrasi (8.19): `lockIn` (toko pemanggil terkunci), `setSyncModeIn` (mode paralel atau `live` di transaksi pemanggil, dengan syarat yang sama dengan `update`), `unmappedWarehousesIn`. Error: `store.not_found`, `store.not_active`, `store.disconnected`, `store.unmapped_warehouses`, `store.live_mapping_required`, `channel_warehouse.not_found`, `channel_warehouse.marketplace_managed`, `row.stale`.
-- Hanya worker: `StoreConnectService.complete` (job `store.authorize`), `CredentialService` (`save`, `forShop`, `refresh`), `MarketplaceGateway.call` (satu-satunya jalan memanggil marketplace untuk toko), `ChannelSyncService` (`syncWarehouses`, `subscribeWebhooks`), `ChannelAlertsService` (`reauthRequired`, `authorizationExpiring`: notifikasi in-app ke pengguna dengan `settings:store` yang melihat toko itu, backend doc 8.17).
+- `StoresService` (api dan worker): `list`, `listIn`, `get`, `inScope`, `stockTargetsIn` (toko beserta gudang marketplace, untuk modul inventory), `update` (nama, gudang default, `syncMode`; `If-Match`), `disconnect`, `requestWarehouseSync`, `channelWarehouses`, `mapChannelWarehouse`; untuk worker: `markReauthRequired`, `noteAuthorizationExpiry`, `reevaluateStatus`, `syncCursor`, `recordPull` (resource `listings` atau `orders`; mengisi `last_product_sync_at` atau `last_order_sync_at`); untuk ekspor data (backend doc 8.18): `namesIn`, `exportSheets` (`toko.csv`); untuk migrasi (8.19): `lockIn` (toko pemanggil terkunci), `setSyncModeIn` (mode paralel atau `live` di transaksi pemanggil, dengan syarat yang sama dengan `update`), `unmappedWarehousesIn`. Saluran manual: `createManual`, `manualStoreIn` (saluran sebuah pesanan manual, dibuat bila belum ada); untuk penghapusan gudang: `warehouseUsageIn`. `update` juga menyimpan `autoAllocate`. Error: `store.not_found`, `store.not_active`, `store.disconnected`, `store.unmapped_warehouses`, `store.live_mapping_required`, `channel_warehouse.not_found`, `channel_warehouse.marketplace_managed`, `row.stale`.
+- Hanya worker: `StoreConnectService.complete` (job `store.authorize`), `CredentialService` (`save`, `forShop`, `refresh`), `MarketplaceGateway.call` (satu-satunya jalan memanggil marketplace untuk toko), `ChannelSyncService` (`syncWarehouses`, `subscribeWebhooks`), `ChannelAlertsService` (`reauthRequired`, `authorizationExpiring`, `warehousesChanged`: notifikasi in-app ke pengguna dengan `settings:store` yang melihat toko itu, backend doc 8.17, 8.21).
 
 ## Aturan
 - `api` tidak pernah memanggil marketplace dan tidak bisa membaca atau menulis token. Kode otorisasi lewat outbox ke worker (ADR-029).
@@ -24,10 +26,16 @@ Marketplace yang didukung: Shopee dan TikTok Shop. Di Indonesia TikTok Shop dan 
 - Setiap perubahan `sync_mode` mencatat `sync_mode_changed_at` (lama mode paralel) dan menulis `store.sync_mode_changed`. Web app memindahkan toko ke `live` lewat cutover modul migration (checklist, bisa dibatalkan 24 jam); `PATCH` tetap untuk klien API dan untuk kembali ke `read_only`.
 - Status `token_expiring` 14 hari sebelum izin seller berakhir atau saat marketplace mengirim pemberitahuan. Masuk `token_expiring` menulis event `store.authorization_expiring`; masuk `reauth_required` menulis `store.reauth_required`. Keduanya menjadi notifikasi in-app, kecuali toko sudah pulih saat job berjalan.
 - Toko baru selalu `read_only`. `live` butuh toko aktif dan semua gudang penjual aktif terpetakan; melepas pemetaan toko `live` ditolak.
+- Saluran manual (`channel = 'manual'`):
+  - `external_shop_id` sama dengan id toko, status `active`, dan selalu `live`.
+  - Dilewati semua pekerjaan marketplace (`isManualChannel`).
+  - Aksi marketplace ditolak 422 `store.manual`: impor gudang, `syncMode`, `autoAllocate`, dan aksi di modul lain.
+  - Diputus berarti diarsipkan.
+- Gudang marketplace yang berubah memberi notifikasi `store.warehouses_changed` (FR-WHS-10) bila ada gudang penjual yang belum dipetakan atau ada yang hilang.
 - Pemetaan otomatis saat impor gudang: bila toko hanya punya satu gudang penjual, atau bisnis hanya punya satu gudang aktif, gudang marketplace yang belum terpetakan diarahkan ke gudang default toko.
 
 ## `store.settings` dan `store.marketplace_info`
-- `settings`: pengaturan pengguna per toko; belum ada kunci yang dipakai.
+- `settings`: pengaturan pengguna per toko. `autoAllocate` (boolean, bawaan mati): pesanan toko tanpa multi-gudang dikirim dari gudang terdekat yang stoknya cukup (FR-ORD-12, backend doc 8.21). Tidak berlaku untuk toko dengan lebih dari satu gudang penjual aktif.
 - `marketplace_info` (diisi saat terhubung, hanya baca): Shopee `status`, `is_cb`, `is_sip`, `merchant_id`, `fulfillment_flag`, `authorized_at`, `logo`, `main_account_id`, `merchant_ids`; TikTok Shop `seller_type`, `shop_code`, `open_id`, `seller_name`, `seller_base_region`.
 
 ## Event
@@ -43,6 +51,7 @@ Marketplace yang didukung: Shopee dan TikTok Shop. Di Indonesia TikTok Shop dan 
 | `store.token_refresh` | `mp.outbound` | jadwal `token.refresh_scan` (15 menit) |
 | `store.reauth_notice` | `notify` | `store.reauth_required` |
 | `store.expiry_notice` | `notify` | `store.authorization_expiring` |
+| `store.warehouses_notice` | `notify` | `channel_warehouse.changed` |
 
 ## Endpoint
 | Metode | Path | Izin |
@@ -51,6 +60,7 @@ Marketplace yang didukung: Shopee dan TikTok Shop. Di Indonesia TikTok Shop dan 
 | POST | `/v1/store-authorizations`, `/v1/store-authorizations/callback` | `settings:store` |
 | GET | `/v1/store-authorizations/{id}` | `settings:store` |
 | GET | `/v1/stores`, `/v1/stores/{id}` | sesi (cakupan toko) |
+| POST | `/v1/stores/manual` | `settings:store` |
 | PATCH | `/v1/stores/{id}` | `settings:store` |
 | POST | `/v1/stores/{id}/disconnect`, `/v1/stores/{id}/warehouses/sync` | `settings:store` |
 | GET, PUT | `/v1/stores/{id}/channel-warehouses`, `/v1/stores/{id}/channel-warehouses/{channelWarehouseId}` | `settings:store` |

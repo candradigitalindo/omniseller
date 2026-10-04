@@ -4,6 +4,15 @@ import { baseColumns, bytea, tstz, ulid } from "../columns";
 
 export type StoreStatus = "connecting" | "active" | "token_expiring" | "reauth_required" | "disconnected";
 
+/** Seller settings of a store (channel README). */
+export interface StoreSettings {
+  /**
+   * Orders of a store without multi-warehouse go to the nearest warehouse with stock instead of the
+   * store's mapped warehouse (PRD FR-ORD-12, backend doc 8.21). Off by default.
+   */
+  autoAllocate?: boolean;
+}
+
 export const store = pgTable("store", {
   ...baseColumns(),
   channel: text("channel").$type<Channel>().notNull(),
@@ -18,7 +27,7 @@ export const store = pgTable("store", {
   disconnectedAt: tstz("disconnected_at"),
   lastOrderSyncAt: tstz("last_order_sync_at"),
   lastProductSyncAt: tstz("last_product_sync_at"),
-  settings: jsonb("settings").$type<Record<string, unknown>>().notNull().default({}),
+  settings: jsonb("settings").$type<StoreSettings>().notNull().default({}),
   /** When the seller's authorization for OmniSeller ends (Shopee up to 365 days, TikTok Shop per grant). */
   authorizationExpiresAt: tstz("authorization_expires_at"),
   /** Machine code explaining the current status, e.g. `authorization_revoked`, `refresh_failed`. */
