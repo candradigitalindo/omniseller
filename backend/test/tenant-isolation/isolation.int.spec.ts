@@ -1,6 +1,6 @@
 import type { INestApplication } from "@nestjs/common";
 import type { OpenAPIObject } from "@nestjs/swagger";
-import { newId } from "@omniseller/shared";
+import { newId, PERMISSION_CODES } from "@omniseller/shared";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { withTenantTx } from "../../src/db/tenant-tx";
@@ -422,6 +422,37 @@ function operations() {
 }
 
 describe("tenant isolation generated from openapi.json", () => {
+  it("describes nullable values as nullable, never as arrays (patches/nestjs-zod)", () => {
+    const schemas = (doc.components?.schemas ?? {}) as Record<string, { properties: Record<string, unknown> }>;
+    const nullableString = { anyOf: [{ type: "string" }, { type: "null" }] };
+    // zod writes `type: ["string", "null"]`, which @nestjs/swagger used to read as an array of strings
+    expect(schemas.OrderPageDto_Output?.properties.next_cursor).toEqual(nullableString);
+    expect(schemas.StockCountDto_Output?.properties.note).toEqual(nullableString);
+    expect(schemas.OrderPageDto_Output?.properties.items).toMatchObject({ type: "array" });
+  });
+
+  it("documents every success answer under its status, never as `default` (generated clients read that as the error)", () => {
+    const withDefault = operations()
+      .filter(
+        (o) => "default" in ((doc.paths[o.path] as Record<string, { responses: object }>)[o.method]?.responses ?? {}),
+      )
+      .map((o) => `${o.method.toUpperCase()} ${o.path}`);
+    expect(withDefault).toEqual([]);
+    const statuses = (path: string, method: string) =>
+      Object.keys((doc.paths[path] as Record<string, { responses: object }>)[method]!.responses);
+    expect(statuses("/v1/orders", "get")).toEqual(["200"]);
+    expect(statuses("/v1/stock-counts", "post")).toEqual(["201"]);
+    expect(statuses("/v1/stock-counts/{id}/apply", "post")).toEqual(["202"]);
+    expect(statuses("/v1/auth/logout", "post")).toEqual(["204"]);
+  });
+
+  it("names the permission codes of GET /v1/me, so clients can type their checks", () => {
+    const me = doc.components?.schemas?.MeDto_Output as {
+      properties: { permissions: { items: { enum: string[] } } };
+    };
+    expect(me.properties.permissions.items.enum).toEqual(PERMISSION_CODES);
+  });
+
   it("every operation declares x-isolation", () => {
     const missing = operations()
       .filter((o) => !o.isolation)

@@ -1,0 +1,6 @@
+# Native helpers ship prebuilt binaries through optional platform packages; their install scripts are not needed.
+ignoredBuiltDependencies:
+  - "@parcel/watcher"
+  - "@swc/core"
+  - sharp
+  - unrs-resolver

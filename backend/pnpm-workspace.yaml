@@ -5,3 +5,5 @@ packages:
 onlyBuiltDependencies:
   - "@swc/core"
   - esbuild
+patchedDependencies:
+  nestjs-zod@5.5.0: patches/nestjs-zod@5.5.0.patch

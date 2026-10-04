@@ -4,8 +4,8 @@ Read first: `DOKUMEN-ARSITEKTUR-BACKEND.md` section 2 (contract), then the secti
 Product requirements: `DOKUMEN-SPESIFIKASI-APLIKASI.md`. Technology decisions and ADRs: `DOKUMEN-TEKNOLOGI.md`.
 
 The repository root holds only documents. Each component lives in its own folder with its own pnpm workspace:
-`backend/` exists now; `frontend/`, `mobile/`, `extension/`, `print-agent/` come later (ADR-032).
-Paths in the backend document are relative to `backend/`, and every `pnpm` command below runs from `backend/`.
+`backend/` and `frontend/` exist now; `mobile/`, `extension/`, `print-agent/` come later (ADR-032).
+Paths in the backend document are relative to `backend/`, and every `pnpm` command below runs from `backend/` unless a section says otherwise.
 
 ## Non-negotiable invariants (backend)
 - All tenant data access goes through `withTenantTx(handle, ctx, fn)`. Never query outside it.
@@ -137,6 +137,16 @@ NestJS injection always uses explicit `@Inject(TOKEN)`; do not rely on construct
 - Receiving returned goods locks the order before the stock rows, as order changes do, then moves stock through `InventoryService.returnMovementsIn`; order lines count returned units only through `OrderIntakeService.returnReceivedIn`.
 - A Shopee buyer's cancellation request has no id of its own: its `external_return_id` is the order_sn, kept apart from return ids by `(kind = 'cancellation')` in the unique index.
 - Shopee return snapshots carry the buyer's email and pickup address: connectors never read those fields. The buyer's reason text and photos stay out of logs and of the audit log (`audit_row` skips those columns).
+
+- `nestjs-zod@5.5.0` is patched (`patches/nestjs-zod@5.5.0.patch`): it wrote nullable fields as `type: ["string", "null"]` with one type's keywords, which generated clients misread; the patch turns them into `anyOf`. Upgrading nestjs-zod means redoing or dropping the patch; `test/tenant-isolation/isolation.int.spec.ts` checks the shape.
+- A response declared without a status comes out of `@nestjs/swagger` as `default`, which openapi-fetch types as the error. `buildOpenApiDocument` renames it to the handler's real status (`@HttpCode`, else 201 for POST and 200 otherwise); a handler that answers another status must say so with `@HttpCode`.
+
+## Frontend (`frontend/`, commands from there)
+- Read `frontend/README.md` (structure, rules, traps). Next.js 16 differs from older versions: `frontend/AGENTS.md` points to the guides in `node_modules/next/dist/docs/`.
+- `pnpm dev` (port 3100, `/v1/*` forwarded to `API_ORIGIN`), `pnpm lint && pnpm typecheck && pnpm test`, `pnpm build`.
+- API types are generated from `backend/openapi.json`: after a contract change run `pnpm openapi:emit` in `backend/`, then `pnpm api:types` here. Never write response types by hand.
+- Every call goes through `api` and `unwrap` (`src/lib/api/client.ts`); UI text lives only in `messages/id.json`; dates use the business's time zone (`useTimeZone`); actions without permission are hidden (`useCan`).
+- Buyer data never goes to `console`, `localStorage`, or URLs.
 
 ## Definition of done
 Tests per section 13.3 (integration tests run as the application roles, never as a superuser), migration checklist 12.3, docs updated (module README and the backend doc section you touched), PR checklist 15.11.

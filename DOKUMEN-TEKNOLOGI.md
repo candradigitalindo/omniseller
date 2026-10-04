@@ -2,11 +2,11 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.17 |
-| Tanggal | 4 Oktober 2026 |
+| Versi dokumen | 1.18 |
+| Tanggal | 5 Oktober 2026 |
 | Status | Keputusan final untuk implementasi |
 | Pemilik dokumen | Candra Syahputra |
-| Dokumen induk | DOKUMEN-SPESIFIKASI-APLIKASI.md versi 1.11 (PRD); rincian backend di DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.18 |
+| Dokumen induk | DOKUMEN-SPESIFIKASI-APLIKASI.md versi 1.11 (PRD); rincian backend di DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.19 |
 | Audiens | Tech lead, engineer backend, frontend, mobile, DevOps, QA |
 
 Dokumen ini menetapkan teknologi yang dipakai OmniSeller. Setiap lapisan memiliki **satu keputusan**, bukan daftar pilihan. Alasan dan konsekuensinya dicatat agar keputusan dapat ditinjau ulang dengan dasar yang jelas, bukan diganti karena selera. Perubahan keputusan hanya melalui ADR baru (bagian 25).
@@ -59,7 +59,7 @@ Dokumen ini menetapkan teknologi yang dipakai OmniSeller. Setiap lapisan memilik
 | Realtime | Socket.IO dengan adapter Redis |
 | Pencarian | Meilisearch |
 | Penyimpanan objek | Cloudflare R2 |
-| Frontend web | Next.js (App Router) 15 atau lebih baru, React 19, Tailwind CSS 4, shadcn/ui, TanStack Query dan Table, react-hook-form, Zod, Apache ECharts, next-intl |
+| Frontend web | Next.js 16 (App Router), React 19, Tailwind CSS 4, shadcn/ui, TanStack Query, openapi-fetch dengan tipe dari OpenAPI backend, react-hook-form, Zod, Apache ECharts, next-intl; api di origin yang sama dengan cookie sesi (ADR-039) |
 | Mobile | React Native dengan Expo, satu basis kode untuk aplikasi gudang (Android) dan aplikasi owner (Android dan iOS) |
 | Ekstensi browser | WXT, Manifest V3, React, untuk Chrome dan Edge |
 | Agen cetak lokal | Electron, Windows utama dan macOS sekunder, pembaruan otomatis |
@@ -78,7 +78,7 @@ Dokumen ini menetapkan teknologi yang dipakai OmniSeller. Setiap lapisan memilik
 | Observabilitas | OpenTelemetry ke Grafana Cloud (metrik, log, trace), Sentry untuk error, Better Stack untuk uptime, status page, dan on-call |
 | Lint dan format | Biome |
 | Pengujian | Vitest, Supertest, Testcontainers, Playwright, Maestro, k6, OWASP ZAP, Semgrep, Trivy |
-| Manajemen paket dan repositori | pnpm 10 workspaces per komponen (`backend/`, nanti `frontend/`, `mobile/`); Turborepo tidak dipakai (ADR-032) |
+| Manajemen paket dan repositori | pnpm 10 workspaces per komponen (`backend/`, `frontend/`, nanti `mobile/`); Turborepo tidak dipakai (ADR-032) |
 
 ---
 
@@ -207,11 +207,11 @@ sequenceDiagram
 | Runtime | Node.js 24 LTS. Versi dikunci di `.nvmrc` dan `engines` |
 | Manajemen paket | pnpm 10 dengan workspaces |
 | Orkestrasi build | Skrip pnpm (`pnpm -r` dalam urutan dependensi). Turborepo tidak dipakai: workspace backend hanya berisi aplikasi dan paket kecil, sehingga cache lintas paket tidak sepadan dengan konfigurasinya (ADR-032) |
-| Struktur | Satu repositori, satu folder per komponen: `backend/` sekarang, `frontend/`, `mobile/`, `extension/`, `print-agent/` menyusul (lihat 26.1) |
+| Struktur | Satu repositori, satu folder per komponen: `backend/` dan `frontend/` sekarang, `mobile/`, `extension/`, `print-agent/` menyusul (lihat 26.1) |
 
 **Alasan.** Tipe domain (Order, Variant, Inventory) didefinisikan sekali di `packages/shared` dan dipakai backend, web, mobile, ekstensi, dan agen cetak. Skema Zod yang sama memvalidasi input API dan formulir web. Perubahan kontrak API langsung terdeteksi oleh compiler di semua klien.
 
-Saat ini `packages/shared` berada di `backend/packages/shared`. Cara `frontend/` dan `mobile/` memakai tipe dan skema yang sama (workspace pnpm di root yang mencakup semua komponen, atau paket bersama yang diterbitkan ke registry privat) diputuskan saat komponen itu dimulai (ADR-032). Sampai saat itu tidak ada kode di luar `backend/`.
+`packages/shared` berada di `backend/packages/shared` dan hanya dipakai backend. Web app (`frontend/`) memakai backend lewat kontraknya, dokumen OpenAPI `backend/openapi.json`: `pnpm api:types` menghasilkan tipe semua path, parameter, dan respons, sehingga perubahan kontrak terdeteksi `tsc` di web app (ADR-039). Mobile akan memakai cara yang sama.
 
 **Konsekuensi.** Pekerjaan CPU-berat (render PDF ratusan halaman, parsing gambar) dipindahkan ke proses worker terpisah agar event loop proses api tidak terblokir.
 
@@ -424,19 +424,21 @@ Setiap marketplace adalah paket di `packages/connectors/<nama>` yang mengimpleme
 
 | Aspek | Keputusan |
 |---|---|
-| Kerangka | Next.js (App Router) versi stabil terbaru saat mulai, minimal 15, dengan React 19 |
-| Rendering | Server Components untuk halaman baca, Client Components untuk tabel interaktif dan formulir. Tidak ada SSR untuk data yang berubah per detik; dasbor memakai polling TanStack Query 15 detik ditambah Socket.IO |
-| Styling | Tailwind CSS 4 dan komponen shadcn/ui (Radix) yang disalin ke `packages/ui` dan disesuaikan |
-| Data | TanStack Query untuk semua akses API, klien API dihasilkan dari OpenAPI (`openapi-typescript` dan `openapi-fetch`) sehingga tipe respons selalu sinkron |
-| Tabel | TanStack Table dengan virtualisasi (`@tanstack/react-virtual`) untuk daftar pesanan puluhan ribu baris |
-| Formulir | react-hook-form dan Zod, skema dibagikan dari `packages/shared` |
-| State lokal | Zustand hanya untuk state UI lintas komponen (pilihan massal, filter). Tidak ada state server di Zustand |
-| Grafik | Apache ECharts melalui `echarts-for-react`. Alasan: render canvas untuk riwayat harga ribuan titik dan dasbor padat |
-| i18n | `next-intl`, bahasa `id-ID` bawaan, `en` opsional. Format tanggal dan angka lewat `Intl` |
-| Waktu | Luxon untuk konversi zona waktu tenant |
-| Cetak dari browser | Tidak ada. Semua cetak lewat PDF dari server atau agen cetak lokal |
-| Hosting | Container Node di ECS (bukan platform Vercel) agar data dan log tetap di Jakarta dan satu jalur deploy |
-| Aksesibilitas | Komponen Radix memberi dasar keyboard dan ARIA; kontras diuji otomatis dengan axe di Playwright |
+| Kerangka | Next.js 16 (App Router, Turbopack, `proxy.ts`) dengan React 19, di folder `frontend/` sebagai workspace pnpm sendiri (ADR-039) |
+| Rendering | Kerangka halaman dirender statis; data penjual diambil di browser dengan TanStack Query dari api di origin yang sama. Server Next tidak memegang data tenant dan tidak meneruskan cookie ke api, jadi tidak ada SSR data (ADR-039). Ringkasan pesanan dan notifikasi dipolling setiap 60 detik; Socket.IO ditambahkan bersama layar realtime pertama |
+| Sesi | Cookie `os_session` (HttpOnly, SameSite=Lax) dari api. Web app memanggil `/v1/*` di origin-nya sendiri (ALB di produksi, rewrites Next ke `API_ORIGIN` di lokal), tanpa CORS dan tanpa token di JavaScript. `proxy.ts` mengalihkan halaman aplikasi tanpa cookie ke `/masuk?next=`; jawaban 401 api juga |
+| Styling | Tailwind CSS 4 dengan token DOKUMEN-UI-UX di `globals.css` (terang dan gelap; gelap pilihan pengguna lewat next-themes). Komponen shadcn/ui (Radix) disalin ke `frontend/src/components/ui` dan disesuaikan (ADR-039) |
+| Data | TanStack Query 5 untuk semua akses API lewat openapi-fetch; tipe dihasilkan dari `backend/openapi.json` (`pnpm api:types`, openapi-typescript). `unwrap` mengubah Problem Details menjadi `ApiError`, sehingga layar hanya menangani bentuk sukses |
+| Tabel | Tabel shadcn dengan pagination kursor 50 baris ("Muat lebih banyak"), menjadi kartu di ponsel. TanStack Table dan virtualisasi (`@tanstack/react-virtual`) dipasang saat sebuah layar butuh ribuan baris sekaligus atau kolom yang diatur pengguna |
+| Formulir | react-hook-form dan Zod 4. Skema formulir ditulis di web app dengan pesan Bahasa Indonesia; kesalahan 422 api (`errors[].path`) ditempatkan di bawah field-nya. Validasi api tetap penentu |
+| State lokal | Filter daftar di URL (bisa dibagikan dan ditautkan dari notifikasi), pilihan massal di state komponen. Zustand belum dipakai dan hanya untuk state UI lintas komponen; tidak ada state server di luar TanStack Query |
+| Grafik | Apache ECharts 6 melalui `echarts-for-react` dengan impor `echarts/core` per bagian. Alasan: render canvas untuk riwayat harga ribuan titik dan dasbor padat. Warna dari token CSS; setiap kanal memegang slot warnanya |
+| i18n | `next-intl` tanpa rute per bahasa; teks di `messages/id.json`, kuncinya dicek tipe. `en` menyusul bila dibutuhkan |
+| Waktu | `Intl.DateTimeFormat` dengan zona waktu bisnis (`tenant.timezone` dari `GET /v1/me`), tidak pernah zona browser. Luxon ditambahkan bila perlu aritmetika tanggal per zona |
+| Cetak dari browser | Tidak ada. Semua cetak lewat PDF dari server atau agen cetak lokal; label dibuka dari `GET /v1/files/{id}/download` |
+| Hosting | Container Node (`next start`) di ECS, bukan platform Vercel, agar data dan log tetap di Jakarta dan satu jalur deploy. ALB meneruskan `/v1/*` ke api dan sisanya ke web |
+| Pengujian | Vitest, Testing Library, dan jsdom untuk unit dan komponen; api dijawab di level `fetch` dan `next/navigation` diganti tiruan di memori. End-to-end di bagian 20 |
+| Aksesibilitas | Komponen Radix memberi dasar keyboard dan ARIA; status selalu ikon, teks, dan warna; kontras diuji otomatis dengan axe di Playwright |
 
 ---
 
@@ -678,6 +680,7 @@ Memetakan lapisan pengujian di PRD bagian 13 ke perkakas:
 | API dan integrasi | Vitest, Supertest, Testcontainers (PostgreSQL 17, Redis 7.2), server tiruan marketplace berbasis Hono yang memutar ulang fixture webhook | `backend` |
 | Kontrak connector | Vitest dengan fixture respons nyata teranonimkan, ditambah job harian terhadap sandbox nyata yang melaporkan ke Grafana | `packages/connectors/*` |
 | Isolasi tenant | Generator uji otomatis yang memanggil setiap endpoint OpenAPI sebagai tenant A dengan sumber daya tenant B dan mengharapkan 404 | `backend/test/tenant-isolation` |
+| Komponen web | Vitest, Testing Library, jsdom; api dijawab di level `fetch` (`mockApi`), memeriksa permintaan yang dikirim | `frontend/src` |
 | End-to-end web | Playwright dengan axe untuk aksesibilitas, berjalan terhadap staging | `frontend/e2e` |
 | End-to-end mobile | Maestro terhadap build EAS internal | `mobile/.maestro` |
 | Beban | k6 dengan skenario 10.000 pesanan per hari, 500 webhook per menit, 5.000 pesanan dalam 10 menit (live), dijalankan terhadap staging berukuran produksi sebelum rilis besar | `tools/load` |
@@ -691,14 +694,14 @@ Memetakan lapisan pengujian di PRD bagian 13 ke perkakas:
 
 | Aspek | Keputusan |
 |---|---|
-| Lint dan format | Biome, konfigurasi tunggal di root, dijalankan di pre-commit (lefthook) dan CI |
+| Lint dan format | Biome, satu konfigurasi per komponen (`backend/biome.json`, `frontend/biome.json`) dengan aturan yang sama, dijalankan di pre-commit (lefthook) dan CI |
 | Commit | Conventional Commits, PR kecil, minimal satu peninjau, squash merge |
 | Penamaan | File `kebab-case.ts`, kelas `PascalCase`, fungsi dan variabel `camelCase`, tabel dan kolom `snake_case`, kunci Redis `namespace:tenant:objek` |
 | Struktur modul backend | `modules/<nama>/{controller,service,repository,events,dto,schema}.ts`, tidak ada impor lintas modul selain melalui `index.ts` publik |
 | Error | Kelas error domain (`InsufficientStockError`) dipetakan ke Problem Details di satu filter global. Tidak ada `throw new Error('string')` di kode domain |
 | Logging | `pino`, tingkat `info` untuk peristiwa bisnis, `warn` untuk kondisi yang pulih sendiri, `error` hanya untuk yang butuh tindakan. Tidak ada data pribadi pembeli di log |
 | Transaksi | Setiap unit kerja tulis dalam satu transaksi dengan `SET LOCAL app.tenant_id`. Helper `withTenantTx(tenantId, fn)` wajib dipakai |
-| Waktu | Simpan UTC, hitung SLA dalam UTC, tampilkan dengan Luxon di zona tenant |
+| Waktu | Simpan UTC, hitung SLA dalam UTC, tampilkan di zona tenant (`Intl` di web app) |
 | Uang | `bigint` di basis data, `number` aman sampai 9 x 10^15 di aplikasi dengan util `Money` yang menolak desimal |
 | Dokumentasi | README per paket, ADR di `docs/adr`, runbook operasional di `docs/runbooks` |
 | Bahasa kode | Identifier dan komentar dalam bahasa Inggris, teks UI dalam bahasa Indonesia melalui i18n |
@@ -849,6 +852,7 @@ Fase 2 menambah satu engineer backend (promosi, chat, kesehatan toko) dan satu e
 | ADR-036 | Stok yang belum pernah ditetapkan orang (`inventory.stock_set_at` kosong) tidak didorong ke marketplace | Saat toko baru terhubung stok OmniSeller masih 0; mendorong 0 itu menghentikan penjualan semua listing, padahal artinya hanya "belum diisi". Push per varian dan gudang dimulai setelah penyesuaian, opname, stok awal dari toko, atau konfirmasi jumlah | Varian yang lupa diisi tetap memakai angka marketplace sampai diisi; daftar stok menandainya "belum ditetapkan" dan ringkasan menghitungnya |
 | ADR-037 | `stock.push` per batch (paling banyak 50 kunci satu tenant) dengan kunci Redis per varian, menggantikan satu job per (variant, gudang) | Shopee `update_stock` dan TikTok Update Inventory bekerja per item; 1.000 SKU yang berubah bersamaan dengan satu panggilan per varian butuh sekitar 100 detik per toko pada 10 panggilan per detik, melewati sasaran 60 detik. Batch menyatukan varian satu item dalam satu panggilan; kunci per varian mencegah nilai lama menimpa nilai baru | Id job dari isi batch dan skor debounce; flush ganda setelah scheduler mati bisa mengirim nilai yang sama dua kali, tidak berbahaya karena nilai absolut dan nilai yang sudah diterima dilewati |
 | ADR-038 | Label dan dokumen tabel (pick list) dibuat dengan pdf-lib dan Noto Sans di worker, bukan Playwright; Playwright ditambahkan saat dokumen bertemplat HTML pertama dibangun | Label marketplace sudah PDF dan cukup digabung; pick list adalah tabel. Tanpa Chromium, image worker lebih kecil, dokumen terbentuk dalam hitungan milidetik, dan uji tidak bergantung pada browser | Tata letak pick list ditulis dalam kode, bukan template; karakter di luar Noto Sans (emoji, aksara CJK) dibuang dari teks dokumen |
+| ADR-039 | Web app di `frontend/` sebagai workspace pnpm sendiri yang memakai backend hanya lewat kontrak OpenAPI (`backend/openapi.json`, tipe dari openapi-typescript); api dipanggil di origin yang sama (`/v1/*` lewat ALB, rewrites Next di lokal) dengan cookie sesi; data penjual diambil di browser, tanpa SSR data tenant; komponen shadcn di `frontend/src/components/ui` | Menutup pertanyaan terbuka ADR-032. Kontrak yang diterbitkan adalah OpenAPI, jadi build web tidak bergantung pada perkakas backend dan perubahan kontrak terdeteksi `tsc` setelah `api:types`. Origin yang sama berarti tanpa CORS dan tanpa token di JavaScript. Server Next yang tidak memegang data tenant tidak bisa membocorkannya lewat cache atau log | Skema formulir ditulis ulang di web app (validasi api tetap penentu); enum yang dibutuhkan klien harus dinyatakan di skema respons (misalnya `permissions` di `GET /v1/me`); halaman tidak punya data saat render pertama (kerangka statis dan skeleton); `API_ORIGIN` dibaca saat build |
 
 ---
 
@@ -878,7 +882,13 @@ marketplace/
 │   ├── tools/               # dev.mjs, scripts/, load/ (k6)
 │   ├── package.json         # root workspace sekaligus paket aplikasi
 │   └── pnpm-workspace.yaml
-├── frontend/                # Next.js (menyusul)
+├── frontend/                # Next.js 16: web app penjual (ADR-039); rincian di frontend/README.md
+│   ├── src/app/             # rute (auth) dan (app); proxy.ts
+│   ├── src/features/        # layar per area: auth, dashboard, orders, stock, stores
+│   ├── src/components/      # ui (shadcn/ui), common, shell
+│   ├── src/lib/             # klien API bertipe dari backend/openapi.json, sesi, format
+│   ├── messages/id.json     # teks antarmuka
+│   └── package.json
 ├── mobile/                  # Expo, mode gudang dan owner (menyusul)
 ├── extension/               # WXT (menyusul)
 └── print-agent/             # Electron (menyusul)
@@ -889,6 +899,7 @@ marketplace/
 | Variabel | Proses | Keterangan |
 |---|---|---|
 | `APP_ROLE` | semua | `api`, `webhook`, `worker`, `scheduler`, `research-collector` |
+| `API_ORIGIN` | web (build dan dev) | Alamat api untuk rewrites `/v1/*` di lokal; dibaca saat build. Di produksi ALB yang meneruskan `/v1/*`, jadi tidak dipakai |
 | `DATABASE_URL` | api, webhook | Melalui RDS Proxy, role `omniseller_api` |
 | `DATABASE_URL_WORKER` | worker, scheduler, research-collector | Melalui RDS Proxy, role `omniseller_worker` |
 | `DATABASE_URL_SYSTEM` | scheduler | Role `omniseller_system`. Relay outbox memakai koneksi langsung (bukan RDS Proxy) untuk `LISTEN` |
@@ -1033,3 +1044,4 @@ export interface MarketplaceConnector {
 | 1.15 | 4 Oktober 2026 | Hasil implementasi salin listing antar toko: bagian connector `products` (26.4) untuk Shopee (`add_item` dengan `init_tier_variation` standar, unggah `media_space`) dan TikTok Shop (Create Product dengan kunci idempoten, Upload Product Image); unggah multipart di core; variabel `SHOPEE_VARIANT_DELAY_MS` dan `PRODUCT_IMAGE_HOSTS` (26.2) | Candra Syahputra |
 | 1.16 | 4 Oktober 2026 | Hasil implementasi retur: bagian connector `returns` (26.4) untuk Shopee (`v2.returns` daftar, detail, alasan sanggahan, `convert_image`, `confirm`, `dispute`; `handle_buyer_cancellation`) dan TikTok Shop (Search Returns dan Search Cancellations 202602, Get Decision Eligibility 202601, Get Return Records, Approve 202309, Reject Return 202606 dengan kunci idempoten, foto lewat Upload Product Image); webhook tipe 12 `return.changed`; Shopee tanpa push retur ditarik setiap 10 menit (antrean `mp.poll`) | Candra Syahputra |
 | 1.17 | 4 Oktober 2026 | Hasil implementasi stok opname dan transfer stok: antrean `import` juga menerapkan stok opname yang disetujui (7.1); tidak ada pustaka atau layanan baru | Candra Syahputra |
+| 1.18 | 5 Oktober 2026 | Web app dimulai di `frontend/` (ADR-039, menutup pertanyaan terbuka ADR-032): Next.js 16 dengan React 19, Tailwind CSS 4, shadcn/ui yang disalin ke `frontend/src/components/ui`, TanStack Query, openapi-fetch dengan tipe dari `backend/openapi.json`, react-hook-form dan Zod 4, ECharts 6, next-intl tanpa rute bahasa, Vitest dengan Testing Library. Bagian 9 ditulis ulang sesuai yang dibangun: api di origin yang sama dengan cookie sesi, tanpa SSR data tenant, filter di URL, `Intl` dengan zona waktu bisnis menggantikan Luxon; 1, 4, 20, 21, 26.1, dan 26.2 (`API_ORIGIN`) disesuaikan | Candra Syahputra |

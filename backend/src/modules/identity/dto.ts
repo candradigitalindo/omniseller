@@ -1,4 +1,4 @@
-import { ulidSchema } from "@omniseller/shared";
+import { isPermission, PERMISSION_CODES, ulidSchema } from "@omniseller/shared";
 import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 import { pageSchema, paginationQuery } from "../../common/http/pagination";
@@ -54,7 +54,9 @@ const roleRef = z.object({ id: ulidSchema, name: z.string() });
 export const meSchema = z.object({
   user: z.object({ id: ulidSchema, name: z.string(), email: z.string(), locale: z.enum(["id", "en"]) }),
   tenant: z.object({ id: ulidSchema, name: z.string(), slug: z.string(), timezone: z.string(), status: z.string() }),
-  permissions: z.array(z.string()),
+  permissions: z
+    .array(z.enum(PERMISSION_CODES))
+    .describe("izin efektif pengguna; klien menyembunyikan aksi yang tidak diizinkan"),
   roles: z.array(roleRef),
   storeScope: z.array(ulidSchema).nullable(),
   warehouseScope: z.array(ulidSchema).nullable(),
@@ -65,7 +67,7 @@ export function meView(p: Principal): z.infer<typeof meSchema> {
   return {
     user: { id: p.user.id, name: p.user.name, email: p.user.email, locale: p.user.locale },
     tenant: p.tenant,
-    permissions: p.permissions,
+    permissions: p.permissions.filter(isPermission),
     roles: p.roles,
     storeScope: p.storeScope,
     warehouseScope: p.warehouseScope,

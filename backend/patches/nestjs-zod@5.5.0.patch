@@ -1,0 +1,50 @@
+diff --git a/dist/dto-CHeB-l1i.mjs b/dist/dto-CHeB-l1i.mjs
+index 71150dbea8fed02a5f524d4db5c0193bd77f0e65..404383d4246982a4aa899f355a6836af12582159 100644
+--- a/dist/dto-CHeB-l1i.mjs
++++ b/dist/dto-CHeB-l1i.mjs
+@@ -336,7 +336,19 @@ function openApiMetadataFactory({ schema, io }) {
+ 	};
+ 	const { hasRefs, usesThreePointOneSyntax } = getSchemaMetadata(jsonSchema);
+ 	const properties = {};
+-	for (const [propertyKey, propertySchema] of Object.entries(jsonSchema.properties || {})) {
++	for (const [propertyKey, originalPropertySchema] of Object.entries(jsonSchema.properties || {})) {
++		/**
++		* zod 4 writes a nullable primitive as `type: ["string", "null"]`; @nestjs/swagger reads an array
++		* `type` as "array of the first type". Turn it into the `anyOf` form zod uses for every other
++		* nullable schema, which passes through intact.
++		*/
++		const propertySchema = Array.isArray(originalPropertySchema.type) ? (() => {
++			const { type: types, ...keywords } = originalPropertySchema;
++			return { anyOf: types.map((t) => t === "null" ? { type: "null" } : {
++				...keywords,
++				type: t
++			}) };
++		})() : originalPropertySchema;
+ 		const newPropertySchema = {
+ 			...propertySchema,
+ 			type: propertySchema.type || ""
+diff --git a/dist/dto-sWxCeI9D.cjs b/dist/dto-sWxCeI9D.cjs
+index b01e7e7d7ca3fc93a9eb88857d715ba409edfe96..d29f7e8184b0888cb40d580253f78d2b9339aa22 100644
+--- a/dist/dto-sWxCeI9D.cjs
++++ b/dist/dto-sWxCeI9D.cjs
+@@ -359,7 +359,19 @@ function openApiMetadataFactory({ schema, io }) {
+ 	};
+ 	const { hasRefs, usesThreePointOneSyntax } = getSchemaMetadata(jsonSchema);
+ 	const properties = {};
+-	for (const [propertyKey, propertySchema] of Object.entries(jsonSchema.properties || {})) {
++	for (const [propertyKey, originalPropertySchema] of Object.entries(jsonSchema.properties || {})) {
++		/**
++		* zod 4 writes a nullable primitive as `type: ["string", "null"]`; @nestjs/swagger reads an array
++		* `type` as "array of the first type". Turn it into the `anyOf` form zod uses for every other
++		* nullable schema, which passes through intact.
++		*/
++		const propertySchema = Array.isArray(originalPropertySchema.type) ? (() => {
++			const { type: types, ...keywords } = originalPropertySchema;
++			return { anyOf: types.map((t) => t === "null" ? { type: "null" } : {
++				...keywords,
++				type: t
++			}) };
++		})() : originalPropertySchema;
+ 		const newPropertySchema = {
+ 			...propertySchema,
+ 			type: propertySchema.type || ""

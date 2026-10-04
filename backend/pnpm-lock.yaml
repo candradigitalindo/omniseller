@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  nestjs-zod@5.5.0:
+    hash: d44f1ff1abe007397db5de7226c7c2ad3107f84cdfbfcc65c4bec99f5f289026
+    path: patches/nestjs-zod@5.5.0.patch
+
 importers:
 
   .:
@@ -70,7 +75,7 @@ importers:
         version: 5.11.1
       nestjs-zod:
         specifier: 5.5.0
-        version: 5.5.0(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/swagger@11.4.7(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(reflect-metadata@0.2.2))(rxjs@7.8.2)(zod@4.6.5)
+        version: 5.5.0(patch_hash=d44f1ff1abe007397db5de7226c7c2ad3107f84cdfbfcc65c4bec99f5f289026)(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/swagger@11.4.7(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(reflect-metadata@0.2.2))(rxjs@7.8.2)(zod@4.6.5)
       nodemailer:
         specifier: 10.0.13
         version: 10.0.13
@@ -4441,7 +4446,7 @@ snapshots:
     dependencies:
       content-type: 2.1.0
 
-  nestjs-zod@5.5.0(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/swagger@11.4.7(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(reflect-metadata@0.2.2))(rxjs@7.8.2)(zod@4.6.5):
+  nestjs-zod@5.5.0(patch_hash=d44f1ff1abe007397db5de7226c7c2ad3107f84cdfbfcc65c4bec99f5f289026)(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/swagger@11.4.7(@nestjs/common@11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.2.7)(reflect-metadata@0.2.2))(rxjs@7.8.2)(zod@4.6.5):
     dependencies:
       '@nestjs/common': 11.2.7(reflect-metadata@0.2.2)(rxjs@7.8.2)
       deepmerge: 4.3.1

@@ -14,7 +14,7 @@ Aplikasi manajemen penjualan multi-marketplace. Root repositori hanya berisi dok
 
 ```
 backend/     NestJS (api, webhook, worker, scheduler), migrasi SQL, paket shared, logging, dan connector marketplace
-frontend/    Next.js (menyusul)
+frontend/    Next.js: web app penjual
 mobile/      Expo (menyusul)
 ```
 
@@ -48,3 +48,17 @@ pnpm test:int                  # integrasi: basis data dan Redis sungguhan
 ```bash
 TEST_PG_ADMIN_URL=postgres://postgres@127.0.0.1:5433/postgres TEST_REDIS_URL=redis://127.0.0.1:6379 pnpm test:int
 ```
+
+## Web app
+
+Butuh backend yang berjalan (`pnpm dev` di `backend/`, api di port 3000). Semua perintah dari folder `frontend/`; rinciannya di `frontend/README.md`.
+
+```bash
+cd frontend
+pnpm install
+cp .env.example .env.local     # API_ORIGIN, bawaan http://localhost:3000
+pnpm dev                       # http://localhost:3100
+pnpm lint && pnpm typecheck && pnpm test
+```
+
+Setelah kontrak API berubah: `pnpm openapi:emit` di `backend/`, lalu `pnpm api:types` di `frontend/`.
