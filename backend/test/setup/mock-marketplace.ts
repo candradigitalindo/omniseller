@@ -81,6 +81,19 @@ export interface MockShopeeOrder {
   cancel_reason?: string;
   /** Warehouse of every line, as product_location_id (defaults to IDZ). */
   location?: string;
+  /** What v2.logistics.get_tracking_info answers for the order. */
+  tracking?: {
+    logistics_status: string;
+    tracking_info: { update_time: number; description: string; logistics_status: string; return_code?: string }[];
+  };
+  /** A split order: get_tracking_info needs a package number, and each package has its own journey. */
+  splitTracking?: Record<
+    string,
+    {
+      logistics_status: string;
+      tracking_info: { update_time: number; description: string; logistics_status: string }[];
+    }
+  >;
   item_list: {
     item_id: number;
     item_name: string;
@@ -147,6 +160,8 @@ export interface MockTiktokOrder {
   is_buyer_request_cancel?: boolean;
   /** TIKTOK (platform shipping, default) or SELLER (own courier). */
   shipping_type?: "TIKTOK" | "SELLER";
+  /** What Get Tracking (202309) answers for the order. */
+  tracking?: { description: string; update_time_millis: number; action_code: number }[];
   recipient_address?: { name?: string; phone_number?: string; full_address?: string; postal_code?: string };
   payment?: { currency?: string; sub_total?: string; shipping_fee?: string; total_amount?: string };
   line_items: {
@@ -313,6 +328,8 @@ export class MockMarketplace {
   readonly shopeeRefuse = new Map<string, string>();
   /** TikTok Shop package id -> arrangement and tracking number. */
   readonly tiktokPackages = new Map<string, { method: string; tracking: string }>();
+  /** Tracking reads, `<marketplace>:<order>:<package>`. */
+  readonly trackingCalls: string[] = [];
 
   /** Port 0 picks a free port (tests); a fixed port lets separately started processes find it. */
   async start(port = 0): Promise<void> {
@@ -755,6 +772,30 @@ export class MockMarketplace {
     };
 
     switch (call.path) {
+      case "/api/v2/logistics/get_tracking_info": {
+        this.trackingCalls.push(`shopee:${call.query.order_sn}:${call.query.package_number ?? ""}`);
+        const o = (shop.orders ?? []).find((x) => x.order_sn === call.query.order_sn);
+        if (!o) return this.shopeeError("logistics.invalid_error", "The order is not exist.", 200);
+        if (o.splitTracking) {
+          const part = o.splitTracking[call.query.package_number ?? ""];
+          if (!call.query.package_number) {
+            return this.shopeeError(
+              "logistics.package_number_not_exist",
+              "Please request with package_number for this split order.",
+              200,
+            );
+          }
+          if (!part) return this.shopeeError("logistics.package_not_exist", "The package is not exist.", 200);
+          return ok({ response: { order_sn: o.order_sn, package_number: call.query.package_number, ...part } });
+        }
+        return ok({
+          response: {
+            order_sn: o.order_sn,
+            package_number: call.query.package_number ?? "",
+            ...(o.tracking ?? { logistics_status: shopeePackagesOf(o)[0]!.logistics_status, tracking_info: [] }),
+          },
+        });
+      }
       case "/api/v2/logistics/get_mass_shipping_parameter": {
         const list = packages(body.package_list);
         if (list.length < 1 || list.length > 50)
@@ -1187,6 +1228,13 @@ export class MockMarketplace {
             call.path,
           );
         if (pkg) return this.tiktokFulfillment(shop, call, pkg[1]!, pkg[2]!);
+        const tracked = /^\/fulfillment\/202309\/orders\/(\d+)\/tracking$/.exec(call.path);
+        if (call.method === "GET" && tracked) {
+          this.trackingCalls.push(`tiktokshop:${tracked[1]}:`);
+          const o = (shop.orders ?? []).find((x) => x.id === tracked[1]);
+          if (!o) return this.tiktokReply(21011001, "order is not exist");
+          return this.tiktokReply(0, "Success", { tracking: o.tracking ?? [] });
+        }
         const inv = /^\/product\/202309\/products\/(\d+)\/inventory\/update$/.exec(call.path);
         if (call.method === "POST" && inv) return this.tiktokInventory(shop, inv[1]!, call.body);
         const m = /^\/product\/202309\/products\/(\d+)$/.exec(call.path);

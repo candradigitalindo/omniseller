@@ -237,6 +237,66 @@ export type LabelResult =
   | { ref: PackageRef; state: "pending"; trackingNumber: string | null; message: string }
   | { ref: PackageRef; state: "failed"; code: string; message: string };
 
+/**
+ * How far a parcel has come, from the marketplace's tracking (backend doc 8.22, PRD FR-SHP-07):
+ * - waiting_pickup: arranged and labelled, the courier does not have it yet
+ * - in_transit: the courier has it, between its facilities
+ * - out_for_delivery: on the way to the buyer, or waiting at a pickup point
+ * - delivered
+ * - failed: a pickup or delivery attempt failed, or the parcel is late; it may still arrive
+ * - returning: on its way back to the seller
+ * - returned: back with the seller
+ * - lost: lost, damaged, or disposed of by the courier
+ * - cancelled: the shipment was cancelled
+ */
+export type TrackingStage =
+  | "waiting_pickup"
+  | "in_transit"
+  | "out_for_delivery"
+  | "delivered"
+  | "failed"
+  | "returning"
+  | "returned"
+  | "lost"
+  | "cancelled";
+
+export interface TrackingEvent {
+  at: Date;
+  /**
+   * As the marketplace or courier wrote it. It may name who received the parcel: personal data, never
+   * logged.
+   */
+  description: string;
+  /** Marketplace code of the event: Shopee tracking logistics status, TikTok Shop action code. */
+  code: string | null;
+  /** Null for a code OmniSeller does not know. */
+  stage: TrackingStage | null;
+  /** Shopee ID, SPX Instant and Sameday: the OTP the seller gives the driver of a returned parcel. */
+  returnCode?: string;
+}
+
+export interface ParcelTracking {
+  /** Shopee package_number; "" for an order without one and for TikTok Shop (tracked per order). */
+  externalPackageId: string;
+  /** The newest event's known stage, else the marketplace's own logistics status; null if neither. */
+  stage: TrackingStage | null;
+  /** Newest first. */
+  events: TrackingEvent[];
+}
+
+export type TrackingResult =
+  | { externalOrderId: string; parcels: ParcelTracking[] }
+  | { externalOrderId: string; error: { code: string; message: string } };
+
+/** The stage of a parcel: its newest event with a known stage, else `fallback`. */
+export function trackingStageOf(
+  events: readonly TrackingEvent[],
+  fallback: TrackingStage | null,
+): TrackingStage | null {
+  const newest = [...events].sort((a, b) => b.at.getTime() - a.at.getTime()).find((e) => e.stage !== null);
+  return newest?.stage ?? fallback;
+}
+
 export interface NormalizedRecipient {
   name: string | null;
   phone: string | null;
@@ -443,6 +503,18 @@ export interface MarketplaceConnector {
      * failed. Labels carry buyer data: callers store them privately and never log them.
      */
     labels(shop: ShopCredentials, refs: PackageRef[]): Promise<LabelResult[]>;
+    /**
+     * Where the orders' parcels are (FR-SHP-07): per order, its parcels with their events, or why the
+     * marketplace refused to say. Packages are tracked one by one when given (Shopee split orders);
+     * without them the connector finds them. A refusal for one order does not cost the others their
+     * tracking. A temporary failure (busy, rate limit, network) ends the run: the orders read so far are
+     * returned and the rest are left out, or the error is thrown when none was read. Authorization
+     * failures always throw.
+     */
+    tracking(
+      shop: ShopCredentials,
+      orders: { externalOrderId: string; externalPackageIds: string[] }[],
+    ): Promise<TrackingResult[]>;
   };
 
   inventory: {

@@ -3,6 +3,7 @@ import { signatureEquals } from "./crypto.js";
 import { PermanentConnectorError, TransientConnectorError } from "./errors.js";
 import { type CallRecord, isPdf, parseJsonSafe, requestFile, requestJson, retryAfter, toRupiah } from "./http.js";
 import { REDACTED, redactUrl, redactValue, summarize } from "./redact.js";
+import { type TrackingStage, trackingStageOf } from "./types.js";
 
 describe("redaction", () => {
   it("masks secrets and personal data at any depth, keeps the rest", () => {
@@ -136,5 +137,21 @@ describe("parseJsonSafe and toRupiah", () => {
     expect(toRupiah(undefined)).toBeNull();
     expect(toRupiah("abc")).toBeNull();
     expect(toRupiah(-1)).toBeNull();
+  });
+});
+
+describe("trackingStageOf", () => {
+  const ev = (seconds: number, stage: TrackingStage | null) => ({
+    at: new Date(seconds * 1000),
+    description: "",
+    code: null,
+    stage,
+  });
+
+  it("takes the newest event with a known stage over the marketplace's own status", () => {
+    // a failed delivery attempt says more than "picked up", whatever order the events come in
+    expect(trackingStageOf([ev(1, "in_transit"), ev(3, null), ev(2, "failed")], "in_transit")).toBe("failed");
+    expect(trackingStageOf([ev(1, null)], "delivered")).toBe("delivered");
+    expect(trackingStageOf([], null)).toBeNull();
   });
 });

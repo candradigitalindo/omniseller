@@ -29,33 +29,54 @@ export const connectorCallObserver = (record: CallRecord): void => {
  * per store): one operation may make hundreds of calls (a catalog pull), so the bucket is taken per
  * request, not per operation. Inside `withRequestGate`, each request waits for a token up to
  * `MAX_WAIT_MS` in total, then gives up with a transient error so BullMQ retries later.
+ *
+ * Background reads (parcel tracking, backend doc 8.22) also take from a smaller bucket of their own,
+ * `BACKGROUND_SHARE` of the store's rate, so they never use up what stock pushes and order work need.
+ * They may wait longer (`BACKGROUND_MAX_WAIT_MS`), on a queue of their own.
  */
 interface Gate {
   limiter: RateLimiter;
   key: string;
   rule: RateLimitRule;
+  background?: boolean;
   waitedMs: number;
 }
 
 const gateScope = new AsyncLocalStorage<Gate>();
 const MAX_WAIT_MS = 30_000;
+export const BACKGROUND_SHARE = 0.3;
+const BACKGROUND_MAX_WAIT_MS = 120_000;
 
 export function withRequestGate<T>(gate: Omit<Gate, "waitedMs">, fn: () => Promise<T>): Promise<T> {
   return gateScope.run({ ...gate, waitedMs: 0 }, fn);
 }
 
+/** The bucket of a store's background reads: `BACKGROUND_SHARE` of its rate, at least one call a second. */
+export function backgroundRule(rule: RateLimitRule): RateLimitRule {
+  return {
+    capacity: Math.max(1, Math.floor(rule.capacity * BACKGROUND_SHARE)),
+    refillPerSecond: Math.max(1, Math.floor(rule.refillPerSecond * BACKGROUND_SHARE)),
+  };
+}
+
 export async function connectorRequestGate(): Promise<void> {
   const gate = gateScope.getStore();
   if (!gate) return;
+  if (gate.background) await takeToken(gate, `${gate.key}:background`, backgroundRule(gate.rule));
+  await takeToken(gate, gate.key, gate.rule);
+}
+
+async function takeToken(gate: Gate, key: string, rule: RateLimitRule): Promise<void> {
+  const maxWait = gate.background ? BACKGROUND_MAX_WAIT_MS : MAX_WAIT_MS;
   for (;;) {
-    const decision = await gate.limiter.take(gate.key, {
-      capacity: gate.rule.capacity,
-      refill: gate.rule.refillPerSecond,
+    const decision = await gate.limiter.take(key, {
+      capacity: rule.capacity,
+      refill: rule.refillPerSecond,
       windowMs: 1000,
     });
     if (decision.allowed) return;
     const wait = Math.max(50, decision.retryAfterSeconds * 1000);
-    if (gate.waitedMs + wait > MAX_WAIT_MS) {
+    if (gate.waitedMs + wait > maxWait) {
       throw new TransientConnectorError({
         code: "local_rate_limit",
         message: "per-store call budget used up",

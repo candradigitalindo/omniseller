@@ -1,11 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { and, asc, desc, eq, gt, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { Tx } from "../../db/client";
-import { documentJob, shipment, shipmentPackage } from "../../db/schema";
+import { documentJob, labelTemplate, shipment, shipmentPackage } from "../../db/schema";
 
 export type ShipmentRow = typeof shipment.$inferSelect;
 export type PackageRow = typeof shipmentPackage.$inferSelect;
 export type DocumentRow = typeof documentJob.$inferSelect;
+export type LabelTemplateRow = typeof labelTemplate.$inferSelect;
 
 @Injectable()
 export class FulfillmentRepository {
@@ -92,6 +93,19 @@ export class FulfillmentRepository {
 
   async updateDocument(tx: Tx, id: string, patch: Partial<typeof documentJob.$inferInsert>): Promise<void> {
     if (Object.keys(patch).length > 0) await tx.update(documentJob).set(patch).where(eq(documentJob.id, id));
+  }
+
+  // ---- label template (FR-SHP-16) ----
+
+  /** The business's custom template; one row per business at most. */
+  async labelTemplate(tx: Tx): Promise<LabelTemplateRow | undefined> {
+    const [r] = await tx.select().from(labelTemplate).limit(1);
+    return r;
+  }
+
+  async saveLabelTemplate(tx: Tx, row: typeof labelTemplate.$inferInsert): Promise<void> {
+    const { id: _, tenantId: __, ...set } = row;
+    await tx.insert(labelTemplate).values(row).onConflictDoUpdate({ target: labelTemplate.tenantId, set });
   }
 
   /** Shipments in id order (full data export, FR-MIG-09). */

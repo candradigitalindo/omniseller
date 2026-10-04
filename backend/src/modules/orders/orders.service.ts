@@ -176,6 +176,15 @@ export class OrdersService {
     return out;
   }
 
+  /** Tag names of these orders, for printed documents (packing lists, custom labels). */
+  async tagsIn(tx: Tx, orderIds: string[]): Promise<Map<string, string[]>> {
+    const out = new Map<string, string[]>();
+    for (const t of await this.tags.ofOrders(tx, [...new Set(orderIds)])) {
+      out.set(t.orderId, [...(out.get(t.orderId) ?? []), t.name]);
+    }
+    return out;
+  }
+
   /** Orders and their lines inside the caller's transaction, without scope checks (worker side). */
   async readIn(tx: Tx, orderIds: string[]): Promise<{ orders: OrderRow[]; items: OrderItemRow[] }> {
     const ids = [...new Set(orderIds)];

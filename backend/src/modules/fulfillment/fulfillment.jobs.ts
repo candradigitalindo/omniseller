@@ -5,7 +5,12 @@ import { jobKey } from "../../jobs/job-id";
 import { orderStatusChanged } from "../orders/orders.events";
 import type { WebhookConsumer, WebhookConsumers } from "../sync/webhook-consumer";
 import { DocumentRenderService } from "./document-render.service";
-import { documentRequested, shipmentArrangeRequested, shipmentLabelRequested } from "./fulfillment.events";
+import {
+  documentRequested,
+  shipmentArrangeRequested,
+  shipmentLabelRequested,
+  shipmentTrackingRequested,
+} from "./fulfillment.events";
 import { FulfillmentWorkerService } from "./fulfillment-worker.service";
 
 const shipmentIds = z.array(ulidSchema).min(1).max(500);
@@ -39,7 +44,7 @@ export const labelFetchJob = defineJob({
   },
 });
 
-/** FR-SHP-01, 02: labels in one PDF, or the pick list. */
+/** FR-SHP-01, 02, 03: labels in one PDF (with packing lists), the pick list, or packing lists. */
 export const documentRenderJob = defineJob({
   queue: "pdf",
   name: "document.render",
@@ -71,7 +76,30 @@ export const shipmentFollowOrderJob = defineJob({
   },
 });
 
-export const FULFILLMENT_JOBS = [shipmentArrangeJob, labelFetchJob, documentRenderJob, shipmentFollowOrderJob];
+/**
+ * FR-SHP-07: where the parcels of these orders are, read from their marketplaces. Queued by the
+ * scheduler's `shipment.tracking_scan` (per slot) and by the seller's "Perbarui" (per request). Its own
+ * queue keeps these slow background reads (a share of each store's request rate) away from order pulls.
+ */
+export const shipmentTrackingPullJob = defineJob({
+  queue: "mp.track",
+  name: "shipment.tracking_pull",
+  schema: z.object({ orderIds: z.array(ulidSchema).min(1).max(100) }),
+  triggeredBy: [shipmentTrackingRequested],
+  options: { attempts: 3, backoff: { type: "exponential", delay: 30_000 } },
+  jobId: (p, meta) => jobKey("shipment.tracking_pull", p.orderIds[0]!, meta.eventId ?? "direct"),
+  handler: async (p, run) => {
+    await run.deps.resolve(FulfillmentWorkerService).pullTracking(run.ctx, p.orderIds, run.jobId);
+  },
+});
+
+export const FULFILLMENT_JOBS = [
+  shipmentArrangeJob,
+  labelFetchJob,
+  documentRenderJob,
+  shipmentFollowOrderJob,
+  shipmentTrackingPullJob,
+];
 
 /** Shopee push 4 (tracking number) and 15 (shipping document ready): fetch the label now. */
 const labelsFromPush: WebhookConsumer = async (run, event) => {

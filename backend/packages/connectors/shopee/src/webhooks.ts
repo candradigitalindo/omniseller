@@ -37,7 +37,8 @@ export const SHOPEE_PUSH_CODES = {
   ITEM_PRICE_UPDATE: 22,
 } as const;
 
-const KINDS: Record<number, WebhookEventKind> = {
+/** Push codes OmniSeller reads, and what each becomes. */
+export const SHOPEE_PUSH_KINDS: Record<number, WebhookEventKind> = {
   1: "authorization.granted",
   2: "authorization.revoked",
   3: "order.status_changed",
@@ -77,7 +78,7 @@ export function parseShopeePush(rawBody: Buffer): NormalizedWebhookEvent[] {
   }
   const code = Number(body.code);
   const data = (body.data && typeof body.data === "object" ? body.data : {}) as Record<string, unknown>;
-  const kind = KINDS[code] ?? "other";
+  const kind = SHOPEE_PUSH_KINDS[code] ?? "other";
   const shops = new Set<string>([
     ...ids(body.shop_id),
     ...ids(data.shop_id),

@@ -3870,6 +3870,74 @@
         }
       }
     },
+    "/v1/orders/{id}/tracking": {
+      "get": {
+        "operationId": "ShipmentsController_tracking",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackingDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "shipments"
+        ],
+        "x-isolation": {
+          "fixture": "order"
+        }
+      }
+    },
+    "/v1/orders/{id}/tracking/refresh": {
+      "post": {
+        "operationId": "ShipmentsController_refreshTracking",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackingRefreshDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "shipments"
+        ],
+        "x-isolation": {
+          "fixture": "order"
+        }
+      }
+    },
     "/v1/documents": {
       "post": {
         "operationId": "DocumentsController_create",
@@ -3970,6 +4038,87 @@
         "x-isolation": {
           "fixture": "order"
         }
+      }
+    },
+    "/v1/label-template": {
+      "get": {
+        "operationId": "DocumentsController_labelTemplate",
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabelTemplateDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "documents"
+        ],
+        "x-isolation": "self"
+      },
+      "put": {
+        "operationId": "DocumentsController_setLabelTemplate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLabelTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabelTemplateDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "documents"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/label-template/preview": {
+      "get": {
+        "operationId": "DocumentsController_previewLabelTemplate",
+        "parameters": [
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "thermal",
+              "type": "string",
+              "enum": [
+                "thermal",
+                "a4"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PDF"
+          }
+        },
+        "tags": [
+          "documents"
+        ],
+        "x-isolation": "self"
       }
     },
     "/v1/notifications": {
@@ -13179,6 +13328,57 @@
                     "additionalProperties": false
                   }
                 },
+                "trackingStage": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "waiting_pickup",
+                        "in_transit",
+                        "out_for_delivery",
+                        "delivered",
+                        "failed",
+                        "returning",
+                        "returned",
+                        "lost",
+                        "cancelled"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "trackingStageLabel": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "trackingEventAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "trackingSyncedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "createdAt": {
                   "type": "string",
                   "format": "date-time",
@@ -13200,6 +13400,10 @@
                 "lastError",
                 "labelReady",
                 "packages",
+                "trackingStage",
+                "trackingStageLabel",
+                "trackingEventAt",
+                "trackingSyncedAt",
                 "createdAt"
               ],
               "additionalProperties": false
@@ -13211,6 +13415,182 @@
         ],
         "additionalProperties": false
       },
+      "TrackingDto_Output": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "marketplace",
+              "manual"
+            ],
+            "description": "manual: tahap dari status pesanan, tanpa pelacakan kurir"
+          },
+          "trackingNumber": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "provider": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "waiting_pickup",
+                  "in_transit",
+                  "out_for_delivery",
+                  "delivered",
+                  "failed",
+                  "returning",
+                  "returned",
+                  "lost",
+                  "cancelled"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stageLabel": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "stage": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "waiting_pickup",
+                        "in_transit",
+                        "out_for_delivery",
+                        "delivered",
+                        "failed",
+                        "returning",
+                        "returned",
+                        "lost",
+                        "cancelled"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "stageLabel": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "code": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "packageId": {
+                  "description": "paket pesanan Shopee yang dipecah",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "returnCode": {
+                  "description": "kode OTP retur SPX Instant dan Sameday untuk kurir",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "at",
+                "description",
+                "stage",
+                "stageLabel",
+                "code",
+                "packageId",
+                "returnCode"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "syncedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "refreshable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "orderId",
+          "source",
+          "trackingNumber",
+          "provider",
+          "stage",
+          "stageLabel",
+          "events",
+          "syncedAt",
+          "error",
+          "refreshable"
+        ],
+        "additionalProperties": false
+      },
+      "TrackingRefreshDto_Output": {
+        "type": "object",
+        "properties": {
+          "queued": {
+            "type": "boolean",
+            "description": "false: sudah dibaca dalam 10 menit terakhir"
+          }
+        },
+        "required": [
+          "queued"
+        ],
+        "additionalProperties": false
+      },
       "RequestDocumentDto": {
         "type": "object",
         "properties": {
@@ -13218,7 +13598,8 @@
             "type": "string",
             "enum": [
               "labels",
-              "pick_list"
+              "pick_list",
+              "packing_list"
             ]
           },
           "orderIds": {
@@ -13237,6 +13618,18 @@
               "thermal",
               "a4"
             ]
+          },
+          "template": {
+            "default": "standard",
+            "type": "string",
+            "enum": [
+              "standard",
+              "custom"
+            ]
+          },
+          "packingList": {
+            "default": false,
+            "type": "boolean"
           }
         },
         "required": [
@@ -13255,7 +13648,8 @@
             "type": "string",
             "enum": [
               "labels",
-              "pick_list"
+              "pick_list",
+              "packing_list"
             ]
           },
           "status": {
@@ -13280,6 +13674,23 @@
                 "type": "null"
               }
             ]
+          },
+          "template": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "standard",
+                  "custom"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "packingList": {
+            "type": "boolean"
           },
           "orderCount": {
             "type": "integer",
@@ -13376,6 +13787,8 @@
           "kind",
           "status",
           "format",
+          "template",
+          "packingList",
           "orderCount",
           "pageCount",
           "result",
@@ -13533,6 +13946,60 @@
           "missing"
         ],
         "additionalProperties": false
+      },
+      "LabelTemplateDto_Output": {
+        "type": "object",
+        "properties": {
+          "showSku": {
+            "type": "boolean",
+            "description": "SKU tiap barang; tanpa SKU, nama produk"
+          },
+          "showVariant": {
+            "type": "boolean"
+          },
+          "showBin": {
+            "type": "boolean",
+            "description": "lokasi rak"
+          },
+          "showBuyerNote": {
+            "type": "boolean"
+          },
+          "showTags": {
+            "type": "boolean",
+            "description": "tag pesanan; juga di daftar kemas"
+          }
+        },
+        "required": [
+          "showSku",
+          "showVariant",
+          "showBin",
+          "showBuyerNote",
+          "showTags"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateLabelTemplateDto": {
+        "type": "object",
+        "properties": {
+          "showSku": {
+            "type": "boolean",
+            "description": "SKU tiap barang; tanpa SKU, nama produk"
+          },
+          "showVariant": {
+            "type": "boolean"
+          },
+          "showBin": {
+            "type": "boolean",
+            "description": "lokasi rak"
+          },
+          "showBuyerNote": {
+            "type": "boolean"
+          },
+          "showTags": {
+            "type": "boolean",
+            "description": "tag pesanan; juga di daftar kemas"
+          }
+        }
       },
       "NotificationPageDto_Output": {
         "type": "object",

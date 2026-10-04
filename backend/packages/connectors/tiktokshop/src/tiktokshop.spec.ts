@@ -955,3 +955,76 @@ describe("TikTok Shop fulfillment (schedule shipping, SEA)", () => {
     expect(event).toMatchObject({ kind: "order.status_changed", data: { externalOrderIds: ["152523", "532123"] } });
   });
 });
+
+describe("TikTok Shop tracking (Get Tracking 202309)", () => {
+  const shop = { externalShopId: "7494", shopCipher: "ROW_cipher", accessToken: "TTP_access" };
+
+  it("reads the journey per order and maps action codes to stages", async () => {
+    const f = fakeFetch({
+      "GET /fulfillment/202309/orders/576461413038785752/tracking": (url) => {
+        expect(url.searchParams.get("shop_cipher")).toBe("ROW_cipher");
+        return {
+          code: 0,
+          data: {
+            tracking: [
+              { description: "Parcel created", update_time_millis: 1_790_000_000_000, action_code: 10101 },
+              {
+                description: "Your package was delivered!\n",
+                update_time_millis: 1_790_090_000_000,
+                action_code: 50101,
+              },
+              { description: "Out for delivery", update_time_millis: 1_790_080_000_000, action_code: 40501 },
+              { description: "Picked up", update_time_millis: 1_790_010_000_000, action_code: 30901 },
+            ],
+          },
+        };
+      },
+      "GET /fulfillment/202309/orders/999/tracking": () => ({ code: 21011001, message: "order is not exist" }),
+    });
+    const results = await connector(f.fn).fulfillment.tracking(shop, [
+      { externalOrderId: "576461413038785752", externalPackageIds: ["1153132168123859148"] },
+      { externalOrderId: "999", externalPackageIds: [] },
+    ]);
+    expect(results[0]).toEqual({
+      externalOrderId: "576461413038785752",
+      parcels: [
+        {
+          externalPackageId: "",
+          stage: "delivered",
+          events: [
+            {
+              at: new Date(1_790_090_000_000),
+              description: "Your package was delivered!",
+              code: "50101",
+              stage: "delivered",
+            },
+            {
+              at: new Date(1_790_080_000_000),
+              description: "Out for delivery",
+              code: "40501",
+              stage: "out_for_delivery",
+            },
+            { at: new Date(1_790_010_000_000), description: "Picked up", code: "30901", stage: "in_transit" },
+            { at: new Date(1_790_000_000_000), description: "Parcel created", code: "10101", stage: "waiting_pickup" },
+          ],
+        },
+      ],
+    });
+    expect(results[1]).toMatchObject({ externalOrderId: "999", error: { code: "21011001" } });
+  });
+
+  it("stops at a temporary failure: what was read counts, the rest waits for the next read", async () => {
+    const f = fakeFetch({
+      "GET /fulfillment/202309/orders/1/tracking": () => ({ code: 0, data: { tracking: [] } }),
+      "GET /fulfillment/202309/orders/2/tracking": () => ({ code: 36009003, message: "Internal error." }),
+      "GET /fulfillment/202309/orders/3/tracking": () => ({ code: 0, data: { tracking: [] } }),
+    });
+    const orders = ["1", "2", "3"].map((id) => ({ externalOrderId: id, externalPackageIds: [] }));
+    const results = await connector(f.fn).fulfillment.tracking(shop, orders);
+    expect(results.map((r) => r.externalOrderId)).toEqual(["1"]);
+    // nothing read: the failure shows in the sync log instead of an empty success
+    await expect(connector(f.fn).fulfillment.tracking(shop, orders.slice(1))).rejects.toMatchObject({
+      kind: "transient",
+    });
+  });
+});

@@ -6,6 +6,7 @@ import {
   type LabelResult,
   type NormalizedOrder,
   type PackageRef,
+  type TrackingResult,
 } from "@omniseller/connector-core";
 import { logger } from "@omniseller/logging";
 import { newId, type OrderStatus } from "@omniseller/shared";
@@ -15,6 +16,7 @@ import { withStatusSource, withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
 import { MarketplaceGateway } from "../channel/marketplace-gateway";
+import { isManualChannel, StoresService } from "../channel/stores.service";
 import { FilesService } from "../files/files.service";
 import { type Actor, OrderIntakeService } from "../orders/order-intake.service";
 import { OrderSyncService } from "../orders/order-sync.service";
@@ -23,7 +25,7 @@ import { OrdersService } from "../orders/orders.service";
 import { describeSyncError } from "../sync/connector-calls";
 import { shipmentLabelRequested } from "./fulfillment.events";
 import { FulfillmentRepository, type PackageRow, type ShipmentRow } from "./fulfillment.repository";
-import { shipmentStepFor } from "./shipping-plan";
+import { combineParcels, shipmentStepFor, TRACKED, TRACKING_REFRESH_MS } from "./shipping-plan";
 
 const log = logger.forModule("fulfillment");
 
@@ -61,7 +63,110 @@ export class FulfillmentWorkerService {
     @Inject(MarketplaceGateway) private readonly gateway: MarketplaceGateway,
     @Inject(FilesService) private readonly files: FilesService,
     @Inject(OUTBOX) private readonly outbox: Outbox,
+    @Inject(StoresService) private readonly stores: StoresService,
   ) {}
+
+  /**
+   * FR-SHP-07: where the parcels of these orders are, read from their marketplaces and kept on each
+   * order's shipment. A marketplace order shipped without OmniSeller arranging it (Seller Center, parallel
+   * mode) gets a shipment that holds its tracking. Manual orders, orders fulfilled by the marketplace,
+   * orders of stores that are not connected, and parcels another job read in the last 10 minutes (since
+   * the order's last status change) are left out.
+   *
+   * One background call per store, outside transactions: a store that fails does not stop the others,
+   * and orders a store could not get to before a temporary failure stay as they were, for the next scan.
+   */
+  async pullTracking(ctx: RequestContext, orderIds: string[], queueJobId?: string): Promise<number> {
+    const work = await withTenantTx(this.db, ctx, async (tx) => {
+      const { orders } = await this.orders.readIn(tx, orderIds);
+      const wanted = orders.filter(
+        (o) => o.fulfillmentMode === "seller" && !isManualChannel(o.channel) && TRACKED.has(o.status),
+      );
+      const targets = await this.stores.stockTargetsIn(tx, [...new Set(wanted.map((o) => o.storeId))]);
+      const usable = wanted.filter((o) => targets.get(o.storeId)?.usable);
+      const live = await this.repo.liveFor(
+        tx,
+        usable.map((o) => o.id),
+        true,
+      );
+      const rows: { order: OrderRow; shipment: ShipmentRow }[] = [];
+      const recently = Date.now() - TRACKING_REFRESH_MS;
+      for (const o of usable) {
+        const known = live.find((s) => s.orderId === o.id);
+        const read = known?.trackingSyncedAt?.getTime();
+        // queued twice (a slow job and the next scan, or a scan and "Perbarui"): read once
+        if (read !== undefined && read > recently && read >= o.statusChangedAt.getTime()) continue;
+        const shipment =
+          known ??
+          (await this.repo.insertShipment(tx, {
+            id: newId(),
+            tenantId: ctx.tenantId,
+            orderId: o.id,
+            status: o.status === "delivered" || o.status === "completed" ? "delivered" : "in_transit",
+            provider: o.shippingProvider,
+            service: o.shippingService,
+            trackingNumber: o.trackingNumber,
+          }));
+        if (shipment) rows.push({ order: o, shipment });
+      }
+      const packages = await this.repo.packages(
+        tx,
+        rows.map((r) => r.shipment.id),
+      );
+      return rows.map((r) => ({
+        ...r,
+        packageIds: packages
+          .filter((p) => p.shipmentId === r.shipment.id && p.externalPackageId)
+          .map((p) => p.externalPackageId!),
+      }));
+    });
+
+    const results = new Map<string, TrackingResult>();
+    for (const storeId of new Set(work.map((w) => w.order.storeId))) {
+      const mine = work.filter((w) => w.order.storeId === storeId);
+      try {
+        const answer = await this.gateway.call(
+          ctx,
+          storeId,
+          { kind: "tracking.pull", direction: "pull", ...(queueJobId ? { queueJobId } : {}) },
+          (c, shop) =>
+            c.fulfillment.tracking(
+              shop,
+              mine.map((w) => ({ externalOrderId: w.order.externalOrderId, externalPackageIds: w.packageIds })),
+            ),
+          (r) => ({ orders: mine.length, failed: r.filter((x) => "error" in x).length, left: mine.length - r.length }),
+          { background: true },
+        );
+        for (const r of answer) {
+          const w = mine.find((x) => x.order.externalOrderId === r.externalOrderId);
+          if (w) results.set(w.order.id, r);
+        }
+      } catch (err) {
+        log.warn({ err: describeSyncError(err), store_id: storeId }, "tracking pull failed for a store");
+      }
+    }
+
+    await withTenantTx(this.db, ctx, async (tx) => {
+      const now = new Date();
+      for (const w of work) {
+        const r = results.get(w.order.id);
+        if (!r) continue;
+        if ("error" in r) {
+          await this.repo.updateShipment(tx, w.shipment.id, { trackingError: r.error.message, trackingSyncedAt: now });
+          continue;
+        }
+        const t = combineParcels(r.parcels);
+        await this.repo.updateShipment(tx, w.shipment.id, {
+          trackingStage: t.stage,
+          trackingEvents: t.events,
+          trackingEventAt: t.eventAt,
+          trackingSyncedAt: now,
+          trackingError: null,
+        });
+      }
+    });
+    return results.size;
+  }
 
   /**
    * FR-SHP-06: arranges the pending shipments of one store, reads the orders again (their packages and

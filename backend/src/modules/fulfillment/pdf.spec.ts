@@ -1,6 +1,6 @@
 import { PDFDocument } from "pdf-lib";
 import { describe, expect, it } from "vitest";
-import { composeLabels, renderManualLabel, renderPickList } from "./pdf";
+import { composeLabels, type PackingList, renderManualLabel, renderPackingList, renderPickList } from "./pdf";
 import { A4_PAGE, MM, THERMAL_PAGE } from "./shipping-plan";
 
 /** A marketplace-like label file: `pages` A6 pages. */
@@ -27,6 +27,60 @@ describe("composeLabels (FR-SHP-01)", () => {
     const { width, height } = (await PDFDocument.load(out.pdf)).getPage(1).getSize();
     expect(width).toBeCloseTo(A4_PAGE.width, 3);
     expect(height).toBeCloseTo(A4_PAGE.height, 3);
+  });
+});
+
+describe("composeLabels with the custom template (FR-SHP-16)", () => {
+  const strip = {
+    orderNumber: "2410040ABC",
+    lines: Array.from({ length: 12 }, (_, i) => ({ qty: i + 1, sku: `SKU-${i}`, variant: "Hitam, L", bin: `A-${i}` })),
+    note: "Bungkus kado ✨",
+    tags: ["Prioritas", "COD"],
+  };
+
+  it("adds the strip under each page of a label and counts the pages of every entry", async () => {
+    const out = await composeLabels(
+      [{ pdf: await label(), strip }, { pdf: await label(2), strip }, { pdf: await label() }],
+      "thermal",
+    );
+    expect(out).toMatchObject({ pages: 4, labels: 4, unreadable: [], pagesPerEntry: [1, 2, 1] });
+    const a4 = await composeLabels([{ pdf: await label(), strip }, await label()], "a4");
+    expect(a4).toMatchObject({ pages: 1, labels: 2, pagesPerEntry: [1, 1] });
+  });
+});
+
+describe("renderPackingList (FR-SHP-03)", () => {
+  const list = (lines: number): PackingList => ({
+    number: "2410040ABC",
+    source: "Shopee · Toko Utama",
+    orderedAt: new Date("2026-10-04T03:00:00Z"),
+    courier: "SPX Standard",
+    trackingNumber: "SPXID0123456789",
+    buyer: "Dewi",
+    destination: "Surabaya, Jawa Timur",
+    lines: Array.from({ length: lines }, (_, i) => ({
+      qty: 1 + (i % 3),
+      sku: `KAOS-${i}`,
+      // characters the font cannot draw are dropped instead of failing the document
+      name: `Kaos Polos Cotton Combed 30s Premium 🔥 nomor ${i}`,
+      variant: i % 2 ? "Hitam, L" : null,
+      bin: i % 4 ? `A-${i}-01` : null,
+    })),
+    note: "Tolong dibungkus rapi, ini kado ulang tahun untuk adik saya yang sangat suka warna hitam. ".repeat(3),
+    tags: ["Prioritas"],
+  });
+
+  it("draws a short order on one 100 x 150 mm page", async () => {
+    const doc = await PDFDocument.load(await renderPackingList(list(3)));
+    expect(doc.getPageCount()).toBe(1);
+    expect(doc.getPage(0).getWidth()).toBeCloseTo(THERMAL_PAGE.width, 3);
+    expect(doc.getPage(0).getHeight()).toBeCloseTo(THERMAL_PAGE.height, 3);
+  });
+
+  it("continues a long order on the next pages", async () => {
+    const doc = await PDFDocument.load(await renderPackingList(list(40)));
+    expect(doc.getPageCount()).toBeGreaterThan(2);
+    for (const page of doc.getPages()) expect(page.getHeight()).toBeCloseTo(THERMAL_PAGE.height, 3);
   });
 });
 

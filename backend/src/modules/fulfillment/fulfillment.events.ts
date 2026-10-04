@@ -26,3 +26,10 @@ export const documentRequested = defineEvent({
   aggregate: "document",
   schema: z.object({ documentId: ulidSchema }),
 });
+
+/** The parcels of these orders should be tracked now (the seller pressed "Perbarui"). */
+export const shipmentTrackingRequested = defineEvent({
+  type: "shipment.tracking_requested",
+  aggregate: "order",
+  schema: z.object({ orderIds: z.array(ulidSchema).min(1).max(100) }),
+});

@@ -2,11 +2,11 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.12 |
+| Versi dokumen | 1.13 |
 | Tanggal | 4 Oktober 2026 |
-| Status | Keputusan final untuk implementasi; fondasi (bagian 4 sampai 9, 12, 13), identitas, autentikasi, dan audit (8.1, 8.10), koneksi toko Shopee dan Tokopedia & Shop (8.6, 8.11), katalog, listing, dan pemetaan SKU (7.8.3, 8.12), stok, penyesuaian, dan push stok ke marketplace (7.8.4, 8.13, 9.4), pesanan dari Shopee dan Tokopedia & Shop (7.8.6, 7.9, 8.14, 10.6), pengiriman, label, pick list, dan peringatan batas kirim (8.15), dasbor, notifikasi in-app, ekspor data penuh, dan audit aksi sensitif (8.16 sampai 8.18), migrasi dari aplikasi lain dengan mode paralel dan cutover (8.19), laporan penjualan, daftar perlu restock, ringkasan email harian, dan preferensi notifikasi (8.20), serta banyak gudang fisik, pesanan manual, alokasi gudang otomatis, dan tag pesanan (8.21) sudah diimplementasikan di folder `backend/` |
+| Status | Keputusan final untuk implementasi; fondasi (bagian 4 sampai 9, 12, 13), identitas, autentikasi, dan audit (8.1, 8.10), koneksi toko Shopee dan Tokopedia & Shop (8.6, 8.11), katalog, listing, dan pemetaan SKU (7.8.3, 8.12), stok, penyesuaian, dan push stok ke marketplace (7.8.4, 8.13, 9.4), pesanan dari Shopee dan Tokopedia & Shop (7.8.6, 7.9, 8.14, 10.6), pengiriman, label, pick list, dan peringatan batas kirim (8.15), dasbor, notifikasi in-app, ekspor data penuh, dan audit aksi sensitif (8.16 sampai 8.18), migrasi dari aplikasi lain dengan mode paralel dan cutover (8.19), laporan penjualan, daftar perlu restock, ringkasan email harian, dan preferensi notifikasi (8.20), banyak gudang fisik, pesanan manual, alokasi gudang otomatis, dan tag pesanan (8.21), serta pelacakan paket, daftar kemas, dan template label kustom (8.22) sudah diimplementasikan di folder `backend/` |
 | Pemilik dokumen | Candra Syahputra |
-| Dokumen terkait | DOKUMEN-SPESIFIKASI-APLIKASI.md (PRD) versi 1.11, DOKUMEN-TEKNOLOGI.md versi 1.11 |
+| Dokumen terkait | DOKUMEN-SPESIFIKASI-APLIKASI.md (PRD) versi 1.11, DOKUMEN-TEKNOLOGI.md versi 1.12 |
 | Audiens | Engineer backend, tech lead, QA, dan **agen AI** yang mengerjakan basis kode |
 
 > **Untuk agen AI yang membaca dokumen ini.** Bacalah bagian 2 terlebih dahulu. Bagian itu berisi kontrak kerja: invarian yang tidak boleh dilanggar, tempat setiap hal berada, dan urutan langkah untuk setiap jenis perubahan. Semua nama tabel, kolom, modul, antrean, dan perintah di dokumen ini adalah nama yang sebenarnya dipakai di repositori. Jangan menebak nama; cari di dokumen ini atau di kode.
@@ -258,7 +258,10 @@ backend/
 │   │   ├── scheduler.runner.ts     # loop in-process: relay, stock flush, partisi, pemindaian toko
 │   │   ├── outbox-relay.ts
 │   │   ├── stock-flush.ts
-│   │   ├── channel-scans.ts        # webhook.inbox_sweep, token.refresh_scan, mp.poll.warehouses
+│   │   ├── channel-scans.ts        # webhook.inbox_sweep, token.refresh_scan, mp.poll.orders, mp.poll.warehouses
+│   │   ├── order-scans.ts          # order.sla_scan, order.new_scan, files.cleanup_scan
+│   │   ├── digest-scan.ts          # digest.scan (8.20)
+│   │   ├── tracking-scan.ts        # shipment.tracking_scan (8.22)
 │   │   └── retention.ts            # (menyusul)
 │   ├── infra/                      # InfraModule: pool per role, Redis, antrean, outbox
 │   ├── outbox/                     # Outbox.enqueue
@@ -981,9 +984,13 @@ Id pesanan dibuat dengan `newIdAt(ordered_at)` (6.3).
 | `weight_g` | `integer` | NULL CHECK `> 0` |
 | `dims` | `jsonb` | NULL |
 | `package_count` | `integer` | NOT NULL DEFAULT 1 CHECK `> 0` |
+| `tracking_stage` | `text` | NULL CHECK IN (`waiting_pickup`, `in_transit`, `out_for_delivery`, `delivered`, `failed`, `returning`, `returned`, `lost`, `cancelled`); posisi paket menurut marketplace (migrasi 0012, 8.22), terpisah dari `status` |
+| `tracking_events` | `jsonb` | NOT NULL DEFAULT `[]`; perjalanan paket, terbaru dulu, paling banyak 100: `{at, description, code, stage, packageId?, returnCode?}`. Deskripsi bisa menyebut penerima: data pribadi, dianonimkan bersama kolom pembeli |
+| `tracking_event_at`, `tracking_synced_at` | `timestamptz` | NULL; waktu kejadian terbaru, dan pembacaan terakhir (berhasil atau gagal per pesanan) |
+| `tracking_error` | `text` | NULL; alasan pembacaan terakhir gagal dalam kata-kata marketplace, dihapus oleh pembacaan berikutnya yang berhasil |
 | Indeks | | `(tenant_id, order_id)`; `(tenant_id, tracking_number)`; `(tenant_id, status)`; UNIQUE parsial `(tenant_id, order_id) WHERE status <> 'cancelled'`: satu pengiriman hidup per pesanan |
 
-**shipment_package**: `shipment_id → shipment` CASCADE, `external_package_id text` (Shopee `package_number`, TikTok Shop package id; NULL untuk pesanan Shopee tanpa nomor paket), `tracking_number text`, `items jsonb NOT NULL` (daftar `{orderItemId, qty}`), `label_file_id → file_object` SET NULL (label PDF paket ini, 8.15); UNIQUE parsial `(shipment_id, external_package_id) WHERE external_package_id IS NOT NULL`. `shipment.label_file_id` disiapkan untuk pengiriman tanpa paket marketplace; pesanan manual tidak memakai `shipment`, labelnya digambar saat dokumen diminta (8.21).
+**shipment_package**: `shipment_id → shipment` CASCADE, `external_package_id text` (Shopee `package_number`, TikTok Shop package id; NULL untuk pesanan Shopee tanpa nomor paket), `tracking_number text`, `items jsonb NOT NULL` (daftar `{orderItemId, qty}`), `label_file_id → file_object` SET NULL (label PDF paket ini, 8.15); UNIQUE parsial `(shipment_id, external_package_id) WHERE external_package_id IS NOT NULL`. `shipment.label_file_id` disiapkan untuk pengiriman tanpa paket marketplace; pesanan manual tidak memakai `shipment`, labelnya digambar saat dokumen diminta (8.21). Pesanan marketplace yang dikirim tanpa OmniSeller mengatur (Seller Center, mode paralel) mendapat `shipment` saat paketnya pertama kali dilacak (8.22).
 
 **print_job**: `device_id → device` RESTRICT, `kind text CHECK IN ('label','pick_list','packing_list','invoice','barcode','manifest')`, `file_object_id → file_object` RESTRICT, `printer_name text`, `copies smallint NOT NULL DEFAULT 1 CHECK (copies BETWEEN 1 AND 10)`, `status text CHECK IN ('queued','sent','printed','failed','cancelled')`, `attempts integer NOT NULL DEFAULT 0`, `error text`, `requested_by → user` SET NULL, `printed_at`; INDEX `(device_id, status, id)`.
 
@@ -991,10 +998,10 @@ Id pesanan dibuat dengan `newIdAt(ordered_at)` (6.3).
 
 | Kolom | Tipe | Batasan |
 |---|---|---|
-| `kind` | `text` | NOT NULL CHECK IN (`labels`, `pick_list`) |
+| `kind` | `text` | NOT NULL CHECK IN (`labels`, `pick_list`, `packing_list`) (`packing_list` sejak migrasi 0012) |
 | `status` | `text` | NOT NULL DEFAULT `queued`; mesin status 7.9, dijaga trigger |
 | `status_changed_at` | `timestamptz` | NOT NULL |
-| `params` | `jsonb` | NOT NULL; `{orderIds, format}` (`thermal` atau `a4`, hanya label) |
+| `params` | `jsonb` | NOT NULL; `{orderIds, format, template?, packingList?}`: `format` (`thermal` atau `a4`) untuk label dan daftar kemas; `template` (`standard` atau `custom`) dan `packingList` hanya label (8.22) |
 | `result` | `jsonb` | NOT NULL DEFAULT `{}`; `{orders, labels, missing: [{orderId, code, message}]}` |
 | `file_object_id` | `ulid` | → `file_object` SET NULL; PDF hasil, kedaluwarsa 7 hari |
 | `page_count` | `integer` | NULL CHECK `>= 0` |
@@ -1002,6 +1009,8 @@ Id pesanan dibuat dengan `newIdAt(ordered_at)` (6.3).
 | `requested_by` | `ulid` | → `user` SET NULL |
 | `finished_at` | `timestamptz` | NULL |
 | Indeks | | `(tenant_id, id DESC)` |
+
+**label_template** (migrasi 0012, milik `fulfillment`): yang ditambahkan template kustom di bawah label marketplace (FR-SHP-16, 8.22), satu per bisnis (UNIQUE `(tenant_id)`). Kolom `show_sku`, `show_variant`, `show_bin`, `show_buyer_note` (boolean NOT NULL DEFAULT true) dan `show_tags` (DEFAULT false). Bisnis tanpa baris memakai nilai bawaan itu.
 
 #### 7.8.7 Retur
 
@@ -1263,9 +1272,9 @@ Aturan:
 
 ### 8.6 Connector dan kredensial
 
-- **Paket connector** (`packages/connectors/<marketplace>`) tidak tahu tentang basis data. Masing-masing mengekspor `create<Marketplace>Connector(config)` yang mengimplementasikan `MarketplaceConnector` dari `@omniseller/connector-core` (DOKUMEN-TEKNOLOGI 26.4): `auth` (tautan otorisasi, tautan pencabutan, tukar kode, refresh), `shops.describe`, `warehouses.list`, `catalog` (8.12: `listListings`, `getListings`, `setListingStatus`), `inventory` (9.4: `updateStock`), `webhooks` (verifikasi, parse, dan `subscribe` bila marketplace berlangganan per toko). Bagian lain (pesanan, stok, harga) ditambahkan bersama modulnya. Respons JSON diurai dengan `parseJsonSafe`, yang mempertahankan bilangan bulat di luar `Number.MAX_SAFE_INTEGER` sebagai string persis (id produk TikTok Shop 19 digit); jangan memakai `JSON.parse` biasa untuk data marketplace.
+- **Paket connector** (`packages/connectors/<marketplace>`) tidak tahu tentang basis data. Masing-masing mengekspor `create<Marketplace>Connector(config)` yang mengimplementasikan `MarketplaceConnector` dari `@omniseller/connector-core` (DOKUMEN-TEKNOLOGI 26.4): `auth` (tautan otorisasi, tautan pencabutan, tukar kode, refresh), `shops.describe`, `warehouses.list`, `catalog` (8.12: `listListings`, `getListings`, `setListingStatus`), `orders` (8.14: `listOrders`, `getOrders`, `cancelReasons`, `cancelOrder`), `fulfillment` (8.15: `arrange`, `labels`; 8.22: `tracking`), `inventory` (9.4: `updateStock`), `webhooks` (verifikasi, parse, dan `subscribe` bila marketplace berlangganan per toko). Bagian lain (harga, promosi, chat) ditambahkan bersama modulnya. Respons JSON diurai dengan `parseJsonSafe`, yang mempertahankan bilangan bulat di luar `Number.MAX_SAFE_INTEGER` sebagai string persis (id produk TikTok Shop 19 digit); jangan memakai `JSON.parse` biasa untuk data marketplace.
 - **`ConnectorRegistry`** (`modules/channel/connector-registry.ts`) dibangun per proses dari env-nya: `api` hanya bisa membangun tautan (id publik), `webhook` hanya memverifikasi tanda tangan, `worker` memanggil API. Marketplace tanpa kunci tidak terdaftar ("belum dikonfigurasi").
-- **`MarketplaceGateway.call(ctx, storeId, entri log, fn)`** adalah satu-satunya jalan worker memanggil marketplace untuk sebuah toko: membatasi **setiap permintaan HTTP** connector dengan bucket per toko (`manifest.shopRateLimit`, Redis; `sync/connector-calls.ts`: `withRequestGate` dan `HttpConfig.beforeRequest`), karena satu operasi bisa ratusan panggilan (tarik katalog); permintaan menunggu token maksimal 30 detik total lalu gagal `transient` agar BullMQ mengulang nanti. Gateway juga mencatat operasi ke log sinkron, me-refresh lalu mengulang sekali bila marketplace menjawab token kedaluwarsa, dan memindahkan toko ke `reauth_required` bila izinnya hilang.
+- **`MarketplaceGateway.call(ctx, storeId, entri log, fn)`** adalah satu-satunya jalan worker memanggil marketplace untuk sebuah toko: membatasi **setiap permintaan HTTP** connector dengan bucket per toko (`manifest.shopRateLimit`, Redis; `sync/connector-calls.ts`: `withRequestGate` dan `HttpConfig.beforeRequest`), karena satu operasi bisa ratusan panggilan (tarik katalog); permintaan menunggu token maksimal 30 detik total lalu gagal `transient` agar BullMQ mengulang nanti. Pekerjaan latar (`call(..., { background: true })`, sekarang pelacakan paket 8.22) juga mengambil token dari bucket `...:background` sebesar 30% laju toko (`BACKGROUND_SHARE`, paling sedikit satu panggilan per detik) dan boleh menunggu sampai 2 menit, sehingga push stok dan pekerjaan pesanan selalu punya sisa kuota. Gateway juga mencatat operasi ke log sinkron, me-refresh lalu mengulang sekali bila marketplace menjawab token kedaluwarsa, dan memindahkan toko ke `reauth_required` bila izinnya hilang.
 - **`CredentialService`** (hanya worker): `save` menyegel token dengan `TokenVault`; `forShop` mengembalikan kredensial toko dan me-refresh lebih dulu bila sisa masa hidup token akses kurang dari 20%; `refresh` menukar refresh token.
 - **Refresh dikunci per toko dengan advisory lock PostgreSQL**, bukan `SELECT ... FOR UPDATE`. Kunci baris akan menahan transaksi terbuka selama panggilan HTTP ke marketplace, sedangkan role worker memutus sesi yang diam di dalam transaksi lebih dari 10 detik. `withAdvisoryLock` (`db/advisory-lock.ts`) memegang kunci sesi pada koneksi khusus di luar transaksi, lalu memeriksa ulang masa berlaku sesudah kunci didapat (refresh token Shopee hanya bisa dipakai sekali per toko; job dan `token.refresh_scan` bisa bertemu di toko yang sama). Diuji: tiga refresh bersamaan menghasilkan satu panggilan ke marketplace.
 - **Kegagalan refresh**: refresh token yang ditolak marketplace (`auth_revoked`) langsung membuat toko `reauth_required` dan menghapus token; kegagalan lain dihitung di `refresh_fail_count`, dan yang ketiga berturut melakukan hal yang sama (`refresh_failed`).
@@ -1748,6 +1757,117 @@ Diukur dengan proses sungguhan:
 
 Transfer stok antar gudang dengan status dikirim dan diterima (FR-STK-09) belum ada; sementara ini stok dipindah dengan dua penyesuaian.
 
+### 8.22 Pelacakan paket, daftar kemas, dan template label kustom
+
+Implementasi:
+- connector: `fulfillment.tracking` (tipe `TrackingStage`, `TrackingResult`, dan `trackingStageOf` di `connector-core`); Shopee di `logistics.ts`, TikTok Shop di `fulfillment.ts`;
+- modul `fulfillment`:
+  - pelacakan: `FulfillmentWorkerService.pullTracking`, `FulfillmentService.tracking` dan `requestTracking`;
+  - template: `LabelTemplateService`;
+  - daftar kemas dan template pada label: `DocumentRenderService`;
+  - keputusan murni di `shipping-plan.ts` (`combineParcels`, `manualTrackingStage`, `templateStrip`), PDF di `pdf.ts` (`composeLabels` dengan strip, `renderPackingList`);
+- scheduler: `scheduler/tracking-scan.ts`;
+- modul `orders`: `OrdersService.tagsIn`;
+- migrasi `0012_shipping_tracking_labels.sql`.
+
+Diverifikasi terhadap dokumentasi resmi per Oktober 2026:
+- **Shopee:** `v2.logistics.get_tracking_info` (`package_number` untuk pesanan yang dipecah, error `logistics.package_number_not_exist`, `return_code`), Data Definition `TrackingLogisticsStatus` dan `LogisticsStatus`, dan Push Mechanism (tidak ada push pelacakan; kode 15 untuk dokumen pengiriman).
+- **TikTok Shop:** Fulfillment API Get Tracking 202309 (`tracking[]` berisi `description`, `update_time_millis`, `action_code`) dan tabel Action_Code_Name. Get Logistics Tracking 202604 hanya untuk pesanan lintas negara.
+
+PRD: FR-SHP-03, 07, 16; layar L04 (detail pesanan), L07 (pengaturan cetak), L42 (template label).
+
+**Tahap paket** (`TrackingStage`, label Indonesia di `TRACKING_STAGE_LABELS`):
+
+| Tahap | Label | Arti |
+|---|---|---|
+| `waiting_pickup` | Menunggu kurir | diatur dan berlabel, belum di tangan kurir |
+| `in_transit` | Dalam perjalanan | di tangan kurir, antar fasilitas |
+| `out_for_delivery` | Sedang diantar | menuju pembeli, atau menunggu di titik ambil |
+| `delivered` | Terkirim | |
+| `failed` | Ada kendala | penjemputan atau pengantaran gagal, atau terlambat; paket masih bisa sampai |
+| `returning` | Dikembalikan ke penjual | |
+| `returned` | Sudah kembali ke penjual | |
+| `lost` | Hilang atau rusak | hilang, rusak, atau dimusnahkan kurir |
+| `cancelled` | Pengiriman dibatalkan | |
+
+**Membaca dari marketplace** (FR-SHP-07). `connector.fulfillment.tracking(shop, orders)` memberi hasil per pesanan: paket-paketnya beserta kejadian (terbaru dulu), atau alasan marketplace menolak. Penolakan untuk satu pesanan tidak menggagalkan yang lain. Gangguan sementara mengakhiri pembacaan dan mengembalikan yang sudah terbaca (lihat job di bawah); kegagalan otorisasi selalu dilempar.
+- **Shopee:**
+  - `get_tracking_info` per pesanan. Paket yang sudah dikenal (`shipment_package.external_package_id`) dibaca satu per satu dengan `package_number`.
+  - Pesanan yang dipecah menjawab `logistics.package_number_not_exist`. Nomor paketnya lalu diambil dari `get_order_detail` (`package_list`) dan setiap paket dibaca sendiri.
+  - Tahap kejadian dari `TrackingLogisticsStatus`: `PICKED_UP` dalam perjalanan, `DELIVERED`, `FAILED_*` ada kendala, `RETURN_*` dikembalikan, `LOST`, dan seterusnya (`SHOPEE_TRACKING_STAGES`).
+  - Tanpa kejadian yang dikenal, tahap diambil dari `logistics_status` pesanan, misalnya `LOGISTICS_PICKUP_DONE` atau `LOGISTICS_DELIVERY_DONE`.
+  - `return_code` (OTP retur Shopee ID untuk SPX Instant dan Sameday, diberikan penjual ke kurir) disimpan bersama kejadiannya.
+- **TikTok Shop:** Get Tracking (`GET /fulfillment/202309/orders/{order_id}/tracking`), satu paket per pesanan. `action_code` dipetakan menurut tabel Action_Code_Name (`TIKTOK_TRACKING_STAGES`): misalnya 30901 dijemput (dalam perjalanan), 40501 diantar, 50101 terkirim, 80101 kembali ke penjual.
+- **Kode yang tidak dikenal** menjadi kejadian tanpa tahap. Tahap paket adalah tahap kejadian terbaru yang dikenal.
+
+**Menggabungkan paket** (`combineParcels`).
+- **Tahap pesanan.** Bila ada paket di tahap yang perlu perhatian, tahap pesanan adalah yang paling serius di antaranya (`lost`, `failed`, `returning`, `returned`, `cancelled`, berurutan). Bila tidak ada, tahap pesanan adalah tahap paket yang paling tertinggal.
+- **Kejadian** semua paket digabung, terbaru dulu, paling banyak 100. Bila pesanan punya beberapa paket, setiap kejadian ditandai `packageId`.
+
+**Penyimpanan.**
+- **Tempat.** Kolom `tracking_*` di `shipment` yang hidup (7.8.6).
+- **Status tidak berubah.** Pelacakan hanya untuk dilihat. Status pesanan dan pengiriman tetap mengikuti status pesanan dari marketplace (8.14, 8.15). Penanganan gagal kirim dan RTO (FR-SHP-13) menyusul.
+- **Pengiriman adopsi.** Pesanan marketplace yang dikirim tanpa OmniSeller mengatur (Seller Center, mode paralel) mendapat `shipment` saat pertama kali dilacak: `in_transit`, atau `delivered` untuk pesanan `delivered` dan `completed`. Pengiriman itu lalu mengikuti pesanan seperti biasa.
+
+**Yang dilacak.** Pesanan marketplace yang dikirim penjual dengan status `shipped`, `delivered`, `completed`, `return_in_progress`, atau `returned`, dari toko yang terhubung (`active` atau `token_expiring`), termasuk toko baca saja, karena pelacakan hanya membaca. Saluran manual dan pesanan yang dikirim marketplace (`fulfillment_mode = 'marketplace'`) tidak dilacak.
+
+**Job `shipment.tracking_pull`** (antrean `mp.track`, konkurensi 2, 3 percobaan), dipicu event `shipment.tracking_requested` atau pemindaian. Antreannya terpisah supaya bacaan latar yang lambat tidak menahan tarik pesanan di `mp.poll`. Langkahnya:
+1. **Memilih** (satu transaksi): pesanan yang dilacak, pengiriman adopsi untuk yang belum punya, dan nomor paket. Paket yang dibaca job lain dalam 10 menit terakhir, sesudah status pesanannya terakhir berubah, dilewati. Pesanan yang sama bisa ada di dua job: job yang lambat dan pemindaian berikutnya, atau pemindaian dan "Perbarui".
+2. **Membaca**: satu panggilan `MarketplaceGateway.call` per toko (jenis `tracking.pull`), di luar transaksi, sebagai pekerjaan latar: paling banyak 30% laju toko, menunggu sampai 2 menit (8.6). Log sinkron hanya mencatat `orders`, `failed` (ditolak marketplace), dan `left` (belum terbaca).
+   - Penolakan marketplace untuk satu pesanan (misalnya pesanan tidak dikenal) menjadi hasil pesanan itu.
+   - Gangguan sementara (sibuk, batas laju, jaringan) menghentikan pembacaan toko itu. Yang sudah terbaca disimpan; sisanya tidak diubah dan ikut pemindaian berikutnya. Bila belum ada yang terbaca, panggilan tercatat gagal di log sinkron.
+   - Toko yang gagal (token, gangguan) dicatat di log dan dilewati; toko lain tetap dibaca.
+3. **Menyimpan** (satu transaksi): pesanan yang ditolak marketplace mendapat `tracking_error` dan `tracking_synced_at`, sehingga dibaca lagi setelah 3 jam.
+
+**Pemindaian `shipment.tracking_scan`** (setiap 30 menit, `scheduler/tracking-scan.ts`) memilih:
+- pesanan `shipped` atau `return_in_progress` yang statusnya berubah dalam 30 hari terakhir, dan paketnya belum pernah dibaca atau terakhir dibaca lebih dari 3 jam lalu;
+- pesanan `delivered` atau `completed` dalam 3 hari terakhir yang punya pengiriman dan belum dibaca sejak statusnya berubah, untuk kejadian terakhirnya.
+
+Paling banyak 2.000 pesanan per pemindaian, yang paling lama tidak dibaca lebih dulu. Satu job per 50 pesanan per tenant, dengan id job per slot 30 menit.
+
+**Endpoint pelacakan.**
+- `GET /v1/orders/{id}/tracking` (`order:read`) memberi `source`, `trackingNumber`, `provider`, `stage`, `stageLabel`, `events` (`at`, `description`, `stage`, `stageLabel`, `code`, `packageId`, `returnCode`), `syncedAt`, `error`, dan `refreshable`.
+- **Pesanan manual** (`source: manual`) mendapat tahap dari statusnya: `shipped` dalam perjalanan, `delivered` dan `completed` terkirim. Pesanan manual tidak punya kejadian, karena integrasi API ekspedisi belum ada.
+- `POST /v1/orders/{id}/tracking/refresh` (`order:read`, 202), tombol "Perbarui": memberi `{queued}`.
+  - `queued` bernilai `false` bila paket sudah dibaca dalam 10 menit terakhir.
+  - Pesanan manual ditolak 422 `tracking.manual`.
+  - Pesanan yang belum dikirim, atau dikirim marketplace, ditolak 409 `tracking.not_shipped`.
+- `GET /v1/orders/{id}/shipments` kini memuat `trackingStage`, `trackingStageLabel`, `trackingEventAt`, dan `trackingSyncedAt`.
+
+**Push Shopee kode 15.** Parser webhook sudah membaca kode 15 (dokumen pengiriman siap) sejak 8.15, tetapi kode itu tidak ada di `SHOPEE_SUBSCRIBED_PUSH_CODES`, sehingga Shopee tidak pernah mengirimnya. Kini kode 15 ditambahkan, dan uji connector memeriksa bahwa setiap kode yang dibaca `SHOPEE_PUSH_KINDS` juga dilanggan. Konsol aplikasi Shopee yang sudah diatur perlu diatur ulang (README modul channel). Tidak ada push pelacakan dari Shopee, jadi pelacakan selalu dibaca lewat pemindaian.
+
+**Daftar kemas** (FR-SHP-03). Satu daftar per pesanan, untuk mencocokkan isi paket. Isinya:
+- nomor pesanan, kanal dan toko, waktu pesan, kurir dan resi;
+- nama pembeli dan kota tujuan, tanpa alamat lengkap;
+- tabel barang: kotak centang, jumlah, SKU, produk dan varian, dan rak gudang pesanan;
+- catatan pembeli, dan tag pesanan bila template menampilkan tag;
+- garis tanda tangan "Dikemas" dan "Dicek".
+
+Halamannya 100 x 150 mm; pesanan dengan banyak barang berlanjut ke halaman berikutnya. Daftar kemas bisa dicetak dengan dua cara:
+- bersama label (`POST /v1/documents {kind: "labels", packingList: true}`, sakelar "Sertakan daftar kemas" di L07): daftar setiap pesanan langsung setelah labelnya;
+- sendiri (`{kind: "packing_list", orderIds, format}`), untuk pesanan yang masih harus dikemas dan dikirim, dengan aturan yang sama dengan pick list. Pesanan lain tercantum di `missing`.
+
+Keduanya mengikuti urutan pick list (`labelSequence`), dan format A4 menaruh empat halaman per lembar. Pada dokumen label, `result.labels` hanya menghitung halaman label.
+
+**Template label kustom** (FR-SHP-16):
+- **Isi template.** `label_template` menentukan apa yang ditambahkan di bawah label marketplace: SKU (tanpa SKU, nama produk), varian, rak, catatan pembeli, dan tag.
+  - `GET /v1/label-template` (`shipment:print`) memberi template bisnis, atau nilai bawaan bila belum disimpan: semuanya tampil kecuali tag.
+  - `PUT /v1/label-template` (`settings:warehouse`) mengubah sebagian kolom (upsert).
+  - `GET /v1/label-template/preview?format=thermal|a4` (`shipment:print`) memberi PDF contoh dengan label tiruan dan data contoh, untuk pratinjau di L42.
+- **Pemakaian.** `POST /v1/documents {kind: "labels", template: "custom"}` (bawaan `standard`). Strip setinggi 30 mm (paling banyak 30% ruang) ditambahkan di bawah setiap label marketplace. Isinya nomor pesanan, jumlah barang, satu baris per barang dengan rak di kanan (yang tidak muat diringkas "+N barang lainnya"), catatan, dan tag.
+- **Label marketplace tidak pernah ditimpa.** Label diskalakan dengan proporsi tetap ke ruang di atas strip, sehingga bagian wajibnya tetap utuh.
+- **Pesanan manual** tidak mendapat strip, karena label OmniSeller sudah memuat isi paket.
+
+Diukur dengan proses sungguhan (api, webhook, worker, scheduler) terhadap Shopee tiruan:
+- 120 pesanan yang dikirim lewat Seller Center: satu pemindaian (27 ms) membuat 3 job, dan semuanya terlacak 41 detik kemudian, sesuai jatah 3 panggilan per detik;
+- push stok yang dibuat di tengah pelacakan itu sampai di Shopee 6,5 detik kemudian, termasuk debounce 5 detik;
+- pemindaian kedua sesudahnya tidak memilih pesanan apa pun;
+- label 10 pesanan dengan template kustom dan daftar kemas (20 halaman): 0,6 detik;
+- daftar kemas A4 untuk 15 pesanan (10 tercetak, 5 tertinggal karena sudah dikirim): 0,4 detik;
+- tanpa data pembeli atau isi pelacakan di log.
+
+Sebelum pelacakan menjadi pekerjaan latar, pengukuran yang sama menunjukkan 120 pembacaan memakai seluruh kuota toko selama 13 detik. Pada toko besar, ini akan menunda push stok dan membuat pesanan yang kebagian tunggu lebih dari 30 detik gagal dengan error yang tersimpan.
+
 ---
 
 ## 9. Pekerjaan Latar dan Penjadwalan
@@ -1805,6 +1925,7 @@ BullMQ menolak job dengan `jobId` yang masih ada di antrean **atau yang sudah se
 | `label.fetch` | Per kejadian | `label.fetch\|<shipment_id pertama>\|<outbox_event_id>` |
 | `document.render` | Sekali per dokumen | `document.render\|<document_job_id>` |
 | `shipment.follow_order` | Per kejadian | `shipment.follow_order\|<order_id>\|<outbox_event_id>` |
+| `shipment.tracking_pull` | Per kejadian atau per slot | `shipment.tracking_pull\|<order_id pertama>\|<outbox_event_id>` ("Perbarui") atau `shipment.tracking_pull\|<tenant_id>\|t<slot 30 menit>\|<urutan batch>` (pemindaian, 8.22) |
 | `files.cleanup_expired` | Per slot | `files.cleanup_expired\|<tenant_id>\|f<slot 1 jam>` |
 | `stock.push` | Per batch kejadian | `stock.push\|<tenant_id>\|<24 hex SHA-256 dari pasangan dan skor debounce batch>` (9.4) |
 | `stock.mark_dirty` | Sekali per event | `stock.mark_dirty\|<tenant_id>\|<outbox_event_id>` |
@@ -1881,6 +2002,7 @@ Diukur dengan proses sungguhan (api, worker, scheduler) terhadap Shopee tiruan: 
 | `order.new_scan` | Setiap 5 menit | `system` untuk memilih, `worker` per tenant | Job `order.new_notice` untuk tenant yang punya pesanan menunggu notifikasi pesanan baru (`order.notify_new`, 8.17) |
 | `digest.scan` | Setiap 15 menit | `system` untuk memilih, `worker` per tenant | Job `digest.daily` untuk bisnis aktif berumur lebih dari sehari yang waktu lokalnya sudah lewat 07.00 dan belum punya `daily_digest` untuk tanggal lokalnya (FR-NTF-02, 8.20; `scheduler/digest-scan.ts`) |
 | `files.cleanup_scan` | Setiap jam | `system` untuk memilih, `worker` per tenant | Job `files.cleanup_expired` untuk tenant dengan label, dokumen, atau ekspor kedaluwarsa (8.15, 8.18) |
+| `shipment.tracking_scan` | Setiap 30 menit | `system` untuk memilih, `worker` per tenant | Job `shipment.tracking_pull` per 50 pesanan yang paketnya perlu dibaca lagi: dalam perjalanan dan lebih dari 3 jam tidak dibaca, atau baru terkirim (FR-SHP-07, 8.22; `scheduler/tracking-scan.ts`) |
 | `partition.maintain` | Saat scheduler mulai dan setiap 6 jam | `system` | `maintain_partitions(now())`; pelepasan partisi kedaluwarsa menyusul bersama job arsip |
 | `retention.run` | Harian 02.00 WIB | `system` | Hapus `webhook_inbox` lebih dari 30 hari, `outbox_event` terkirim lebih dari 7 hari, anonimkan pembeli sesuai kebijakan, ringkas `research_snapshot` |
 | `research.collect` | Setiap 6 jam per tautan pantauan | `worker` | Pengumpulan riset |
@@ -2019,8 +2141,11 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `GET /v1/tags`, `POST /v1/tags`, `PATCH /v1/tags/{id}`, `DELETE /v1/tags/{id}` | `order:read`; tulis `order:tag` | Tag pesanan dengan jumlah pemakaian (FR-ORD-04) |
 | `POST /v1/shipments/arrange` | `shipment:arrange` | 8.15. Pickup atau drop-off untuk banyak pesanan (pesanan Baru diterima sekalian); hasil per pesanan |
 | `POST /v1/shipments/labels` | `shipment:print` | Ambil ulang label pengiriman yang sudah diatur (202) |
-| `GET /v1/orders/{id}/shipments` | `order:read` | Pengiriman pesanan: status, metode, slot pickup, resi, paket, label |
-| `POST /v1/documents`, `GET /v1/documents/{id}` | `shipment:print` | Label dalam satu PDF (thermal atau A4) atau pick list, dibuat worker (202); status dan `downloadUrl` |
+| `GET /v1/orders/{id}/shipments` | `order:read` | Pengiriman pesanan: status, metode, slot pickup, resi, paket, label, tahap pelacakan |
+| `GET /v1/orders/{id}/tracking`, `POST /v1/orders/{id}/tracking/refresh` | `order:read` | 8.22. Perjalanan paket dari marketplace; "Perbarui" (202, paling sering sekali per 10 menit) |
+| `POST /v1/documents`, `GET /v1/documents/{id}` | `shipment:print` | Label dalam satu PDF (thermal atau A4, template standar atau kustom, dengan atau tanpa daftar kemas), pick list, atau daftar kemas, dibuat worker (202); status dan `downloadUrl` |
+| `GET /v1/label-template`, `GET /v1/label-template/preview` | `shipment:print` | 8.22. Template label kustom, dan pratinjaunya sebagai PDF |
+| `PUT /v1/label-template` | `settings:warehouse` | Ubah template label kustom (sebagian kolom) |
 | `POST /v1/pick-lists` | `shipment:print` | Pick list sebagai data: per gudang, urut rak |
 | `GET /v1/files/{id}/download` | `shipment:print` | PDF label atau dokumen: redirect ke tautan R2 10 menit, atau berkasnya (penyimpanan lokal) |
 | `GET /v1/notifications`, `GET /v1/notifications/unread-count`, `POST /v1/notifications/read` | Masuk saja (milik sendiri) | Notifikasi in-app pengguna (FR-NTF-01, 8.17) |
@@ -2048,7 +2173,7 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `inventory` | `warehouse` (ditulis `WarehouseAdminService`, kecuali gudang pertama saat daftar), `inventory`, `stock_movement`, `stock_allocation_rule`, `listing_stock_state`, `stock_count`, `stock_count_line`, `stock_transfer`, `stock_transfer_line`, `campaign_stock_hold`. Membaca listing lewat `ListingsService`, toko dan gudang marketplace lewat `StoresService`, varian lewat view `catalog_variant_v`, penjualan per varian dan gudang untuk perlu restock lewat `OrdersService.unitsByStockIn` (`InventoryStockModule`, 8.20). `InventoryModule` (berkas `inventory-core.module.ts`) tidak mengimpor modul lain, karena `channel` bergantung padanya | `inventory.changed`, `stock.resync_requested`; menyusul `inventory.low_stock` | `listing.mapped`, `listing.unmapped`, `store.sync_mode_changed`, `channel_warehouse.changed`, `channel_warehouse.mapping_changed`; menyusul `order.status_changed`, `return.received`, `goods.received`, `campaign.started`, `campaign.ended` | `stock.mark_dirty`, `stock.push`, `stock.listing_mapped`, `stock.listing_unmapped`, `stock.store_resync` |
 | `purchasing` | `supplier`, `purchase_order`, `purchase_order_line`, `goods_receipt`, `goods_receipt_line`, `document_sequence` | `goods.received`, `purchase_order.status_changed` | `inventory.low_stock` | |
 | `orders` | `order`, `order_external_ref`, `order_item`, `order_event`, `order_problem`, `tag`, `order_tag`, `pick_wave`. Stok lewat `InventoryService.orderMovementsIn` dan `allocateIn` (alokasi, 8.21), listing lewat `ListingsService`, toko dan saluran manual lewat `StoresService` (`manualStoreIn`), zona waktu lewat `TenantsService`, penerima peringatan lewat `UsersService`, notifikasi lewat `NotificationInboxService`. Pesanan manual dan tag hanya di api (`ManualOrdersService`, `TagsService`) | `order.pull_requested`, `order.cancel_requested`, `order.status_changed`; menyusul `order.created` | `store.connected`, `listing.mapped`, `inventory.changed`; webhook `order.status_changed`, `order.tracking_updated`; menyusul `return.status_changed` | `order.pull`, `order.cancel`, `order.listing_mapped`, `order.stock_recheck`, `order.sla_alert`; menyusul `order.auto_process` |
-| `fulfillment` | `shipment`, `shipment_package`, `document_job`, `print_job`. Pesanan lewat `OrdersService` dan `OrderIntakeService` (langkah status, riwayat, resi), lokasi rak lewat `InventoryService.pickInfoIn`, alamat gudang lewat `WarehousesService`, nama bisnis untuk label pesanan manual lewat `TenantsService`, berkas lewat `FilesService` | `shipment.arrange_requested`, `shipment.label_requested`, `document.requested`; menyusul `shipment.status_changed`, `print.requested` | `order.status_changed`; webhook `order.tracking_updated`, `shipment.document_ready` | `shipment.arrange`, `label.fetch`, `document.render`, `shipment.follow_order` |
+| `fulfillment` | `shipment`, `shipment_package`, `document_job`, `label_template`, `print_job`. Pesanan lewat `OrdersService` dan `OrderIntakeService` (langkah status, riwayat, resi, tag untuk label dan daftar kemas), lokasi rak lewat `InventoryService.pickInfoIn`, alamat gudang lewat `WarehousesService`, nama bisnis untuk label pesanan manual lewat `TenantsService`, toko (nama, bisa dipakai) lewat `StoresService`, berkas lewat `FilesService` | `shipment.arrange_requested`, `shipment.label_requested`, `shipment.tracking_requested`, `document.requested`; menyusul `shipment.status_changed`, `print.requested` | `order.status_changed`; webhook `order.tracking_updated`, `shipment.document_ready` | `shipment.arrange`, `label.fetch`, `document.render`, `shipment.follow_order`, `shipment.tracking_pull` |
 | `returns` | `return_request`, `return_item` | `return.status_changed`, `return.received` | `webhook.received`, `shipment.status_changed` | `return.pull`, `return.respond` |
 | `sync` | `webhook_inbox`, `sync_job`, `outbox_event` | | | `webhook.process` (antrean `webhook`); di scheduler: `outbox.relay`, `webhook.inbox_sweep` |
 | `finance` | `fee_schedule`, `settlement`, `settlement_line`, `order_cost`, `tax_document`, `expense`, `receivable`, `receivable_entry` | `settlement.imported`, `order_cost.computed`, `tax.threshold_reached` | `order.status_changed`, `return.status_changed`, `affiliate.recorded` | `settlement.pull`, `settlement.import`, `order_cost.compute` |
@@ -2444,3 +2569,4 @@ Berkas `.env.example` adalah versi yang berlaku. Kunci dikelompokkan per peran p
 | 1.10 | 4 Oktober 2026 | Migrasi dari aplikasi lain diimplementasikan (8.19 baru, PRD FR-MIG-01, 05, 06): unggah Excel atau CSV dengan pembaca XLSX sendiri (batas ekstraksi melawan ZIP bomb), tebakan baris judul dan pemetaan kolom dengan sinonim per aplikasi (BigSeller, Ginee, Jubelio, templat OmniSeller), preset tersimpan, validasi sebagai impor yang di-rollback dan impor semua atau tidak sama sekali di antrean `import`, masalah per baris dengan CSV-nya, stok awal hanya untuk stok yang belum ditetapkan; mode paralel dengan perbandingan stok kedua sistem dari rencana pusher sendiri; cutover dengan checklist (listing terpetakan, stok sama, data stok segar, aplikasi lama dicabut) dan pembatalan dalam 24 jam. Migrasi 0009: `store.sync_mode_changed_at`, `migration_job` (kolom berkas, pratinjau, pemetaan, `file_object_id` kini `SET NULL`), `migration_row_error`, `migration_preset`, `store_cutover`, mesin status 7.9; job 9.2; endpoint 10.6; peta modul 11 | Candra Syahputra |
 | 1.11 | 4 Oktober 2026 | Laporan penjualan, perlu restock, dan ringkasan email harian diimplementasikan (8.20 baru, PRD FR-RPT-02, FR-STK-07, FR-NTF-02). Laporan penjualan: periode bebas sampai 366 hari, grafik per hari, minggu, atau bulan, pembanding bulan kalender atau hari yang sama dan dipotong di titik yang sama bila periode masih berjalan, rincian per marketplace, toko, produk, kategori, provinsi, dan jam, tingkat pembatalan, pesanan yang diserahkan ke kurir, CSV per bagian. Perlu restock: kecepatan jual 7, 14, atau 30 hari per varian dan gudang, cukup untuk berapa hari, saran jumlah pesan, CSV. Ringkasan email pukul 07.00 waktu lokal bisnis, satu putaran per tanggal (`daily_digest`) dan satu job per penerima, isi mengikuti izin dan cakupan penerima. Preferensi notifikasi per pengguna. Migrasi 0010: `notification_preference` (bentuk final), `daily_digest`; view `catalog_variant_v` mendapat `category_path`; job 9.2; jadwal `digest.scan` 9.5; izin 10.5; endpoint 10.6; peta modul 11. Angka penjualan PRD 13.2 diselaraskan: dibayar dan tidak dibatalkan, menurut waktu pesan. Jenis notifikasi `migration.*` (sejak 1.10) dicatat di 7.8.12 dan 8.17 | Candra Syahputra |
 | 1.12 | 4 Oktober 2026 | Banyak gudang fisik, pesanan manual, alokasi gudang otomatis, dan tag pesanan diimplementasikan (8.21 baru, PRD MVP-2: FR-STK-01, FR-WHS-08, 10, FR-ORD-04, 09, 12). Gudang: tambah, ubah dengan `If-Match`, gudang utama, hapus lunak hanya bila tidak dipakai (stok, pesanan terbuka, toko, pemetaan), alamat sebagai pengirim label dan provinsi baku untuk alokasi, audit. Notifikasi `store.warehouses_changed` saat gudang marketplace berubah (FR-WHS-10). Pesanan manual di saluran berkanal `manual`: pembeli, alamat, baris dengan harga, ongkir, diskon, cara bayar, nomor `MN-YYMM-NNNN`, Idempotency-Key di basis data, bayar, kirim dengan resi, selesai, ubah detail, batal langsung; label 100 x 150 mm digambar OmniSeller dengan pengirim dari gudang (FR-WHS-08). Alokasi: gudang terdekat (provinsi, lalu pulau) yang memegang semua barang, untuk pesanan manual dan, bila diaktifkan, toko tanpa multi-gudang; pindah gudang sebelum dikemas kecuali toko multi-gudang. Tag: daftar tag, pasang dan lepas massal, filter, kolom ekspor. Migrasi 0011: `order.payment_method`, `document_sequence`, `idempotency_record`, batasan `tag`; view `catalog_variant_v` mendapat `base_price` dan `weight_g`; trigger audit `warehouse`; job 9.2; pemindaian 9.5 melewati saluran manual; header 10.2; izin 10.5; endpoint 10.6; peta modul 11 | Candra Syahputra |
+| 1.13 | 4 Oktober 2026 | Pelacakan paket, daftar kemas, dan template label kustom diimplementasikan (8.22 baru, PRD FR-SHP-03, 07, 16). Pelacakan: connector `fulfillment.tracking` (Shopee `get_tracking_info` per pesanan atau per paket untuk pesanan yang dipecah, TikTok Shop Get Tracking 202309 dengan tabel Action_Code_Name), sembilan tahap paket, gabungan paket, kejadian disimpan di `shipment`, pengiriman adopsi untuk pesanan yang dikirim lewat Seller Center, pemindaian 30 menit, "Perbarui" sekali per 10 menit, tahap dari status untuk pesanan manual. Pelacakan adalah pekerjaan latar di antrean `mp.track`: paling banyak 30% batas laju toko (bucket `...:background`, 8.6), gangguan sementara menunda sisa pesanan ke pemindaian berikutnya, dan pesanan yang baru dibaca job lain dilewati. Daftar kemas per pesanan, bersama label atau sendiri. Template label kustom: strip 30 mm di bawah label marketplace (SKU, varian, rak, catatan, tag) tanpa menimpa label, dengan pratinjau PDF. Perbaikan: push Shopee kode 15 dilanggan (sebelumnya dibaca tetapi tidak pernah dikirim Shopee). Migrasi 0012: kolom `tracking_*` di `shipment`, `document_job.kind` `packing_list`, tabel `label_template`; pekerjaan latar di gateway (8.6; DOKUMEN-TEKNOLOGI 1.12, antrean `mp.track`); daftar bagian connector (8.6); job 9.2; pemindaian 9.5; endpoint 10.6; peta modul 11 | Candra Syahputra |

@@ -8,6 +8,7 @@ export const QUEUES = [
   "stock.push",
   "mp.outbound",
   "mp.poll",
+  "mp.track",
   "pdf",
   "notify",
   "ai",
@@ -25,6 +26,8 @@ export const QUEUE_CONCURRENCY: Record<QueueName, number> = {
   "stock.push": 10,
   "mp.outbound": 10,
   "mp.poll": 5,
+  // parcel tracking: background reads that wait for their share of each store's request rate
+  "mp.track": 2,
   pdf: 4,
   notify: 20,
   ai: 5,

@@ -5,7 +5,7 @@ import type { DbHandle } from "../../db/client";
 import type { DocumentResult } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
-import { isManualChannel } from "../channel/stores.service";
+import { channelDisplayName, isManualChannel, StoresService } from "../channel/stores.service";
 import { FilesService } from "../files/files.service";
 import { TenantsService } from "../identity/tenants.service";
 import { InventoryService } from "../inventory/inventory.service";
@@ -14,9 +14,18 @@ import { OrderIntakeService } from "../orders/order-intake.service";
 import type { OrderItemRow, OrderRow } from "../orders/orders.repository";
 import { OrdersService } from "../orders/orders.service";
 import { type DocumentRow, FulfillmentRepository, type PackageRow, type ShipmentRow } from "./fulfillment.repository";
-import { composeLabels, type ManualLabel, renderManualLabel, renderPickList } from "./pdf";
-import { type Missing, PickListBuilder } from "./pick-list.builder";
-import { labelSequence, manualLabelRefusal } from "./shipping-plan";
+import { LabelTemplateService } from "./label-template.service";
+import {
+  composeLabels,
+  type LabelEntry,
+  type ManualLabel,
+  type PackingList,
+  renderManualLabel,
+  renderPackingList,
+  renderPickList,
+} from "./pdf";
+import { type Missing, notPickable, PickListBuilder } from "./pick-list.builder";
+import { type LabelTemplateOptions, labelSequence, manualLabelRefusal, templateStrip } from "./shipping-plan";
 
 const log = logger.forModule("fulfillment.documents");
 
@@ -72,6 +81,8 @@ export class DocumentRenderService {
     @Inject(WarehousesService) private readonly warehouses: WarehousesService,
     @Inject(FilesService) private readonly files: FilesService,
     @Inject(TenantsService) private readonly tenants: TenantsService,
+    @Inject(StoresService) private readonly stores: StoresService,
+    @Inject(LabelTemplateService) private readonly templates: LabelTemplateService,
   ) {}
 
   async render(ctx: RequestContext, documentId: string): Promise<void> {
@@ -83,9 +94,15 @@ export class DocumentRenderService {
     });
     if (!doc) return;
     try {
-      const out = doc.kind === "labels" ? await this.labels(ctx, doc) : await this.pickList(ctx, doc);
+      const out =
+        doc.kind === "labels"
+          ? await this.labels(ctx, doc)
+          : doc.kind === "packing_list"
+            ? await this.packingLists(ctx, doc)
+            : await this.pickList(ctx, doc);
       const file = await this.files.save(ctx, {
-        purpose: doc.kind === "labels" ? "label" : "pick_list",
+        // packing lists carry the buyer's name like labels, and live as long
+        purpose: doc.kind === "pick_list" ? "pick_list" : "label",
         mime: "application/pdf",
         ext: "pdf",
         bytes: out.pdf,
@@ -121,10 +138,9 @@ export class DocumentRenderService {
     }
   }
 
-  private async labels(ctx: RequestContext, doc: DocumentRow): Promise<Rendered> {
-    const ids = doc.params.orderIds;
-    const business = (await this.tenants.profile(ctx)).name;
-    const data = await withTenantTx(this.db, ctx, async (tx) => {
+  /** Everything labels and packing lists draw from, read in one transaction. */
+  private load(ctx: RequestContext, ids: string[]) {
+    return withTenantTx(this.db, ctx, async (tx) => {
       const { orders, items } = await this.orders.readIn(tx, ids);
       const shipments = await this.repo.liveFor(tx, ids);
       const packages = await this.repo.packages(
@@ -136,12 +152,75 @@ export class DocumentRenderService {
       const pairs = items
         .filter((i) => i.variantId && warehouseOf(i))
         .map((i) => ({ variantId: i.variantId!, warehouseId: warehouseOf(i)! }));
-      const [info, warehouses] = await Promise.all([
+      const [info, warehouses, tags, storeNames, template] = await Promise.all([
         this.inventory.pickInfoIn(tx, pairs),
         this.warehouses.activeIn(tx),
+        this.orders.tagsIn(tx, ids),
+        this.stores.namesIn(tx),
+        this.templates.optionsIn(tx),
       ]);
-      return { orders, items, shipments, packages, info, warehouses, warehouseOf };
+      return { orders, items, shipments, packages, info, warehouses, warehouseOf, tags, storeNames, template };
     });
+  }
+
+  /** Open lines of an order with what printed documents show: SKU, product, variant, rack. */
+  private lines(o: OrderRow, data: Awaited<ReturnType<DocumentRenderService["load"]>>) {
+    return data.items
+      .filter((i) => i.orderId === o.id && i.qty - i.cancelledQty > 0)
+      .map((i) => {
+        const v = i.variantId ? data.info.variants.get(i.variantId) : undefined;
+        const wh = data.warehouseOf(i);
+        return {
+          qty: i.qty - i.cancelledQty,
+          sku: v?.sku ?? (i.skuSnapshot || "(tanpa SKU)"),
+          name: v?.productName ?? i.titleSnapshot,
+          variant: v
+            ? v.variantName !== v.productName
+              ? v.variantName
+              : null
+            : (i.variantSnapshot.name as string) || null,
+          bin: i.variantId && wh ? (data.info.bins.get(`${i.variantId}|${wh}`) ?? null) : null,
+        };
+      });
+  }
+
+  private sequenceOf(orders: OrderRow[], data: Awaited<ReturnType<DocumentRenderService["load"]>>): string[] {
+    return labelSequence(
+      orders.map((o) => ({
+        orderId: o.id,
+        warehouse: data.warehouses.find((w) => w.id === o.warehouseId)?.name ?? "",
+        shipByAt: o.shipByAt,
+        lines: this.lines(o, data).map((l) => ({ sku: l.sku, bin: l.bin })),
+      })),
+    );
+  }
+
+  /** One order's packing list (FR-SHP-03): enough to match the parcel, without the full address. */
+  private packingListOf(
+    o: OrderRow,
+    data: Awaited<ReturnType<DocumentRenderService["load"]>>,
+    template: LabelTemplateOptions,
+  ): PackingList {
+    const a = o.shippingAddress ?? {};
+    return {
+      number: o.externalOrderId,
+      source: `${channelDisplayName(o.channel)} · ${data.storeNames.get(o.storeId) ?? ""}`,
+      orderedAt: o.orderedAt,
+      courier: [o.shippingProvider, o.shippingService].filter(Boolean).join(" · ") || null,
+      trackingNumber: o.trackingNumber,
+      buyer: o.buyerName ?? o.buyerUsername,
+      destination: [a.city, a.province].filter(Boolean).join(", ") || null,
+      lines: this.lines(o, data),
+      note: o.buyerNote,
+      tags: template.showTags ? (data.tags.get(o.id) ?? []) : [],
+    };
+  }
+
+  private async labels(ctx: RequestContext, doc: DocumentRow): Promise<Rendered> {
+    const ids = doc.params.orderIds;
+    const business = (await this.tenants.profile(ctx)).name;
+    const data = await this.load(ctx, ids);
+    const custom = doc.params.template === "custom";
 
     const missing: Missing[] = [];
     // manual orders have no marketplace label: OmniSeller draws theirs (FR-WHS-08)
@@ -154,61 +233,79 @@ export class DocumentRenderService {
       if (why) missing.push({ orderId: o.id, ...why });
       return !why;
     });
-    const sequence = labelSequence(
-      printable.map((o) => ({
-        orderId: o.id,
-        warehouse: data.warehouses.find((w) => w.id === o.warehouseId)?.name ?? "",
-        shipByAt: o.shipByAt,
-        lines: data.items
-          .filter((i) => i.orderId === o.id && i.qty - i.cancelledQty > 0)
-          .map((i) => {
-            const wh = data.warehouseOf(i);
-            return {
-              sku: (i.variantId ? data.info.variants.get(i.variantId)?.sku : undefined) ?? i.skuSnapshot,
-              bin: i.variantId && wh ? (data.info.bins.get(`${i.variantId}|${wh}`) ?? null) : null,
-            };
-          }),
-      })),
-    );
+    const sequence = this.sequenceOf(printable, data);
 
-    const files: Uint8Array[] = [];
-    const owner: string[] = [];
+    const entries: LabelEntry[] = [];
+    const owner: { orderId: string; label: boolean }[] = [];
     for (const orderId of sequence) {
+      const o = data.orders.find((x) => x.id === orderId)!;
       const own = manual.get(orderId);
       if (own) {
-        files.push(await renderManualLabel(this.manualLabel(own, data, business)));
-        owner.push(orderId);
-        continue;
+        entries.push({ pdf: await renderManualLabel(this.manualLabel(own, data, business)) });
+        owner.push({ orderId, label: true });
+      } else {
+        const s = data.shipments.find((x) => x.orderId === orderId)!;
+        const bytes: Uint8Array[] = [];
+        for (const p of data.packages.filter((x) => x.shipmentId === s.id)) {
+          const b = await this.files.read(ctx, p.labelFileId!);
+          if (b) bytes.push(b);
+        }
+        if (bytes.length === 0) {
+          missing.push({ orderId, code: "label.expired", message: "Label sudah tidak tersimpan." });
+          continue;
+        }
+        // the custom template goes under marketplace labels only: OmniSeller's own label lists the items
+        const strip = custom
+          ? templateStrip(data.template, {
+              number: o.externalOrderId,
+              note: o.buyerNote,
+              tags: data.tags.get(o.id) ?? [],
+              lines: this.lines(o, data),
+            })
+          : null;
+        for (const b of bytes) {
+          entries.push({ pdf: b, strip });
+          owner.push({ orderId, label: true });
+        }
       }
-      const s = data.shipments.find((x) => x.orderId === orderId)!;
-      const bytes: Uint8Array[] = [];
-      for (const p of data.packages.filter((x) => x.shipmentId === s.id)) {
-        const b = await this.files.read(ctx, p.labelFileId!);
-        if (b) bytes.push(b);
-      }
-      if (bytes.length === 0) {
-        missing.push({ orderId, code: "label.expired", message: "Label sudah tidak tersimpan." });
-        continue;
-      }
-      for (const b of bytes) {
-        files.push(b);
-        owner.push(orderId);
+      if (doc.params.packingList) {
+        entries.push({ pdf: await renderPackingList(this.packingListOf(o, data, data.template)) });
+        owner.push({ orderId, label: false });
       }
     }
-    const composed = await composeLabels(files, doc.params.format ?? "thermal");
-    const unreadable = new Set(composed.unreadable.map((i) => owner[i]!));
+    const composed = await composeLabels(entries, doc.params.format ?? "thermal");
+    const unreadable = new Set(composed.unreadable.map((i) => owner[i]!.orderId));
     for (const orderId of unreadable) {
       missing.push({ orderId, code: "label.unreadable", message: "Berkas label dari marketplace tidak bisa dibaca." });
     }
-    const printed = [...new Set(owner)].filter((id) => !unreadable.has(id));
-    if (composed.labels === 0)
-      throw new NothingToRender("Tidak ada label yang bisa dicetak dari pesanan ini.", missing);
+    const printed = [...new Set(owner.map((x) => x.orderId))].filter((id) => !unreadable.has(id));
+    const labelPages = composed.pagesPerEntry.reduce((n, pages, i) => n + (owner[i]!.label ? pages : 0), 0);
+    if (labelPages === 0) throw new NothingToRender("Tidak ada label yang bisa dicetak dari pesanan ini.", missing);
     return {
       pdf: composed.pdf,
       pages: composed.pages,
-      result: { orders: printed.length, labels: composed.labels, missing },
+      result: { orders: printed.length, labels: labelPages, missing },
       printed,
     };
+  }
+
+  /** FR-SHP-03: packing lists alone, in pick-list order, for orders still to pack and ship. */
+  private async packingLists(ctx: RequestContext, doc: DocumentRow): Promise<Rendered> {
+    const data = await this.load(ctx, doc.params.orderIds);
+    const missing: Missing[] = [];
+    const printable = data.orders.filter((o) => {
+      const why = notPickable(o);
+      if (why) missing.push(why);
+      return !why;
+    });
+    if (printable.length === 0) throw new NothingToRender("Tidak ada pesanan yang perlu dikemas.", missing);
+    const entries: LabelEntry[] = [];
+    for (const orderId of this.sequenceOf(printable, data)) {
+      const o = printable.find((x) => x.id === orderId)!;
+      entries.push({ pdf: await renderPackingList(this.packingListOf(o, data, data.template)) });
+    }
+    const composed = await composeLabels(entries, doc.params.format ?? "thermal");
+    return { pdf: composed.pdf, pages: composed.pages, result: { orders: printable.length, missing }, printed: [] };
   }
 
   /** What goes on a manual order's label; the sender is its warehouse (FR-WHS-08). */

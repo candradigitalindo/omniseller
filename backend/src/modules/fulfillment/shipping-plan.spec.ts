@@ -4,11 +4,19 @@ import {
   type ArrangeCheck,
   a4Cells,
   arrangeRefusal,
+  combineParcels,
   compareBins,
+  DEFAULT_LABEL_TEMPLATE,
   fitInto,
+  labelPlacement,
   labelSequence,
+  MM,
+  manualTrackingStage,
   pickLines,
+  STRIP_HEIGHT,
   shipmentStepFor,
+  THERMAL_PAGE,
+  templateStrip,
 } from "./shipping-plan";
 
 describe("arrangeRefusal (FR-SHP-06)", () => {
@@ -176,10 +184,115 @@ describe("label layout", () => {
     expect(f.y).toBeGreaterThan(0);
   });
 
+  it("puts the template strip under the label and never over it (FR-SHP-16)", () => {
+    const a6 = { width: 105 * MM, height: 148 * MM };
+    const page = { x: 0, y: 0, ...THERMAL_PAGE };
+    const at = labelPlacement(a6, page, true);
+    expect(at.strip).toEqual({ x: 0, y: 0, width: THERMAL_PAGE.width, height: STRIP_HEIGHT });
+    // the label is scaled down into the room above the strip, against the page's top edge
+    const bottom = at.label.y;
+    const top = at.label.y + a6.height * at.label.scale;
+    expect(bottom).toBeGreaterThanOrEqual(STRIP_HEIGHT - 1e-6);
+    expect(top).toBeCloseTo(THERMAL_PAGE.height, 5);
+    expect(at.label.scale).toBeCloseTo((THERMAL_PAGE.height - STRIP_HEIGHT) / a6.height, 5);
+    expect(at.label.x).toBeGreaterThanOrEqual(0);
+    expect(at.label.x + a6.width * at.label.scale).toBeLessThanOrEqual(THERMAL_PAGE.width + 1e-6);
+    // without a strip the label is centred as before
+    expect(labelPlacement(a6, page, false)).toEqual({ label: fitInto(a6, page), strip: null });
+  });
+
+  it("gives the strip at most 30% of a small box", () => {
+    const box = { x: 10, y: 20, width: 200, height: 150 };
+    const at = labelPlacement({ width: 100, height: 100 }, box, true);
+    expect(at.strip).toEqual({ x: 10, y: 20, width: 200, height: 45 });
+    expect(at.label.y).toBeCloseTo(65, 5);
+    expect(at.label.y + 100 * at.label.scale).toBeCloseTo(170, 5);
+  });
+
   it("splits an A4 sheet into four quarters in reading order", () => {
     const cells = a4Cells();
     expect(cells).toHaveLength(4);
     expect(cells[0]).toMatchObject({ x: 0, y: A4_PAGE.height / 2 });
     expect(cells[3]).toMatchObject({ x: A4_PAGE.width / 2, y: 0 });
+  });
+});
+
+describe("tracking (FR-SHP-07)", () => {
+  const ev = (iso: string, stage: string | null, description = stage ?? "?") => ({
+    at: new Date(iso),
+    description,
+    code: stage ? stage.toUpperCase() : null,
+    stage: stage as never,
+  });
+
+  it("keeps one parcel's journey newest first and its stage", () => {
+    const r = combineParcels([
+      {
+        externalPackageId: "",
+        stage: "in_transit",
+        events: [ev("2026-10-04T01:00:00Z", "waiting_pickup"), ev("2026-10-04T05:00:00Z", "in_transit")],
+      },
+    ]);
+    expect(r.stage).toBe("in_transit");
+    expect(r.eventAt).toEqual(new Date("2026-10-04T05:00:00Z"));
+    expect(r.events.map((e) => e.stage)).toEqual(["in_transit", "waiting_pickup"]);
+    expect(r.events[0]).not.toHaveProperty("packageId");
+  });
+
+  it("shows a split order's most serious problem, else the parcel furthest behind", () => {
+    const parcels = (a: string | null, b: string | null) => [
+      { externalPackageId: "P1", stage: a as never, events: [ev("2026-10-04T05:00:00Z", a)] },
+      { externalPackageId: "P2", stage: b as never, events: [ev("2026-10-04T06:00:00Z", b)] },
+    ];
+    expect(combineParcels(parcels("delivered", "in_transit")).stage).toBe("in_transit");
+    expect(combineParcels(parcels("delivered", "returning")).stage).toBe("returning");
+    expect(combineParcels(parcels("failed", "lost")).stage).toBe("lost");
+    expect(combineParcels(parcels(null, null)).stage).toBeNull();
+    const merged = combineParcels(parcels("delivered", "in_transit")).events;
+    expect(merged.map((e) => e.packageId)).toEqual(["P2", "P1"]);
+  });
+
+  it("keeps the newest 100 events", () => {
+    const many = Array.from({ length: 130 }, (_, i) =>
+      ev(new Date(Date.UTC(2026, 9, 1, 0, i)).toISOString(), "in_transit"),
+    );
+    const r = combineParcels([{ externalPackageId: "", stage: "in_transit", events: many }]);
+    expect(r.events).toHaveLength(100);
+    expect(r.events[0]!.at).toBe(new Date(Date.UTC(2026, 9, 1, 0, 129)).toISOString());
+  });
+
+  it("derives a manual order's stage from its status", () => {
+    expect(manualTrackingStage("shipped")).toBe("in_transit");
+    expect(manualTrackingStage("completed")).toBe("delivered");
+    expect(manualTrackingStage("packed")).toBeNull();
+  });
+});
+
+describe("custom label template (FR-SHP-16)", () => {
+  const order = {
+    number: "2410040ABC",
+    note: "  Bungkus kado  ",
+    tags: ["Prioritas"],
+    lines: [{ qty: 2, sku: "KAOS-HTM-L", name: "Kaos Polos", variant: "Hitam, L", bin: "A-01" }],
+  };
+
+  it("adds SKU, variant, rack, and the buyer's note by default, tags only when asked", () => {
+    expect(templateStrip(DEFAULT_LABEL_TEMPLATE, order)).toEqual({
+      orderNumber: "2410040ABC",
+      lines: [{ qty: 2, sku: "KAOS-HTM-L", variant: "Hitam, L", bin: "A-01" }],
+      note: "Bungkus kado",
+      tags: [],
+    });
+    expect(templateStrip({ ...DEFAULT_LABEL_TEMPLATE, showTags: true }, order).tags).toEqual(["Prioritas"]);
+  });
+
+  it("names the product when the SKU is left out and drops what is turned off", () => {
+    const t = { showSku: false, showVariant: false, showBin: false, showBuyerNote: false, showTags: false };
+    expect(templateStrip(t, order)).toEqual({
+      orderNumber: "2410040ABC",
+      lines: [{ qty: 2, sku: "Kaos Polos", variant: null, bin: null }],
+      note: null,
+      tags: [],
+    });
   });
 });

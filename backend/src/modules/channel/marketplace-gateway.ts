@@ -12,10 +12,19 @@ import { StoresService } from "./stores.service";
 
 export type ShopCall<T> = (connector: MarketplaceConnector, shop: ShopCredentials, store: StoreRow) => Promise<T>;
 
+export interface CallOptions {
+  /**
+   * Work nobody waits for, such as parcel tracking: it takes at most a share of the store's request
+   * rate (`BACKGROUND_SHARE`) and may wait longer for it, so stock pushes and order work keep theirs.
+   */
+  background?: boolean;
+}
+
 /**
  * The one way the worker calls a marketplace for a store (backend doc 8.6, `ConnectorRegistry.forStore`):
  *
- * - takes a token from the store's bucket (manifest rate, Redis) before every HTTP request
+ * - takes a token from the store's bucket (manifest rate, Redis) before every HTTP request; background
+ *   work also from its smaller share
  * - records the call in the store's sync log with every HTTP request it made
  * - refreshes and retries once when the marketplace says the access token expired
  * - moves the store to `reauth_required` when the marketplace says the authorization is gone
@@ -36,6 +45,7 @@ export class MarketplaceGateway {
     entry: Omit<SyncLogEntry, "storeId">,
     fn: ShopCall<T>,
     summarize?: (result: T) => Record<string, unknown>,
+    options: CallOptions = {},
   ): Promise<T> {
     return this.syncLog.run(
       ctx,
@@ -47,6 +57,7 @@ export class MarketplaceGateway {
           limiter: this.limiter,
           key: `mp:${connector.manifest.id}:${storeId}`,
           rule: connector.manifest.shopRateLimit,
+          background: options.background === true,
         };
         return withRequestGate(gate, async () => {
           try {

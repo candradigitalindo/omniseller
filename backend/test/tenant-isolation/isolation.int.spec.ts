@@ -110,6 +110,7 @@ const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: s
   ShipmentsController_labels: ({ a: ids }) => ({ orderIds: [ids.order!] }),
   DocumentsController_create: ({ a: ids }) => ({ kind: "labels", orderIds: [ids.order!] }),
   DocumentsController_pickList: ({ a: ids }) => ({ orderIds: [ids.order!] }),
+  ShipmentsController_refreshTracking: () => ({}),
   MigrationImportsController_setMapping: () => ({
     headerRow: 1,
     fields: { sku_varian: 0, nama_produk: 1, harga_dasar: 2, berat: 3 },

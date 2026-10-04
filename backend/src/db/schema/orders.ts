@@ -188,6 +188,47 @@ export const shipment = pgTable("shipment", {
   weightG: integer("weight_g"),
   dims: jsonb("dims").$type<{ lengthMm: number; widthMm: number; heightMm: number }>(),
   packageCount: integer("package_count").notNull().default(1),
+  /** Where the parcel is, from the marketplace's tracking (FR-SHP-07, backend doc 8.22). */
+  trackingStage: text("tracking_stage").$type<TrackingStage>(),
+  /** Newest first; descriptions may name who received the parcel (personal data). */
+  trackingEvents: jsonb("tracking_events").$type<StoredTrackingEvent[]>().notNull().default([]),
+  trackingEventAt: tstz("tracking_event_at"),
+  trackingSyncedAt: tstz("tracking_synced_at"),
+  trackingError: text("tracking_error"),
+});
+
+export const TRACKING_STAGES = [
+  "waiting_pickup",
+  "in_transit",
+  "out_for_delivery",
+  "delivered",
+  "failed",
+  "returning",
+  "returned",
+  "lost",
+  "cancelled",
+] as const;
+export type TrackingStage = (typeof TRACKING_STAGES)[number];
+
+export interface StoredTrackingEvent {
+  /** ISO 8601. */
+  at: string;
+  description: string;
+  code: string | null;
+  stage: TrackingStage | null;
+  /** Shopee package number of a split order's parcel. */
+  packageId?: string;
+  returnCode?: string;
+}
+
+/** The custom label template of a business (FR-SHP-16, UI L42). */
+export const labelTemplate = pgTable("label_template", {
+  ...baseColumns(),
+  showSku: boolean("show_sku").notNull().default(true),
+  showVariant: boolean("show_variant").notNull().default(true),
+  showBin: boolean("show_bin").notNull().default(true),
+  showBuyerNote: boolean("show_buyer_note").notNull().default(true),
+  showTags: boolean("show_tags").notNull().default(false),
 });
 
 export const shipmentPackage = pgTable("shipment_package", {
@@ -213,12 +254,16 @@ export const printJob = pgTable("print_job", {
   printedAt: tstz("printed_at"),
 });
 
-export type DocumentKind = "labels" | "pick_list";
+export type DocumentKind = "labels" | "pick_list" | "packing_list";
 
 export interface DocumentParams {
   orderIds: string[];
-  /** Labels: thermal 100 x 150 mm, or A4 with 4 labels per page (FR-SHP-01). */
+  /** Labels and packing lists: thermal 100 x 150 mm, or A4 with 4 per page (FR-SHP-01, 03). */
   format?: "thermal" | "a4";
+  /** Labels: `custom` adds the business's template under each marketplace label (FR-SHP-16). */
+  template?: "standard" | "custom";
+  /** Labels: each order's packing list right after its label (FR-SHP-03). */
+  packingList?: boolean;
 }
 
 export interface DocumentResult {

@@ -9,6 +9,10 @@ import {
   PermanentConnectorError,
   requestFile,
   type ShopCredentials,
+  type TrackingEvent,
+  type TrackingResult,
+  type TrackingStage,
+  trackingStageOf,
 } from "@omniseller/connector-core";
 import type { TiktokShopClient } from "./client.js";
 import { TIKTOK_PACKAGE_STATES, type TiktokOrder } from "./orders.js";
@@ -21,12 +25,59 @@ import { TIKTOK_PACKAGE_STATES, type TiktokOrder } from "./orders.js";
  * 3. Ship Package (202309): handover method PICKUP with a slot, or DROP_OFF
  * 4. Get Package Shipping Document (202309): a URL to the label PDF (A6 by default, valid 24 hours)
  *    and the tracking number
+ * 5. Get Tracking (202309): the parcel's journey per order, events with an action code (Get Logistics
+ *    Tracking 202604 is for cross-border orders only)
  *
  * Packages the seller ships with an own courier (shipping type SELLER) need the seller's tracking
  * number and are left to Seller Center. Before shipping, the order must not be cancelled or waiting
  * for the seller's answer to a cancellation request.
  */
 const DETAIL_BATCH = 50;
+
+/** Tracking action codes ("Action_Code_Name", Logistics API reference), grouped by what the seller sees. */
+const STAGE_CODES: Record<TrackingStage, number[]> = {
+  waiting_pickup: [10101, 20101, 20201, 20801, 20901, 21001, 21401, 21402],
+  in_transit: [
+    21901, 30901, 31001, 31101, 31201, 31301, 31401, 32001, 32201, 32301, 32401, 32501, 32601, 32701, 32801, 36201,
+    39901, 40101, 40201, 40301, 41301, 42001, 301002, 3010001, 3013901,
+  ],
+  out_for_delivery: [40501, 41501],
+  delivered: [50101],
+  failed: [
+    20301, 21101, 21201, 21301, 40601, 40801, 41001, 41101, 41201, 41401, 41801, 41901, 60101, 70301, 70401, 140101,
+  ],
+  returning: [43101, 43201, 59801, 60201, 70201, 70501],
+  returned: [80101],
+  lost: [90101, 100101, 160101],
+  cancelled: [110101, 120101],
+};
+export const TIKTOK_TRACKING_STAGES: ReadonlyMap<number, TrackingStage> = new Map(
+  (Object.entries(STAGE_CODES) as [TrackingStage, number[]][]).flatMap(([stage, codes]) =>
+    codes.map((c) => [c, stage] as const),
+  ),
+);
+
+/** Get Tracking events, newest first; entries without a time are dropped. */
+export function tiktokTrackingEvents(
+  tracking: { description?: string; update_time_millis?: number | string; action_code?: number | string }[] | undefined,
+): TrackingEvent[] {
+  return (tracking ?? [])
+    .flatMap((t): TrackingEvent[] => {
+      const millis = Number(t.update_time_millis);
+      if (!Number.isFinite(millis) || millis <= 0) return [];
+      const code =
+        t.action_code === undefined || t.action_code === null || t.action_code === "" ? null : String(t.action_code);
+      return [
+        {
+          at: new Date(millis),
+          description: (t.description ?? "").trim(),
+          code,
+          stage: code ? (TIKTOK_TRACKING_STAGES.get(Number(code)) ?? null) : null,
+        },
+      ];
+    })
+    .sort((a, b) => b.at.getTime() - a.at.getTime());
+}
 
 interface Slots {
   can_pickup?: boolean;
@@ -234,6 +285,40 @@ export function tiktokFulfillment(client: TiktokShopClient) {
           );
         } catch (err) {
           out.push({ ref, state: "failed", ...asResult(err) });
+        }
+      }
+      return out;
+    },
+
+    /** TikTok Shop tracks per order: one parcel without a package id. */
+    async tracking(
+      shop: ShopCredentials,
+      orders: { externalOrderId: string; externalPackageIds: string[] }[],
+    ): Promise<TrackingResult[]> {
+      const out: TrackingResult[] = [];
+      for (const o of orders) {
+        try {
+          const data = await client.call<{
+            tracking?: { description?: string; update_time_millis?: number; action_code?: number }[];
+          }>({
+            method: "GET",
+            path: `/fulfillment/202309/orders/${encodeURIComponent(o.externalOrderId)}/tracking`,
+            accessToken: shop.accessToken,
+            shopCipher: shop.shopCipher,
+          });
+          const events = tiktokTrackingEvents(data.tracking);
+          out.push({
+            externalOrderId: o.externalOrderId,
+            parcels: [{ externalPackageId: "", stage: trackingStageOf(events, null), events }],
+          });
+        } catch (err) {
+          if (isConnectorError(err) && err.kind === "permanent") {
+            out.push({ externalOrderId: o.externalOrderId, error: { code: err.code, message: err.message } });
+            continue;
+          }
+          // busy, rate-limited, or unreachable: what was read counts, the rest waits for the next read
+          if (isConnectorError(err) && err.kind === "transient" && out.length > 0) return out;
+          throw err;
         }
       }
       return out;

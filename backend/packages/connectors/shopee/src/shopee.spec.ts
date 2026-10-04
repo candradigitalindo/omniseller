@@ -9,7 +9,8 @@ import { describe, expect, it } from "vitest";
 import { accessExpiry, classifyShopeeError, shopeeBaseString, shopeeSign } from "./client.js";
 import { createShopeeConnector, SHOPEE_DEFAULT_WAREHOUSE_ID, SHOPEE_FBS_WAREHOUSE_ID } from "./connector.js";
 import { chooseShopeeHandover } from "./logistics.js";
-import { parseShopeePush, verifyShopeePush } from "./webhooks.js";
+import { SHOPEE_SUBSCRIBED_PUSH_CODES } from "./push-config.js";
+import { parseShopeePush, SHOPEE_PUSH_KINDS, verifyShopeePush } from "./webhooks.js";
 
 type Handler = (url: URL, init: RequestInit) => unknown;
 
@@ -288,6 +289,15 @@ describe("Shopee warehouses", () => {
 });
 
 describe("Shopee push (Push Mechanism)", () => {
+  it("subscribes to every push code it reads: Shopee sends only subscribed codes", () => {
+    const subscribed: readonly number[] = SHOPEE_SUBSCRIBED_PUSH_CODES;
+    expect(
+      Object.keys(SHOPEE_PUSH_KINDS)
+        .map(Number)
+        .filter((c) => !subscribed.includes(c)),
+    ).toEqual([]);
+  });
+
   const url = "https://hooks.omniseller.id/webhooks/shopee";
 
   it("verifies Authorization = HMAC(partner_key, url|raw_body)", () => {
@@ -1238,5 +1248,143 @@ describe("Shopee shipments (Order Management 8, v2.logistics)", () => {
       kind: "shipment.document_ready",
       data: { externalOrderId: "A", externalPackageId: "P1", status: "READY" },
     });
+  });
+});
+
+describe("Shopee tracking (v2.logistics.get_tracking_info)", () => {
+  const shop = { externalShopId: "1", shopCipher: null, accessToken: "t" };
+
+  it("reads the journey newest first and maps tracking statuses to stages", async () => {
+    const f = fakeFetch({
+      "GET /api/v2/logistics/get_tracking_info": (url) => {
+        expect(url.searchParams.get("order_sn")).toBe("A");
+        expect(url.searchParams.has("package_number")).toBe(false);
+        return {
+          error: "",
+          response: {
+            order_sn: "A",
+            logistics_status: "LOGISTICS_PICKUP_DONE",
+            tracking_info: [
+              { update_time: 1_790_000_000, description: "Pesanan dibuat", logistics_status: "ORDER_CREATED" },
+              { update_time: 1_790_003_600, description: " Paket diserahkan ke kurir ", logistics_status: "PICKED_UP" },
+              { update_time: 1_790_007_200, description: "Status baru", logistics_status: "SOMETHING_NEW" },
+              { description: "tanpa waktu", logistics_status: "DELIVERED" },
+            ],
+          },
+        };
+      },
+    });
+    const [r] = await connector(f.fn).fulfillment.tracking(shop, [{ externalOrderId: "A", externalPackageIds: [] }]);
+    expect(r).toEqual({
+      externalOrderId: "A",
+      parcels: [
+        {
+          externalPackageId: "",
+          // the newest known code decides; an unknown one does not
+          stage: "in_transit",
+          events: [
+            { at: new Date(1_790_007_200_000), description: "Status baru", code: "SOMETHING_NEW", stage: null },
+            {
+              at: new Date(1_790_003_600_000),
+              description: "Paket diserahkan ke kurir",
+              code: "PICKED_UP",
+              stage: "in_transit",
+            },
+            {
+              at: new Date(1_790_000_000_000),
+              description: "Pesanan dibuat",
+              code: "ORDER_CREATED",
+              stage: "waiting_pickup",
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("tracks a split order per package, keeps the return OTP, and reports failures per order", async () => {
+    const f = fakeFetch({
+      "GET /api/v2/logistics/get_tracking_info": (url) => {
+        const sn = url.searchParams.get("order_sn");
+        const pkg = url.searchParams.get("package_number");
+        if (sn === "B" && !pkg) {
+          return { error: "logistics.package_number_not_exist", message: "Please request with package_number" };
+        }
+        if (sn === "C") return { error: "logistics.invalid_error", message: "The order is not exist." };
+        return {
+          error: "",
+          response: {
+            logistics_status: pkg === "P2" ? "LOGISTICS_DELIVERY_FAILED" : "LOGISTICS_DELIVERY_DONE",
+            tracking_info:
+              pkg === "P2"
+                ? [
+                    {
+                      update_time: 1_790_010_000,
+                      description: "Paket dikembalikan",
+                      logistics_status: "RETURN_STARTED",
+                      return_code: "1234",
+                    },
+                  ]
+                : [{ update_time: 1_790_020_000, description: "Terkirim", logistics_status: "DELIVERED" }],
+          },
+        };
+      },
+      "GET /api/v2/order/get_order_detail": () => ({
+        error: "",
+        response: {
+          order_list: [{ order_sn: "B", package_list: [{ package_number: "P1" }, { package_number: "P2" }] }],
+        },
+      }),
+    });
+    const results = await connector(f.fn).fulfillment.tracking(shop, [
+      { externalOrderId: "B", externalPackageIds: [] },
+      { externalOrderId: "C", externalPackageIds: [] },
+      { externalOrderId: "D", externalPackageIds: ["P9"] },
+    ]);
+    const b = results[0] as {
+      parcels: { externalPackageId: string; stage: string; events: { returnCode?: string }[] }[];
+    };
+    expect(b.parcels.map((p) => [p.externalPackageId, p.stage])).toEqual([
+      ["P1", "delivered"],
+      ["P2", "returning"],
+    ]);
+    expect(b.parcels[1]!.events[0]!.returnCode).toBe("1234");
+    expect(results[1]).toEqual({
+      externalOrderId: "C",
+      error: { code: "logistics.invalid_error", message: "The order is not exist." },
+    });
+    expect(results[2]).toMatchObject({
+      externalOrderId: "D",
+      parcels: [{ externalPackageId: "P9", stage: "delivered" }],
+    });
+  });
+
+  it("stops at a temporary failure: what was read counts, the rest waits for the next read", async () => {
+    const f = fakeFetch({
+      "GET /api/v2/logistics/get_tracking_info": (url) =>
+        url.searchParams.get("order_sn") === "B"
+          ? new Response(JSON.stringify({ error: "error_server", message: "Busy." }), { status: 500 })
+          : { error: "", response: { logistics_status: "LOGISTICS_PICKUP_DONE", tracking_info: [] } },
+    });
+    const orders = ["A", "B", "C"].map((sn) => ({ externalOrderId: sn, externalPackageIds: [] }));
+    const results = await connector(f.fn).fulfillment.tracking(shop, orders);
+    expect(results).toEqual([
+      { externalOrderId: "A", parcels: [{ externalPackageId: "", stage: "in_transit", events: [] }] },
+    ]);
+    await expect(connector(f.fn).fulfillment.tracking(shop, orders.slice(1))).rejects.toMatchObject({
+      kind: "transient",
+    });
+  });
+
+  it("lets authorization failures through so the store is reconnected", async () => {
+    const f = fakeFetch({
+      "GET /api/v2/logistics/get_tracking_info": () =>
+        new Response(JSON.stringify({ error: "invalid_access_token", message: "Invalid access_token." }), {
+          status: 403,
+        }),
+    });
+    await expect(
+      connector(f.fn).fulfillment.tracking(shop, [{ externalOrderId: "A", externalPackageIds: [] }]),
+    ).rejects.toBeInstanceOf(AuthExpiredError);
   });
 });

@@ -2,7 +2,18 @@ import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import * as fontkit from "@pdf-lib/fontkit";
 import { PDFDocument, type PDFEmbeddedPage, type PDFFont, type PDFPage, rgb } from "pdf-lib";
-import { A4_PAGE, a4Cells, fitInto, MM, type PickLine, THERMAL_PAGE } from "./shipping-plan";
+import {
+  A4_PAGE,
+  a4Cells,
+  type Box,
+  type LabelStrip,
+  labelPlacement,
+  MM,
+  type PickLine,
+  THERMAL_PAGE,
+} from "./shipping-plan";
+
+export type { LabelStrip };
 
 /**
  * PDF documents of the fulfillment module (technology doc 13, ADR-038), drawn with pdf-lib in the
@@ -31,37 +42,140 @@ export interface ComposedLabels {
   labels: number;
   /** Indexes of input files that could not be read as PDF. */
   unreadable: number[];
+  /** Pages each input file placed (0 for an unreadable one). */
+  pagesPerEntry: number[];
+}
+
+export interface LabelEntry {
+  /** A label file (the marketplace's or OmniSeller's own) or a packing list. */
+  pdf: Uint8Array;
+  /** Custom template: drawn under each page of the file, which is scaled down to make room. */
+  strip?: LabelStrip | null;
+}
+
+interface Fonts {
+  regular: PDFFont;
+  bold: PDFFont;
+  text: (s: string) => string;
+}
+
+async function embedFonts(doc: PDFDocument): Promise<Fonts> {
+  doc.registerFontkit(fontkit);
+  const regular = await doc.embedFont(fonts().regular, { subset: true });
+  const bold = await doc.embedFont(fonts().bold, { subset: true });
+  const supported = new Set(regular.getCharacterSet());
+  return { regular, bold, text: (s: string) => drawable(supported, s) };
 }
 
 /**
- * Marketplace label files, in the order given, on 100 x 150 mm thermal pages or four to an A4 sheet
- * with cut lines (FR-SHP-01). Each label keeps its proportions; nothing on it is changed.
+ * The custom template's area under a label (FR-SHP-16): order number, units, one line per item
+ * (quantity, SKU, variant, rack), the buyer's note, and tags, as many lines as fit. The marketplace
+ * label above it is not drawn over.
  */
-export async function composeLabels(files: Uint8Array[], format: "thermal" | "a4"): Promise<ComposedLabels> {
+function drawStrip(page: PDFPage, box: Box, strip: LabelStrip, f: Fonts): void {
+  const pad = 2 * MM;
+  const x = box.x + pad;
+  const width = box.width - 2 * pad;
+  const top = box.y + box.height;
+  page.drawLine({
+    start: { x: box.x + pad, y: top - 1 },
+    end: { x: box.x + box.width - pad, y: top - 1 },
+    thickness: 0.6,
+  });
+  const units = strip.lines.reduce((n, l) => n + l.qty, 0);
+  const count = `${units} barang`;
+  page.drawText(count, {
+    x: x + width - f.regular.widthOfTextAtSize(count, 7.5),
+    y: top - 10,
+    size: 7.5,
+    font: f.regular,
+  });
+  page.drawText(clip(f.bold, f.text(strip.orderNumber), 8, width - f.regular.widthOfTextAtSize(count, 7.5) - 6), {
+    x,
+    y: top - 10,
+    size: 8,
+    font: f.bold,
+  });
+  const footer = [
+    strip.note ? clip(f.regular, f.text(`Catatan: ${strip.note}`), 7, width) : null,
+    strip.tags.length ? clip(f.bold, f.text(`Tag: ${strip.tags.join(", ")}`), 7, width) : null,
+  ].filter((l): l is string => l !== null);
+  const step = 8.5;
+  const room = Math.max(1, Math.floor((top - 14 - (box.y + pad + footer.length * step)) / step));
+  const shown = strip.lines.length > room ? strip.lines.slice(0, room - 1) : strip.lines;
+  let y = top - 19;
+  for (const l of shown) {
+    const what = [l.sku, l.variant ? `(${l.variant})` : null].filter(Boolean).join(" ");
+    const rack = l.bin ? `Rak ${l.bin}` : "";
+    const rackWidth = rack ? f.bold.widthOfTextAtSize(f.text(rack), 7.5) : 0;
+    page.drawText(clip(f.regular, f.text(`${l.qty}x  ${what}`), 7.5, width - rackWidth - 4), {
+      x,
+      y,
+      size: 7.5,
+      font: f.regular,
+    });
+    if (rack) page.drawText(f.text(rack), { x: x + width - rackWidth, y, size: 7.5, font: f.bold });
+    y -= step;
+  }
+  if (shown.length < strip.lines.length) {
+    page.drawText(`+${strip.lines.length - shown.length} barang lainnya`, {
+      x,
+      y,
+      size: 7,
+      font: f.regular,
+      color: GRAY,
+    });
+  }
+  let fy = box.y + pad + (footer.length - 1) * step;
+  for (const line of footer) {
+    page.drawText(line, { x, y: fy, size: 7, font: line.startsWith("Tag") ? f.bold : f.regular });
+    fy -= step;
+  }
+}
+
+/**
+ * Label files, in the order given, on 100 x 150 mm thermal pages or four to an A4 sheet with cut lines
+ * (FR-SHP-01). Each label keeps its proportions; nothing on it is changed. An entry with a strip (custom
+ * template, FR-SHP-16) is scaled into the space above the strip.
+ */
+export async function composeLabels(
+  entries: readonly (Uint8Array | LabelEntry)[],
+  format: "thermal" | "a4",
+): Promise<ComposedLabels> {
   const out = await PDFDocument.create();
   out.setTitle("Label pengiriman");
   out.setCreator("OmniSeller");
   out.setProducer("OmniSeller");
-  const labels: PDFEmbeddedPage[] = [];
+  const placed: { label: PDFEmbeddedPage; strip: LabelStrip | null }[] = [];
   const unreadable: number[] = [];
-  for (const [i, bytes] of files.entries()) {
+  const pagesPerEntry: number[] = [];
+  for (const [i, entry] of entries.entries()) {
+    const e: LabelEntry = entry instanceof Uint8Array ? { pdf: entry } : entry;
     try {
-      const src = await PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false });
-      labels.push(...(await out.embedPdf(src, src.getPageIndices())));
+      const src = await PDFDocument.load(e.pdf, { ignoreEncryption: true, updateMetadata: false });
+      const pages = await out.embedPdf(src, src.getPageIndices());
+      for (const label of pages) placed.push({ label, strip: e.strip ?? null });
+      pagesPerEntry.push(pages.length);
     } catch {
       unreadable.push(i);
+      pagesPerEntry.push(0);
     }
   }
+  const f = placed.some((p) => p.strip) ? await embedFonts(out) : null;
+  const place = (page: PDFPage, item: (typeof placed)[number], box: Box) => {
+    const at = labelPlacement(item.label, box, item.strip !== null);
+    if (at.strip && item.strip && f) drawStrip(page, at.strip, item.strip, f);
+    page.drawPage(item.label, { x: at.label.x, y: at.label.y, xScale: at.label.scale, yScale: at.label.scale });
+  };
   if (format === "thermal") {
-    for (const label of labels) {
+    for (const item of placed) {
       const page = out.addPage([THERMAL_PAGE.width, THERMAL_PAGE.height]);
-      const f = fitInto(label, { x: 0, y: 0, ...THERMAL_PAGE });
-      page.drawPage(label, { x: f.x, y: f.y, xScale: f.scale, yScale: f.scale });
+      place(page, item, { x: 0, y: 0, ...THERMAL_PAGE });
     }
   } else {
     const cells = a4Cells();
     const pad = 3 * MM;
-    for (let i = 0; i < labels.length; i += 4) {
+    for (let i = 0; i < placed.length; i += 4) {
       const page = out.addPage([A4_PAGE.width, A4_PAGE.height]);
       const dash = { thickness: 0.4, color: LIGHT, dashArray: [4, 4] };
       page.drawLine({
@@ -74,19 +188,18 @@ export async function composeLabels(files: Uint8Array[], format: "thermal" | "a4
         end: { x: A4_PAGE.width, y: A4_PAGE.height / 2 },
         ...dash,
       });
-      labels.slice(i, i + 4).forEach((label, j) => {
+      placed.slice(i, i + 4).forEach((item, j) => {
         const cell = cells[j]!;
-        const f = fitInto(label, {
+        place(page, item, {
           x: cell.x + pad,
           y: cell.y + pad,
           width: cell.width - 2 * pad,
           height: cell.height - 2 * pad,
         });
-        page.drawPage(label, { x: f.x, y: f.y, xScale: f.scale, yScale: f.scale });
       });
     }
   }
-  return { pdf: await out.save(), pages: out.getPageCount(), labels: labels.length, unreadable };
+  return { pdf: await out.save(), pages: out.getPageCount(), labels: placed.length, unreadable, pagesPerEntry };
 }
 
 export interface PickSection {
@@ -426,5 +539,164 @@ export async function renderManualLabel(label: ManualLabel): Promise<Uint8Array>
       fy += 10;
     }
   }
+  return doc.save();
+}
+
+export interface PackingList {
+  number: string;
+  /** "Shopee · Toko Utama" */
+  source: string;
+  orderedAt: Date;
+  courier: string | null;
+  trackingNumber: string | null;
+  /** The buyer's name and destination city: enough to match the parcel, without the full address. */
+  buyer: string | null;
+  destination: string | null;
+  lines: { qty: number; sku: string; name: string; variant: string | null; bin: string | null }[];
+  note: string | null;
+  tags: string[];
+}
+
+/**
+ * One order's packing list (FR-SHP-03) on 100 x 150 mm pages: what goes in the parcel with a box to
+ * tick per line, the rack, the buyer's note, and who packed and checked it. Long orders continue on the
+ * next page. Printed alone or right after the order's label.
+ */
+export async function renderPackingList(list: PackingList): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  doc.setTitle(`Daftar kemas ${list.number}`);
+  doc.setCreator("OmniSeller");
+  doc.setProducer("OmniSeller");
+  const f = await embedFonts(doc);
+  const m = 4 * MM;
+  const width = THERMAL_PAGE.width - 2 * m;
+  const bottomOfLines = m + 58;
+  let page!: PDFPage;
+  let y = 0;
+  const header = (continued: boolean) => {
+    page = doc.addPage([THERMAL_PAGE.width, THERMAL_PAGE.height]);
+    y = THERMAL_PAGE.height - m;
+    const title = continued ? "DAFTAR KEMAS (lanjutan)" : "DAFTAR KEMAS";
+    page.drawText(title, { x: m, y: y - 12, size: 11, font: f.bold });
+    const number = f.text(list.number);
+    page.drawText(number, { x: m + width - f.bold.widthOfTextAtSize(number, 11), y: y - 12, size: 11, font: f.bold });
+    y -= 26;
+    if (continued) return;
+    const meta = [
+      `${list.source} · ${day.format(list.orderedAt)}`,
+      [list.courier, list.trackingNumber ? `Resi ${list.trackingNumber}` : null].filter(Boolean).join(" · "),
+      [list.buyer, list.destination].filter(Boolean).join(" · "),
+    ].filter((l) => l.trim() !== "");
+    for (const line of meta) {
+      page.drawText(clip(f.regular, f.text(line), 8.5, width), { x: m, y, size: 8.5, font: f.regular });
+      y -= 11;
+    }
+    y -= 2;
+  };
+  const tableHead = () => {
+    page.drawRectangle({ x: m, y: y - 13, width, height: 13, color: HEADER_FILL });
+    page.drawText("Jml", { x: m + 15, y: y - 9.5, size: 7.5, font: f.bold });
+    page.drawText("Barang", { x: m + 38, y: y - 9.5, size: 7.5, font: f.bold });
+    const rack = "Rak";
+    page.drawText(rack, {
+      x: m + width - f.bold.widthOfTextAtSize(rack, 7.5) - 3,
+      y: y - 9.5,
+      size: 7.5,
+      font: f.bold,
+    });
+    y -= 15;
+  };
+
+  header(false);
+  tableHead();
+  for (const [i, line] of list.lines.entries()) {
+    // the last line keeps the total under it, clear of the note below
+    if (y - (i === list.lines.length - 1 ? 34 : 22) < bottomOfLines) {
+      header(true);
+      tableHead();
+    }
+    page.drawRectangle({ x: m + 2, y: y - 11, width: 8, height: 8, borderColor: GRAY, borderWidth: 0.8 });
+    const qty = String(line.qty);
+    page.drawText(qty, { x: m + 31 - f.bold.widthOfTextAtSize(qty, 10), y: y - 10.5, size: 10, font: f.bold });
+    const rack = line.bin ? f.text(line.bin) : "-";
+    const rackWidth = f.bold.widthOfTextAtSize(rack, 8.5);
+    const textWidth = width - 38 - rackWidth - 8;
+    page.drawText(clip(f.regular, f.text(line.sku), 8, textWidth), { x: m + 38, y: y - 9, size: 8, font: f.regular });
+    const name = [line.name, line.variant].filter(Boolean).join(" · ");
+    page.drawText(clip(f.regular, f.text(name), 7.5, textWidth), {
+      x: m + 38,
+      y: y - 18,
+      size: 7.5,
+      font: f.regular,
+      color: GRAY,
+    });
+    page.drawText(rack, { x: m + width - rackWidth - 3, y: y - 9.5, size: 8.5, font: f.bold });
+    y -= 22;
+    page.drawLine({ start: { x: m, y: y + 1 }, end: { x: m + width, y: y + 1 }, thickness: 0.3, color: LIGHT });
+  }
+  const units = list.lines.reduce((n, l) => n + l.qty, 0);
+  page.drawText(`${units} barang, ${list.lines.length} baris`, { x: m, y: y - 9, size: 8, font: f.bold });
+
+  // footer of the last page: the buyer's note, tags, and signatures
+  let fy = m + 46;
+  if (list.note) {
+    for (const line of wrap(f.regular, f.text(`Catatan pembeli: ${list.note}`), 7.5, width, 3)) {
+      page.drawText(line, { x: m, y: fy, size: 7.5, font: f.regular });
+      fy -= 9.5;
+    }
+  }
+  if (list.tags.length) {
+    page.drawText(clip(f.bold, f.text(`Tag: ${list.tags.join(", ")}`), 7.5, width), {
+      x: m,
+      y: m + 18,
+      size: 7.5,
+      font: f.bold,
+    });
+  }
+  page.drawText("Dikemas: ____________   Dicek: ____________", {
+    x: m,
+    y: m + 4,
+    size: 7.5,
+    font: f.regular,
+    color: GRAY,
+  });
+  const pages = doc.getPages();
+  if (pages.length > 1) {
+    pages.forEach((p, i) => {
+      const label = `${i + 1}/${pages.length}`;
+      p.drawText(label, {
+        x: m + width - f.regular.widthOfTextAtSize(label, 7),
+        y: m + 4,
+        size: 7,
+        font: f.regular,
+        color: GRAY,
+      });
+    });
+  }
+  return doc.save();
+}
+
+/** A stand-in for a marketplace label, for the template's test print (UI L42 "Cetak percobaan"). */
+export async function sampleMarketplaceLabel(): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  const f = await embedFonts(doc);
+  const page = doc.addPage([105 * MM, 148 * MM]);
+  const { width, height } = page.getSize();
+  page.drawRectangle({ x: 6, y: 6, width: width - 12, height: height - 12, borderColor: GRAY, borderWidth: 1.2 });
+  const title = "Label resmi marketplace";
+  page.drawText(title, {
+    x: (width - f.bold.widthOfTextAtSize(title, 13)) / 2,
+    y: height / 2 + 8,
+    size: 13,
+    font: f.bold,
+  });
+  const hint = "Contoh. Isi label asli tidak diubah.";
+  page.drawText(hint, {
+    x: (width - f.regular.widthOfTextAtSize(hint, 9)) / 2,
+    y: height / 2 - 10,
+    size: 9,
+    font: f.regular,
+    color: GRAY,
+  });
   return doc.save();
 }

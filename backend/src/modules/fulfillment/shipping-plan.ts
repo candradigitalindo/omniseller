@@ -1,4 +1,5 @@
 import type { OrderStatus, ShipmentStatus } from "@omniseller/shared";
+import type { StoredTrackingEvent, TrackingStage } from "../../db/schema";
 
 /**
  * Fulfillment decisions as pure functions (backend doc 8.15, PRD FR-SHP-01, 02, 06): which orders may
@@ -258,6 +259,29 @@ export function fitInto(src: { width: number; height: number }, box: Box): { x: 
   };
 }
 
+/** Height of the custom template's strip under a label (FR-SHP-16), at most 30% of the label's box. */
+export const STRIP_HEIGHT = 30 * MM;
+
+/**
+ * Where a label page goes in its box. Without a strip it is centred (`fitInto`). With one, the strip
+ * takes the bottom of the box and the label is scaled into the room above it, against the top edge it
+ * was printed for: the strip never covers any part of the marketplace label.
+ */
+export function labelPlacement(
+  src: { width: number; height: number },
+  box: Box,
+  withStrip: boolean,
+): { label: { x: number; y: number; scale: number }; strip: Box | null } {
+  if (!withStrip) return { label: fitInto(src, box), strip: null };
+  const height = Math.min(STRIP_HEIGHT, box.height * 0.3);
+  const room = { x: box.x, y: box.y + height, width: box.width, height: box.height - height };
+  const fit = fitInto(src, room);
+  return {
+    label: { x: fit.x, y: room.y + room.height - src.height * fit.scale, scale: fit.scale },
+    strip: { x: box.x, y: box.y, width: box.width, height },
+  };
+}
+
 /** The four quarters of an A4 sheet in reading order (PDF y grows upwards). */
 export function a4Cells(): Box[] {
   const w = A4_PAGE.width / 2;
@@ -268,4 +292,140 @@ export function a4Cells(): Box[] {
     { x: 0, y: 0, width: w, height: h },
     { x: w, y: 0, width: w, height: h },
   ];
+}
+
+// ---- tracking (FR-SHP-07, backend doc 8.22) ----
+
+export const TRACKING_STAGE_LABELS: Record<TrackingStage, string> = {
+  waiting_pickup: "Menunggu kurir",
+  in_transit: "Dalam perjalanan",
+  out_for_delivery: "Sedang diantar",
+  delivered: "Terkirim",
+  failed: "Ada kendala",
+  returning: "Dikembalikan ke penjual",
+  returned: "Sudah kembali ke penjual",
+  lost: "Hilang atau rusak",
+  cancelled: "Pengiriman dibatalkan",
+};
+
+/** Order statuses whose parcel has a journey to show. */
+export const TRACKED: ReadonlySet<OrderStatus> = new Set([
+  "shipped",
+  "delivered",
+  "completed",
+  "return_in_progress",
+  "returned",
+]);
+/** Parcels on the way are read again after this long (the scan). */
+export const TRACKING_STALE_MS = 3 * 3600_000;
+/** A seller's "Perbarui" reads again only when the last read is older than this. */
+export const TRACKING_REFRESH_MS = 10 * 60_000;
+/** Events kept per shipment, newest first. */
+export const TRACKING_EVENTS_KEPT = 100;
+
+/** Stages that need the seller's eye, most serious first. */
+const ATTENTION: readonly TrackingStage[] = ["lost", "failed", "returning", "returned", "cancelled"];
+const PROGRESS: readonly TrackingStage[] = ["waiting_pickup", "in_transit", "out_for_delivery", "delivered"];
+
+/**
+ * One order's tracking from its parcels (a split Shopee order has several): the events of all parcels
+ * newest first (labelled with their package when there are several), and the stage the seller should
+ * see: the most serious problem of any parcel, else the parcel furthest behind.
+ */
+export function combineParcels(
+  parcels: readonly {
+    externalPackageId: string;
+    stage: TrackingStage | null;
+    events: readonly {
+      at: Date;
+      description: string;
+      code: string | null;
+      stage: TrackingStage | null;
+      returnCode?: string;
+    }[];
+  }[],
+): { stage: TrackingStage | null; events: StoredTrackingEvent[]; eventAt: Date | null } {
+  const several = parcels.length > 1;
+  const events = parcels
+    .flatMap((p) =>
+      p.events.map((e) => ({
+        at: e.at,
+        stored: {
+          at: e.at.toISOString(),
+          description: e.description,
+          code: e.code,
+          stage: e.stage,
+          ...(several && p.externalPackageId ? { packageId: p.externalPackageId } : {}),
+          ...(e.returnCode ? { returnCode: e.returnCode } : {}),
+        } satisfies StoredTrackingEvent,
+      })),
+    )
+    .sort((a, b) => b.at.getTime() - a.at.getTime());
+  const stages = parcels.map((p) => p.stage).filter((s): s is TrackingStage => s !== null);
+  const stage = ATTENTION.find((s) => stages.includes(s)) ?? PROGRESS.find((s) => stages.includes(s)) ?? null;
+  return {
+    stage,
+    events: events.slice(0, TRACKING_EVENTS_KEPT).map((e) => e.stored),
+    eventAt: events[0]?.at ?? null,
+  };
+}
+
+/**
+ * The stage a manual order shows: OmniSeller does not read couriers' tracking (no expedition
+ * integration yet), so the order's own status says where it is.
+ */
+export function manualTrackingStage(status: OrderStatus): TrackingStage | null {
+  if (status === "shipped") return "in_transit";
+  if (status === "delivered" || status === "completed") return "delivered";
+  return null;
+}
+
+// ---- custom label template (FR-SHP-16) ----
+
+export interface LabelTemplateOptions {
+  showSku: boolean;
+  showVariant: boolean;
+  showBin: boolean;
+  showBuyerNote: boolean;
+  showTags: boolean;
+}
+
+/** A business without a saved template gets these (UI L42: SKU and rack, buyer's note). */
+export const DEFAULT_LABEL_TEMPLATE: LabelTemplateOptions = {
+  showSku: true,
+  showVariant: true,
+  showBin: true,
+  showBuyerNote: true,
+  showTags: false,
+};
+
+/** What the custom template adds under a marketplace label. */
+export interface LabelStrip {
+  orderNumber: string;
+  lines: { qty: number; sku: string; variant: string | null; bin: string | null }[];
+  note: string | null;
+  tags: string[];
+}
+
+/** The template applied to one order. Without the SKU, a line names the product instead. */
+export function templateStrip(
+  t: LabelTemplateOptions,
+  o: {
+    number: string;
+    note: string | null;
+    tags: string[];
+    lines: { qty: number; sku: string; name: string; variant: string | null; bin: string | null }[];
+  },
+): LabelStrip {
+  return {
+    orderNumber: o.number,
+    lines: o.lines.map((l) => ({
+      qty: l.qty,
+      sku: t.showSku ? l.sku : l.name,
+      variant: t.showVariant ? l.variant : null,
+      bin: t.showBin ? l.bin : null,
+    })),
+    note: t.showBuyerNote && o.note?.trim() ? o.note.trim() : null,
+    tags: t.showTags ? o.tags : [],
+  };
 }

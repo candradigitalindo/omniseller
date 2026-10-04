@@ -16,9 +16,10 @@ export interface ShopeePushConfig {
 
 /**
  * Push codes OmniSeller subscribes to: authorization lifecycle (1, 2, 12), orders and tracking numbers
- * (3, 4), Shopee updates (5), banned and violating items (6, 16), item price changes (22).
+ * (3, 4), Shopee updates (5), banned and violating items (6, 16), shipping documents ready or failed
+ * (15), item price changes (22). Every code `parseShopeePush` reads must be here, or Shopee never sends it.
  */
-export const SHOPEE_SUBSCRIBED_PUSH_CODES = [1, 2, 3, 4, 5, 6, 12, 16, 22] as const;
+export const SHOPEE_SUBSCRIBED_PUSH_CODES = [1, 2, 3, 4, 5, 6, 12, 15, 16, 22] as const;
 
 export async function getShopeePushConfig(client: ShopeeClient): Promise<ShopeePushConfig> {
   const res = await client.publicCall<{ response?: ShopeePushConfig }>("GET", "/api/v2/push/get_app_push_config");

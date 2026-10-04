@@ -4,22 +4,41 @@ import { newId } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
 import { EXPORT_PAGE_SIZE, type ExportSheet, keysetPages } from "../../common/export-sheet";
 import type { DbHandle } from "../../db/client";
-import type { DocumentKind } from "../../db/schema";
+import type { DocumentKind, StoredTrackingEvent, TrackingStage } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
-import { StoresService } from "../channel/stores.service";
+import { isManualChannel, StoresService } from "../channel/stores.service";
 import { OrderIntakeService } from "../orders/order-intake.service";
 import { type ActionResult, OrdersService, orderStatusLabel } from "../orders/orders.service";
-import { documentNotFound } from "./fulfillment.errors";
-import { documentRequested, shipmentArrangeRequested, shipmentLabelRequested } from "./fulfillment.events";
+import { documentNotFound, trackingManual, trackingNotShipped } from "./fulfillment.errors";
+import {
+  documentRequested,
+  shipmentArrangeRequested,
+  shipmentLabelRequested,
+  shipmentTrackingRequested,
+} from "./fulfillment.events";
 import { type DocumentRow, FulfillmentRepository, type PackageRow, type ShipmentRow } from "./fulfillment.repository";
 import { PickListBuilder, type PickListSection } from "./pick-list.builder";
-import { arrangeRefusal } from "./shipping-plan";
+import { arrangeRefusal, manualTrackingStage, TRACKED, TRACKING_REFRESH_MS } from "./shipping-plan";
 
 export interface ShipmentView {
   shipment: ShipmentRow;
   packages: PackageRow[];
+}
+
+export interface TrackingView {
+  orderId: string;
+  /** marketplace: read from Shopee or TikTok Shop; manual: the order's own status, no courier tracking yet. */
+  source: "marketplace" | "manual";
+  trackingNumber: string | null;
+  provider: string | null;
+  stage: TrackingStage | null;
+  events: StoredTrackingEvent[];
+  syncedAt: Date | null;
+  error: string | null;
+  /** "Perbarui" can read it again. */
+  refreshable: boolean;
 }
 
 /**
@@ -159,12 +178,15 @@ export class FulfillmentService {
     });
   }
 
-  /** FR-SHP-01, 02: the worker renders the PDF; the caller polls the document (202). */
+  /**
+   * FR-SHP-01, 02, 03, 16: the worker renders the PDF; the caller polls the document (202). Labels take
+   * the custom template and the packing lists when asked; packing lists alone take the format.
+   */
   async requestDocument(
     ctx: RequestContext,
     kind: DocumentKind,
     orderIds: string[],
-    format: "thermal" | "a4",
+    opts: { format: "thermal" | "a4"; template?: "standard" | "custom"; packingList?: boolean },
   ): Promise<DocumentRow> {
     const ids = [...new Set(orderIds)];
     await this.orders.requireVisible(ctx, ids);
@@ -174,7 +196,14 @@ export class FulfillmentService {
         tenantId: ctx.tenantId,
         kind,
         status: "queued",
-        params: { orderIds: ids, ...(kind === "labels" ? { format } : {}) },
+        params: {
+          orderIds: ids,
+          ...(kind === "labels"
+            ? { format: opts.format, template: opts.template ?? "standard", packingList: opts.packingList ?? false }
+            : kind === "packing_list"
+              ? { format: opts.format }
+              : {}),
+        },
         requestedBy: ctx.actor.id,
       });
       await this.outbox.enqueue(tx, ctx, documentRequested, { documentId: row.id }, row.id);
@@ -191,6 +220,45 @@ export class FulfillmentService {
     const scoped = ctx.storeScope !== null || ctx.warehouseScope !== null;
     if (!row || (scoped && row.requestedBy !== ctx.actor.id)) throw documentNotFound();
     return row;
+  }
+
+  /**
+   * L04 "Lacak" (FR-SHP-07): the order's parcel journey as last read from its marketplace. A manual order
+   * shows the stage its own status implies; couriers' tracking needs an expedition integration.
+   */
+  async tracking(ctx: RequestContext, orderId: string): Promise<TrackingView> {
+    const [o] = await this.orders.requireVisible(ctx, [orderId]);
+    return withTenantTx(this.db, ctx, async (tx) => {
+      const [s] = await this.repo.liveFor(tx, [orderId]);
+      const manual = isManualChannel(o!.channel);
+      return {
+        orderId,
+        source: manual ? "manual" : "marketplace",
+        trackingNumber: s?.trackingNumber ?? o!.trackingNumber,
+        provider: s?.provider ?? o!.shippingProvider,
+        stage: manual ? manualTrackingStage(o!.status) : (s?.trackingStage ?? null),
+        events: manual ? [] : (s?.trackingEvents ?? []),
+        syncedAt: manual ? null : (s?.trackingSyncedAt ?? null),
+        error: manual ? null : (s?.trackingError ?? null),
+        refreshable: !manual && o!.fulfillmentMode === "seller" && TRACKED.has(o!.status),
+      };
+    });
+  }
+
+  /**
+   * "Perbarui": the worker reads the parcel again (202). Nothing is queued when it was read in the last
+   * 10 minutes; the answer says whether a read was queued.
+   */
+  async requestTracking(ctx: RequestContext, orderId: string): Promise<boolean> {
+    const [o] = await this.orders.requireVisible(ctx, [orderId]);
+    if (isManualChannel(o!.channel)) throw trackingManual();
+    if (o!.fulfillmentMode !== "seller" || !TRACKED.has(o!.status)) throw trackingNotShipped();
+    return withTenantTx(this.db, ctx, async (tx) => {
+      const [s] = await this.repo.liveFor(tx, [orderId]);
+      if (s?.trackingSyncedAt && Date.now() - s.trackingSyncedAt.getTime() < TRACKING_REFRESH_MS) return false;
+      await this.outbox.enqueue(tx, ctx, shipmentTrackingRequested, { orderIds: [orderId] }, orderId);
+      return true;
+    });
   }
 
   /** The pick list as data, for the screen (L05); the PDF comes from a document. */

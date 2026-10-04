@@ -6,7 +6,12 @@ import {
   isPdf,
   type LabelResult,
   type PackageRef,
+  type ParcelTracking,
   type ShopCredentials,
+  type TrackingEvent,
+  type TrackingResult,
+  type TrackingStage,
+  trackingStageOf,
 } from "@omniseller/connector-core";
 import type { ShopeeClient } from "./client.js";
 import { SHOPEE_PACKAGE_STATES, type ShopeePackage } from "./orders.js";
@@ -22,6 +27,8 @@ import { SHOPEE_PACKAGE_STATES, type ShopeePackage } from "./orders.js";
  * 4. get_shipping_document_parameter, create_shipping_document, get_shipping_document_result,
  *    download_shipping_document: the airway bill, printable after the shipment is arranged and before
  *    the parcel is picked up (push code 15 says when the document is READY)
+ * 5. get_tracking_info: the parcel's journey, per order or per package of a split order (there is no
+ *    tracking push; the backend polls)
  *
  * Shopee recommends arranging an hour after the order is placed: until then the buyer may cancel
  * without asking. That is the seller's choice; this connector arranges when asked.
@@ -173,6 +180,93 @@ function asResult(err: unknown): { code: string; message: string } {
 }
 
 const refKey = (r: { order_sn?: string; package_number?: string }) => `${r.order_sn ?? ""}|${r.package_number ?? ""}`;
+
+/** Data Definition "TrackingLogisticsStatus": the status of each tracking event. */
+export const SHOPEE_TRACKING_STAGES: Record<string, TrackingStage> = {
+  INITIAL: "waiting_pickup",
+  ORDER_INIT: "waiting_pickup",
+  ORDER_SUBMITTED: "waiting_pickup",
+  ORDER_FINALIZED: "waiting_pickup",
+  ORDER_CREATED: "waiting_pickup",
+  PICKUP_REQUESTED: "waiting_pickup",
+  PICKUP_PENDING: "waiting_pickup",
+  PICKUP_RETRY: "waiting_pickup",
+  UPDATE: "waiting_pickup",
+  UPDATE_SUBMITTED: "waiting_pickup",
+  UPDATE_CREATED: "waiting_pickup",
+  PICKED_UP: "in_transit",
+  DELIVERY_PENDING: "in_transit",
+  DELIVERED: "delivered",
+  TIMEOUT: "failed",
+  LOST: "lost",
+  RETURN_STARTED: "returning",
+  RETURN_PENDING: "returning",
+  RETURN_INITIATED: "returning",
+  RETURNED: "returned",
+  EXPIRED: "cancelled",
+  CANCEL: "cancelled",
+  CANCEL_CREATED: "cancelled",
+  CANCELED: "cancelled",
+  FAILED_ORDER_INIT: "failed",
+  FAILED_ORDER_SUBMITTED: "failed",
+  FAILED_ORDER_CREATED: "failed",
+  FAILED_PICKUP_REQUESTED: "failed",
+  FAILED_PICKED_UP: "failed",
+  FAILED_DELIVERED: "failed",
+  FAILED_UPDATE_SUBMITTED: "failed",
+  FAILED_UPDATE_CREATED: "failed",
+  FAILED_RETURN_STARTED: "failed",
+  FAILED_RETURNED: "failed",
+  FAILED_CANCEL_CREATED: "failed",
+  FAILED_CANCELED: "failed",
+};
+
+/** Data Definition "LogisticsStatus" of the order or package, when no event says more. */
+const SHOPEE_LOGISTICS_STAGES: Record<string, TrackingStage> = {
+  LOGISTICS_REQUEST_CREATED: "waiting_pickup",
+  LOGISTICS_PICKUP_RETRY: "waiting_pickup",
+  LOGISTICS_PICKUP_DONE: "in_transit",
+  LOGISTICS_DELIVERY_DONE: "delivered",
+  LOGISTICS_DELIVERY_FAILED: "failed",
+  LOGISTICS_PICKUP_FAILED: "failed",
+  LOGISTICS_LOST: "lost",
+  LOGISTICS_REQUEST_CANCELED: "cancelled",
+  LOGISTICS_INVALID: "cancelled",
+};
+
+interface TrackingInfoResponse {
+  error?: string;
+  response?: {
+    logistics_status?: string;
+    tracking_info?:
+      | { update_time?: number; description?: string; logistics_status?: string; return_code?: string }[]
+      | null;
+  };
+}
+
+const SPLIT_ORDER = "logistics.package_number_not_exist";
+
+/** Events of one get_tracking_info answer, newest first; entries without a time are dropped. */
+export function shopeeTrackingEvents(
+  info: NonNullable<TrackingInfoResponse["response"]>["tracking_info"],
+): TrackingEvent[] {
+  return (info ?? [])
+    .flatMap((t): TrackingEvent[] => {
+      const seconds = Number(t.update_time);
+      if (!Number.isFinite(seconds) || seconds <= 0) return [];
+      const code = t.logistics_status?.trim() || null;
+      return [
+        {
+          at: new Date(seconds * 1000),
+          description: (t.description ?? "").trim(),
+          code,
+          stage: code ? (SHOPEE_TRACKING_STAGES[code] ?? null) : null,
+          ...(t.return_code?.trim() ? { returnCode: t.return_code.trim() } : {}),
+        },
+      ];
+    })
+    .sort((a, b) => b.at.getTime() - a.at.getTime());
+}
 
 export function shopeeLogistics(client: ShopeeClient) {
   async function readOrders(shop: ShopCredentials, sns: string[]) {
@@ -334,6 +428,26 @@ export function shopeeLogistics(client: ShopeeClient) {
       for (const r of data.response?.result_list ?? []) out.set(refKey(r), r);
     }
     return out;
+  }
+
+  /** One parcel's journey; null when Shopee wants the order tracked per package. */
+  async function trackOne(
+    shop: ShopCredentials,
+    orderSn: string,
+    packageNumber: string,
+  ): Promise<ParcelTracking | null> {
+    const data = await client.shopCall<TrackingInfoResponse>(shop, "GET", "/api/v2/logistics/get_tracking_info", {
+      query: { order_sn: orderSn, ...(packageNumber ? { package_number: packageNumber } : {}) },
+      ...(packageNumber ? {} : { passErrors: [SPLIT_ORDER] }),
+    });
+    if (data.error === SPLIT_ORDER) return null;
+    const events = shopeeTrackingEvents(data.response?.tracking_info);
+    const status = data.response?.logistics_status ?? "";
+    return {
+      externalPackageId: packageNumber,
+      stage: trackingStageOf(events, SHOPEE_LOGISTICS_STAGES[status] ?? null),
+      events,
+    };
   }
 
   return {
@@ -501,6 +615,45 @@ export function shopeeLogistics(client: ShopeeClient) {
         }
       }
       return refs.map((r) => out.get(key(r))!);
+    },
+
+    async tracking(
+      shop: ShopCredentials,
+      orders: { externalOrderId: string; externalPackageIds: string[] }[],
+    ): Promise<TrackingResult[]> {
+      const out: TrackingResult[] = [];
+      for (const o of orders) {
+        try {
+          let packages = o.externalPackageIds.filter(Boolean);
+          let parcels: ParcelTracking[] = [];
+          if (packages.length === 0) {
+            const whole = await trackOne(shop, o.externalOrderId, "");
+            if (whole) parcels = [whole];
+            else {
+              // a split order is tracked per package (logistics.package_number_not_exist)
+              const detail = (await readOrders(shop, [o.externalOrderId])).get(o.externalOrderId);
+              packages = (detail?.package_list ?? []).flatMap((p) => (p.package_number ? [p.package_number] : []));
+            }
+          }
+          for (const p of packages) {
+            const parcel = await trackOne(shop, o.externalOrderId, p);
+            if (parcel) parcels.push(parcel);
+          }
+          out.push({ externalOrderId: o.externalOrderId, parcels });
+        } catch (err) {
+          if (isConnectorError(err) && err.kind === "permanent") {
+            out.push({
+              externalOrderId: o.externalOrderId,
+              error: { code: err.code, message: err.message.replace(/^[^:]+:\s*/, "") },
+            });
+            continue;
+          }
+          // busy, rate-limited, or unreachable: what was read counts, the rest waits for the next read
+          if (isConnectorError(err) && err.kind === "transient" && out.length > 0) return out;
+          throw err;
+        }
+      }
+      return out;
     },
   };
 }
