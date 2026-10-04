@@ -59,6 +59,14 @@ export type MigrationJobStatus = (typeof MIGRATION_JOB_STATUSES)[number];
 export const MIGRATION_SOURCE_APPS = ["omniseller", "bigseller", "ginee", "jubelio", "spreadsheet", "other"] as const;
 export type MigrationSourceApp = (typeof MIGRATION_SOURCE_APPS)[number];
 
+/** A print job for a print agent (FR-SHP-17, backend doc 8.24): `sent` once the agent took the file. */
+export const PRINT_JOB_STATUSES = ["queued", "sent", "printed", "failed", "cancelled"] as const;
+export type PrintJobStatus = (typeof PRINT_JOB_STATUSES)[number];
+
+/** A courier handover manifest (FR-SHP-05, backend doc 8.24). */
+export const HANDOVER_STATUSES = ["open", "completed", "cancelled"] as const;
+export type HandoverStatus = (typeof HANDOVER_STATUSES)[number];
+
 /** A store's switch from parallel mode to OmniSeller (FR-MIG-06); undone within 24 hours. */
 export const STORE_CUTOVER_STATUSES = ["done", "undone"] as const;
 export type StoreCutoverStatus = (typeof STORE_CUTOVER_STATUSES)[number];

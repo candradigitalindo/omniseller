@@ -9,13 +9,41 @@ import { DocumentsController, ShipmentsController } from "./fulfillment.controll
 import { FulfillmentRepository } from "./fulfillment.repository";
 import { FulfillmentService } from "./fulfillment.service";
 import { FulfillmentWorkerService } from "./fulfillment-worker.service";
+import { HandoverRepository } from "./handover.repository";
+import { HandoverService } from "./handover.service";
 import { LabelTemplateService } from "./label-template.service";
+import { PackingService } from "./packing.service";
 import { PickListBuilder } from "./pick-list.builder";
+import { AgentController, PrintAgentsController, PrintJobsController } from "./print.controllers";
+import { PrintRepository } from "./print.repository";
+import { PrintService } from "./print.service";
+import { PrintAgentsService } from "./print-agents.service";
+import { HandoversController, PackingController } from "./scan.controllers";
+import { ScanService } from "./scan.service";
 
-const SERVICES = [FulfillmentRepository, PickListBuilder, FulfillmentService, LabelTemplateService];
+const SERVICES = [
+  FulfillmentRepository,
+  PrintRepository,
+  HandoverRepository,
+  PickListBuilder,
+  PrintService,
+  FulfillmentService,
+  LabelTemplateService,
+  ScanService,
+  PackingService,
+  HandoverService,
+  PrintAgentsService,
+];
 
-/** Fulfillment (api and worker): shipments, documents, pick lists. Files come from the global FilesModule. */
-@Module({ imports: [OrdersModule, InventoryModule, ChannelModule], providers: SERVICES, exports: SERVICES })
+/**
+ * Fulfillment (api and worker): shipments, documents, pick lists, print agents and their jobs, packing
+ * by scan, and courier handovers. Files come from the global FilesModule, pushes from the global REALTIME.
+ */
+@Module({
+  imports: [OrdersModule, InventoryModule, ChannelModule, IdentityModule],
+  providers: SERVICES,
+  exports: SERVICES,
+})
 export class FulfillmentModule {}
 
 /** Worker only: arranging at the marketplace, labels, rendering documents. */
@@ -34,5 +62,16 @@ export class FulfillmentModule {}
 })
 export class FulfillmentWorkerModule {}
 
-@Module({ imports: [FulfillmentModule], controllers: [ShipmentsController, DocumentsController] })
+@Module({
+  imports: [FulfillmentModule],
+  controllers: [
+    ShipmentsController,
+    DocumentsController,
+    PrintAgentsController,
+    PrintJobsController,
+    AgentController,
+    PackingController,
+    HandoversController,
+  ],
+})
 export class FulfillmentHttpModule {}

@@ -1,5 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { RequestContext } from "../../common/context/request-context";
+import { seesCost } from "../../common/cost-visibility";
 import { startOfDate } from "../../common/time-zone";
 import type { DbHandle } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
@@ -69,10 +70,8 @@ export class DashboardService {
       let salesChart = null;
       let topProducts = null;
       if (can("report:read")) {
-        const [current, previous] = await Promise.all([
-          this.orders.salesIn(tx, ctx, filter, window.current.from, window.current.to),
-          this.orders.salesIn(tx, ctx, filter, window.previous.from, window.previous.to),
-        ]);
+        const current = await this.orders.salesIn(tx, ctx, filter, window.current.from, window.current.to);
+        const previous = await this.orders.salesIn(tx, ctx, filter, window.previous.from, window.previous.to);
         sales = {
           revenue: current.revenue,
           orders: current.orders,
@@ -109,7 +108,7 @@ export class DashboardService {
       }
 
       let grossProfit = null;
-      if (can("finance:read")) {
+      if (seesCost(ctx)) {
         const p = await this.orders.grossProfitIn(tx, ctx, filter, window.current.from, window.current.to);
         grossProfit = {
           amount: p.profit,

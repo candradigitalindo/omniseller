@@ -105,6 +105,39 @@ export class OrdersRepository {
     return tx.select().from(order).where(inArray(order.id, ids));
   }
 
+  /** Locks these orders in id order (two lockers never wait on each other in a cycle). */
+  async lockMany(tx: Tx, ids: string[]): Promise<OrderRow[]> {
+    if (ids.length === 0) return [];
+    return tx.select().from(order).where(inArray(order.id, ids)).orderBy(asc(order.id)).for("update");
+  }
+
+  /** Manual orders of a warehouse packed and not shipped yet (courier handover, FR-SHP-05). */
+  async manualAwaiting(tx: Tx, warehouseId: string, limit: number): Promise<OrderRow[]> {
+    return tx
+      .select()
+      .from(order)
+      .where(
+        and(
+          eq(order.channel, "manual"),
+          eq(order.warehouseId, warehouseId),
+          inArray(order.status, ["packed", "ready_to_ship"]),
+        ),
+      )
+      .orderBy(asc(order.id))
+      .limit(limit);
+  }
+
+  /** Orders whose marketplace order number or tracking number is one of these codes, newest first. */
+  async byCode(tx: Tx, codes: string[]): Promise<OrderRow[]> {
+    if (codes.length === 0) return [];
+    return tx
+      .select()
+      .from(order)
+      .where(or(inArray(order.externalOrderId, codes), inArray(order.trackingNumber, codes)))
+      .orderBy(desc(order.id))
+      .limit(10);
+  }
+
   async update(tx: Tx, id: string, patch: Partial<typeof order.$inferInsert>): Promise<void> {
     if (Object.keys(patch).length === 0) return;
     await tx.update(order).set(patch).where(eq(order.id, id));

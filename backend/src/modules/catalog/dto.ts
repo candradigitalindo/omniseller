@@ -109,7 +109,7 @@ const variantSchema = z.object({
   attributes: z.record(z.string(), z.string()),
   barcode: z.string().nullable(),
   basePrice: z.number().int(),
-  costPrice: z.number().int(),
+  costPrice: z.number().int().nullable().describe("HPP; null tanpa izin finance:read"),
   weightG: z.number().int(),
   lengthMm: z.number().int().nullable(),
   widthMm: z.number().int().nullable(),
@@ -136,7 +136,8 @@ const productSchema = z.object({
 export class ProductDto extends createZodDto(productSchema) {}
 export class ProductPageDto extends createZodDto(pageSchema(productSchema)) {}
 
-export function productView(v: ProductView): z.infer<typeof productSchema> {
+/** `showCost`: the caller holds finance:read (`seesCost`); otherwise cost prices are null. */
+export function productView(v: ProductView, showCost: boolean): z.infer<typeof productSchema> {
   const p = v.product;
   return {
     id: p.id,
@@ -155,7 +156,7 @@ export function productView(v: ProductView): z.infer<typeof productSchema> {
       attributes: x.attributes,
       barcode: x.barcode,
       basePrice: x.basePrice,
-      costPrice: x.costPrice,
+      costPrice: showCost ? x.costPrice : null,
       weightG: x.weightG,
       lengthMm: x.lengthMm,
       widthMm: x.widthMm,
@@ -192,6 +193,7 @@ const historyEntrySchema = z.object({
       label: z.string(),
       before: z.unknown(),
       after: z.unknown(),
+      hidden: z.boolean().optional().describe("true: nilainya disembunyikan (HPP tanpa izin finance:read)"),
     }),
   ),
 });

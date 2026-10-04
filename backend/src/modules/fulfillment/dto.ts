@@ -5,6 +5,8 @@ import { TRACKING_STAGES } from "../../db/schema";
 import type { DocumentRow } from "./fulfillment.repository";
 import type { ShipmentView, TrackingView } from "./fulfillment.service";
 import type { PickListSection } from "./pick-list.builder";
+import { printJobSchema, printJobView, printTargetSchema } from "./print.dto";
+import type { PrintJobRow } from "./print.repository";
 import { BARCODE_LABEL_FORMATS, type LabelTemplateOptions, TRACKING_STAGE_LABELS } from "./shipping-plan";
 
 /** Request and response DTOs of the fulfillment endpoints (backend doc 10.6). */
@@ -13,8 +15,11 @@ const iso = z.iso.datetime();
 const METHODS = ["pickup", "dropoff"] as const;
 const FORMATS = ["thermal", "a4"] as const;
 const KINDS = ["labels", "pick_list", "packing_list"] as const;
-/** Every document kind, barcode labels included (requested at /v1/documents/barcode-labels). */
-const ALL_KINDS = [...KINDS, "barcode_labels"] as const;
+/**
+ * Every document kind: barcode labels (requested at /v1/documents/barcode-labels), handover manifests
+ * (/v1/handovers), and an agent's test page (/v1/print-agents/{id}/test-print) included.
+ */
+const ALL_KINDS = [...KINDS, "barcode_labels", "handover_manifest", "test_page"] as const;
 const TEMPLATES = ["standard", "custom"] as const;
 
 export class ArrangeShipmentsDto extends createZodDto(
@@ -187,6 +192,8 @@ export class RequestDocumentDto extends createZodDto(
     template: z.enum(TEMPLATES).default("standard"),
     /** Labels: each order's packing list right after its label ("Sertakan daftar kemas"). */
     packingList: z.boolean().default(false),
+    /** Prints the document on a print agent once it is made (FR-SHP-17, UI L07 "Cetak"). */
+    print: printTargetSchema.optional(),
   }),
 ) {}
 
@@ -199,7 +206,7 @@ const missingSchema = z.object({
   message: z.string(),
 });
 
-const documentSchema = z.object({
+export const documentSchema = z.object({
   id: ulidSchema,
   kind: z.enum(ALL_KINDS),
   status: z.enum(DOCUMENT_JOB_STATUSES),
@@ -220,6 +227,8 @@ const documentSchema = z.object({
   error: z.string().nullable(),
   /** GET this path for the PDF once the document is ready. */
   downloadUrl: z.string().nullable(),
+  /** The newest job printing it on a print agent, when one was asked for. */
+  printJob: printJobSchema.nullable(),
   createdAt: iso,
   finishedAt: iso.nullable(),
 });
@@ -228,12 +237,12 @@ export class DocumentDto extends createZodDto(documentSchema) {}
 export class DocumentIdParamDto extends createZodDto(z.object({ id: ulidSchema })) {}
 export class OrderIdParamDto extends createZodDto(z.object({ id: ulidSchema })) {}
 
-export function documentView(d: DocumentRow): z.infer<typeof documentSchema> {
+export function documentView(d: DocumentRow, printJob: PrintJobRow | null = null): z.infer<typeof documentSchema> {
   return {
     id: d.id,
     kind: d.kind,
     status: d.status,
-    format: d.kind === "pick_list" || d.kind === "barcode_labels" ? null : (d.params.format ?? "thermal"),
+    format: d.kind === "labels" || d.kind === "packing_list" ? (d.params.format ?? "thermal") : null,
     labelFormat: d.kind === "barcode_labels" ? (d.params.labelFormat ?? "label_50x30") : null,
     template: d.kind === "labels" ? (d.params.template ?? "standard") : null,
     packingList: d.kind === "labels" ? (d.params.packingList ?? false) : false,
@@ -252,6 +261,7 @@ export function documentView(d: DocumentRow): z.infer<typeof documentSchema> {
     },
     error: d.error,
     downloadUrl: d.status === "ready" && d.fileObjectId ? `/v1/files/${d.fileObjectId}/download` : null,
+    printJob: printJob ? printJobView(printJob) : null,
     createdAt: d.createdAt.toISOString(),
     finishedAt: d.finishedAt?.toISOString() ?? null,
   };
@@ -275,6 +285,7 @@ export class RequestBarcodeLabelsDto extends createZodDto(
       .describe(
         "label_50x30 dan label_40x30: satu label per halaman untuk printer barcode; a4_3x10: 30 label per lembar A4",
       ),
+    print: printTargetSchema.optional(),
   }),
 ) {}
 

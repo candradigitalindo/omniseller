@@ -4287,6 +4287,1049 @@
         "x-isolation": "self"
       }
     },
+    "/v1/print-agents": {
+      "get": {
+        "operationId": "PrintAgentsController_list",
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintAgentListDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "print"
+        ],
+        "x-isolation": {
+          "fixture": "print_agent"
+        }
+      },
+      "post": {
+        "operationId": "PrintAgentsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePrintAgentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairedPrintAgentDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "print"
+        ],
+        "x-isolation": {
+          "fixture": "warehouse"
+        }
+      }
+    },
+    "/v1/print-agents/{id}": {
+      "get": {
+        "operationId": "PrintAgentsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintAgentDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "print"
+        ],
+        "x-isolation": {
+          "fixture": "print_agent"
+        }
+      },
+      "patch": {
+        "operationId": "PrintAgentsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePrintAgentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintAgentDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "print"
+        ],
+        "x-isolation": {
+          "fixture": "print_agent"
+        }
+      },
+      "delete": {
+        "operationId": "PrintAgentsController_revoke",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "print"
+        ],
+        "x-isolation": {
+          "fixture": "print_agent"
+        }
+      }
+    },
+    "/v1/print-agents/{id}/test-print": {
+      "post": {
+        "operationId": "PrintAgentsController_testPrint",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestPrintDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintJobDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "print"
+        ],
+        "x-isolation": {
+          "fixture": "print_agent"
+        }
+      }
+    },
+    "/v1/print-jobs": {
+      "get": {
+        "operationId": "PrintJobsController_list",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "deviceId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "queued",
+                "sent",
+                "printed",
+                "failed",
+                "cancelled"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintJobPageDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "print"
+        ],
+        "x-isolation": {
+          "fixture": "print_job"
+        }
+      },
+      "post": {
+        "operationId": "PrintJobsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrintDocumentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintJobDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "print"
+        ],
+        "x-isolation": {
+          "fixture": "document"
+        }
+      }
+    },
+    "/v1/print-jobs/scan": {
+      "post": {
+        "operationId": "PrintJobsController_scanToPrint",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanPrintDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanPrintResultDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "print"
+        ],
+        "x-isolation": {
+          "fixture": "order"
+        }
+      }
+    },
+    "/v1/print-jobs/{id}": {
+      "get": {
+        "operationId": "PrintJobsController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintJobDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "print"
+        ],
+        "x-isolation": {
+          "fixture": "print_job"
+        }
+      }
+    },
+    "/v1/print-jobs/{id}/retry": {
+      "post": {
+        "operationId": "PrintJobsController_retry",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintJobDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "print"
+        ],
+        "x-isolation": {
+          "fixture": "print_job"
+        }
+      }
+    },
+    "/v1/print-jobs/{id}/cancel": {
+      "post": {
+        "operationId": "PrintJobsController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrintJobDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "print"
+        ],
+        "x-isolation": {
+          "fixture": "print_job"
+        }
+      }
+    },
+    "/v1/agent/status": {
+      "put": {
+        "operationId": "AgentController_status",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentSelfDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "deviceToken": []
+          }
+        ],
+        "tags": [
+          "agent"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/agent/print-jobs": {
+      "get": {
+        "operationId": "AgentController_pending",
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentJobListDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "deviceToken": []
+          }
+        ],
+        "tags": [
+          "agent"
+        ],
+        "x-isolation": {
+          "fixture": "print_job",
+          "actor": "device"
+        }
+      }
+    },
+    "/v1/agent/print-jobs/{id}/file": {
+      "get": {
+        "operationId": "AgentController_file",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The file (local storage)."
+          },
+          "302": {
+            "description": "Redirect to a signed link valid for 10 minutes (R2)."
+          }
+        },
+        "security": [
+          {
+            "deviceToken": []
+          }
+        ],
+        "tags": [
+          "agent"
+        ],
+        "x-isolation": {
+          "fixture": "print_job",
+          "actor": "device"
+        }
+      }
+    },
+    "/v1/agent/print-jobs/{id}/result": {
+      "post": {
+        "operationId": "AgentController_result",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentResultDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentJobResultDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "deviceToken": []
+          }
+        ],
+        "tags": [
+          "agent"
+        ],
+        "x-isolation": {
+          "fixture": "print_job",
+          "actor": "device"
+        }
+      }
+    },
+    "/v1/packing/lookup": {
+      "get": {
+        "operationId": "PackingController_lookup",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "query",
+            "description": "nomor pesanan atau nomor resi seperti terbaca pemindai",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 64,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackingViewDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "packing"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/packing/orders/{id}/complete": {
+      "post": {
+        "operationId": "PackingController_complete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompletePackingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackingResultDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "packing"
+        ],
+        "x-isolation": {
+          "fixture": "order"
+        }
+      }
+    },
+    "/v1/handovers": {
+      "get": {
+        "operationId": "HandoversController_list",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "completed",
+                "cancelled"
+              ]
+            }
+          },
+          {
+            "name": "warehouseId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoverPageDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "handovers"
+        ],
+        "x-isolation": {
+          "fixture": "handover"
+        }
+      },
+      "post": {
+        "operationId": "HandoversController_open",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenHandoverDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoverDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "handovers"
+        ],
+        "x-isolation": {
+          "fixture": "warehouse"
+        }
+      }
+    },
+    "/v1/handovers/couriers": {
+      "get": {
+        "operationId": "HandoversController_couriers",
+        "parameters": [
+          {
+            "name": "warehouseId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoverCouriersDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "handovers"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/handovers/{id}": {
+      "get": {
+        "operationId": "HandoversController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoverDetailDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "handovers"
+        ],
+        "x-isolation": {
+          "fixture": "handover"
+        }
+      }
+    },
+    "/v1/handovers/{id}/scan": {
+      "post": {
+        "operationId": "HandoversController_scan",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoverScanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoverScanResultDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "handovers"
+        ],
+        "x-isolation": {
+          "fixture": "handover"
+        }
+      }
+    },
+    "/v1/handovers/{id}/items/{itemId}": {
+      "delete": {
+        "operationId": "HandoversController_removeItem",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoverDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "handovers"
+        ],
+        "x-isolation": {
+          "fixture": "handover"
+        }
+      }
+    },
+    "/v1/handovers/{id}/complete": {
+      "post": {
+        "operationId": "HandoversController_complete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteHandoverDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompletedHandoverDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "handovers"
+        ],
+        "x-isolation": {
+          "fixture": "handover"
+        }
+      }
+    },
+    "/v1/handovers/{id}/cancel": {
+      "post": {
+        "operationId": "HandoversController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoverDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "handovers"
+        ],
+        "x-isolation": {
+          "fixture": "handover"
+        }
+      }
+    },
+    "/v1/handovers/{id}/manifest": {
+      "post": {
+        "operationId": "HandoversController_manifest",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManifestRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManifestDocumentDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "handovers"
+        ],
+        "x-isolation": {
+          "fixture": "handover"
+        }
+      }
+    },
     "/v1/notifications": {
       "get": {
         "operationId": "NotificationsController_list",
@@ -5455,6 +6498,12 @@
         "type": "apiKey",
         "in": "cookie",
         "name": "os_session"
+      },
+      "deviceToken": {
+        "scheme": "bearer",
+        "bearerFormat": "opaque",
+        "type": "http",
+        "description": "Token agen cetak (backend doc 8.24)"
       }
     },
     "schemas": {
@@ -7040,10 +8089,17 @@
             "description": "stok belum pernah ditetapkan"
           },
           "value": {
-            "type": "integer",
-            "minimum": -9007199254740991,
-            "maximum": 9007199254740991,
-            "description": "nilai persediaan (stok fisik x HPP), rupiah"
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "nilai persediaan (stok fisik x HPP), rupiah; null tanpa izin finance:read"
           }
         },
         "required": [
@@ -9724,9 +10780,17 @@
                         "maximum": 9007199254740991
                       },
                       "costPrice": {
-                        "type": "integer",
-                        "minimum": -9007199254740991,
-                        "maximum": 9007199254740991
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "HPP; null tanpa izin finance:read"
                       },
                       "weightG": {
                         "type": "integer",
@@ -10201,9 +11265,17 @@
                   "maximum": 9007199254740991
                 },
                 "costPrice": {
-                  "type": "integer",
-                  "minimum": -9007199254740991,
-                  "maximum": 9007199254740991
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "HPP; null tanpa izin finance:read"
                 },
                 "weightG": {
                   "type": "integer",
@@ -10549,7 +11621,11 @@
                         "type": "string"
                       },
                       "before": {},
-                      "after": {}
+                      "after": {},
+                      "hidden": {
+                        "description": "true: nilainya disembunyikan (HPP tanpa izin finance:read)",
+                        "type": "boolean"
+                      }
                     },
                     "required": [
                       "field",
@@ -14217,6 +15293,38 @@
           "packingList": {
             "default": false,
             "type": "boolean"
+          },
+          "print": {
+            "type": "object",
+            "properties": {
+              "deviceId": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                "description": "agen cetak tujuan (GET /v1/print-agents)"
+              },
+              "printer": {
+                "description": "nama printer di komputer agen; kosong: printer label atau dokumen agen, lalu printer bawaan komputer",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "copies": {
+                "default": 1,
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10
+              }
+            },
+            "required": [
+              "deviceId"
+            ]
           }
         },
         "required": [
@@ -14237,7 +15345,9 @@
               "labels",
               "pick_list",
               "packing_list",
-              "barcode_labels"
+              "barcode_labels",
+              "handover_manifest",
+              "test_page"
             ]
           },
           "status": {
@@ -14397,6 +15507,153 @@
               "type": "string"
             }
           },
+          "printJob": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  "deviceId": {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "label",
+                      "pick_list",
+                      "packing_list",
+                      "invoice",
+                      "barcode",
+                      "manifest",
+                      "test"
+                    ]
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "queued",
+                      "sent",
+                      "printed",
+                      "failed",
+                      "cancelled"
+                    ]
+                  },
+                  "waitingForDocument": {
+                    "type": "boolean"
+                  },
+                  "documentId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "printer": {
+                    "description": "null: printer bawaan komputer agen",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "copies": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "attempts": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
+                    "description": "berapa kali agen mengambil berkasnya"
+                  },
+                  "error": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "requestedBy": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "sentAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "printedAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "statusChangedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  }
+                },
+                "required": [
+                  "id",
+                  "deviceId",
+                  "kind",
+                  "title",
+                  "status",
+                  "waitingForDocument",
+                  "documentId",
+                  "printer",
+                  "copies",
+                  "attempts",
+                  "error",
+                  "requestedBy",
+                  "createdAt",
+                  "sentAt",
+                  "printedAt",
+                  "statusChangedAt"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -14428,6 +15685,7 @@
           "result",
           "error",
           "downloadUrl",
+          "printJob",
           "createdAt",
           "finishedAt"
         ],
@@ -14467,6 +15725,38 @@
               "label_50x30",
               "label_40x30",
               "a4_3x10"
+            ]
+          },
+          "print": {
+            "type": "object",
+            "properties": {
+              "deviceId": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                "description": "agen cetak tujuan (GET /v1/print-agents)"
+              },
+              "printer": {
+                "description": "nama printer di komputer agen; kosong: printer label atau dokumen agen, lalu printer bawaan komputer",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "copies": {
+                "default": 1,
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10
+              }
+            },
+            "required": [
+              "deviceId"
             ]
           }
         },
@@ -14675,6 +15965,3495 @@
             "description": "tag pesanan; juga di daftar kemas"
           }
         }
+      },
+      "PrintAgentListDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "nama komputer, misalnya PC Gudang Jakarta"
+                },
+                "warehouseId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "gudang tempat agen ini; null: dipakai semua gudang"
+                },
+                "connected": {
+                  "type": "boolean",
+                  "description": "agen melapor dalam 2 menit terakhir"
+                },
+                "lastSeenAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "appVersion": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "printers": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "isDefault": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "isDefault"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "printer yang terdeteksi agen pada laporan terakhir"
+                },
+                "labelPrinter": {
+                  "description": "printer untuk label (thermal dan label barcode)",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "documentPrinter": {
+                  "description": "printer untuk dokumen A4",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "warehouseId",
+                "connected",
+                "lastSeenAt",
+                "appVersion",
+                "printers",
+                "labelPrinter",
+                "documentPrinter",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "CreatePrintAgentDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "warehouseId": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "PairedPrintAgentDto_Output": {
+        "type": "object",
+        "properties": {
+          "agent": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "name": {
+                "type": "string",
+                "description": "nama komputer, misalnya PC Gudang Jakarta"
+              },
+              "warehouseId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "gudang tempat agen ini; null: dipakai semua gudang"
+              },
+              "connected": {
+                "type": "boolean",
+                "description": "agen melapor dalam 2 menit terakhir"
+              },
+              "lastSeenAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "appVersion": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "printers": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "isDefault": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "isDefault"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "printer yang terdeteksi agen pada laporan terakhir"
+              },
+              "labelPrinter": {
+                "description": "printer untuk label (thermal dan label barcode)",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "documentPrinter": {
+                "description": "printer untuk dokumen A4",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "warehouseId",
+              "connected",
+              "lastSeenAt",
+              "appVersion",
+              "printers",
+              "labelPrinter",
+              "documentPrinter",
+              "createdAt"
+            ],
+            "additionalProperties": false
+          },
+          "token": {
+            "type": "string",
+            "description": "ditampilkan sekali; tempel di aplikasi agen cetak"
+          }
+        },
+        "required": [
+          "agent",
+          "token"
+        ],
+        "additionalProperties": false
+      },
+      "PrintAgentDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "name": {
+            "type": "string",
+            "description": "nama komputer, misalnya PC Gudang Jakarta"
+          },
+          "warehouseId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "gudang tempat agen ini; null: dipakai semua gudang"
+          },
+          "connected": {
+            "type": "boolean",
+            "description": "agen melapor dalam 2 menit terakhir"
+          },
+          "lastSeenAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "appVersion": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "printers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "isDefault": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "name",
+                "isDefault"
+              ],
+              "additionalProperties": false
+            },
+            "description": "printer yang terdeteksi agen pada laporan terakhir"
+          },
+          "labelPrinter": {
+            "description": "printer untuk label (thermal dan label barcode)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "documentPrinter": {
+            "description": "printer untuk dokumen A4",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "warehouseId",
+          "connected",
+          "lastSeenAt",
+          "appVersion",
+          "printers",
+          "labelPrinter",
+          "documentPrinter",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "UpdatePrintAgentDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "warehouseId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "labelPrinter": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "documentPrinter": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "TestPrintDto": {
+        "type": "object",
+        "properties": {
+          "printer": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "PrintJobDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "deviceId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "label",
+              "pick_list",
+              "packing_list",
+              "invoice",
+              "barcode",
+              "manifest",
+              "test"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "sent",
+              "printed",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "waitingForDocument": {
+            "type": "boolean"
+          },
+          "documentId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "printer": {
+            "description": "null: printer bawaan komputer agen",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "copies": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "attempts": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "berapa kali agen mengambil berkasnya"
+          },
+          "error": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requestedBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "sentAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "printedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "statusChangedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "deviceId",
+          "kind",
+          "title",
+          "status",
+          "waitingForDocument",
+          "documentId",
+          "printer",
+          "copies",
+          "attempts",
+          "error",
+          "requestedBy",
+          "createdAt",
+          "sentAt",
+          "printedAt",
+          "statusChangedAt"
+        ],
+        "additionalProperties": false
+      },
+      "PrintJobPageDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "deviceId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "label",
+                    "pick_list",
+                    "packing_list",
+                    "invoice",
+                    "barcode",
+                    "manifest",
+                    "test"
+                  ]
+                },
+                "title": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "queued",
+                    "sent",
+                    "printed",
+                    "failed",
+                    "cancelled"
+                  ]
+                },
+                "waitingForDocument": {
+                  "type": "boolean"
+                },
+                "documentId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "printer": {
+                  "description": "null: printer bawaan komputer agen",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "copies": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "attempts": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "berapa kali agen mengambil berkasnya"
+                },
+                "error": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "requestedBy": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "sentAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "printedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "statusChangedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "id",
+                "deviceId",
+                "kind",
+                "title",
+                "status",
+                "waitingForDocument",
+                "documentId",
+                "printer",
+                "copies",
+                "attempts",
+                "error",
+                "requestedBy",
+                "createdAt",
+                "sentAt",
+                "printedAt",
+                "statusChangedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "next_cursor": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "PrintDocumentDto": {
+        "type": "object",
+        "properties": {
+          "deviceId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "description": "agen cetak tujuan (GET /v1/print-agents)"
+          },
+          "printer": {
+            "description": "nama printer di komputer agen; kosong: printer label atau dokumen agen, lalu printer bawaan komputer",
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "copies": {
+            "default": 1,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "documentId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          }
+        },
+        "required": [
+          "deviceId",
+          "documentId"
+        ]
+      },
+      "ScanPrintDto": {
+        "type": "object",
+        "properties": {
+          "deviceId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "description": "agen cetak tujuan (GET /v1/print-agents)"
+          },
+          "printer": {
+            "description": "nama printer di komputer agen; kosong: printer label atau dokumen agen, lalu printer bawaan komputer",
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "copies": {
+            "default": 1,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "nomor pesanan atau nomor resi seperti terbaca pemindai"
+          },
+          "format": {
+            "default": "thermal",
+            "type": "string",
+            "enum": [
+              "thermal",
+              "a4"
+            ]
+          },
+          "template": {
+            "default": "standard",
+            "type": "string",
+            "enum": [
+              "standard",
+              "custom"
+            ]
+          },
+          "packingList": {
+            "default": false,
+            "description": "daftar kemas tepat setelah label",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "deviceId",
+          "code"
+        ]
+      },
+      "ScanPrintResultDto_Output": {
+        "type": "object",
+        "properties": {
+          "order": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "number": {
+                "type": "string"
+              },
+              "channel": {
+                "type": "string",
+                "enum": [
+                  "shopee",
+                  "tiktokshop",
+                  "lazada",
+                  "blibli",
+                  "shopify",
+                  "woocommerce",
+                  "manual"
+                ]
+              },
+              "storeId": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "unpaid",
+                  "new",
+                  "problem",
+                  "ready_to_pack",
+                  "packed",
+                  "ready_to_ship",
+                  "shipped",
+                  "delivered",
+                  "completed",
+                  "return_in_progress",
+                  "returned",
+                  "marketplace_fulfilled",
+                  "cancelled"
+                ]
+              },
+              "statusLabel": {
+                "type": "string"
+              },
+              "warehouseId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "trackingNumber": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "courier": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "number",
+              "channel",
+              "storeId",
+              "status",
+              "statusLabel",
+              "warehouseId",
+              "trackingNumber",
+              "courier"
+            ],
+            "additionalProperties": false
+          },
+          "documentId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "printJob": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "deviceId": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "label",
+                  "pick_list",
+                  "packing_list",
+                  "invoice",
+                  "barcode",
+                  "manifest",
+                  "test"
+                ]
+              },
+              "title": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "queued",
+                  "sent",
+                  "printed",
+                  "failed",
+                  "cancelled"
+                ]
+              },
+              "waitingForDocument": {
+                "type": "boolean"
+              },
+              "documentId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "printer": {
+                "description": "null: printer bawaan komputer agen",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "copies": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "attempts": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "berapa kali agen mengambil berkasnya"
+              },
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "requestedBy": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              "sentAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "printedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "statusChangedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              }
+            },
+            "required": [
+              "id",
+              "deviceId",
+              "kind",
+              "title",
+              "status",
+              "waitingForDocument",
+              "documentId",
+              "printer",
+              "copies",
+              "attempts",
+              "error",
+              "requestedBy",
+              "createdAt",
+              "sentAt",
+              "printedAt",
+              "statusChangedAt"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "order",
+          "documentId",
+          "printJob"
+        ],
+        "additionalProperties": false
+      },
+      "AgentStatusDto": {
+        "type": "object",
+        "properties": {
+          "appVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "printers": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "isDefault": {
+                  "default": false,
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "name"
+              ]
+            }
+          }
+        },
+        "required": [
+          "appVersion",
+          "printers"
+        ]
+      },
+      "AgentSelfDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "labelPrinter": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "documentPrinter": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "labelPrinter",
+          "documentPrinter"
+        ],
+        "additionalProperties": false
+      },
+      "AgentJobListDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "label",
+                    "pick_list",
+                    "packing_list",
+                    "invoice",
+                    "barcode",
+                    "manifest",
+                    "test"
+                  ]
+                },
+                "title": {
+                  "type": "string"
+                },
+                "printer": {
+                  "description": "null: printer bawaan komputer",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "copies": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "title",
+                "printer",
+                "copies",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            },
+            "description": "antrean, terlama dulu; unduh berkas tiap pekerjaan lalu laporkan"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "AgentResultDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "printed",
+              "failed"
+            ]
+          },
+          "error": {
+            "description": "pesan printer saat gagal",
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "AgentJobResultDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "sent",
+              "printed",
+              "failed",
+              "cancelled"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "PackingViewDto_Output": {
+        "type": "object",
+        "properties": {
+          "order": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "number": {
+                "type": "string"
+              },
+              "channel": {
+                "type": "string",
+                "enum": [
+                  "shopee",
+                  "tiktokshop",
+                  "lazada",
+                  "blibli",
+                  "shopify",
+                  "woocommerce",
+                  "manual"
+                ]
+              },
+              "storeId": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "unpaid",
+                  "new",
+                  "problem",
+                  "ready_to_pack",
+                  "packed",
+                  "ready_to_ship",
+                  "shipped",
+                  "delivered",
+                  "completed",
+                  "return_in_progress",
+                  "returned",
+                  "marketplace_fulfilled",
+                  "cancelled"
+                ]
+              },
+              "statusLabel": {
+                "type": "string"
+              },
+              "warehouseId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "trackingNumber": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "courier": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "note": {
+                "description": "catatan pembeli",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "number",
+              "channel",
+              "storeId",
+              "status",
+              "statusLabel",
+              "warehouseId",
+              "trackingNumber",
+              "courier",
+              "note"
+            ],
+            "additionalProperties": false
+          },
+          "packable": {
+            "type": "boolean"
+          },
+          "packRefusal": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "code",
+                  "message"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "kenapa pesanan belum bisa dikemas"
+          },
+          "labelRefusal": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "code",
+                  "message"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "kenapa labelnya belum bisa dicetak"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "description": "id varian, atau sku:<SKU> untuk baris tanpa produk; boleh dikirim sebagai kode bila dihitung manual"
+                },
+                "variantId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sku": {
+                  "type": "string"
+                },
+                "barcode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "variantName": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "imageUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "qty": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "key",
+                "variantId",
+                "sku",
+                "barcode",
+                "name",
+                "variantName",
+                "imageUrl",
+                "qty"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "order",
+          "packable",
+          "packRefusal",
+          "labelRefusal",
+          "lines"
+        ],
+        "additionalProperties": false
+      },
+      "CompletePackingDto": {
+        "type": "object",
+        "properties": {
+          "scans": {
+            "minItems": 1,
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "description": "nomor pesanan atau nomor resi seperti terbaca pemindai"
+                },
+                "qty": {
+                  "default": 1,
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 1000
+                }
+              },
+              "required": [
+                "code"
+              ]
+            },
+            "description": "kode yang dipindai dan berapa kali; jumlah per baris harus sama persis dengan pesanan"
+          },
+          "print": {
+            "description": "Cetak label dan lanjut: label dikirim ke agen cetak setelah pesanan dikemas",
+            "type": "object",
+            "properties": {
+              "deviceId": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                "description": "agen cetak tujuan (GET /v1/print-agents)"
+              },
+              "printer": {
+                "description": "nama printer di komputer agen; kosong: printer label atau dokumen agen, lalu printer bawaan komputer",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "copies": {
+                "default": 1,
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10
+              },
+              "format": {
+                "default": "thermal",
+                "type": "string",
+                "enum": [
+                  "thermal",
+                  "a4"
+                ]
+              },
+              "template": {
+                "default": "standard",
+                "type": "string",
+                "enum": [
+                  "standard",
+                  "custom"
+                ]
+              },
+              "packingList": {
+                "default": false,
+                "description": "daftar kemas tepat setelah label",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "deviceId"
+            ]
+          }
+        },
+        "required": [
+          "scans"
+        ]
+      },
+      "PackingResultDto_Output": {
+        "type": "object",
+        "properties": {
+          "order": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "number": {
+                "type": "string"
+              },
+              "channel": {
+                "type": "string",
+                "enum": [
+                  "shopee",
+                  "tiktokshop",
+                  "lazada",
+                  "blibli",
+                  "shopify",
+                  "woocommerce",
+                  "manual"
+                ]
+              },
+              "storeId": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "unpaid",
+                  "new",
+                  "problem",
+                  "ready_to_pack",
+                  "packed",
+                  "ready_to_ship",
+                  "shipped",
+                  "delivered",
+                  "completed",
+                  "return_in_progress",
+                  "returned",
+                  "marketplace_fulfilled",
+                  "cancelled"
+                ]
+              },
+              "statusLabel": {
+                "type": "string"
+              },
+              "warehouseId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "trackingNumber": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "courier": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "number",
+              "channel",
+              "storeId",
+              "status",
+              "statusLabel",
+              "warehouseId",
+              "trackingNumber",
+              "courier"
+            ],
+            "additionalProperties": false
+          },
+          "documentId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "printJob": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  "deviceId": {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "label",
+                      "pick_list",
+                      "packing_list",
+                      "invoice",
+                      "barcode",
+                      "manifest",
+                      "test"
+                    ]
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "queued",
+                      "sent",
+                      "printed",
+                      "failed",
+                      "cancelled"
+                    ]
+                  },
+                  "waitingForDocument": {
+                    "type": "boolean"
+                  },
+                  "documentId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "printer": {
+                    "description": "null: printer bawaan komputer agen",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "copies": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "attempts": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
+                    "description": "berapa kali agen mengambil berkasnya"
+                  },
+                  "error": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "requestedBy": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "sentAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "printedAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "statusChangedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  }
+                },
+                "required": [
+                  "id",
+                  "deviceId",
+                  "kind",
+                  "title",
+                  "status",
+                  "waitingForDocument",
+                  "documentId",
+                  "printer",
+                  "copies",
+                  "attempts",
+                  "error",
+                  "requestedBy",
+                  "createdAt",
+                  "sentAt",
+                  "printedAt",
+                  "statusChangedAt"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "printRefusal": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "code",
+                  "message"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "label belum bisa dicetak; pesanan tetap dikemas"
+          }
+        },
+        "required": [
+          "order",
+          "documentId",
+          "printJob",
+          "printRefusal"
+        ],
+        "additionalProperties": false
+      },
+      "HandoverPageDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "number": {
+                  "type": "string"
+                },
+                "warehouseId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "courier": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "open",
+                    "completed",
+                    "cancelled"
+                  ]
+                },
+                "parcels": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "receivedBy": {
+                  "description": "nama kurir penerima",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "createdBy": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "completedBy": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "completedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "id",
+                "number",
+                "warehouseId",
+                "courier",
+                "status",
+                "parcels",
+                "receivedBy",
+                "createdBy",
+                "completedBy",
+                "completedAt",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "next_cursor": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "OpenHandoverDto": {
+        "type": "object",
+        "properties": {
+          "warehouseId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "courier": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          }
+        },
+        "required": [
+          "warehouseId",
+          "courier"
+        ]
+      },
+      "HandoverDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "number": {
+            "type": "string"
+          },
+          "warehouseId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "courier": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "completed",
+              "cancelled"
+            ]
+          },
+          "parcels": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "receivedBy": {
+            "description": "nama kurir penerima",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "completedBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "completedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "warehouseId",
+          "courier",
+          "status",
+          "parcels",
+          "receivedBy",
+          "createdBy",
+          "completedBy",
+          "completedAt",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "HandoverCouriersDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "courier": {
+                  "description": "null: pesanan manual tanpa kurir",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "parcels": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "paket dikemas yang menunggu kurir ini"
+                }
+              },
+              "required": [
+                "courier",
+                "parcels"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "HandoverDetailDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "number": {
+            "type": "string"
+          },
+          "warehouseId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "courier": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "completed",
+              "cancelled"
+            ]
+          },
+          "parcels": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "receivedBy": {
+            "description": "nama kurir penerima",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "completedBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "completedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "orderId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "trackingNumber": {
+                  "type": "string"
+                },
+                "orderNumber": {
+                  "type": "string"
+                },
+                "scannedBy": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "scannedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "id",
+                "orderId",
+                "trackingNumber",
+                "orderNumber",
+                "scannedBy",
+                "scannedAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "warehouseId",
+          "courier",
+          "status",
+          "parcels",
+          "receivedBy",
+          "createdBy",
+          "completedBy",
+          "completedAt",
+          "createdAt",
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "HandoverScanDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "nomor pesanan atau nomor resi seperti terbaca pemindai"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "HandoverScanResultDto_Output": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "orderId": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "trackingNumber": {
+                "type": "string"
+              },
+              "orderNumber": {
+                "type": "string"
+              },
+              "scannedBy": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "scannedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              }
+            },
+            "required": [
+              "id",
+              "orderId",
+              "trackingNumber",
+              "orderNumber",
+              "scannedBy",
+              "scannedAt"
+            ],
+            "additionalProperties": false
+          },
+          "parcels": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "duplicate": {
+            "type": "boolean",
+            "description": "paket ini sudah ada di manifest; tidak ditambah lagi"
+          }
+        },
+        "required": [
+          "item",
+          "parcels",
+          "duplicate"
+        ],
+        "additionalProperties": false
+      },
+      "CompleteHandoverDto": {
+        "type": "object",
+        "properties": {
+          "receivedBy": {
+            "description": "nama kurir yang menerima",
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "print": {
+            "description": "cetak manifest di agen cetak",
+            "type": "object",
+            "properties": {
+              "deviceId": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                "description": "agen cetak tujuan (GET /v1/print-agents)"
+              },
+              "printer": {
+                "description": "nama printer di komputer agen; kosong: printer label atau dokumen agen, lalu printer bawaan komputer",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "copies": {
+                "default": 1,
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10
+              }
+            },
+            "required": [
+              "deviceId"
+            ]
+          }
+        }
+      },
+      "CompletedHandoverDto_Output": {
+        "type": "object",
+        "properties": {
+          "handover": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "number": {
+                "type": "string"
+              },
+              "warehouseId": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "courier": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "completed",
+                  "cancelled"
+                ]
+              },
+              "parcels": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "receivedBy": {
+                "description": "nama kurir penerima",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "createdBy": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "completedBy": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "completedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              }
+            },
+            "required": [
+              "id",
+              "number",
+              "warehouseId",
+              "courier",
+              "status",
+              "parcels",
+              "receivedBy",
+              "createdBy",
+              "completedBy",
+              "completedAt",
+              "createdAt"
+            ],
+            "additionalProperties": false
+          },
+          "document": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "labels",
+                  "pick_list",
+                  "packing_list",
+                  "barcode_labels",
+                  "handover_manifest",
+                  "test_page"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "queued",
+                  "running",
+                  "ready",
+                  "failed"
+                ]
+              },
+              "format": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "thermal",
+                      "a4"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "labelFormat": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "label_50x30",
+                      "label_40x30",
+                      "a4_3x10"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "label barcode: ukuran label"
+              },
+              "template": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "standard",
+                      "custom"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "packingList": {
+                "type": "boolean"
+              },
+              "orderCount": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "pageCount": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "result": {
+                "type": "object",
+                "properties": {
+                  "orders": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "labels": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "missing": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "orderId": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "pesanan yang tertinggal; null untuk label barcode"
+                        },
+                        "variantId": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "label barcode: varian yang tertinggal"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "orderId",
+                        "variantId",
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "dense": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    }
+                  }
+                },
+                "required": [
+                  "missing",
+                  "dense"
+                ],
+                "additionalProperties": false
+              },
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "downloadUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "printJob": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                      },
+                      "deviceId": {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "label",
+                          "pick_list",
+                          "packing_list",
+                          "invoice",
+                          "barcode",
+                          "manifest",
+                          "test"
+                        ]
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "queued",
+                          "sent",
+                          "printed",
+                          "failed",
+                          "cancelled"
+                        ]
+                      },
+                      "waitingForDocument": {
+                        "type": "boolean"
+                      },
+                      "documentId": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "printer": {
+                        "description": "null: printer bawaan komputer agen",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "copies": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "attempts": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991,
+                        "description": "berapa kali agen mengambil berkasnya"
+                      },
+                      "error": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "requestedBy": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      "sentAt": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "printedAt": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "statusChangedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "deviceId",
+                      "kind",
+                      "title",
+                      "status",
+                      "waitingForDocument",
+                      "documentId",
+                      "printer",
+                      "copies",
+                      "attempts",
+                      "error",
+                      "requestedBy",
+                      "createdAt",
+                      "sentAt",
+                      "printedAt",
+                      "statusChangedAt"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              "finishedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "status",
+              "format",
+              "labelFormat",
+              "template",
+              "packingList",
+              "orderCount",
+              "pageCount",
+              "result",
+              "error",
+              "downloadUrl",
+              "printJob",
+              "createdAt",
+              "finishedAt"
+            ],
+            "additionalProperties": false
+          },
+          "printJob": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  "deviceId": {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "label",
+                      "pick_list",
+                      "packing_list",
+                      "invoice",
+                      "barcode",
+                      "manifest",
+                      "test"
+                    ]
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "queued",
+                      "sent",
+                      "printed",
+                      "failed",
+                      "cancelled"
+                    ]
+                  },
+                  "waitingForDocument": {
+                    "type": "boolean"
+                  },
+                  "documentId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "printer": {
+                    "description": "null: printer bawaan komputer agen",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "copies": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "attempts": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
+                    "description": "berapa kali agen mengambil berkasnya"
+                  },
+                  "error": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "requestedBy": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "sentAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "printedAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "statusChangedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  }
+                },
+                "required": [
+                  "id",
+                  "deviceId",
+                  "kind",
+                  "title",
+                  "status",
+                  "waitingForDocument",
+                  "documentId",
+                  "printer",
+                  "copies",
+                  "attempts",
+                  "error",
+                  "requestedBy",
+                  "createdAt",
+                  "sentAt",
+                  "printedAt",
+                  "statusChangedAt"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "handover",
+          "document",
+          "printJob"
+        ],
+        "additionalProperties": false
+      },
+      "ManifestRequestDto": {
+        "type": "object",
+        "properties": {
+          "print": {
+            "type": "object",
+            "properties": {
+              "deviceId": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                "description": "agen cetak tujuan (GET /v1/print-agents)"
+              },
+              "printer": {
+                "description": "nama printer di komputer agen; kosong: printer label atau dokumen agen, lalu printer bawaan komputer",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "copies": {
+                "default": 1,
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10
+              }
+            },
+            "required": [
+              "deviceId"
+            ]
+          }
+        }
+      },
+      "ManifestDocumentDto_Output": {
+        "type": "object",
+        "properties": {
+          "document": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "labels",
+                  "pick_list",
+                  "packing_list",
+                  "barcode_labels",
+                  "handover_manifest",
+                  "test_page"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "queued",
+                  "running",
+                  "ready",
+                  "failed"
+                ]
+              },
+              "format": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "thermal",
+                      "a4"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "labelFormat": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "label_50x30",
+                      "label_40x30",
+                      "a4_3x10"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "label barcode: ukuran label"
+              },
+              "template": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "standard",
+                      "custom"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "packingList": {
+                "type": "boolean"
+              },
+              "orderCount": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "pageCount": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "result": {
+                "type": "object",
+                "properties": {
+                  "orders": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "labels": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "missing": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "orderId": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "pesanan yang tertinggal; null untuk label barcode"
+                        },
+                        "variantId": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "label barcode: varian yang tertinggal"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "orderId",
+                        "variantId",
+                        "code",
+                        "message"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "dense": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    }
+                  }
+                },
+                "required": [
+                  "missing",
+                  "dense"
+                ],
+                "additionalProperties": false
+              },
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "downloadUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "printJob": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                      },
+                      "deviceId": {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "label",
+                          "pick_list",
+                          "packing_list",
+                          "invoice",
+                          "barcode",
+                          "manifest",
+                          "test"
+                        ]
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "queued",
+                          "sent",
+                          "printed",
+                          "failed",
+                          "cancelled"
+                        ]
+                      },
+                      "waitingForDocument": {
+                        "type": "boolean"
+                      },
+                      "documentId": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "printer": {
+                        "description": "null: printer bawaan komputer agen",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "copies": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "attempts": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991,
+                        "description": "berapa kali agen mengambil berkasnya"
+                      },
+                      "error": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "requestedBy": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      "sentAt": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "printedAt": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "statusChangedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "deviceId",
+                      "kind",
+                      "title",
+                      "status",
+                      "waitingForDocument",
+                      "documentId",
+                      "printer",
+                      "copies",
+                      "attempts",
+                      "error",
+                      "requestedBy",
+                      "createdAt",
+                      "sentAt",
+                      "printedAt",
+                      "statusChangedAt"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              "finishedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "status",
+              "format",
+              "labelFormat",
+              "template",
+              "packingList",
+              "orderCount",
+              "pageCount",
+              "result",
+              "error",
+              "downloadUrl",
+              "printJob",
+              "createdAt",
+              "finishedAt"
+            ],
+            "additionalProperties": false
+          },
+          "printJob": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  "deviceId": {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "label",
+                      "pick_list",
+                      "packing_list",
+                      "invoice",
+                      "barcode",
+                      "manifest",
+                      "test"
+                    ]
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "queued",
+                      "sent",
+                      "printed",
+                      "failed",
+                      "cancelled"
+                    ]
+                  },
+                  "waitingForDocument": {
+                    "type": "boolean"
+                  },
+                  "documentId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "printer": {
+                    "description": "null: printer bawaan komputer agen",
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "copies": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "attempts": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991,
+                    "description": "berapa kali agen mengambil berkasnya"
+                  },
+                  "error": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "requestedBy": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  },
+                  "sentAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "printedAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "statusChangedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                  }
+                },
+                "required": [
+                  "id",
+                  "deviceId",
+                  "kind",
+                  "title",
+                  "status",
+                  "waitingForDocument",
+                  "documentId",
+                  "printer",
+                  "copies",
+                  "attempts",
+                  "error",
+                  "requestedBy",
+                  "createdAt",
+                  "sentAt",
+                  "printedAt",
+                  "statusChangedAt"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "document",
+          "printJob"
+        ],
+        "additionalProperties": false
       },
       "NotificationPageDto_Output": {
         "type": "object",

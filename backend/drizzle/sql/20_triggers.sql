@@ -32,6 +32,10 @@ SELECT ensure_trigger('store_cutover', 'status_transition_trg',
   'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON store_cutover FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''store_cutover'')');
 SELECT ensure_trigger('document_job', 'status_transition_trg',
   'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON document_job FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''document_job'')');
+SELECT ensure_trigger('print_job', 'status_transition_trg',
+  'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON print_job FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''print_job'')');
+SELECT ensure_trigger('handover', 'status_transition_trg',
+  'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON handover FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''handover'')');
 
 -- Inventory guard
 SELECT ensure_trigger('inventory', 'inventory_guard_trg',
@@ -95,6 +99,18 @@ SELECT ensure_trigger('migration_job', 'audit_insert_trg',
   'CREATE TRIGGER audit_insert_trg AFTER INSERT ON migration_job FOR EACH ROW EXECUTE FUNCTION audit_row()');
 SELECT ensure_trigger('store_cutover', 'audit_trg',
   'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE ON store_cutover FOR EACH ROW EXECUTE FUNCTION audit_row()');
+-- Print agents (FR-SHP-17, backend doc 8.24): who paired, renamed, or revoked one. Heartbeats (last_seen_at,
+-- printers) are left out, and so is the token hash.
+SELECT ensure_trigger('device', 'audit_insert_trg',
+  'CREATE TRIGGER audit_insert_trg AFTER INSERT ON device FOR EACH ROW EXECUTE FUNCTION audit_row(''device'', ''token_hash'')');
+SELECT ensure_trigger('device', 'audit_upd_trg',
+  'CREATE TRIGGER audit_upd_trg AFTER UPDATE ON device FOR EACH ROW
+     WHEN ((OLD.name, OLD.warehouse_id, OLD.revoked_at, OLD.label_printer, OLD.document_printer)
+           IS DISTINCT FROM (NEW.name, NEW.warehouse_id, NEW.revoked_at, NEW.label_printer, NEW.document_printer))
+     EXECUTE FUNCTION audit_row(''device'', ''token_hash'')');
+-- Courier handovers (FR-SHP-05): who opened, completed, or cancelled a manifest.
+SELECT ensure_trigger('handover', 'audit_trg',
+  'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE ON handover FOR EACH ROW EXECUTE FUNCTION audit_row()');
 SELECT ensure_trigger('data_export', 'audit_download_trg',
   'CREATE TRIGGER audit_download_trg AFTER UPDATE ON data_export FOR EACH ROW
      WHEN (OLD.download_count IS DISTINCT FROM NEW.download_count)

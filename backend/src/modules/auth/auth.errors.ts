@@ -1,6 +1,11 @@
 import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError } from "../../common/errors/domain-errors";
 
 export const authRequired = () => new UnauthorizedError("auth.required", "Silakan masuk terlebih dulu.");
+export const deviceUnauthorized = () =>
+  new UnauthorizedError(
+    "auth.device_invalid",
+    "Token agen cetak tidak berlaku lagi. Pasang ulang agen dari halaman Printer.",
+  );
 export const invalidCredentials = () =>
   new UnauthorizedError("auth.invalid_credentials", "Email atau kata sandi salah.");
 export const accountLocked = (until: Date) =>

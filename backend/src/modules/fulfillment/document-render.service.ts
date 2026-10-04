@@ -9,12 +9,14 @@ import { DB_TENANT } from "../../infra/tokens";
 import { channelDisplayName, isManualChannel, StoresService } from "../channel/stores.service";
 import { FilesService } from "../files/files.service";
 import { TenantsService } from "../identity/tenants.service";
+import { UsersService } from "../identity/users.service";
 import { InventoryService } from "../inventory/inventory.service";
 import { addressLine, WarehousesService, type WarehouseView } from "../inventory/warehouses.service";
 import { OrderIntakeService } from "../orders/order-intake.service";
 import type { OrderItemRow, OrderRow } from "../orders/orders.repository";
 import { OrdersService } from "../orders/orders.service";
-import { type DocumentRow, FulfillmentRepository, type PackageRow, type ShipmentRow } from "./fulfillment.repository";
+import { type DocumentRow, FulfillmentRepository } from "./fulfillment.repository";
+import { HandoverRepository } from "./handover.repository";
 import { LabelTemplateService } from "./label-template.service";
 import {
   type BarcodeLabel,
@@ -23,17 +25,24 @@ import {
   type ManualLabel,
   type PackingList,
   renderBarcodeLabels,
+  renderManifest,
   renderManualLabel,
   renderPackingList,
   renderPickList,
+  renderTestPage,
 } from "./pdf";
 import { type Missing, notPickable, PickListBuilder } from "./pick-list.builder";
+import { PrintService } from "./print.service";
+import { marketplaceLabelRefusal } from "./scan-plan";
 import { type LabelTemplateOptions, labelSequence, manualLabelRefusal, templateStrip } from "./shipping-plan";
 
 const log = logger.forModule("fulfillment.documents");
 
 /** Merged label files and pick lists are kept a week: enough to print again, short for buyer data. */
 export const DOCUMENT_TTL_DAYS = 7;
+
+/** Documents without buyer names or addresses (stored as `pick_list` files). */
+const WITHOUT_BUYER_DATA: ReadonlySet<DocumentRow["kind"]> = new Set(["pick_list", "handover_manifest", "test_page"]);
 
 /** Nothing in the request can go on paper; the document fails with this reason and the missing list. */
 class NothingToRender extends Error {
@@ -51,20 +60,6 @@ interface Rendered {
   result: DocumentResult;
   /** Orders whose labels went into the file. */
   printed: string[];
-}
-
-function whyNoLabel(s: ShipmentRow | undefined, packages: PackageRow[]): { code: string; message: string } | null {
-  if (!s) return { code: "shipment.not_arranged", message: "Pengiriman belum diatur." };
-  if (s.status === "pending") {
-    return { code: "shipment.pending", message: s.lastError ?? "Pengiriman sedang diatur." };
-  }
-  if (s.status === "in_transit" || s.status === "delivered") {
-    return { code: "shipment.shipped", message: "Paket sudah diserahkan ke kurir." };
-  }
-  if (packages.length === 0 || packages.some((p) => !p.labelFileId)) {
-    return { code: "label.not_ready", message: s.lastError ?? "Label belum tersedia. Coba lagi sebentar." };
-  }
-  return null;
 }
 
 /**
@@ -86,6 +81,9 @@ export class DocumentRenderService {
     @Inject(TenantsService) private readonly tenants: TenantsService,
     @Inject(StoresService) private readonly stores: StoresService,
     @Inject(LabelTemplateService) private readonly templates: LabelTemplateService,
+    @Inject(HandoverRepository) private readonly handovers: HandoverRepository,
+    @Inject(UsersService) private readonly users: UsersService,
+    @Inject(PrintService) private readonly print: PrintService,
   ) {}
 
   async render(ctx: RequestContext, documentId: string): Promise<void> {
@@ -97,24 +95,18 @@ export class DocumentRenderService {
     });
     if (!doc) return;
     try {
-      const out =
-        doc.kind === "labels"
-          ? await this.labels(ctx, doc)
-          : doc.kind === "packing_list"
-            ? await this.packingLists(ctx, doc)
-            : doc.kind === "barcode_labels"
-              ? await this.barcodeLabels(ctx, doc)
-              : await this.pickList(ctx, doc);
+      const out = await this.renderKind(ctx, doc);
       const file = await this.files.save(ctx, {
-        // packing lists carry the buyer's name like labels, and live as long
-        purpose: doc.kind === "pick_list" ? "pick_list" : "label",
+        // packing lists carry the buyer's name like labels, and live as long; pick lists, manifests, and
+        // test pages carry no buyer data
+        purpose: WITHOUT_BUYER_DATA.has(doc.kind) ? "pick_list" : "label",
         mime: "application/pdf",
         ext: "pdf",
         bytes: out.pdf,
         expiresAt: new Date(Date.now() + DOCUMENT_TTL_DAYS * 86_400_000),
         createdBy: doc.requestedBy,
       });
-      await withTenantTx(this.db, ctx, async (tx) => {
+      const jobs = await withTenantTx(this.db, ctx, async (tx) => {
         await this.repo.updateDocument(tx, doc.id, {
           status: "ready",
           fileObjectId: file.id,
@@ -128,19 +120,97 @@ export class DocumentRenderService {
         for (const orderId of out.printed) {
           await this.intake.recordIn(tx, ctx, orderId, "label_printed", actor, { documentId: doc.id });
         }
+        return this.print.documentFinishedIn(tx, { id: doc.id, status: "ready", fileObjectId: file.id, error: null });
       });
+      // print agents waiting for this document hear about it once the file is attached (FR-SHP-17)
+      this.print.push(jobs);
     } catch (err) {
       const nothing = err instanceof NothingToRender;
       if (!nothing) log.error({ err, document_id: doc.id }, "document render failed");
-      await withTenantTx(this.db, ctx, (tx) =>
-        this.repo.updateDocument(tx, doc.id, {
+      const error = nothing ? err.reason : "Dokumen gagal dibuat. Coba lagi.";
+      await withTenantTx(this.db, ctx, async (tx) => {
+        await this.repo.updateDocument(tx, doc.id, {
           status: "failed",
-          error: nothing ? err.reason : "Dokumen gagal dibuat. Coba lagi.",
+          error,
           ...(nothing ? { result: { missing: err.missing } } : {}),
           finishedAt: new Date(),
-        }),
-      );
+        });
+        await this.print.documentFinishedIn(tx, { id: doc.id, status: "failed", fileObjectId: null, error });
+      });
     }
+  }
+
+  private renderKind(ctx: RequestContext, doc: DocumentRow): Promise<Rendered> {
+    switch (doc.kind) {
+      case "labels":
+        return this.labels(ctx, doc);
+      case "packing_list":
+        return this.packingLists(ctx, doc);
+      case "barcode_labels":
+        return this.barcodeLabels(ctx, doc);
+      case "pick_list":
+        return this.pickList(ctx, doc);
+      case "handover_manifest":
+        return this.manifest(ctx, doc);
+      case "test_page":
+        return this.testPage(ctx, doc);
+    }
+  }
+
+  /** FR-SHP-05: a completed handover's manifest, parcels in the order they were scanned. */
+  private async manifest(ctx: RequestContext, doc: DocumentRow): Promise<Rendered> {
+    const business = await this.tenants.profile(ctx);
+    const data = await withTenantTx(this.db, ctx, async (tx) => {
+      const h = doc.params.handoverId ? await this.handovers.get(tx, doc.params.handoverId) : undefined;
+      if (h?.status !== "completed") return null;
+      const items = await this.handovers.items(tx, h.id);
+      const { orders } = await this.orders.readIn(
+        tx,
+        items.map((i) => i.orderId),
+      );
+      const warehouse = await this.warehouses.anyIn(tx, h.warehouseId);
+      const storeNames = await this.stores.namesIn(tx);
+      return { h, items, orders, warehouse, storeNames, names: await this.users.namesIn(tx) };
+    });
+    if (!data) throw new NothingToRender("Manifest belum selesai atau sudah tidak ada.", []);
+    const sourceOf = (orderId: string) => {
+      const o = data.orders.find((x) => x.id === orderId);
+      return o ? `${channelDisplayName(o.channel)} · ${data.storeNames.get(o.storeId) ?? ""}` : "";
+    };
+    const { pdf, pages } = await renderManifest({
+      number: data.h.number,
+      business: business.name,
+      warehouse: {
+        name: data.warehouse?.name ?? "",
+        address: data.warehouse ? addressLine(data.warehouse.address) : "",
+      },
+      courier: data.h.courier,
+      completedAt: data.h.completedAt!,
+      timeZone: business.timezone,
+      handedOverBy: data.h.completedBy ? (data.names.get(data.h.completedBy) ?? null) : null,
+      receivedBy: data.h.receivedBy,
+      parcels: data.items.map((i) => ({
+        trackingNumber: i.trackingNumber,
+        orderNumber: i.orderNumber,
+        source: sourceOf(i.orderId),
+        scannedAt: i.createdAt,
+      })),
+    });
+    return { pdf, pages, result: { orders: data.items.length, missing: [] }, printed: [] };
+  }
+
+  /** UI L42 "Cetak percobaan": who sent the page to which agent and printer, and a barcode to scan. */
+  private async testPage(ctx: RequestContext, doc: DocumentRow): Promise<Rendered> {
+    const business = await this.tenants.profile(ctx);
+    const { pdf, pages } = await renderTestPage({
+      business: business.name,
+      device: doc.params.device?.name ?? "",
+      printer: doc.params.device?.printer ?? null,
+      at: doc.createdAt,
+      timeZone: business.timezone,
+      barcode: barcodeFor(`TES-${doc.id.slice(-8)}`),
+    });
+    return { pdf, pages, result: { missing: [] }, printed: [] };
   }
 
   /** Everything labels and packing lists draw from, read in one transaction. */
@@ -157,13 +227,11 @@ export class DocumentRenderService {
       const pairs = items
         .filter((i) => i.variantId && warehouseOf(i))
         .map((i) => ({ variantId: i.variantId!, warehouseId: warehouseOf(i)! }));
-      const [info, warehouses, tags, storeNames, template] = await Promise.all([
-        this.inventory.pickInfoIn(tx, pairs),
-        this.warehouses.activeIn(tx),
-        this.orders.tagsIn(tx, ids),
-        this.stores.namesIn(tx),
-        this.templates.optionsIn(tx),
-      ]);
+      const info = await this.inventory.pickInfoIn(tx, pairs);
+      const warehouses = await this.warehouses.activeIn(tx);
+      const tags = await this.orders.tagsIn(tx, ids);
+      const storeNames = await this.stores.namesIn(tx);
+      const template = await this.templates.optionsIn(tx);
       return { orders, items, shipments, packages, info, warehouses, warehouseOf, tags, storeNames, template };
     });
   }
@@ -234,7 +302,7 @@ export class DocumentRenderService {
       const s = data.shipments.find((x) => x.orderId === o.id);
       const why = manual.has(o.id)
         ? manualLabelRefusal({ status: o.status, hasAddress: !!o.shippingAddress?.line1 })
-        : whyNoLabel(s, s ? data.packages.filter((p) => p.shipmentId === s.id) : []);
+        : marketplaceLabelRefusal(s, s ? data.packages.filter((p) => p.shipmentId === s.id) : []);
       if (why) missing.push({ orderId: o.id, ...why });
       return !why;
     });

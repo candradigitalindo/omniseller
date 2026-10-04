@@ -421,4 +421,19 @@ export class PreTenantLookup {
     const row = r.rows[0];
     return row && { ...row, expires_at: new Date(row.expires_at) };
   }
+
+  /** A device by its token's hash, with its business's status (print agents, backend doc 8.24). */
+  async device(tokenHash: string) {
+    const r = await this.db.db.execute<{
+      tenant_id: string;
+      device_id: string;
+      kind: "print_agent" | "mobile";
+      warehouse_id: string | null;
+      revoked_at: string | null;
+      last_seen_at: string | null;
+      tenant_status: "active" | "suspended" | "closing" | "closed";
+    }>(sql`SELECT * FROM auth_resolve_device(${tokenHash})`);
+    const row = r.rows[0];
+    return row && { ...row, last_seen_at: row.last_seen_at ? new Date(row.last_seen_at) : null };
+  }
 }

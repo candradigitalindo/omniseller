@@ -78,6 +78,27 @@ export class FulfillmentRepository {
     if (Object.keys(patch).length > 0) await tx.update(shipment).set(patch).where(eq(shipment.id, id));
   }
 
+  /** Orders whose live shipment, or one of its packages, carries one of these tracking numbers. */
+  async orderIdsByTracking(tx: Tx, codes: string[]): Promise<string[]> {
+    if (codes.length === 0) return [];
+    const live = ne(shipment.status, "cancelled");
+    const direct = await tx
+      .select({ orderId: shipment.orderId })
+      .from(shipment)
+      .where(and(inArray(shipment.trackingNumber, codes), live));
+    const viaPackage = await tx
+      .select({ orderId: shipment.orderId })
+      .from(shipmentPackage)
+      .innerJoin(shipment, eq(shipment.id, shipmentPackage.shipmentId))
+      .where(and(inArray(shipmentPackage.trackingNumber, codes), live));
+    return [...new Set([...direct, ...viaPackage].map((r) => r.orderId))];
+  }
+
+  /** Shipments packed with their label and not handed over yet (waiting for a courier, FR-SHP-05). */
+  async packedShipments(tx: Tx, limit: number): Promise<ShipmentRow[]> {
+    return tx.select().from(shipment).where(eq(shipment.status, "packed")).orderBy(asc(shipment.id)).limit(limit);
+  }
+
   // ---- packages ----
 
   async packages(tx: Tx, shipmentIds: string[]): Promise<PackageRow[]> {

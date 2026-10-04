@@ -240,6 +240,11 @@ BEGIN
   ELSE
     v_tenant_id := NEW.tenant_id; v_entity_id := NEW.id; v_before := to_jsonb(OLD); v_after := to_jsonb(NEW);
   END IF;
+  -- Columns named after the entity never reach the log (a device's token hash).
+  FOR i IN 1 .. TG_NARGS - 1 LOOP
+    v_before := v_before - TG_ARGV[i];
+    v_after := v_after - TG_ARGV[i];
+  END LOOP;
   IF v_actor_type NOT IN ('user', 'system', 'api_key', 'device') THEN
     v_actor_type := 'system';
   END IF;
@@ -305,11 +310,16 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
     FROM refresh_token r WHERE r.token_hash = p_token_hash
 $$;
 
-CREATE OR REPLACE FUNCTION auth_resolve_device(p_token_hash text)
-RETURNS TABLE (tenant_id text, device_id text, kind text, warehouse_id text, revoked_at timestamptz)
+-- Return type changed in 0014 (last_seen_at, tenant_status: the device guard checks the business in the
+-- same lookup, backend doc 8.24); DROP first because CREATE OR REPLACE cannot change it.
+DROP FUNCTION IF EXISTS auth_resolve_device(text);
+CREATE FUNCTION auth_resolve_device(p_token_hash text)
+RETURNS TABLE (tenant_id text, device_id text, kind text, warehouse_id text, revoked_at timestamptz,
+               last_seen_at timestamptz, tenant_status text)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
-  SELECT d.tenant_id, d.id, d.kind, d.warehouse_id, d.revoked_at
-    FROM device d WHERE d.token_hash = p_token_hash
+  SELECT d.tenant_id, d.id, d.kind, d.warehouse_id, d.revoked_at, d.last_seen_at, t.status
+    FROM device d JOIN tenant t ON t.id = d.tenant_id
+   WHERE d.token_hash = p_token_hash
 $$;
 
 CREATE OR REPLACE FUNCTION auth_resolve_api_key(p_key_hash text)

@@ -1,9 +1,11 @@
 import {
   DATA_EXPORT_STATUSES,
   DOCUMENT_JOB_STATUSES,
+  HANDOVER_STATUSES,
   MIGRATION_JOB_STATUSES,
   ORDER_STATUSES,
   PERMISSION_CODES,
+  PRINT_JOB_STATUSES,
   SHIPMENT_STATUSES,
   STORE_CUTOVER_STATUSES,
   SYNC_JOB_STATUSES,
@@ -209,6 +211,8 @@ describe("schema conventions", () => {
     expect(await check("data_export")).toEqual([...DATA_EXPORT_STATUSES].sort());
     expect(await check("migration_job")).toEqual([...MIGRATION_JOB_STATUSES].sort());
     expect(await check("store_cutover")).toEqual([...STORE_CUTOVER_STATUSES].sort());
+    expect(await check("print_job")).toEqual([...PRINT_JOB_STATUSES].sort());
+    expect(await check("handover")).toEqual([...HANDOVER_STATUSES].sort());
   });
 
   it("every transition uses known statuses", async () => {
@@ -220,6 +224,8 @@ describe("schema conventions", () => {
       ["data_export_status_transition", DATA_EXPORT_STATUSES],
       ["migration_job_status_transition", MIGRATION_JOB_STATUSES],
       ["store_cutover_status_transition", STORE_CUTOVER_STATUSES],
+      ["print_job_status_transition", PRINT_JOB_STATUSES],
+      ["handover_status_transition", HANDOVER_STATUSES],
     ] as const) {
       const rows = await q<{ from_status: string; to_status: string }>(`SELECT from_status, to_status FROM ${table}`);
       expect(rows.length).toBeGreaterThan(0);
@@ -242,8 +248,10 @@ describe("schema conventions", () => {
     expect(rows.map((r) => r.tbl)).toEqual([
       "data_export",
       "document_job",
+      "handover",
       "migration_job",
       "order",
+      "print_job",
       "shipment",
       "store_cutover",
       "sync_job",

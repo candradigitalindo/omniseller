@@ -99,6 +99,12 @@ export class WarehousesService {
       .orderBy(desc(warehouse.isDefault), asc(warehouse.name));
   }
 
+  /** A warehouse by id, deleted ones too: documents of the past keep naming it (handover manifests). */
+  async anyIn(tx: Tx, id: string): Promise<WarehouseView | undefined> {
+    const [row] = await tx.select(columns).from(warehouse).where(eq(warehouse.id, id));
+    return row;
+  }
+
   async findActiveIn(tx: Tx, id: string): Promise<WarehouseView | undefined> {
     const [row] = await tx
       .select(columns)

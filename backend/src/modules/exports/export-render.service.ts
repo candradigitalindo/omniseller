@@ -13,6 +13,7 @@ import { ProductTransferService } from "../catalog/product-transfer.service";
 import { StoresService } from "../channel/stores.service";
 import { FilesService } from "../files/files.service";
 import { FulfillmentService } from "../fulfillment/fulfillment.service";
+import { HandoverService } from "../fulfillment/handover.service";
 import { TenantsService } from "../identity/tenants.service";
 import { UsersService } from "../identity/users.service";
 import { InventoryService } from "../inventory/inventory.service";
@@ -57,6 +58,7 @@ export class ExportRenderService {
     @Inject(InventoryService) private readonly inventory: InventoryService,
     @Inject(OrdersService) private readonly orders: OrdersService,
     @Inject(FulfillmentService) private readonly fulfillment: FulfillmentService,
+    @Inject(HandoverService) private readonly handovers: HandoverService,
     @Inject(NotificationInboxService) private readonly inbox: NotificationInboxService,
   ) {}
 
@@ -70,6 +72,7 @@ export class ExportRenderService {
       ...this.inventory.exportSheets(),
       ...this.orders.exportSheets(),
       ...this.fulfillment.exportSheets(),
+      ...this.handovers.exportSheets(),
     ];
   }
 
@@ -159,11 +162,9 @@ export class ExportRenderService {
       this.db,
       ctx,
       async (tx) => {
-        const [stores, warehouses, users] = await Promise.all([
-          this.stores.namesIn(tx),
-          this.warehouses.codesIn(tx),
-          this.users.namesIn(tx),
-        ]);
+        const stores = await this.stores.namesIn(tx);
+        const warehouses = await this.warehouses.codesIn(tx);
+        const users = await this.users.namesIn(tx);
         const lookups: ExportLookups = {
           storeName: (id) => (id ? (stores.get(id) ?? null) : null),
           warehouseCode: (id) => (id ? (warehouses.get(id) ?? null) : null),

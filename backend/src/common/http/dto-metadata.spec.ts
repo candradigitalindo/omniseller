@@ -14,6 +14,12 @@ import { ExportsController } from "../../modules/exports/exports.controller";
 import { FilesController } from "../../modules/files/files.controller";
 import { DocumentsController, ShipmentsController } from "../../modules/fulfillment/fulfillment.controllers";
 import {
+  AgentController,
+  PrintAgentsController,
+  PrintJobsController,
+} from "../../modules/fulfillment/print.controllers";
+import { HandoversController, PackingController } from "../../modules/fulfillment/scan.controllers";
+import {
   InvitationsController,
   MeController,
   RolesController,
@@ -58,6 +64,11 @@ const CONTROLLERS = [
   TagsController,
   ShipmentsController,
   DocumentsController,
+  PrintAgentsController,
+  PrintJobsController,
+  AgentController,
+  PackingController,
+  HandoversController,
   FilesController,
   NotificationsController,
   DashboardController,

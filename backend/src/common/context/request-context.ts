@@ -53,6 +53,24 @@ export function systemContext(tenantId: string, opts: { requestId?: string; trac
   };
 }
 
+/**
+ * A device acting for its business (a print agent, backend doc 8.24): no permissions and no scopes; the
+ * agent routes decide what a device may touch (its own print jobs).
+ */
+export function deviceContext(tenantId: string, deviceId: string, opts: { requestId?: string } = {}): RequestContext {
+  const requestId = opts.requestId ?? newId();
+  return {
+    requestId,
+    traceId: requestId,
+    tenantId,
+    actor: { type: "device", id: deviceId },
+    permissions: new Set<Permission>(),
+    storeScope: null,
+    warehouseScope: null,
+    locale: "id",
+  };
+}
+
 /** Fields that every log line carries. */
 export function logFields(): Record<string, unknown> | undefined {
   const a = storage.getStore();

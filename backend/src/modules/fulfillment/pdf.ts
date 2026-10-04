@@ -772,3 +772,217 @@ export async function sampleMarketplaceLabel(): Promise<Uint8Array> {
   });
   return doc.save();
 }
+
+// ---- courier handover and print agents (FR-SHP-05, 17; backend doc 8.24) ----
+
+export interface ManifestParcel {
+  trackingNumber: string;
+  orderNumber: string;
+  /** Marketplace and store ("Shopee · Toko Utama"), or the manual sales channel. */
+  source: string;
+  scannedAt: Date;
+}
+
+export interface Manifest {
+  number: string;
+  business: string;
+  warehouse: { name: string; address: string };
+  courier: string;
+  completedAt: Date;
+  timeZone: string;
+  /** Who completed the handover in OmniSeller. */
+  handedOverBy: string | null;
+  /** The courier's name as typed at completion. */
+  receivedBy: string | null;
+  parcels: ManifestParcel[];
+}
+
+const timeIn = (timeZone: string, opts: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat("id-ID", { timeZone, ...opts });
+
+/**
+ * The handover manifest (FR-SHP-05, UI L08): every parcel the courier took, numbered, with the time it
+ * was scanned, and boxes for both signatures after the last row. A4; no buyer data on it.
+ */
+export async function renderManifest(m: Manifest): Promise<{ pdf: Uint8Array; pages: number }> {
+  const doc = await PDFDocument.create();
+  doc.setTitle(`Manifest ${m.number}`);
+  doc.setCreator("OmniSeller");
+  doc.setProducer("OmniSeller");
+  const f = await embedFonts(doc);
+  const margin = 15 * MM;
+  const width = A4_PAGE.width - 2 * margin;
+  const columns = [
+    { title: "No", width: 11 * MM, right: true },
+    { title: "Resi", width: 52 * MM, right: false },
+    { title: "No. pesanan", width: 46 * MM, right: false },
+    { title: "Toko", width: width - (11 + 52 + 46 + 17) * MM, right: false },
+    { title: "Dipindai", width: 17 * MM, right: true },
+  ];
+  const xOf = (i: number) => margin + columns.slice(0, i).reduce((n, c) => n + c.width, 0);
+  const when = timeIn(m.timeZone, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const clock = timeIn(m.timeZone, { hour: "2-digit", minute: "2-digit" });
+
+  let page = doc.addPage([A4_PAGE.width, A4_PAGE.height]);
+  let y = A4_PAGE.height - margin;
+  page.drawText("Manifest Serah Terima Kurir", { x: margin, y: y - 16, size: 16, font: f.bold });
+  const number = f.text(m.number);
+  page.drawText(number, {
+    x: margin + width - f.bold.widthOfTextAtSize(number, 12),
+    y: y - 15,
+    size: 12,
+    font: f.bold,
+  });
+  y -= 30;
+  const facts = [
+    `${m.business} · ${m.warehouse.name}`,
+    m.warehouse.address,
+    `Kurir: ${m.courier} · ${m.parcels.length} paket · ${when.format(m.completedAt)}`,
+  ].filter(Boolean);
+  for (const line of facts) {
+    page.drawText(clip(f.regular, f.text(line), 9.5, width), { x: margin, y: y - 10, size: 9.5, font: f.regular });
+    y -= 13;
+  }
+  y -= 6;
+
+  const header = () => {
+    page.drawRectangle({ x: margin, y: y - 16, width, height: 16, color: HEADER_FILL });
+    columns.forEach((c, i) => {
+      const w = f.bold.widthOfTextAtSize(c.title, 8.5);
+      page.drawText(c.title, {
+        x: c.right ? xOf(i) + c.width - w - 4 : xOf(i) + 4,
+        y: y - 11.5,
+        size: 8.5,
+        font: f.bold,
+      });
+    });
+    y -= 16;
+  };
+  header();
+  m.parcels.forEach((p, k) => {
+    if (y - 17 < margin + 14) {
+      page = doc.addPage([A4_PAGE.width, A4_PAGE.height]);
+      y = A4_PAGE.height - margin;
+      header();
+    }
+    const cells = [String(k + 1), p.trackingNumber, p.orderNumber, p.source, clock.format(p.scannedAt)];
+    cells.forEach((value, i) => {
+      const c = columns[i]!;
+      const font = i === 1 ? f.bold : f.regular;
+      const text = clip(font, f.text(value), 9, c.width - 8);
+      const w = font.widthOfTextAtSize(text, 9);
+      page.drawText(text, { x: c.right ? xOf(i) + c.width - w - 4 : xOf(i) + 4, y: y - 12, size: 9, font });
+    });
+    y -= 17;
+    page.drawLine({ start: { x: margin, y }, end: { x: margin + width, y }, thickness: 0.4, color: LIGHT });
+  });
+
+  // signatures: the warehouse hands over, the courier receives
+  const boxHeight = 30 * MM;
+  if (y - boxHeight - 12 < margin + 14) {
+    page = doc.addPage([A4_PAGE.width, A4_PAGE.height]);
+    y = A4_PAGE.height - margin;
+  }
+  y -= 12;
+  const gap = 10 * MM;
+  const boxWidth = (width - gap) / 2;
+  const boxes = [
+    { title: "Diserahkan oleh (gudang)", name: m.handedOverBy },
+    { title: "Diterima oleh (kurir)", name: m.receivedBy },
+  ];
+  boxes.forEach((b, i) => {
+    const x = margin + i * (boxWidth + gap);
+    page.drawRectangle({
+      x,
+      y: y - boxHeight,
+      width: boxWidth,
+      height: boxHeight,
+      borderColor: GRAY,
+      borderWidth: 0.8,
+    });
+    page.drawText(b.title, { x: x + 6, y: y - 13, size: 9, font: f.bold });
+    page.drawLine({
+      start: { x: x + 6, y: y - boxHeight + 16 },
+      end: { x: x + boxWidth - 6, y: y - boxHeight + 16 },
+      thickness: 0.6,
+      color: GRAY,
+    });
+    const name = b.name ? clip(f.regular, f.text(b.name), 9, boxWidth - 12) : "Nama:";
+    page.drawText(name, { x: x + 6, y: y - boxHeight + 5, size: 9, font: f.regular, color: b.name ? BLACK : GRAY });
+  });
+
+  const pages = doc.getPages();
+  pages.forEach((p, i) => {
+    const label = `${f.text(m.number)} · Halaman ${i + 1}/${pages.length}`;
+    p.drawText(label, {
+      x: A4_PAGE.width - margin - f.regular.widthOfTextAtSize(label, 8),
+      y: margin / 2,
+      size: 8,
+      font: f.regular,
+      color: GRAY,
+    });
+  });
+  return { pdf: await doc.save(), pages: pages.length };
+}
+
+export interface TestPage {
+  business: string;
+  device: string;
+  printer: string | null;
+  at: Date;
+  timeZone: string;
+  barcode: Barcode;
+}
+
+/**
+ * A print agent's test page (UI L42 "Cetak percobaan"): a 100 x 150 mm label with a frame 3 mm inside
+ * the edge (to see the margins), who sent it where, and a barcode to scan back.
+ */
+export async function renderTestPage(t: TestPage): Promise<{ pdf: Uint8Array; pages: number }> {
+  const doc = await PDFDocument.create();
+  doc.setTitle("Cetak percobaan");
+  doc.setCreator("OmniSeller");
+  doc.setProducer("OmniSeller");
+  const f = await embedFonts(doc);
+  const page = doc.addPage([THERMAL_PAGE.width, THERMAL_PAGE.height]);
+  const { width, height } = page.getSize();
+  const edge = 3 * MM;
+  page.drawRectangle({
+    x: edge,
+    y: edge,
+    width: width - 2 * edge,
+    height: height - 2 * edge,
+    borderColor: BLACK,
+    borderWidth: 1,
+  });
+  const inner = width - 2 * (edge + 4 * MM);
+  let y = height - edge - 8 * MM;
+  const line = (text: string, size: number, bold = false) => {
+    const font = bold ? f.bold : f.regular;
+    const clipped = clip(font, f.text(text), size, inner);
+    page.drawText(clipped, { x: (width - font.widthOfTextAtSize(clipped, size)) / 2, y, size, font });
+    y -= size + 5;
+  };
+  line("Cetak percobaan", 15, true);
+  line("OmniSeller", 10);
+  y -= 6;
+  line(t.business, 10, true);
+  line(`Agen: ${t.device}`, 9);
+  line(`Printer: ${t.printer ?? "printer bawaan komputer"}`, 9);
+  line(timeIn(t.timeZone, { dateStyle: "long", timeStyle: "short" }).format(t.at), 9);
+  y -= 6;
+  line("Pindai barcode ini untuk mencoba pemindai.", 8);
+  drawBarcodeLabel(
+    page,
+    { x: edge + 4 * MM, y: edge + 6 * MM, width: inner, height: y - edge - 8 * MM },
+    { title: "", subtitle: "", barcode: t.barcode },
+    f,
+  );
+  return { pdf: await doc.save(), pages: 1 };
+}

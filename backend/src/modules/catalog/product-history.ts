@@ -24,6 +24,8 @@ export interface FieldChange {
   label: string;
   before: unknown;
   after: unknown;
+  /** The values are left out for this reader (a cost price without finance:read). */
+  hidden?: true;
 }
 
 export interface HistoryEntry {
@@ -122,5 +124,19 @@ export function historyEntry(row: ProductAuditRow): HistoryEntry | null {
       name: typeof shown.name === "string" ? shown.name : null,
     },
     changes,
+  };
+}
+
+/** Fields only holders of finance:read see (`seesCost`): the cost price. */
+const COST_FIELDS = new Set(["costPrice"]);
+
+/** The entry for a reader who may not see cost prices: those changes keep their label, not their values. */
+export function withoutCost(entry: HistoryEntry): HistoryEntry {
+  if (!entry.changes.some((c) => COST_FIELDS.has(c.field))) return entry;
+  return {
+    ...entry,
+    changes: entry.changes.map((c) =>
+      COST_FIELDS.has(c.field) ? { field: c.field, label: c.label, before: null, after: null, hidden: true } : c,
+    ),
   };
 }

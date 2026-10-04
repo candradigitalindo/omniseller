@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { newId } from "@omniseller/shared";
 import { internalEan13 } from "../../common/barcode";
 import type { RequestContext } from "../../common/context/request-context";
+import { seesCost } from "../../common/cost-visibility";
 import { nextDocumentNumber } from "../../common/document-number";
 import { ConflictError } from "../../common/errors/domain-errors";
 import type { DbHandle, Tx } from "../../db/client";
@@ -18,7 +19,7 @@ import {
   variantNotFound,
 } from "./catalog.errors";
 import { CatalogRepository, normSku, type ProductRow, type VariantRow } from "./catalog.repository";
-import { type HistoryEntry, historyEntry } from "./product-history";
+import { type HistoryEntry, historyEntry, withoutCost } from "./product-history";
 
 export interface VariantInput {
   sku: string;
@@ -136,7 +137,8 @@ export class ProductsService {
 
   async view(tx: Tx, products: ProductRow[]): Promise<ProductView[]> {
     const ids = products.map((p) => p.id);
-    const [variants, images] = await Promise.all([this.repo.variantsOf(tx, ids), this.repo.imagesOf(tx, ids)]);
+    const variants = await this.repo.variantsOf(tx, ids);
+    const images = await this.repo.imagesOf(tx, ids);
     const counts = await this.repo.listingsPerVariant(
       tx,
       variants.map((v) => v.id),
@@ -205,10 +207,10 @@ export class ProductsService {
       const page = rows.slice(0, limit);
       return {
         items: page.flatMap((r) => {
-          const e = historyEntry(r);
-          return e
-            ? [{ ...e, actorName: e.actor.type === "user" && e.actor.id ? (names.get(e.actor.id) ?? null) : null }]
-            : [];
+          const found = historyEntry(r);
+          if (!found) return [];
+          const e = seesCost(ctx) ? found : withoutCost(found);
+          return [{ ...e, actorName: e.actor.type === "user" && e.actor.id ? (names.get(e.actor.id) ?? null) : null }];
         }),
         next: rows.length > limit ? page[page.length - 1]!.id : null,
       };

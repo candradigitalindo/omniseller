@@ -567,6 +567,7 @@ describe("full data export (FR-MIG-09) and the audit of sensitive actions (FR-US
       "pesanan.csv",
       "item_pesanan.csv",
       "pengiriman.csv",
+      "serah_terima.csv",
     ];
     expect(ready.files.map((f: { name: string }) => f.name)).toEqual(files);
     expect(ready.files.find((f: { name: string }) => f.name === "pesanan.csv").rows).toBe(1);

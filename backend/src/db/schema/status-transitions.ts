@@ -16,3 +16,5 @@ export const documentJobStatusTransition = pgTable("document_job_status_transiti
 export const dataExportStatusTransition = pgTable("data_export_status_transition", transitionColumns());
 export const migrationJobStatusTransition = pgTable("migration_job_status_transition", transitionColumns());
 export const storeCutoverStatusTransition = pgTable("store_cutover_status_transition", transitionColumns());
+export const printJobStatusTransition = pgTable("print_job_status_transition", transitionColumns());
+export const handoverStatusTransition = pgTable("handover_status_transition", transitionColumns());

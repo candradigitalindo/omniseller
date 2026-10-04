@@ -2,11 +2,11 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.14 |
+| Versi dokumen | 1.15 |
 | Tanggal | 4 Oktober 2026 |
-| Status | Keputusan final untuk implementasi; fondasi (bagian 4 sampai 9, 12, 13), identitas, autentikasi, dan audit (8.1, 8.10), koneksi toko Shopee dan Tokopedia & Shop (8.6, 8.11), katalog, listing, dan pemetaan SKU (7.8.3, 8.12), stok, penyesuaian, dan push stok ke marketplace (7.8.4, 8.13, 9.4), pesanan dari Shopee dan Tokopedia & Shop (7.8.6, 7.9, 8.14, 10.6), pengiriman, label, pick list, dan peringatan batas kirim (8.15), dasbor, notifikasi in-app, ekspor data penuh, dan audit aksi sensitif (8.16 sampai 8.18), migrasi dari aplikasi lain dengan mode paralel dan cutover (8.19), laporan penjualan, daftar perlu restock, ringkasan email harian, dan preferensi notifikasi (8.20), banyak gudang fisik, pesanan manual, alokasi gudang otomatis, dan tag pesanan (8.21), pelacakan paket, daftar kemas, dan template label kustom (8.22), serta putus toko dengan atau tanpa data, peringatan koneksi, riwayat produk, dan barcode (8.23) sudah diimplementasikan di folder `backend/` |
+| Status | Keputusan final untuk implementasi; fondasi (bagian 4 sampai 9, 12, 13), identitas, autentikasi, dan audit (8.1, 8.10), koneksi toko Shopee dan Tokopedia & Shop (8.6, 8.11), katalog, listing, dan pemetaan SKU (7.8.3, 8.12), stok, penyesuaian, dan push stok ke marketplace (7.8.4, 8.13, 9.4), pesanan dari Shopee dan Tokopedia & Shop (7.8.6, 7.9, 8.14, 10.6), pengiriman, label, pick list, dan peringatan batas kirim (8.15), dasbor, notifikasi in-app, ekspor data penuh, dan audit aksi sensitif (8.16 sampai 8.18), migrasi dari aplikasi lain dengan mode paralel dan cutover (8.19), laporan penjualan, daftar perlu restock, ringkasan email harian, dan preferensi notifikasi (8.20), banyak gudang fisik, pesanan manual, alokasi gudang otomatis, dan tag pesanan (8.21), pelacakan paket, daftar kemas, dan template label kustom (8.22), putus toko dengan atau tanpa data, peringatan koneksi, riwayat produk, dan barcode (8.23), serta agen cetak, scan untuk cetak, kemas dengan scan, serah terima kurir dengan manifest, dan visibilitas HPP (8.24) sudah diimplementasikan di folder `backend/` |
 | Pemilik dokumen | Candra Syahputra |
-| Dokumen terkait | DOKUMEN-SPESIFIKASI-APLIKASI.md (PRD) versi 1.11, DOKUMEN-TEKNOLOGI.md versi 1.13 |
+| Dokumen terkait | DOKUMEN-SPESIFIKASI-APLIKASI.md (PRD) versi 1.11, DOKUMEN-TEKNOLOGI.md versi 1.14 |
 | Audiens | Engineer backend, tech lead, QA, dan **agen AI** yang mengerjakan basis kode |
 
 > **Untuk agen AI yang membaca dokumen ini.** Bacalah bagian 2 terlebih dahulu. Bagian itu berisi kontrak kerja: invarian yang tidak boleh dilanggar, tempat setiap hal berada, dan urutan langkah untuk setiap jenis perubahan. Semua nama tabel, kolom, modul, antrean, dan perintah di dokumen ini adalah nama yang sebenarnya dipakai di repositori. Jangan menebak nama; cari di dokumen ini atau di kode.
@@ -171,7 +171,7 @@ Aturan lapisan:
 3. `OrdersService.requestCancel(ctx, id, reason)` membuka `withTenantTx`, memuat pesanan dengan `FOR UPDATE`, memeriksa toko dan gudang pesanan terhadap cakupan pengguna, memeriksa alasan terhadap daftar marketplace, menulis `outbox_event{type:'order.cancel_requested'}` dan `order_event{type:'cancel_requested'}`, commit, lalu menjawab 202.
 4. Relay outbox memindahkan event ke antrean `mp.outbound` dengan `jobId = order.cancel|<order_id>|<outbox_event_id>`.
 5. Job di worker memanggil marketplace lewat `MarketplaceGateway` (`orders.cancelOrder`), lalu membaca ulang pesanan; `OrderIntakeService` memindahkan status ke `cancelled` dan melepas reservasi stok di transaksi yang sama (8.14). Pelepasan stok menulis `inventory.changed`, yang mendorong stok baru ke semua toko (9.4).
-6. Socket.IO mengirim `order.updated` ke room tenant dari event yang sama (menyusul bersama frontend).
+6. Socket.IO mengirim `order.updated` ke room tenant dari event yang sama (menyusul bersama frontend). Yang sudah berjalan: `print.job` ke room agen cetak (8.24).
 
 ---
 
@@ -228,7 +228,7 @@ backend/
 │   │   ├── inventory/              # warehouse, inventory, movement, count, transfer, allocation
 │   │   ├── purchasing/
 │   │   ├── orders/
-│   │   ├── fulfillment/            # shipment, label, pick list, print job
+│   │   ├── fulfillment/            # shipment, label, pick list, agen cetak dan print job, kemas dengan scan, serah terima (8.24)
 │   │   ├── returns/
 │   │   ├── sync/                   # sync_job (log sinkron), webhook_inbox, penerima dan pemroses webhook
 │   │   ├── finance/
@@ -271,7 +271,9 @@ backend/
 │   ├── webhook/
 │   │   └── webhook-app.ts          # body mentah untuk proses webhook (controller ada di modules/sync)
 │   └── realtime/
-│       └── realtime.gateway.ts     # (menyusul)
+│       ├── realtime.ts             # REALTIME: emitter Redis untuk semua proses, room device:<id> (8.24)
+│       ├── realtime.gateway.ts     # Socket.IO di server HTTP api, adapter Redis, handshake token perangkat
+│       └── realtime.module.ts      # hanya proses api
 ├── drizzle/
 │   ├── migrations/                 # 0001_core.sql, 0002_...sql (berversi, sekali jalan)
 │   └── sql/                        # 10_functions, 15_views, 20_triggers, 30_policies, 40_grants, 90_seeds (repeatable)
@@ -527,7 +529,8 @@ Pengecualian hak yang berlaku untuk `omniseller_api` dan `omniseller_worker` (`d
 | `resolve_store(channel, external_shop_id)` | Proses webhook (merutekan notifikasi ke tenant), worker saat menghubungkan toko (mendeteksi toko yang sudah milik tenant lain, karena UNIQUE `(channel, external_shop_id)` berlaku lintas tenant) | api, worker |
 | `auth_login_candidates(email)` | Login; email yang sama boleh ada di beberapa tenant, pengguna memilih | api |
 | `auth_resolve_invitation(hash)`, `auth_resolve_password_reset(hash)` | Pratinjau dan penerimaan undangan, konfirmasi atur ulang sandi. Mengembalikan status token (`expires_at`, `accepted_at` atau `used_at`, `revoked_at`) agar service menolak dengan error yang tepat | api |
-| `auth_resolve_refresh_token(hash)`, `auth_resolve_device(hash)`, `auth_resolve_api_key(hash)` | Guard token mobile, perangkat, dan API key; menyusul bersama klien itu | api |
+| `auth_resolve_device(hash)` | Guard token agen cetak: rute REST `@DeviceRoute` dan handshake Socket.IO (8.24). Sejak 0014 juga mengembalikan `last_seen_at` dan status bisnis, jadi satu pembacaan cukup | api |
+| `auth_resolve_refresh_token(hash)`, `auth_resolve_api_key(hash)` | Guard token mobile dan API key; menyusul bersama klien itu | api |
 
 Fungsi `SECURITY DEFINER` selalu menetapkan `search_path`, dicabut dari `PUBLIC`, dan hanya diberikan ke role yang disebut di atas. Di kode, fungsi ini hanya dipanggil lewat kelas `PreTenantLookup` (`modules/identity/identity.repository.ts`) dan `resolve_store` di modul `channel`; tidak ada jalur lain yang membaca data tenant sebelum `app.tenant_id` ditetapkan.
 
@@ -563,7 +566,7 @@ Aturan:
 | `enforce_status_transition('<tabel>')` | `BEFORE UPDATE OF status` | `order`, `shipment`, `sync_job`; nanti `return_request`, `purchase_order`, `stock_count`, `stock_transfer`, `migration_job` | Menolak transisi yang tidak ada di `<tabel>_status_transition`; mengisi `status_changed_at`. Nama tabel diberikan sebagai argumen trigger, karena pada tabel terpartisi `TG_TABLE_NAME` berisi nama partisi (`order_p202609`), bukan `order` |
 | `inventory_guard()` | `BEFORE INSERT OR UPDATE OR DELETE` | `inventory` | Menolak perubahan kolom jumlah (`on_hand`, `reserved`, `buffer`, `damaged`) dan penghapusan bila `app.stock_write` bukan `'on'`; kolom lain (`bin_location`, `min_stock`) boleh diubah |
 | `ensure_inventory(...)`, `apply_stock_movement(...)`, `confirm_stock(...)` | Fungsi `SECURITY DEFINER` | `inventory`, `stock_movement` | Satu-satunya jalur mengubah stok. Memeriksa bahwa tenant parameter sama dengan `app.tenant_id` (`TENANT_MISMATCH` bila tidak), mengunci baris, menolak hasil di bawah nol, dan mencatat saldo sesudahnya termasuk `buffer` (cadangan kampanye). Mutasi yang menetapkan jumlah (`adjustment`, `count_apply`, `migration_initial`) mengisi `inventory.stock_set_at`; `confirm_stock` mengisinya tanpa mutasi saat jumlah hasil hitung sama dengan catatan (9.4) |
-| `audit_row()` | `AFTER INSERT OR UPDATE OR DELETE`, `SECURITY DEFINER` | `product` dan `variant` (setiap perubahan kolom selain `updated_at` dan `row_version`, untuk riwayat produk FR-PRD-11; migrasi 0013 dan 8.23), `channel_listing` (harga, status, pemetaan), `store` (status, mode sinkron, gudang default, nama), `role`, `role_permission`, `user_role`, `user_store_scope`, `user_warehouse_scope`, `channel_warehouse`, `stock_allocation_rule`; aksi sensitif PRD FR-USR-04 (migrasi 0008): `stock_movement` jenis `adjustment`, `count_apply`, `migration_initial` (stok yang ditetapkan orang), `order_event` jenis `cancel_requested` (permintaan batal oleh penjual), `data_export` (permintaan dan setiap unduhan, 8.18); `migration_job` (unggahan) dan `store_cutover` (cutover dan pembatalannya, 8.19); nanti `fee_schedule` | Menulis `audit_log` dengan `before`, `after`, `app.actor_type`, `app.actor_id`, `app.request_id`. Id baris dibuat `gen_ulid()` di basis data karena satu pernyataan dapat menyentuh banyak baris. Tabel yang sering disinkronkan memakai `WHEN` agar hanya perubahan kolom penting yang diaudit. Pada tabel terpartisi `TG_TABLE_NAME` adalah partisinya (`stock_movement_p202610`), jadi trigger-nya memberi nama tabel sebagai argumen (`audit_row('stock_movement')`) yang menjadi `entity_type` |
+| `audit_row()` | `AFTER INSERT OR UPDATE OR DELETE`, `SECURITY DEFINER` | `product` dan `variant` (setiap perubahan kolom selain `updated_at` dan `row_version`, untuk riwayat produk FR-PRD-11; migrasi 0013 dan 8.23), `channel_listing` (harga, status, pemetaan), `store` (status, mode sinkron, gudang default, nama), `role`, `role_permission`, `user_role`, `user_store_scope`, `user_warehouse_scope`, `channel_warehouse`, `stock_allocation_rule`; aksi sensitif PRD FR-USR-04 (migrasi 0008): `stock_movement` jenis `adjustment`, `count_apply`, `migration_initial` (stok yang ditetapkan orang), `order_event` jenis `cancel_requested` (permintaan batal oleh penjual), `data_export` (permintaan dan setiap unduhan, 8.18); `migration_job` (unggahan) dan `store_cutover` (cutover dan pembatalannya, 8.19); `device` (agen cetak dipasang, diubah, dicabut; tanpa `token_hash`) dan `handover` (manifest dibuka, diselesaikan, dibatalkan), 8.24; nanti `fee_schedule` | Menulis `audit_log` dengan `before`, `after`, `app.actor_type`, `app.actor_id`, `app.request_id`. Argumen setelah nama tabel adalah kolom yang tidak ikut dicatat (`audit_row('device', 'token_hash')`, sejak 0014). Id baris dibuat `gen_ulid()` di basis data karena satu pernyataan dapat menyentuh banyak baris. Tabel yang sering disinkronkan memakai `WHEN` agar hanya perubahan kolom penting yang diaudit. Pada tabel terpartisi `TG_TABLE_NAME` adalah partisinya (`stock_movement_p202610`), jadi trigger-nya memberi nama tabel sebagai argumen (`audit_row('stock_movement')`) yang menjadi `entity_type` |
 | `audit_log_immutable()` | `BEFORE UPDATE OR DELETE` | `audit_log` | Menolak semua perubahan |
 | `outbox_notify()` | `AFTER INSERT FOR EACH STATEMENT` | `outbox_event` | `pg_notify('outbox', '')` agar relay bangun tanpa menunggu interval |
 | `resolve_store`, `auth_*` | Fungsi `SECURITY DEFINER` | | Pembacaan sebelum tenant diketahui (7.5) |
@@ -643,7 +646,7 @@ erDiagram
 
 **api_key**: `name text NOT NULL`, `prefix text NOT NULL` (8 karakter pertama untuk identifikasi), `key_hash text NOT NULL UNIQUE`, `scopes text[] NOT NULL DEFAULT '{}'`, `last_used_at`, `revoked_at`, `created_by → user` SET NULL.
 
-**device**: `kind text NOT NULL CHECK IN ('print_agent','mobile')`, `name text NOT NULL`, `token_hash text NOT NULL UNIQUE`, `warehouse_id → warehouse` SET NULL, `app_version text`, `last_seen_at`, `revoked_at`.
+**device**: `kind text NOT NULL CHECK IN ('print_agent','mobile')`, `name text NOT NULL`, `token_hash text NOT NULL UNIQUE`, `warehouse_id → warehouse` SET NULL, `app_version text`, `last_seen_at`, `revoked_at`. Sejak migrasi 0014 (agen cetak, 8.24): `printers jsonb NOT NULL DEFAULT '[]'` (laporan terakhir agen, `[{name, isDefault}]`), `label_printer text` dan `document_printer text` (printer untuk label dan untuk A4 bila permintaan tidak menyebut printer). Dimiliki `identity` (`DevicesService`); aturan agen cetak di `fulfillment` (`PrintAgentsService`). Diaudit saat dibuat, diubah, dan dicabut, tanpa `token_hash` dan tanpa laporan agen.
 
 #### 7.8.2 Kanal dan toko
 
@@ -997,16 +1000,16 @@ Id pesanan dibuat dengan `newIdAt(ordered_at)` (6.3).
 
 **shipment_package**: `shipment_id → shipment` CASCADE, `external_package_id text` (Shopee `package_number`, TikTok Shop package id; NULL untuk pesanan Shopee tanpa nomor paket), `tracking_number text`, `items jsonb NOT NULL` (daftar `{orderItemId, qty}`), `label_file_id → file_object` SET NULL (label PDF paket ini, 8.15); UNIQUE parsial `(shipment_id, external_package_id) WHERE external_package_id IS NOT NULL`. `shipment.label_file_id` disiapkan untuk pengiriman tanpa paket marketplace; pesanan manual tidak memakai `shipment`, labelnya digambar saat dokumen diminta (8.21). Pesanan marketplace yang dikirim tanpa OmniSeller mengatur (Seller Center, mode paralel) mendapat `shipment` saat paketnya pertama kali dilacak (8.22).
 
-**print_job**: `device_id → device` RESTRICT, `kind text CHECK IN ('label','pick_list','packing_list','invoice','barcode','manifest')`, `file_object_id → file_object` RESTRICT, `printer_name text`, `copies smallint NOT NULL DEFAULT 1 CHECK (copies BETWEEN 1 AND 10)`, `status text CHECK IN ('queued','sent','printed','failed','cancelled')`, `attempts integer NOT NULL DEFAULT 0`, `error text`, `requested_by → user` SET NULL, `printed_at`; INDEX `(device_id, status, id)`.
+**print_job** (8.24): `device_id → device` RESTRICT (agen tidak pernah dihapus, hanya dicabut), `kind text CHECK IN ('label','pick_list','packing_list','invoice','barcode','manifest','test')` (`test` sejak 0014), `document_id → document_job` SET NULL (sejak 0014; dokumen yang dicetak), `file_object_id → file_object` SET NULL, boleh NULL (sejak 0014: pekerjaan menunggu dokumennya, dan berkas yang kedaluwarsa dihapus pembersih per jam; sebelumnya RESTRICT dan NOT NULL), `title text NOT NULL` (yang tampil di antrean), `printer_name text` (NULL: printer bawaan komputer), `copies smallint NOT NULL DEFAULT 1 CHECK (copies BETWEEN 1 AND 10)`, `status text CHECK IN ('queued','sent','printed','failed','cancelled')` dijaga trigger (7.9), `status_changed_at`, `attempts integer NOT NULL DEFAULT 0` (berapa kali agen mengambil berkasnya), `sent_at`, `error text`, `requested_by → user` SET NULL, `printed_at`; INDEX `(tenant_id, device_id, status, id)`, `(tenant_id, id DESC)`, `(tenant_id, document_id)` parsial.
 
 **document_job** (migrasi 0007, milik `fulfillment`): dokumen cetak yang dibuat worker atas permintaan.
 
 | Kolom | Tipe | Batasan |
 |---|---|---|
-| `kind` | `text` | NOT NULL CHECK IN (`labels`, `pick_list`, `packing_list`, `barcode_labels`) (`packing_list` sejak migrasi 0012, `barcode_labels` sejak 0013) |
+| `kind` | `text` | NOT NULL CHECK IN (`labels`, `pick_list`, `packing_list`, `barcode_labels`, `handover_manifest`, `test_page`) (`packing_list` sejak migrasi 0012, `barcode_labels` sejak 0013, `handover_manifest` dan `test_page` sejak 0014) |
 | `status` | `text` | NOT NULL DEFAULT `queued`; mesin status 7.9, dijaga trigger |
 | `status_changed_at` | `timestamptz` | NOT NULL |
-| `params` | `jsonb` | NOT NULL; `{orderIds, format, template?, packingList?}`: `format` (`thermal` atau `a4`) untuk label dan daftar kemas; `template` (`standard` atau `custom`) dan `packingList` hanya label (8.22); label barcode: `orderIds` kosong, `items` `[{variantId, copies}]` dan `labelFormat` (8.23) |
+| `params` | `jsonb` | NOT NULL; `{orderIds, format, template?, packingList?}`: `format` (`thermal` atau `a4`) untuk label dan daftar kemas; `template` (`standard` atau `custom`) dan `packingList` hanya label (8.22); label barcode: `orderIds` kosong, `items` `[{variantId, copies}]` dan `labelFormat`; manifest serah terima: `handoverId`; halaman uji agen: `device` `{name, printer}` (8.23) |
 | `result` | `jsonb` | NOT NULL DEFAULT `{}`; `{orders, labels, missing: [{orderId atau variantId, code, message}], dense}` (`dense`: varian label barcode yang batangnya terlalu rapat) |
 | `file_object_id` | `ulid` | → `file_object` SET NULL; PDF hasil, kedaluwarsa 7 hari |
 | `page_count` | `integer` | NULL CHECK `>= 0` |
@@ -1016,6 +1019,10 @@ Id pesanan dibuat dengan `newIdAt(ordered_at)` (6.3).
 | Indeks | | `(tenant_id, id DESC)` |
 
 **label_template** (migrasi 0012, milik `fulfillment`): yang ditambahkan template kustom di bawah label marketplace (FR-SHP-16, 8.22), satu per bisnis (UNIQUE `(tenant_id)`). Kolom `show_sku`, `show_variant`, `show_bin`, `show_buyer_note` (boolean NOT NULL DEFAULT true) dan `show_tags` (DEFAULT false). Bisnis tanpa baris memakai nilai bawaan itu.
+
+**handover** (migrasi 0014, milik `fulfillment`, 8.24): manifest serah terima kurir. `number text NOT NULL` (`MNF-YYMM-NNNN`, UNIQUE `(tenant_id, number)`), `warehouse_id → warehouse` RESTRICT (gudang diarsipkan, tidak pernah dihapus), `courier text NOT NULL` (1 sampai 80 karakter), `status text CHECK IN ('open','completed','cancelled')` dijaga trigger (7.9), `status_changed_at`, `received_by text` (nama kurir penerima, paling panjang 80), `created_by`, `completed_by → user` SET NULL, `completed_at` (CHECK: terisi tepat saat `completed`). Indeks unik parsial `(tenant_id, warehouse_id, lower(courier)) WHERE status = 'open'`: satu manifest terbuka per gudang dan kurir. Diaudit saat dibuat dan diubah.
+
+**handover_item** (migrasi 0014): paket yang dipindai ke manifest. `handover_id → handover` CASCADE, `order_id → order` CASCADE (toko yang diputus tanpa data menghapus pesanannya dari manifest), `shipment_id → shipment` SET NULL, `tracking_number text NOT NULL` dan `order_number text NOT NULL` (yang dicetak di manifest), `scanned_by → user` SET NULL; UNIQUE `(tenant_id, handover_id, order_id)`, INDEX `(tenant_id, order_id)`. Pencarian kode: indeks `order (tenant_id, external_order_id)` dan `shipment_package (tenant_id, tracking_number)` parsial (migrasi 0014).
 
 #### 7.8.7 Retur
 
@@ -1185,6 +1192,10 @@ Aturan pemetaan status marketplace ke status internal:
 
 **document_job**: `queued → running → ready | failed`; `queued → failed`; `running → queued` (worker berhenti di tengah); `failed → queued`.
 
+**print_job** (8.24): `queued → sent → printed | failed`; `queued → failed` (dokumennya gagal); `cancelled` dari `queued`, `sent`, `failed`; `sent → queued` dan `failed → queued` (cetak ulang). `printed` final: mencetak lagi membuat pekerjaan baru.
+
+**handover** (8.24): `open → completed | cancelled`, sekali.
+
 **data_export**: `queued → running → ready | failed`; `queued → failed`. Tidak pernah diantrekan ulang: permintaan berikutnya membuat ekspor baru. Ekspor `queued` atau `running` yang tidak bergerak lebih dari 1 jam ditandai `failed` saat ada permintaan baru (8.18); job yang diserahkan BullMQ ke worker lain setelah worker pertama berhenti melanjutkan ekspor yang masih `running`.
 
 **return_request**: `requested → seller_review → accepted | rejected`; `accepted → in_transit → received → completed`; `rejected → disputed → accepted | completed`; `cancelled` dari `requested`, `seller_review`; `rto`: `requested → in_transit → received → completed`.
@@ -1251,6 +1262,7 @@ Diakses lewat `ctx()` dari `common/context`. Service menerima `ctx` sebagai para
 - `statement_timeout` 5 detik dan `idle_in_transaction_session_timeout` 10 detik ditetapkan pada role `omniseller_api` dan `omniseller_worker` (60 detik untuk `omniseller_system`). Pekerjaan panjang (impor, laporan) memecah pekerjaan menjadi banyak transaksi kecil.
 - `withSystemTx(handle, fn)` menolak pool selain `omniseller_system` dan menolak dipanggil di dalam transaksi tenant.
 - `withStatusSource(tx, 'marketplace', fn)` menandai perubahan status di dalam `fn` sebagai fakta dari marketplace (7.9) dan mengembalikannya ke `'app'` sesudahnya.
+- Kueri di dalam satu transaksi dijalankan satu per satu (`await` berurutan), tidak dengan `Promise.all`. Satu koneksi pg memang menjalankan satu kueri pada satu waktu. pg 8.23 sudah menandai kueri yang bertumpuk sebagai usang (DeprecationWarning), dan pg 9 akan menolaknya. Tempat terakhir yang masih bertumpuk dihapus di 8.24.
 - `tx.execute(sql...)` mentah mengembalikan `timestamptz` sebagai string (Drizzle menyerahkan tanggal ke pemeta kolomnya). Repository memakai query builder Drizzle agar tanggal menjadi `Date`; `int8` (uang, jumlah) selalu menjadi `number` lewat parser global yang menolak nilai di luar batas aman.
 
 ### 8.4 Repository
@@ -1953,6 +1965,129 @@ Diukur dengan proses sungguhan (api, webhook, worker, scheduler) terhadap Shopee
 - toko dengan 620 pesanan (20 di antaranya menahan stok), listing, dan log sinkronnya dihapus dalam 0,54 detik, dan stok yang ditahan kembali nol;
 - tanpa data pembeli di log.
 
+### 8.24 Agen cetak, scan untuk cetak, kemas dengan scan, serah terima kurir, dan visibilitas HPP
+
+Implementasi:
+- `src/realtime/`: `RealtimeGateway` (Socket.IO di proses api dengan adapter Redis) dan `REALTIME` (`Realtime`, emitter Redis yang dipakai semua proses);
+- modul `identity`: `DevicesService` dan `DevicesRepository` (baris `device`, token perangkat, `authenticate`), `PreTenantLookup.device`; `AuthGuard` menerima token perangkat di rute `@DeviceRoute`;
+- modul `fulfillment`: `PrintService` (pekerjaan cetak dan rute agen), `PrintAgentsService` (pasang, ubah, cabut, cetak percobaan), `ScanService` (pesanan dari kode yang dipindai, scan untuk cetak), `PackingService`, `HandoverService`; keputusan murni di `scan-plan.ts`; `renderManifest` dan `renderTestPage` di `pdf.ts`;
+- modul `orders`: `OrdersService.byCodeIn`, `packRefusalIn`, `packIn`, `lockIn`; `ManualOrdersService.shipIn` (kini di `OrdersModule`, dipakai api dan worker);
+- `common/cost-visibility.ts` (`seesCost`);
+- migrasi `0014_print_agent_packing_handover.sql`, `auth_resolve_device` dan `audit_row` (`10_functions.sql`), trigger audit `device` dan `handover`, transisi `print_job` dan `handover` (`90_seeds.sql`).
+
+PRD: FR-SHP-17, FR-SHP-04, FR-SHP-05; layar L06 (kemas dengan scan), L07 (printer tujuan dan antrean cetak), L08 (serah terima kurir), L41 ("Peran Gudang tidak bisa melihat harga dan laba"), L42 (daftar agen cetak dan cetak percobaan).
+
+**Agen cetak** (FR-SHP-17, DOKUMEN-TEKNOLOGI 12):
+- **Memasang.** `POST /v1/print-agents {name, warehouseId?}` (`settings:warehouse`) membuat baris `device` jenis `print_agent` dan mengembalikan token 256 bit satu kali; yang disimpan hanya hash-nya. Token ditempel di aplikasi agen. Komputer yang dipasang ulang mendapat agen baru, dan agen lamanya dicabut; tidak ada rotasi token.
+- **Masuk.** Agen mengirim `Authorization: Bearer <token>` ke rute `/v1/agent/*` (`@DeviceRoute("print_agent")`), dan `auth.token` saat handshake Socket.IO. Guard memakai `auth_resolve_device`:
+  - token tidak dikenal atau dicabut: 401 `auth.device_invalid`;
+  - status bisnis dan batas laju per tenant diperiksa seperti sesi;
+  - konteksnya pelaku `device`, tanpa izin dan tanpa cakupan; rute agen hanya menyentuh pekerjaan agen itu.
+
+  Rute sesi tidak membaca token perangkat, dan rute agen tidak membaca cookie sesi.
+- **Laporan agen.** `PUT /v1/agent/status {appVersion, printers}` dikirim saat agen mulai, setiap menit, dan saat printernya berubah. `last_seen_at` ditulis paling sering 30 detik sekali. Agen dianggap terhubung (`connected`) bila melapor dalam 2 menit terakhir.
+- **Printer.** `PATCH /v1/print-agents/{id} {labelPrinter, documentPrinter}` (`settings:warehouse`) memilih printer untuk label (thermal dan label barcode) dan untuk dokumen A4. Printer sebuah pekerjaan:
+  1. printer yang disebut permintaan;
+  2. bila tidak ada, printer agen untuk kertas dokumennya (`paperOf`);
+  3. bila kosong juga, printer bawaan komputer (`printer_name` NULL).
+- **Gudang.** Agen boleh terikat ke satu gudang. Pengguna dengan cakupan gudang hanya melihat dan memakai agen gudangnya dan agen tanpa gudang.
+- **Mencabut.** `DELETE /v1/print-agents/{id}` mengisi `revoked_at`, membatalkan pekerjaan yang belum tercetak, dan menutup koneksinya. Barisnya tetap untuk riwayat cetak. Pasang, ubah, dan cabut tercatat di `audit_log` tanpa hash token (`audit_row('device', 'token_hash')`: argumen setelah nama tabel adalah kolom yang tidak dicatat); laporan agen tidak tercatat.
+- **Cetak percobaan.** `POST /v1/print-agents/{id}/test-print {printer?}` (`shipment:print`) mencetak halaman 100 x 150 mm berisi:
+  - bingkai 3 mm dari tepi, untuk memeriksa margin;
+  - nama agen, printer, dan waktunya;
+  - barcode untuk mencoba pemindai.
+
+**Pekerjaan cetak.** Satu `print_job` mencetak satu dokumen (`document_job`). Mesin statusnya di 7.9. Alurnya:
+1. **Permintaan.** Dokumen dan pekerjaannya dibuat dalam satu transaksi. Sumber permintaan:
+   - `POST /v1/documents` dan `/v1/documents/barcode-labels` dengan `print: {deviceId, printer?, copies}`;
+   - `POST /v1/print-jobs {documentId, deviceId, ...}` (mencetak dokumen yang sudah ada);
+   - scan untuk cetak, kemas, dan manifest (di bawah).
+
+   Pekerjaan menunggu (`waitingForDocument`) sampai worker merender dokumennya.
+2. **Dokumen siap.** Worker (`DocumentRenderService`) memasang berkas ke pekerjaan yang menunggu, dalam transaksi yang sama dengan dokumen siap. Setelah commit, worker mengirim `print.job` ke room `device:<id>`. Dokumen yang gagal menggagalkan pekerjaannya dengan alasan yang sama.
+3. **Unduh.** Agen mengunduh `GET /v1/agent/print-jobs/{id}/file`: redirect 302 ke tautan R2 bertanda tangan 10 menit, atau berkasnya untuk penyimpanan lokal.
+   - Mengambil berkas membuat pekerjaan `sent`, dan `attempts` bertambah sekali per pengiriman.
+   - Mengambil ulang setelah agen dimulai ulang tidak mengubah apa pun.
+   - Pekerjaan yang dibatalkan atau sudah dilaporkan dijawab 409 `print_job.not_pending`; yang dokumennya belum jadi, 409 `print_job.not_ready`.
+4. **Laporan.** Agen melapor `POST /v1/agent/print-jobs/{id}/result {status: printed | failed, error?}`. Laporan yang sama dua kali tidak mengubah apa pun.
+
+Yang perlu diperhatikan:
+- **Yang terlewat.** Socket.IO tidak menjamin pengiriman. Agen membaca `GET /v1/agent/print-jobs` setelah tersambung dan setiap menit: pekerjaan `queued` yang berberkas dan pekerjaan `sent`, terlama dulu, paling banyak 50. Agen menyimpan id yang sudah tercetak, agar laporan yang hilang tidak membuatnya mencetak dua kali.
+- **Antrean** (L07, `shipment:print`):
+  - `GET /v1/print-jobs?deviceId&status`;
+  - `POST /v1/print-jobs/{id}/retry` untuk pekerjaan yang gagal atau macet di `sent`;
+  - `POST /v1/print-jobs/{id}/cancel`; agen menerima `print.cancelled`.
+
+  Pengguna dengan cakupan toko atau gudang hanya melihat permintaannya sendiri, seperti dokumen. Dokumen menampilkan pekerjaan terbarunya (`printJob`).
+- **Berkas kedaluwarsa.** `print_job.file_object_id` kini SET NULL saat berkas kedaluwarsa dihapus. RESTRICT yang lama akan memblok pembersihan per jam. Pekerjaan yang berkasnya hilang tidak bisa diulang (409 `print_job.file_expired`); buat dokumennya lagi.
+
+**Realtime** (DOKUMEN-TEKNOLOGI 7.3):
+- **Server.** `RealtimeGateway` memasang Socket.IO 4.8 ke server HTTP api (path `/socket.io`), dengan `@socket.io/redis-adapter` di Redis cache.
+- **Mendorong.** Semua proses mendorong lewat `REALTIME` (`@socket.io/redis-emitter`), jadi event dari worker sampai ke instans api mana pun yang memegang koneksi. Kirim hanya setelah commit (`PrintService.push`): agen bisa mengunduh sebelum baris yang belum di-commit terlihat. Gagal publish ke Redis hanya dicatat; agen menyusul lewat daftar REST.
+- **Transport.** Agen memakai WebSocket saja, karena polling HTTP butuh sticky session antarinstans.
+- **Berhenti.** Gateway menutup koneksi dan adapternya, bukan server HTTP. `io.close()` milik Socket.IO menutup server HTTP lebih dulu, padahal Nest menutupnya setelah hook shutdown.
+- Sesi browser bergabung bersama aplikasi web.
+
+**Scan untuk cetak** (FR-SHP-17). `POST /v1/print-jobs/scan {code, deviceId, printer?, copies?, format?, template?, packingList?}` (`shipment:print`, 201):
+- **Kode.** Yang dicari (`ScanService.orderIn`): nomor pesanan marketplace atau manual, resi pesanan, resi pengiriman, atau resi paket. Kode dicocokkan persis atau dalam huruf besar, dalam cakupan pengguna.
+  - Tidak ada: 404 `scan.not_found`.
+  - Lebih dari satu: 409 `scan.ambiguous`.
+- **Label.** Pesanan marketplace butuh pengiriman yang sudah diatur dan label setiap paketnya; label pesanan manual digambar OmniSeller. Penolakannya 409 dengan kode yang sama seperti dokumen label: `shipment.not_arranged`, `label.not_ready`, `shipment.shipped`, `order.cancelled`, `order.unpaid`.
+- **Hasil.** Dokumen `labels` untuk satu pesanan beserta pekerjaannya. Label sampai ke agen begitu worker merendernya.
+
+**Kemas dengan scan** (FR-SHP-04, L06; `shipment:pack`):
+- **Membuka pesanan.** `GET /v1/packing/lookup?code=` memberi:
+  - pesanan dan catatan pembeli;
+  - baris yang harus masuk paket, satu per varian: SKU, barcode, nama, gambar, jumlah;
+  - alasan bila pesanan belum bisa dikemas (`packRefusal`, aturan "Tandai dikemas") atau labelnya belum bisa dicetak (`labelRefusal`).
+- **Memindai.** Stasiun menghitung setiap pindaian. Satu kode cocok dengan sebuah baris lewat barcode, SKU tanpa membedakan huruf besar, SKU di pesanan, atau `key` baris. `key` dipakai untuk menghitung manual barang tanpa kode.
+- **Selesai.** `POST /v1/packing/orders/{id}/complete {scans: [{code, qty}], print?}` memeriksa ulang di server (`checkPacking`):
+  - jumlah setiap baris harus sama persis, dan tidak boleh ada kode asing;
+  - bila tidak cocok: 422 `packing.mismatch` dengan baris yang berbeda dan kode asingnya;
+  - bila cocok: pesanan dikemas lewat `OrdersService.packIn`, dengan riwayat `{verified: "scan", units}`. Toko baca saja, pesanan bermasalah, dan status lain ditolak seperti "Tandai dikemas".
+- **Cetak label dan lanjut.** Dengan `print`, label dikirim ke agen. Label yang belum bisa dicetak tidak membatalkan pengemasan; jawabannya membawa `printRefusal`.
+
+**Serah terima kurir** (FR-SHP-05, L08; `shipment:handover`):
+- **Manifest.** Satu manifest terbuka per gudang dan kurir (indeks unik parsial pada `lower(courier)`), jadi dua stasiun mengisi manifest yang sama. Nomornya `MNF-YYMM-NNNN` dari `document_sequence` per bulan, menurut zona waktu bisnis. `POST /v1/handovers {warehouseId, courier}` mengembalikan manifest yang terbuka, atau membukanya.
+- **Pilihan kurir.** `GET /v1/handovers/couriers?warehouseId=` menghitung paket yang menunggu kurir: pengiriman `packed` dan pesanan manual yang sudah dikemas, paling banyak 2.000 per jenis.
+- **Memindai.** `POST /v1/handovers/{id}/scan {code}` menerima resi atau nomor pesanan (`handoverRefusal`):
+  - paket harus dari gudang manifest dan untuk kurir yang sama. Nama kurir dibandingkan tanpa huruf besar, spasi, dan tanda baca, dan boleh berupa awalan: "JNE" menerima "JNE Reguler", "J&T Express" tidak menerima "J&T Cargo";
+  - pesanan marketplace harus dikemas dengan labelnya (pengiriman `packed`); pesanan manual dikemas atau siap kirim, dengan alamat;
+  - ditolak: dibatalkan, belum dikemas, sudah diserahkan, dikirim marketplace, atau sudah ada di manifest terbuka lain (`handover.scanned_elsewhere`).
+
+  Memindai ulang paket yang sama tidak menambah apa pun (`duplicate: true`). Kunci baris pesanan mencegah satu paket masuk ke dua manifest bersamaan. Pesanan dengan beberapa paket tercatat sekali, dengan resi yang dipindai pertama.
+- **Koreksi.** `DELETE /v1/handovers/{id}/items/{itemId}` mengeluarkan paket yang salah pindai. `POST /v1/handovers/{id}/cancel` membatalkan manifest terbuka; paketnya boleh dipindai ke manifest lain.
+- **Menyelesaikan.** `POST /v1/handovers/{id}/complete {receivedBy?, print?}` memeriksa ulang setiap paket. Pesanan yang dibatalkan setelah dipindai tidak boleh pergi: 409 `handover.items_invalid` mendaftar paketnya sampai dikeluarkan. Bila semua lolos, dalam satu transaksi:
+  - pengiriman marketplace menjadi `handed_over` (`handed_over_at`, `handed_over_by`) dengan riwayat pesanan `handed_over`. Pesanan tetap Siap Dikirim sampai marketplace melaporkan pickup kurir; saat itu pengiriman menjadi `in_transit`;
+  - pesanan manual dikirim (`ManualOrdersService.shipIn`): kurir manifest bila pesanan belum punya kurir, resi yang dipindai, dan stok yang ditahan keluar gudang.
+
+  Kunci diambil untuk pengiriman dulu, lalu pesanan. Urutannya sama dengan worker saat pengiriman mengikuti pesanannya, jadi keduanya tidak saling menunggu.
+- **Manifest PDF** (`handover_manifest`, A4, dirender worker), tanpa data pembeli:
+  - nomor, bisnis, gudang dan alamatnya, kurir, waktu selesai, dan jumlah paket;
+  - satu baris per paket: resi, nomor pesanan, toko, dan waktu pindai;
+  - kotak tanda tangan "Diserahkan oleh (gudang)" berisi pengguna yang menyelesaikan, dan "Diterima oleh (kurir)" berisi `receivedBy`.
+
+  Dicetak di agen dengan `print`, atau dibuat lagi lewat `POST /v1/handovers/{id}/manifest`.
+- **Riwayat.** `GET /v1/handovers?status&warehouseId` dan `GET /v1/handovers/{id}` (dengan paket). Ekspor data penuh memuat `serah_terima.csv`, satu baris per paket. Agen cetak dan pekerjaan cetak tidak ikut diekspor: keduanya data operasional berumur pendek, seperti `document_job`.
+
+**Visibilitas HPP** (L41). HPP, dan angka yang mengungkapkannya, hanya terlihat oleh pemegang `finance:read` (`seesCost`), izin yang sudah membuka laba kotor di dasbor. Tanpa izin itu:
+- `costPrice` produk bernilai `null` di daftar, detail, dan jawaban perubahan;
+- perubahan HPP di riwayat produk tampil tanpa nilai (`hidden: true`);
+- kolom `hpp` ekspor CSV produk kosong; mengimpor ulang berkas itu tidak mengubah HPP;
+- `value` ringkasan stok bernilai `null`.
+
+Mengisi HPP tetap dengan `catalog:write`. Ekspor data penuh (`data:export`) dan log audit (`audit:read`) tetap utuh. Harga jual tetap terlihat, karena ada di pesanan dan di marketplace.
+
+Ini perubahan kontrak API: `costPrice` (produk) dan `value` (ringkasan stok) kini bisa `null`, dan `oasdiff` menandainya memutus kompatibilitas. Belum ada klien yang memakainya, jadi PR-nya diberi label `api-breaking` saat digabung (10.4).
+
+Diukur dengan proses sungguhan (api, worker, scheduler) dan agen tiruan yang tersambung lewat Socket.IO, 100 pesanan manual:
+- stasiun kemas, buka pesanan lalu selesai: p50 11 ms, p95 13 ms per pesanan;
+- label sampai di agen setelah pesanan dikemas (relay outbox, render worker, Redis, Socket.IO): p50 46 ms, p95 55 ms, paling lama 103 ms; PDF label sekitar 17 KB;
+- pindai serah terima: p50 4 ms, p95 6 ms;
+- menyelesaikan 100 paket (100 pesanan manual dikirim, stok keluar gudang): 0,42 detik; manifest 3 halaman A4 (30 KB) sampai di agen 0,25 detik kemudian;
+- pencarian kode dengan 300.000 pesanan di satu bisnis: 0,37 ms (BitmapOr atas indeks nomor pesanan dan resi);
+- tanpa data pembeli, token, atau DeprecationWarning pg di log.
+
 ---
 
 ## 9. Pekerjaan Latar dan Penjadwalan
@@ -2163,16 +2298,16 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `order:read` | `GET /v1/orders*` |
 | `order:accept`, `order:cancel`, `order:tag` | Aksi pesanan; `order:accept` juga memindah gudang pesanan, `order:tag` juga tag dan catatan internal (8.21) |
 | `order:write` | Pesanan manual: buat, ubah, tandai dibayar, selesai (8.21) |
-| `shipment:arrange`, `shipment:print`, `shipment:handover` | Pengiriman; `shipment:handover` juga menandai pesanan manual dikirim (8.21) |
+| `shipment:arrange`, `shipment:print`, `shipment:pack`, `shipment:handover` | Pengiriman; `shipment:print` juga daftar agen cetak, antrean cetak, cetak percobaan, dan scan untuk cetak; `shipment:pack` kemas dengan scan; `shipment:handover` serah terima kurir dan menandai pesanan manual dikirim (8.21, 8.24) |
 | `inventory:read`, `inventory:adjust`, `inventory:count`, `inventory:transfer` | Stok |
 | `catalog:write`, `catalog:publish`, `catalog:map` | Katalog |
 | `price:write`, `promo:write` | Harga dan promosi |
-| `finance:read`, `finance:reconcile`, `finance:export` | Keuangan; `finance:read` juga membuka laba kotor di dasbor (8.16) |
+| `finance:read`, `finance:reconcile`, `finance:export` | Keuangan; `finance:read` juga membuka laba kotor di dasbor (8.16), HPP produk dan riwayatnya, kolom HPP ekspor produk, dan nilai persediaan (8.24) |
 | `report:read` | Penjualan, grafik, dan produk terlaris di `GET /v1/dashboard` (8.16); laporan penjualan `GET /v1/reports/sales*` (8.20); menerima ringkasan email harian secara bawaan |
 | `data:export` | `/v1/exports*`: ekspor seluruh data bisnis (8.18). Hanya Owner secara bawaan; peran bawaan Owner selalu memegang semua izin, termasuk yang ditambahkan kemudian (seed) |
 | `audit:read` | `GET /v1/audit-logs` |
 | `chat:read`, `chat:write`, `chat:assign` | Chat |
-| `settings:store`, `settings:warehouse`, `settings:user`, `settings:billing` | Pengaturan; `settings:store` juga saluran pesanan manual, `settings:warehouse` menambah, mengubah, dan menghapus gudang (8.21) |
+| `settings:store`, `settings:warehouse`, `settings:user`, `settings:billing` | Pengaturan; `settings:store` juga saluran pesanan manual, `settings:warehouse` menambah, mengubah, dan menghapus gudang (8.21) serta memasang, mengubah, dan mencabut agen cetak (8.24) |
 | `research:read`, `research:write` | Riset |
 | `admin:internal` | UI admin internal OmniSeller (bukan tenant) |
 
@@ -2242,6 +2377,15 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `PUT /v1/label-template` | `settings:warehouse` | Ubah template label kustom (sebagian kolom) |
 | `POST /v1/pick-lists` | `shipment:print` | Pick list sebagai data: per gudang, urut rak |
 | `GET /v1/files/{id}/download` | `shipment:print` | PDF label atau dokumen: redirect ke tautan R2 10 menit, atau berkasnya (penyimpanan lokal) |
+| `GET /v1/print-agents`, `GET /v1/print-agents/{id}` | `shipment:print` | 8.24. Agen cetak dengan printer yang dilaporkan dan status terhubung |
+| `POST /v1/print-agents`, `PATCH /v1/print-agents/{id}`, `DELETE /v1/print-agents/{id}` | `settings:warehouse` | Pasang agen (201, token sekali tampil), printer label dan A4, cabut (204) |
+| `POST /v1/print-agents/{id}/test-print` | `shipment:print` | Halaman uji 100 x 150 mm ke agen (201) |
+| `GET /v1/print-jobs`, `GET /v1/print-jobs/{id}`, `POST /v1/print-jobs`, `POST /v1/print-jobs/{id}/retry`, `POST /v1/print-jobs/{id}/cancel` | `shipment:print` | Antrean cetak; cetak dokumen yang ada ke agen (201); ulang dan batal |
+| `POST /v1/print-jobs/scan` | `shipment:print` | Scan untuk cetak: label pesanan dari nomor pesanan atau resi ke agen (201) |
+| `PUT /v1/agent/status`, `GET /v1/agent/print-jobs`, `GET /v1/agent/print-jobs/{id}/file`, `POST /v1/agent/print-jobs/{id}/result` | Token agen cetak (`Bearer`) | Rute aplikasi agen: laporan printer, pekerjaan tertunda, berkas (302 ke R2 atau berkasnya), hasil cetak; push lewat Socket.IO `/socket.io` |
+| `GET /v1/packing/lookup?code=`, `POST /v1/packing/orders/{id}/complete` | `shipment:pack` | Kemas dengan scan: isi paket dari kode, lalu periksa dan kemas (422 `packing.mismatch`), label ke agen bila diminta |
+| `GET /v1/handovers`, `POST /v1/handovers`, `GET /v1/handovers/couriers`, `GET /v1/handovers/{id}` | `shipment:handover` | Manifest serah terima: riwayat, buka per gudang dan kurir, kurir yang ditunggu paket, isi manifest |
+| `POST /v1/handovers/{id}/scan`, `DELETE /v1/handovers/{id}/items/{itemId}`, `POST /v1/handovers/{id}/complete`, `POST /v1/handovers/{id}/cancel`, `POST /v1/handovers/{id}/manifest` | `shipment:handover` | Pindai paket, keluarkan, selesaikan (serahkan dan kirim, manifest PDF), batal, buat manifest lagi (202) |
 | `GET /v1/notifications`, `GET /v1/notifications/unread-count`, `POST /v1/notifications/read` | Masuk saja (milik sendiri) | Notifikasi in-app pengguna (FR-NTF-01, 8.17) |
 | `GET /v1/notifications/preferences`, `PUT /v1/notifications/preferences/{kind}` | Masuk saja (milik sendiri) | Preferensi notifikasi; sekarang email ringkasan harian `digest.daily` (8.20) |
 | `GET /v1/dashboard` | `order:read` | 8.16. `range` `today`, `7d`, `30d`; `storeId`; bagian tanpa izin bernilai `null` |
@@ -2260,14 +2404,14 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 
 | Modul | Tabel yang dimiliki (hanya modul ini yang menulis) | Event diterbitkan | Event dikonsumsi | Job utama |
 |---|---|---|---|---|
-| `identity` | `tenant`, `user`, `role`, `permission`, `role_permission`, `user_role`, `user_store_scope`, `user_warehouse_scope`, `invitation`, `api_key`, `device`; membuat gudang `UTAMA` saat daftar lewat repository-nya sendiri sampai modul `inventory` ada | `invitation.send_requested`; menyusul `tenant.created`, `user.role_changed` | `subscription.changed` (menyusul) | `identity.invite_email` (antrean `notify`) |
+| `identity` | `tenant`, `user`, `role`, `permission`, `role_permission`, `user_role`, `user_store_scope`, `user_warehouse_scope`, `invitation`, `api_key`, `device` (lewat `DevicesService`: token perangkat dan `authenticate`, dipakai `AuthGuard` dan `RealtimeGateway`; aturan agen cetak di `fulfillment`); membuat gudang `UTAMA` saat daftar lewat repository-nya sendiri sampai modul `inventory` ada | `invitation.send_requested`; menyusul `tenant.created`, `user.role_changed` | `subscription.changed` (menyusul) | `identity.invite_email` (antrean `notify`) |
 | `auth` | `password_reset_token`, `refresh_token` (menyusul bersama mobile), sesi di Redis | `password_reset.requested` | | `auth.password_reset_email` (antrean `notify`) |
 | `channel` | `store`, `store_credential`, `store_authorization`, `channel_warehouse`, `sync_cursor`; `tenant_key` lewat `TokenVault` (dipakai bersama rahasia tenant lain) | `store.authorization_received`, `store.connected`, `store.disconnected`, `store.data_deletion_requested`, `store.reauth_required`, `store.warehouses_sync_requested`, `channel_warehouse.changed`, `channel_warehouse.mapping_changed`, `store.sync_mode_changed` | Notifikasi otorisasi dari webhook; `channel_warehouse.changed` (notifikasi) | `store.authorize`, `store.warehouses_sync`, `store.webhooks_subscribe`, `store.token_refresh`, `store.warehouses_notice`, `store.connection_check` (FR-INT-08). Gangguan koneksi dicatat `MarketplaceGateway` di `store.failing_since` (8.23). Impor awal produk dijalankan `catalog` dari `store.connected`; impor pesanan 90 hari oleh `orders`. Saluran pesanan manual (`channel = 'manual'`, 8.21) dibuat di sini dan dilewati semua pekerjaan marketplace |
 | `catalog` | `product`, `variant`, `product_image`, `bundle_component`, `channel_listing`; mengekspor view `catalog_variant_v`. Membaca toko dan `sync_cursor` lewat `StoresService` (milik `channel`) | `listing.pull_requested`, `listing.status_push_requested`, `listing.mapped`, `listing.unmapped`; menyusul `variant.price_changed`, `variant.cost_changed`, `listing.price_push_requested` | `store.connected`; webhook `listing.changed` | `listing.pull`, `listing.status_push`; menyusul `listing.price_push`, `listing.copy`. Riwayat produk dibaca lewat `AuditService.entriesIn`, nama pelaku lewat `UsersService` (8.23) |
 | `inventory` | `warehouse` (ditulis `WarehouseAdminService`, kecuali gudang pertama saat daftar), `inventory`, `stock_movement`, `stock_allocation_rule`, `listing_stock_state`, `stock_count`, `stock_count_line`, `stock_transfer`, `stock_transfer_line`, `campaign_stock_hold`. Membaca listing lewat `ListingsService`, toko dan gudang marketplace lewat `StoresService`, varian lewat view `catalog_variant_v`, penjualan per varian dan gudang untuk perlu restock lewat `OrdersService.unitsByStockIn` (`InventoryStockModule`, 8.20). `InventoryModule` (berkas `inventory-core.module.ts`) tidak mengimpor modul lain, karena `channel` bergantung padanya | `inventory.changed`, `stock.resync_requested`; menyusul `inventory.low_stock` | `listing.mapped`, `listing.unmapped`, `store.sync_mode_changed`, `channel_warehouse.changed`, `channel_warehouse.mapping_changed`; menyusul `order.status_changed`, `return.received`, `goods.received`, `campaign.started`, `campaign.ended` | `stock.mark_dirty`, `stock.push`, `stock.listing_mapped`, `stock.listing_unmapped`, `stock.store_resync` |
 | `purchasing` | `supplier`, `purchase_order`, `purchase_order_line`, `goods_receipt`, `goods_receipt_line`, `document_sequence` | `goods.received`, `purchase_order.status_changed` | `inventory.low_stock` | |
 | `orders` | `order`, `order_external_ref`, `order_item`, `order_event`, `order_problem`, `tag`, `order_tag`, `pick_wave`. Stok lewat `InventoryService.orderMovementsIn` dan `allocateIn` (alokasi, 8.21), listing lewat `ListingsService`, toko dan saluran manual lewat `StoresService` (`manualStoreIn`), zona waktu lewat `TenantsService`, penerima peringatan lewat `UsersService`, notifikasi lewat `NotificationInboxService`. Pesanan manual dan tag hanya di api (`ManualOrdersService`, `TagsService`) | `order.pull_requested`, `order.cancel_requested`, `order.status_changed`; menyusul `order.created` | `store.connected`, `store.disconnected`, `listing.mapped`, `inventory.changed`; webhook `order.status_changed`, `order.tracking_updated`; menyusul `return.status_changed` | `order.pull`, `order.cancel`, `order.listing_mapped`, `order.stock_recheck`, `order.sla_alert`, `order.store_disconnected`; menyusul `order.auto_process` |
-| `fulfillment` | `shipment`, `shipment_package`, `document_job`, `label_template`, `print_job`. Pesanan lewat `OrdersService` dan `OrderIntakeService` (langkah status, riwayat, resi, tag untuk label dan daftar kemas), lokasi rak lewat `InventoryService.pickInfoIn`, alamat gudang lewat `WarehousesService`, nama bisnis untuk label pesanan manual lewat `TenantsService`, toko (nama, bisa dipakai) lewat `StoresService`, berkas lewat `FilesService` | `shipment.arrange_requested`, `shipment.label_requested`, `shipment.tracking_requested`, `document.requested`; menyusul `shipment.status_changed`, `print.requested` | `order.status_changed`; webhook `order.tracking_updated`, `shipment.document_ready` | `shipment.arrange`, `label.fetch`, `document.render`, `shipment.follow_order`, `shipment.tracking_pull` |
+| `fulfillment` | `shipment`, `shipment_package`, `document_job`, `label_template`, `print_job`, `handover`, `handover_item`. Pesanan lewat `OrdersService` dan `OrderIntakeService` (langkah status, riwayat, resi, tag untuk label dan daftar kemas; `byCodeIn`, `packIn`, `lockIn` untuk pindai, kemas, dan serah terima), pesanan manual dikirim lewat `ManualOrdersService.shipIn`, lokasi rak lewat `InventoryService.pickInfoIn`, alamat gudang lewat `WarehousesService`, nama bisnis untuk label pesanan manual lewat `TenantsService`, toko (nama, bisa dipakai) lewat `StoresService`, berkas lewat `FilesService`, baris agen cetak lewat `DevicesService`, push ke agen lewat `REALTIME` (8.24) | `shipment.arrange_requested`, `shipment.label_requested`, `shipment.tracking_requested`, `document.requested`; menyusul `shipment.status_changed`, `print.requested` | `order.status_changed`; webhook `order.tracking_updated`, `shipment.document_ready` | `shipment.arrange`, `label.fetch`, `document.render`, `shipment.follow_order`, `shipment.tracking_pull` |
 | `returns` | `return_request`, `return_item` | `return.status_changed`, `return.received` | `webhook.received`, `shipment.status_changed` | `return.pull`, `return.respond` |
 | `sync` | `webhook_inbox`, `sync_job`, `outbox_event` | | | `webhook.process` (antrean `webhook`); di scheduler: `outbox.relay`, `webhook.inbox_sweep` |
 | `finance` | `fee_schedule`, `settlement`, `settlement_line`, `order_cost`, `tax_document`, `expense`, `receivable`, `receivable_entry` | `settlement.imported`, `order_cost.computed`, `tax.threshold_reached` | `order.status_changed`, `return.status_changed`, `affiliate.recorded` | `settlement.pull`, `settlement.import`, `order_cost.compute` |
@@ -2369,7 +2513,7 @@ Role dan database dibuat di luar migrasi, karena role berlaku untuk seluruh klas
 - Setiap service publik memiliki uji integrasi untuk jalur sukses dan setiap error domain yang dapat dilemparnya.
 - Setiap transisi status di 7.9 memiliki uji: transisi sah lulus, transisi tidak sah ditolak trigger, efek stok benar.
 - Setiap job memiliki uji handler yang memanggil `handler(payload, helpers)` langsung, dengan connector di-mock.
-- Uji isolasi tenant dibuat otomatis dari dokumen OpenAPI. Setiap operasi wajib membawa `x-isolation`: `public` (tanpa sesi), `self` (hanya data pemanggil), `global` (katalog bersama seperti daftar izin), atau `{ fixture: <jenis> }`. Untuk jenis fixture, uji membuat sumber daya di tenant A lalu memanggil sebagai Owner tenant B: operasi dengan `{id}` harus 404, daftar tidak boleh memuat id milik A, pembuatan tidak boleh menyentuh A (404, 412, atau 422), dan data A diperiksa utuh di akhir. Operasi tanpa `x-isolation`, jenis fixture tanpa pembuat, atau operasi tulis tanpa contoh body di `BODIES` menggagalkan uji.
+- Uji isolasi tenant dibuat otomatis dari dokumen OpenAPI. Setiap operasi wajib membawa `x-isolation`: `public` (tanpa sesi), `self` (hanya data pemanggil), `global` (katalog bersama seperti daftar izin), atau `{ fixture: <jenis> }`. Untuk jenis fixture, uji membuat sumber daya di tenant A lalu memanggil sebagai Owner tenant B: operasi dengan `{id}` harus 404, daftar tidak boleh memuat id milik A, pembuatan tidak boleh menyentuh A (404, 412, atau 422), dan data A diperiksa utuh di akhir. Operasi tanpa `x-isolation`, jenis fixture tanpa pembuat, atau operasi tulis tanpa contoh body di `BODIES` menggagalkan uji. Rute agen cetak memakai `{ fixture: <jenis>, actor: "device" }`: uji memanggilnya dengan token agen milik tenant B, bukan sesi (8.24).
 - Uji tidak memakai `sleep`. Pekerjaan asinkron diuji dengan memanggil relay dan handler secara eksplisit.
 - Data pribadi di fixture selalu palsu (nama dan nomor telepon buatan).
 
@@ -2666,3 +2810,4 @@ Berkas `.env.example` adalah versi yang berlaku. Kunci dikelompokkan per peran p
 | 1.12 | 4 Oktober 2026 | Banyak gudang fisik, pesanan manual, alokasi gudang otomatis, dan tag pesanan diimplementasikan (8.21 baru, PRD MVP-2: FR-STK-01, FR-WHS-08, 10, FR-ORD-04, 09, 12). Gudang: tambah, ubah dengan `If-Match`, gudang utama, hapus lunak hanya bila tidak dipakai (stok, pesanan terbuka, toko, pemetaan), alamat sebagai pengirim label dan provinsi baku untuk alokasi, audit. Notifikasi `store.warehouses_changed` saat gudang marketplace berubah (FR-WHS-10). Pesanan manual di saluran berkanal `manual`: pembeli, alamat, baris dengan harga, ongkir, diskon, cara bayar, nomor `MN-YYMM-NNNN`, Idempotency-Key di basis data, bayar, kirim dengan resi, selesai, ubah detail, batal langsung; label 100 x 150 mm digambar OmniSeller dengan pengirim dari gudang (FR-WHS-08). Alokasi: gudang terdekat (provinsi, lalu pulau) yang memegang semua barang, untuk pesanan manual dan, bila diaktifkan, toko tanpa multi-gudang; pindah gudang sebelum dikemas kecuali toko multi-gudang. Tag: daftar tag, pasang dan lepas massal, filter, kolom ekspor. Migrasi 0011: `order.payment_method`, `document_sequence`, `idempotency_record`, batasan `tag`; view `catalog_variant_v` mendapat `base_price` dan `weight_g`; trigger audit `warehouse`; job 9.2; pemindaian 9.5 melewati saluran manual; header 10.2; izin 10.5; endpoint 10.6; peta modul 11 | Candra Syahputra |
 | 1.13 | 4 Oktober 2026 | Pelacakan paket, daftar kemas, dan template label kustom diimplementasikan (8.22 baru, PRD FR-SHP-03, 07, 16). Pelacakan: connector `fulfillment.tracking` (Shopee `get_tracking_info` per pesanan atau per paket untuk pesanan yang dipecah, TikTok Shop Get Tracking 202309 dengan tabel Action_Code_Name), sembilan tahap paket, gabungan paket, kejadian disimpan di `shipment`, pengiriman adopsi untuk pesanan yang dikirim lewat Seller Center, pemindaian 30 menit, "Perbarui" sekali per 10 menit, tahap dari status untuk pesanan manual. Pelacakan adalah pekerjaan latar di antrean `mp.track`: paling banyak 30% batas laju toko (bucket `...:background`, 8.6), gangguan sementara menunda sisa pesanan ke pemindaian berikutnya, dan pesanan yang baru dibaca job lain dilewati. Daftar kemas per pesanan, bersama label atau sendiri. Template label kustom: strip 30 mm di bawah label marketplace (SKU, varian, rak, catatan, tag) tanpa menimpa label, dengan pratinjau PDF. Perbaikan: push Shopee kode 15 dilanggan (sebelumnya dibaca tetapi tidak pernah dikirim Shopee). Migrasi 0012: kolom `tracking_*` di `shipment`, `document_job.kind` `packing_list`, tabel `label_template`; pekerjaan latar di gateway (8.6; DOKUMEN-TEKNOLOGI 1.12, antrean `mp.track`); daftar bagian connector (8.6); job 9.2; pemindaian 9.5; endpoint 10.6; peta modul 11 | Candra Syahputra |
 | 1.14 | 4 Oktober 2026 | Putus toko, peringatan koneksi, riwayat produk, dan barcode diimplementasikan (8.23 baru, PRD FR-INT-07, 08, FR-PRD-11, 12). Putus toko dengan pilihan simpan data: stok yang ditahan pesanan terbuka dilepas, pesanan itu keluar dari antrean kerja, dan toko di marketplace bebas dihubungkan bisnis lain (indeks unik parsial, `resolve_store` mendahulukan toko yang dipakai). Tanpa menyimpan data, modul baru `retention` menghapus pesanan beserta pengiriman, listing, log sinkron, gudang marketplace, dan aturan alokasinya bertahap; label dan dokumen PDF berdata pembeli kedaluwarsa seketika; baris toko tetap sebagai penanda agar cakupan pengguna tidak melebar. Peringatan koneksi: gangguan dicatat gateway, pemindaian 5 menit, notifikasi in-app dan email setelah 15 menit lalu pemberitahuan pulih; email notifikasi lewat job `notification.email`; preferensi terkunci. Riwayat produk dari audit semua kolom produk dan varian. Barcode: validasi check digit GS1, EAN-13 internal awalan 20, pencarian lewat pindai, dan dokumen label barcode (EAN-13, EAN-8, Code 128) untuk label 50 x 30, 40 x 30, dan A4 3 x 10. Migrasi 0013: indeks unik toko parsial, kolom penghapusan data dan kesehatan koneksi di `store`, trigger audit lama produk dan varian dihapus (penggantinya di `20_triggers.sql`), `document_job.kind` `barcode_labels`; 7.7, 7.8.2, 7.8.6, 7.8.12, 8.6, 8.11; job 9.2; pemindaian 9.5; endpoint 10.6; peta modul 11 | Candra Syahputra |
+| 1.15 | 4 Oktober 2026 | Agen cetak, scan untuk cetak, kemas dengan scan, serah terima kurir, dan visibilitas HPP diimplementasikan (8.24 baru, PRD FR-SHP-17, 04, 05; UI L06, L07, L08, L41, L42). Agen cetak dipasang dengan token perangkat sekali tampil, masuk lewat `Authorization: Bearer` di rute `/v1/agent/*` dan handshake Socket.IO, melaporkan printernya, dan menerima `print.job` setelah worker merender dokumen; Socket.IO di proses api dengan adapter dan emitter Redis (`src/realtime/`, DOKUMEN-TEKNOLOGI 1.14). Pekerjaan cetak dari dokumen, scan nomor pesanan atau resi, kemas, dan manifest; printer label dan A4 per agen; antrean dengan ulang dan batal; cabut agen membatalkan antreannya. Kemas dengan scan memeriksa SKU dan jumlah di server lalu mengemas dengan aturan "Tandai dikemas". Serah terima: satu manifest terbuka per gudang dan kurir, pindai dengan pemeriksaan gudang, kurir, dan status, selesai semua atau tidak sama sekali (pengiriman marketplace `handed_over`, pesanan manual dikirim), manifest PDF A4 dengan tanda tangan kurir. HPP, riwayatnya, kolom HPP ekspor produk, dan nilai persediaan hanya untuk `finance:read`. Migrasi 0014: kolom printer `device`, `print_job` menunggu dokumen (berkas SET NULL, `document_id`, `title`, `sent_at`, `status_changed_at`, jenis `test`), tabel transisi `print_job` dan `handover`, tabel `handover` dan `handover_item`, jenis dokumen `handover_manifest` dan `test_page`, indeks kode pindai; `auth_resolve_device` dengan status bisnis, `audit_row` dengan kolom yang dilewati. Kueri di dalam transaksi kini selalu berurutan (8.3), karena `Promise.all` di satu koneksi memicu DeprecationWarning pg; 7.5, 7.7, 7.8.1, 7.8.6, 7.9; izin 10.5; endpoint 10.6; peta modul 11; uji isolasi 13.3 | Candra Syahputra |

@@ -100,6 +100,13 @@ export const passwordResetToken = pgTable("password_reset_token", {
   usedAt: tstz("used_at"),
 });
 
+/** A printer as the print agent reported it (backend doc 8.24). */
+export interface ReportedPrinter {
+  name: string;
+  /** The computer's default printer. */
+  isDefault: boolean;
+}
+
 export const device = pgTable("device", {
   ...baseColumns(),
   kind: text("kind").$type<"print_agent" | "mobile">().notNull(),
@@ -109,6 +116,9 @@ export const device = pgTable("device", {
   appVersion: text("app_version"),
   lastSeenAt: tstz("last_seen_at"),
   revokedAt: tstz("revoked_at"),
+  printers: jsonb("printers").$type<ReportedPrinter[]>().notNull().default([]),
+  labelPrinter: text("label_printer"),
+  documentPrinter: text("document_printer"),
 });
 
 export const refreshToken = pgTable("refresh_token", {

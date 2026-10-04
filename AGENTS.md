@@ -49,6 +49,9 @@ pnpm test:int            # needs TEST_PG_ADMIN_URL + TEST_REDIS_URL, or Docker f
 - `src/common/csv.ts`: CSV for spreadsheets; `src/common/time-zone.ts`: dates in the business's time zone; `src/common/export-sheet.ts`: `ExportSheet`, one per exported table
 - `src/modules/migration/`: imports from other apps (`import-plan.ts`: fields, per-app header synonyms, row conversion; `sheet.ts`, `xlsx.ts`: file readers), parallel mode and cutover; `src/modules/inventory/stock-comparison.service.ts`: marketplace stock against what OmniSeller would send
 - `test/setup/mock-marketplace.ts`: fake Shopee and TikTok Shop that enforce the documented signatures and token rules, including order packages, arranging shipment, tracking numbers, and label PDFs
+- `src/realtime/`: `RealtimeGateway` (Socket.IO on the api's HTTP server, Redis adapter, device-token handshake) and `REALTIME` (Redis emitter every process uses: `toDevice`, `disconnectDevice`)
+- `src/modules/fulfillment/`: `print.service.ts` (print jobs and the agent's routes), `print-agents.service.ts` (pairing, printers, revoking, test page), `scan.service.ts` (`orderIn`: the order behind a scanned order or tracking number), `packing.service.ts`, `handover.service.ts`, and their pure rules in `scan-plan.ts`; `src/modules/identity/devices.service.ts`: device rows and tokens
+- `src/common/cost-visibility.ts`: `seesCost(ctx)`, who may see cost prices
 
 ## How to add things
 Module: section 15.4. Table: 15.5 (write the SQL migration first, then the Drizzle mirror). Endpoint: 15.6. Job: 15.7. Connector: 15.8. Event: 15.9.
@@ -103,6 +106,14 @@ NestJS injection always uses explicit `@Inject(TOKEN)`; do not rely on construct
 - Drizzle turns a JS array inside a `sql` template into a parenthesized list (`($1, $2)`), not a Postgres array: `= ANY(${ids})` and `${ids}::text[]` fail. Use `inArray`, or `ARRAY[${sql.join(ids.map((id) => sql`${id}`), sql`, `)}]`.
 - A notification that must also go by email: `notifyScopedIn(..., { email: true })`; the job `notification.email` sends it and records `channels_sent.email`. Do not send emails from the deciding job.
 - Imports write through `ProductTransferService.importRecordsIn` and `InventoryService.importInitialIn` in the caller's transaction and return problems instead of throwing; with any problem the caller must roll back, because some rows may already be written.
+
+- Print agent routes take `@DeviceRoute("print_agent")` (a Bearer device token, never the session cookie) and `@Isolation({ fixture, actor: "device" })`, so the isolation generator calls them with tenant B's agent token. A route that acts only on the calling agent is `"self"`.
+- Push to agents only after the commit: call `PrintService.push(jobs)` once `withTenantTx` has returned, because an agent can download before an uncommitted row is visible. Publish through `REALTIME` from any process; do not create other Socket.IO servers or emitters.
+- Do not call Socket.IO's `io.close()` on shutdown: it closes Nest's HTTP server, which Nest closes itself after the hooks. The gateway closes its connections and adapter only.
+- Cost prices, stock value, and gross profit need `finance:read`. A new view showing HPP, or a number derived from it, goes through `seesCost(ctx)` and returns `null` without it.
+- No `Promise.all` over queries inside one transaction: await them one by one. A pg client runs one query at a time anyway, pg 8.23 deprecates overlapping `client.query` (a DeprecationWarning in every process), and pg 9 will throw. The last such places were removed in M14.
+- Locking both a shipment and its order (courier handover): lock shipments first, then orders, the same order the worker's `followOrder` uses.
+- A print job may exist before its file: it waits for its document (`document_id`) until the worker attaches the file, and `print_job.file_object_id` is SET NULL when the file expires.
 
 ## Definition of done
 Tests per section 13.3 (integration tests run as the application roles, never as a superuser), migration checklist 12.3, docs updated (module README and the backend doc section you touched), PR checklist 15.11.

@@ -63,7 +63,8 @@ export class PickListBuilder {
     const pairs = open
       .filter((i) => i.variantId && warehouseOf(i))
       .map((i) => ({ variantId: i.variantId!, warehouseId: warehouseOf(i)! }));
-    const [info, warehouses] = await Promise.all([this.inventory.pickInfoIn(tx, pairs), this.warehouses.activeIn(tx)]);
+    const info = await this.inventory.pickInfoIn(tx, pairs);
+    const warehouses = await this.warehouses.activeIn(tx);
     const inputs: PickInput[] = open.map((i) => {
       const wh = warehouseOf(i);
       const v = i.variantId ? info.variants.get(i.variantId) : undefined;

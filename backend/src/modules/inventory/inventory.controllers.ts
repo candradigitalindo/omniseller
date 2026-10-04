@@ -19,6 +19,7 @@ import type { Response } from "express";
 import { createZodDto, ZodResponse } from "nestjs-zod";
 import { z } from "zod";
 import type { RequestContext } from "../../common/context/request-context";
+import { seesCost } from "../../common/cost-visibility";
 import { Ctx, Isolation, RequirePermission } from "../../common/http/decorators";
 import { parseIfMatch } from "../../common/http/if-match";
 import { decodeCursor, encodeCursor } from "../../common/http/pagination";
@@ -53,6 +54,7 @@ import {
   StockSummaryDto,
   StockSummaryQueryDto,
   stockItemView,
+  summaryView,
   UpdateRuleDto,
 } from "./dto";
 import { InitialStockService } from "./initial-stock.service";
@@ -288,7 +290,7 @@ export class InventoryController {
   @Isolation("self")
   @ZodResponse({ type: StockSummaryDto })
   async summary(@Ctx() ctx: RequestContext, @Query() q: StockSummaryQueryDto) {
-    return this.inventory.summary(ctx, q.warehouseId);
+    return summaryView(await this.inventory.summary(ctx, q.warehouseId), seesCost(ctx));
   }
 
   /** FR-STK-06: stock card. */

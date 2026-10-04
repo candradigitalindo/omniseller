@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import type { CancelReason } from "@omniseller/connector-core";
 import { newId, type OrderStatus } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
+import { ConflictError } from "../../common/errors/domain-errors";
 import { EXPORT_PAGE_SIZE, type ExportSheet, keysetPages } from "../../common/export-sheet";
 import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
@@ -142,12 +143,10 @@ export class OrdersService {
 
   private async views(tx: Tx, ctx: RequestContext, orders: OrderRow[]): Promise<OrderView[]> {
     const ids = orders.map((o) => o.id);
-    const [items, problems, stores, tags] = await Promise.all([
-      this.repo.items(tx, ids),
-      this.repo.problems(tx, ids, true),
-      this.stores.listIn(tx, ctx),
-      this.tags.ofOrders(tx, ids),
-    ]);
+    const items = await this.repo.items(tx, ids);
+    const problems = await this.repo.problems(tx, ids, true);
+    const stores = await this.stores.listIn(tx, ctx);
+    const tags = await this.tags.ofOrders(tx, ids);
     const storeOf = new Map(stores.map((s) => [s.id, { id: s.id, name: s.name, channel: s.channel }]));
     return orders.map((o) => ({
       order: o,
@@ -177,6 +176,38 @@ export class OrdersService {
     });
   }
 
+  /**
+   * Orders whose marketplace order number or tracking number is this scanned code (as read, or in
+   * capitals), in the caller's scope, newest first (FR-SHP-04, 05, 17). Tracking numbers of packages
+   * are searched by fulfillment, which passes the orders it found as `alsoIds`.
+   */
+  async byCodeIn(tx: Tx, ctx: RequestContext, code: string, alsoIds: string[] = []): Promise<OrderRow[]> {
+    const byCode = await this.repo.byCode(tx, [...new Set([code, code.toUpperCase()])]);
+    const extra = await this.repo.getMany(
+      tx,
+      alsoIds.filter((id) => !byCode.some((o) => o.id === id)),
+    );
+    return [...byCode, ...extra].filter((o) => this.visible(ctx, o)).sort((a, b) => (a.id < b.id ? 1 : -1));
+  }
+
+  /**
+   * Locks orders another module is about to change (a courier handover hands over every parcel of its
+   * manifest), without scope checks: whoever scanned them was allowed to.
+   */
+  lockIn(tx: Tx, ids: string[]): Promise<OrderRow[]> {
+    return this.repo.lockMany(tx, [...new Set(ids)]);
+  }
+
+  /** Orders by id inside the caller's transaction, only those in the caller's scope. */
+  async visibleManyIn(tx: Tx, ctx: RequestContext, ids: string[]): Promise<OrderRow[]> {
+    return (await this.repo.getMany(tx, [...new Set(ids)])).filter((o) => this.visible(ctx, o));
+  }
+
+  /** Manual orders of a warehouse waiting for a courier (packed, not shipped), in the caller's scope. */
+  async manualAwaitingIn(tx: Tx, ctx: RequestContext, warehouseId: string, limit: number): Promise<OrderRow[]> {
+    return (await this.repo.manualAwaiting(tx, warehouseId, limit)).filter((o) => this.visible(ctx, o));
+  }
+
   /** Order ids of marketplace order ids in one store (webhooks); unknown ones are left out. */
   async idsByExternalIn(tx: Tx, storeId: string, externalOrderIds: string[]): Promise<string[]> {
     const out: string[] = [];
@@ -199,7 +230,8 @@ export class OrdersService {
   /** Orders and their lines inside the caller's transaction, without scope checks (worker side). */
   async readIn(tx: Tx, orderIds: string[]): Promise<{ orders: OrderRow[]; items: OrderItemRow[] }> {
     const ids = [...new Set(orderIds)];
-    const [orders, items] = await Promise.all([this.repo.getMany(tx, ids), this.repo.items(tx, ids)]);
+    const orders = await this.repo.getMany(tx, ids);
+    const items = await this.repo.items(tx, ids);
     return { orders, items };
   }
 
@@ -224,12 +256,10 @@ export class OrdersService {
   async summaryIn(tx: Tx, ctx: RequestContext, filter: Pick<OrderListFilter, "storeId" | "warehouseId">) {
     const f = { ...filter, ...(await this.workScope(tx, ctx)) };
     const now = Date.now();
-    const [statuses, overdue, dueSoon, cod] = await Promise.all([
-      this.repo.statusCounts(tx, f),
-      this.repo.dueCount(tx, f, new Date(now)),
-      this.repo.dueCount(tx, f, new Date(now + SLA_WARNING_MS)),
-      this.repo.codOutstanding(tx, f),
-    ]);
+    const statuses = await this.repo.statusCounts(tx, f);
+    const overdue = await this.repo.dueCount(tx, f, new Date(now));
+    const dueSoon = await this.repo.dueCount(tx, f, new Date(now + SLA_WARNING_MS));
+    const cod = await this.repo.codOutstanding(tx, f);
     return { statuses, overdue, dueSoon, codOutstanding: cod };
   }
 
@@ -442,43 +472,56 @@ export class OrdersService {
           const o = await this.repo.get(tx, id, true);
           if (!o || !this.visible(ctx, o))
             return { id, ok: false, code: "order.not_found", message: "Pesanan tidak ditemukan." };
-          const store = (await this.stores.stockTargetsIn(tx, [o.storeId])).get(o.storeId);
-          if (store?.store.syncMode !== "live") {
-            return {
-              id,
-              ok: false,
-              code: "store.read_only",
-              message: "Toko masih mode baca saja. Proses pesanan ini di aplikasi lama sampai sinkron diaktifkan.",
-            };
-          }
-          if (o.fulfillmentMode === "marketplace") {
-            return {
-              id,
-              ok: false,
-              code: "order.marketplace_fulfilled",
-              message: "Pesanan ini dikirim oleh marketplace.",
-            };
-          }
-          if (o.status === "problem") {
-            return { id, ok: false, code: "order.has_problems", message: "Selesaikan masalah pesanan ini dulu." };
-          }
-          if (o.status !== from) {
-            return {
-              id,
-              ok: false,
-              code: "order.status_invalid",
-              message: `Pesanan berstatus ${STATUS_LABELS[o.status]}, bukan ${STATUS_LABELS[from]}.`,
-            };
-          }
-          if (!o.warehouseId) {
-            return { id, ok: false, code: "order.no_warehouse", message: "Gudang pesanan ini belum diketahui." };
-          }
+          const why = await this.stepRefusalIn(tx, o, from);
+          if (why) return { id, ok: false, ...why };
           await this.intake.stepIn(tx, ctx, o, [{ to, via: "any" }], { type: "user", id: ctx.actor.id });
           return { id, ok: true };
         }),
       );
     }
     return results;
+  }
+
+  /** Why the order cannot take the seller step out of `from` now; null when it can. */
+  private async stepRefusalIn(
+    tx: Tx,
+    o: OrderRow,
+    from: OrderStatus,
+  ): Promise<{ code: string; message: string } | null> {
+    const store = (await this.stores.stockTargetsIn(tx, [o.storeId])).get(o.storeId);
+    if (store?.store.syncMode !== "live") {
+      return {
+        code: "store.read_only",
+        message: "Toko masih mode baca saja. Proses pesanan ini di aplikasi lama sampai sinkron diaktifkan.",
+      };
+    }
+    if (o.fulfillmentMode === "marketplace") {
+      return { code: "order.marketplace_fulfilled", message: "Pesanan ini dikirim oleh marketplace." };
+    }
+    if (o.status === "problem") return { code: "order.has_problems", message: "Selesaikan masalah pesanan ini dulu." };
+    if (o.status !== from) {
+      return {
+        code: "order.status_invalid",
+        message: `Pesanan berstatus ${STATUS_LABELS[o.status]}, bukan ${STATUS_LABELS[from]}.`,
+      };
+    }
+    if (!o.warehouseId) return { code: "order.no_warehouse", message: "Gudang pesanan ini belum diketahui." };
+    return null;
+  }
+
+  /** Why "Tandai dikemas" would refuse this order now (packing by scan shows it before scanning items). */
+  packRefusalIn(tx: Tx, o: OrderRow): Promise<{ code: string; message: string } | null> {
+    return this.stepRefusalIn(tx, o, "ready_to_pack");
+  }
+
+  /**
+   * "Tandai dikemas" for one order in the caller's transaction (packing by scan, FR-SHP-04), with the
+   * checks of `pack`; a refusal is a 409 with the same code. The caller holds the order's row lock.
+   */
+  async packIn(tx: Tx, ctx: RequestContext, o: OrderRow, payload: Record<string, unknown>): Promise<OrderRow> {
+    const why = await this.stepRefusalIn(tx, o, "ready_to_pack");
+    if (why) throw new ConflictError(why.code, why.message);
+    return this.intake.stepIn(tx, ctx, o, [{ to: "packed", via: "any" }], { type: "user", id: ctx.actor.id }, payload);
   }
 
   /** "Terima pesanan": new to ready to pack. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { historyEntry, type ProductAuditRow } from "./product-history";
+import { historyEntry, type ProductAuditRow, withoutCost } from "./product-history";
 
 const at = new Date("2026-10-04T03:00:00Z");
 const variant = {
@@ -91,5 +91,15 @@ describe("product history (FR-PRD-11)", () => {
       { field: "status", label: "Status", before: "active", after: "archived" },
       { field: "season", label: "season", before: null, after: "2027" },
     ]);
+  });
+
+  it("keeps the cost price's change but not its values for readers without finance:read", () => {
+    const e = historyEntry(row({ after: { ...variant, cost_price: 41000, base_price: 69000 } }))!;
+    expect(withoutCost(e).changes).toEqual([
+      { field: "costPrice", label: "HPP", before: null, after: null, hidden: true },
+      { field: "basePrice", label: "Harga dasar", before: 65000, after: 69000 },
+    ]);
+    const priceOnly = historyEntry(row({ after: { ...variant, base_price: 69000 } }))!;
+    expect(withoutCost(priceOnly)).toBe(priceOnly);
   });
 });

@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { barcodeProblem } from "../../common/barcode";
 import type { RequestContext } from "../../common/context/request-context";
+import { seesCost } from "../../common/cost-visibility";
 import type { CsvValue } from "../../common/csv";
 import { DomainError, type FieldIssue } from "../../common/errors/domain-errors";
 import type { ExportSheet } from "../../common/export-sheet";
@@ -83,10 +84,14 @@ export class ProductTransferService {
     @Inject(ProductsService) private readonly products: ProductsService,
   ) {}
 
+  /**
+   * Without finance:read the HPP column stays empty (`seesCost`); importing the file again keeps the
+   * cost prices, since an empty cell changes nothing.
+   */
   async exportCsv(ctx: RequestContext): Promise<string> {
     return withTenantTx(this.db, ctx, async (tx) => {
       const rows: CsvValue[][] = [[...PRODUCT_COLUMNS]];
-      for await (const page of this.productPages(tx)) rows.push(...page);
+      for await (const page of this.productPages(tx, seesCost(ctx))) rows.push(...page);
       return toCsv(rows);
     });
   }
@@ -98,13 +103,13 @@ export class ProductTransferService {
         file: "produk.csv",
         description: "Produk dan varian dengan kolom templat impor produk; berkas ini bisa diimpor ulang.",
         columns: PRODUCT_COLUMNS,
-        pages: (tx) => this.productPages(tx),
+        pages: (tx) => this.productPages(tx, true),
       },
     ];
   }
 
   /** One page per 500 products, products by SKU within a page, one row per variant. */
-  private async *productPages(tx: Tx): AsyncIterable<CsvValue[][]> {
+  private async *productPages(tx: Tx, showCost: boolean): AsyncIterable<CsvValue[][]> {
     let before: string | undefined;
     for (;;) {
       const page = await this.repo.listProducts(tx, {}, before, 500);
@@ -124,7 +129,7 @@ export class ProductTransferService {
             formatAttributes(variant.attributes),
             variant.barcode,
             variant.basePrice,
-            variant.costPrice,
+            showCost ? variant.costPrice : null,
             variant.weightG,
             variant.lengthMm,
             variant.widthMm,

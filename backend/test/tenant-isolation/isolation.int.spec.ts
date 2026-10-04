@@ -5,7 +5,7 @@ import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { withTenantTx } from "../../src/db/tenant-tx";
 import { buildOpenApiDocument } from "../../src/openapi/document";
-import { type Client, type MeBody, signup, startApi, uniqueEmail } from "../setup/app";
+import { type Client, client, type MeBody, signup, startApi, uniqueEmail } from "../setup/app";
 import { createStore, userCtx } from "../setup/factories";
 import { testHandles } from "../setup/handles";
 import { MockMarketplace } from "../setup/mock-marketplace";
@@ -21,7 +21,7 @@ import { MockMarketplace } from "../setup/mock-marketplace";
  */
 const h = testHandles();
 
-type Isolation = "public" | "self" | "global" | { fixture: string };
+type Isolation = "public" | "self" | "global" | { fixture: string; actor?: "device" };
 
 interface Fixture {
   /** id of tenant A's resource of this kind */
@@ -35,6 +35,8 @@ let marketplace: MockMarketplace;
 let aState = "";
 let a: { c: Client; me: MeBody };
 let b: { c: Client; me: MeBody };
+/** Tenant B's print agent, for the agent's own routes (device token). */
+let bAgent: Client;
 const fixtures: Record<string, Fixture> = {};
 
 /** Path parameters besides {id}, filled with A's fixture of the given kind. */
@@ -43,6 +45,7 @@ const PATH_PARAMS: Record<string, string> = {
   "{variantId}": "variant",
   "{warehouseId}": "warehouse",
   "{problemId}": "order_problem",
+  "{itemId}": "handover_item",
 };
 
 /** Bodies for mutating operations, keyed by operationId. `ids` holds A's fixture ids and B's own ids. */
@@ -124,7 +127,37 @@ const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: s
   MigrationImportsController_deletePreset: () => ({}),
   MigrationCutoverController_cutover: ({ a: ids }) => ({ storeIds: [ids.store!], oldAppRevoked: true }),
   MigrationCutoverController_undo: () => ({}),
+  PrintAgentsController_create: ({ a: ids }) => ({ name: "Penyusup", warehouseId: ids.warehouse! }),
+  PrintAgentsController_update: () => ({ name: "Penyusup" }),
+  PrintAgentsController_revoke: () => ({}),
+  PrintAgentsController_testPrint: () => ({}),
+  PrintJobsController_create: ({ a: ids }) => ({ documentId: ids.document!, deviceId: ids.print_agent! }),
+  PrintJobsController_scanToPrint: ({ a: ids }) => ({ code: "A-0001", deviceId: ids.print_agent! }),
+  PrintJobsController_retry: () => ({}),
+  PrintJobsController_cancel: () => ({}),
+  AgentController_result: () => ({ status: "printed" }),
+  PackingController_complete: () => ({ scans: [{ code: "A-KAOS-1", qty: 1 }] }),
+  HandoversController_open: ({ a: ids }) => ({ warehouseId: ids.warehouse!, courier: "Penyusup" }),
+  HandoversController_scan: () => ({ code: "A-0001" }),
+  HandoversController_removeItem: () => ({}),
+  HandoversController_complete: () => ({}),
+  HandoversController_cancel: () => ({}),
+  HandoversController_manifest: () => ({}),
 };
+
+/** A print agent's client: its device token instead of a session. */
+function deviceClient(token: string): Client {
+  const base = client(app);
+  const bearer = <T extends { set(k: string, v: string): T }>(r: T) => r.set("authorization", `Bearer ${token}`);
+  return {
+    ...base,
+    get: (url: string) => bearer(base.get(url)),
+    post: (url: string, body?: object) => bearer(base.post(url, body)),
+    patch: (url: string, body?: object) => bearer(base.patch(url, body)),
+    put: (url: string, body?: object) => bearer(base.put(url, body)),
+    delete: (url: string) => bearer(base.delete(url)),
+  };
+}
 
 beforeAll(async () => {
   marketplace = new MockMarketplace();
@@ -229,6 +262,26 @@ beforeAll(async () => {
                                  now() + interval '1 day')`);
     fixtures.store_cutover = { id: cutoverId };
   });
+  // a print agent with a job waiting for its document, and a courier manifest with one parcel (8.24)
+  const agent = await a.c.post("/v1/print-agents", { name: "Agen A" });
+  expect(agent.status).toBe(201);
+  fixtures.print_agent = { id: agent.body.agent.id };
+  const job = await a.c.post(`/v1/print-agents/${agent.body.agent.id}/test-print`, {});
+  expect(job.status).toBe(201);
+  fixtures.print_job = { id: job.body.id };
+  const opened = await a.c.post("/v1/handovers", { warehouseId: fixtures.warehouse.id, courier: "SPX Standard" });
+  expect(opened.status).toBe(201);
+  fixtures.handover = { id: opened.body.id };
+  await withTenantTx(h.worker, userCtx(tenantId), async (tx) => {
+    const itemId = newId();
+    await tx.execute(sql`INSERT INTO handover_item (id, tenant_id, handover_id, order_id, tracking_number, order_number)
+                         VALUES (${itemId}, ${tenantId}, ${opened.body.id}, ${fixtures.order!.id}, 'A-RESI-1', 'A-0001')`);
+    fixtures.handover_item = { id: itemId };
+  });
+  const theirs = await b.c.post("/v1/print-agents", { name: "Agen B" });
+  expect(theirs.status).toBe(201);
+  bAgent = deviceClient(theirs.body.token);
+
   const tag = await a.c.post("/v1/tags", { name: "Prioritas A", color: "#1e6b8c" });
   expect(tag.status).toBe(201);
   fixtures.tag = { id: tag.body.id };
@@ -308,7 +361,7 @@ describe("tenant isolation generated from openapi.json", () => {
       let url = o.path.replace("{id}", target.id);
       for (const [param, kind] of Object.entries(PATH_PARAMS)) url = url.replace(param, fixtures[kind]!.id);
       const body = BODIES[o.id]?.({ a: aIds, bViewerRoleId: bViewer!.id, aState }) ?? {};
-      const res = await send(b.c, o.method, url, body);
+      const res = await send(o.isolation.actor === "device" ? bAgent : b.c, o.method, url, body);
 
       let ok: boolean;
       if (hasId) ok = res.status === 404;
@@ -319,6 +372,8 @@ describe("tenant isolation generated from openapi.json", () => {
     }
 
     expect(results.length).toBeGreaterThanOrEqual(10);
+    // the print agent's own routes ran with tenant B's device token
+    expect(results.filter((r) => r.op.includes("/v1/agent/")).length).toBeGreaterThanOrEqual(3);
     expect(results.filter((r) => !r.ok)).toEqual([]);
   });
 
@@ -395,6 +450,16 @@ describe("tenant isolation generated from openapi.json", () => {
     expect((await a.c.get("/v1/migration/cutovers")).body.items).toEqual([
       expect.objectContaining({ id: fixtures.store_cutover!.id, status: "done" }),
     ]);
+    expect((await a.c.get(`/v1/print-agents/${fixtures.print_agent!.id}`)).body).toMatchObject({ name: "Agen A" });
+    expect((await a.c.get(`/v1/print-jobs/${fixtures.print_job!.id}`)).body).toMatchObject({
+      status: "queued",
+      attempts: 0,
+    });
+    expect((await a.c.get(`/v1/handovers/${fixtures.handover!.id}`)).body).toMatchObject({
+      status: "open",
+      courier: "SPX Standard",
+      parcels: 1,
+    });
     // B's callback attempt with A's state did not consume it
     expect((await a.c.get(`/v1/store-authorizations/${fixtures.store_authorization!.id}`)).body.status).toBe("pending");
   });

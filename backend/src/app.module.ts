@@ -37,6 +37,7 @@ import { HealthController } from "./modules/platform/health.controller";
 import { ReportingHttpModule, ReportingWorkerModule } from "./modules/reporting/reporting.module";
 import { RetentionWorkerModule } from "./modules/retention/retention.module";
 import { SyncModule, WebhookHttpModule } from "./modules/sync/sync.module";
+import { RealtimeModule } from "./realtime/realtime.module";
 import { SchedulerRunner } from "./scheduler/scheduler.runner";
 import { WorkerRunner } from "./worker/worker.runner";
 
@@ -57,7 +58,7 @@ const HTTP_PROVIDERS: Provider[] = [
 /**
  * One image, five process roles (backend doc 3.1). The role decides which modules load:
  * api       HTTP API: auth, identity, audit, stores, warehouses, stock, catalog, orders, shipping, files,
- *           notifications (more join as they are built)
+ *           notifications (more join as they are built), and Socket.IO for print agents
  * webhook   HTTP webhook receiver only (verify, store, enqueue, reply)
  * worker    BullMQ processors and the services their handlers call
  * scheduler outbox relay, stock flush, partitions, periodic jobs
@@ -94,6 +95,7 @@ export class AppModule {
             ReportingHttpModule,
             ExportsHttpModule,
             MigrationHttpModule,
+            RealtimeModule,
           ],
           providers: HTTP_PROVIDERS,
         };

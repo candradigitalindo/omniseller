@@ -107,13 +107,14 @@ export class DocumentsController {
   @Isolation({ fixture: "order" })
   @ZodResponse({ type: DocumentDto, status: 202 })
   async create(@Ctx() ctx: RequestContext, @Body() body: RequestDocumentDto) {
-    return documentView(
-      await this.fulfillment.requestDocument(ctx, body.kind, body.orderIds, {
-        format: body.format,
-        template: body.template,
-        packingList: body.packingList,
-      }),
+    const made = await this.fulfillment.requestDocument(
+      ctx,
+      body.kind,
+      body.orderIds,
+      { format: body.format, template: body.template, packingList: body.packingList },
+      body.print,
     );
+    return documentView(made.doc, made.printJob);
   }
 
   /** FR-PRD-12: internal barcode labels of variants, on label stock or A4 sheets; rendered by the worker. */
@@ -123,7 +124,8 @@ export class DocumentsController {
   @Isolation({ fixture: "variant" })
   @ZodResponse({ type: DocumentDto, status: 202 })
   async barcodeLabels(@Ctx() ctx: RequestContext, @Body() body: RequestBarcodeLabelsDto) {
-    return documentView(await this.fulfillment.requestBarcodeLabels(ctx, body.items, body.format));
+    const made = await this.fulfillment.requestBarcodeLabels(ctx, body.items, body.format, body.print);
+    return documentView(made.doc, made.printJob);
   }
 
   @Get("documents/:id")
@@ -131,7 +133,8 @@ export class DocumentsController {
   @Isolation({ fixture: "document" })
   @ZodResponse({ type: DocumentDto })
   async get(@Ctx() ctx: RequestContext, @Param() p: DocumentIdParamDto) {
-    return documentView(await this.fulfillment.document(ctx, p.id));
+    const found = await this.fulfillment.document(ctx, p.id);
+    return documentView(found.doc, found.printJob);
   }
 
   /** L05 "Daftar ambil" (FR-SHP-02): units per SKU and warehouse, sorted by rack. */

@@ -4,7 +4,7 @@ import { newId } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
 import { EXPORT_PAGE_SIZE, type ExportSheet, keysetPages } from "../../common/export-sheet";
 import type { DbHandle, Tx } from "../../db/client";
-import type { DocumentKind, StoredTrackingEvent, TrackingStage } from "../../db/schema";
+import type { DocumentKind, DocumentParams, StoredTrackingEvent, TrackingStage } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
@@ -23,6 +23,9 @@ import {
 } from "./fulfillment.events";
 import { type DocumentRow, FulfillmentRepository, type PackageRow, type ShipmentRow } from "./fulfillment.repository";
 import { PickListBuilder, type PickListSection } from "./pick-list.builder";
+import type { PrintJobRow } from "./print.repository";
+import { PrintService, type PrintTarget } from "./print.service";
+import { printTitle } from "./scan-plan";
 import {
   arrangeRefusal,
   type BarcodeLabelFormat,
@@ -30,6 +33,12 @@ import {
   TRACKED,
   TRACKING_REFRESH_MS,
 } from "./shipping-plan";
+
+export interface DocumentWithPrint {
+  doc: DocumentRow;
+  /** The newest job printing the document on a print agent (FR-SHP-17). */
+  printJob: PrintJobRow | null;
+}
 
 export interface ShipmentView {
   shipment: ShipmentRow;
@@ -67,6 +76,7 @@ export class FulfillmentService {
     @Inject(OUTBOX) private readonly outbox: Outbox,
     @Inject(InventoryService) private readonly inventory: InventoryService,
     @Inject(FilesService) private readonly files: FilesService,
+    @Inject(PrintService) private readonly print: PrintService,
   ) {}
 
   /**
@@ -195,30 +205,61 @@ export class FulfillmentService {
    */
   async requestDocument(
     ctx: RequestContext,
-    kind: DocumentKind,
+    kind: "labels" | "pick_list" | "packing_list",
     orderIds: string[],
     opts: { format: "thermal" | "a4"; template?: "standard" | "custom"; packingList?: boolean },
-  ): Promise<DocumentRow> {
+    print?: PrintTarget,
+  ): Promise<DocumentWithPrint> {
     const ids = [...new Set(orderIds)];
-    await this.orders.requireVisible(ctx, ids);
+    const orders = await this.orders.requireVisible(ctx, ids);
+    const params: DocumentParams = {
+      orderIds: ids,
+      ...(kind === "labels"
+        ? { format: opts.format, template: opts.template ?? "standard", packingList: opts.packingList ?? false }
+        : kind === "packing_list"
+          ? { format: opts.format }
+          : {}),
+    };
+    return this.withPrint(ctx, print, (tx) => this.requestDocumentIn(tx, ctx, kind, params), {
+      number: orders.length === 1 ? orders[0]!.externalOrderId : null,
+    });
+  }
+
+  /** A document for the worker to render, in the caller's transaction (labels for a scan, manifests). */
+  async requestDocumentIn(
+    tx: Tx,
+    ctx: RequestContext,
+    kind: DocumentKind,
+    params: DocumentParams,
+  ): Promise<DocumentRow> {
+    const row = await this.repo.insertDocument(tx, {
+      id: newId(),
+      tenantId: ctx.tenantId,
+      kind,
+      status: "queued",
+      params,
+      requestedBy: ctx.actor.type === "user" ? ctx.actor.id : null,
+    });
+    await this.outbox.enqueue(tx, ctx, documentRequested, { documentId: row.id }, row.id);
+    return row;
+  }
+
+  /**
+   * The document, and with `print` a job sending it to a print agent once rendered (FR-SHP-17), in one
+   * transaction.
+   */
+  private async withPrint(
+    ctx: RequestContext,
+    print: PrintTarget | undefined,
+    make: (tx: Tx) => Promise<DocumentRow>,
+    ref: { number?: string | null } = {},
+  ): Promise<DocumentWithPrint> {
     return withTenantTx(this.db, ctx, async (tx) => {
-      const row = await this.repo.insertDocument(tx, {
-        id: newId(),
-        tenantId: ctx.tenantId,
-        kind,
-        status: "queued",
-        params: {
-          orderIds: ids,
-          ...(kind === "labels"
-            ? { format: opts.format, template: opts.template ?? "standard", packingList: opts.packingList ?? false }
-            : kind === "packing_list"
-              ? { format: opts.format }
-              : {}),
-        },
-        requestedBy: ctx.actor.id,
-      });
-      await this.outbox.enqueue(tx, ctx, documentRequested, { documentId: row.id }, row.id);
-      return row;
+      const doc = await make(tx);
+      const printJob = print
+        ? await this.print.queueIn(tx, ctx, doc, print, printTitle(doc.kind, doc.params, ref))
+        : null;
+      return { doc, printJob };
     });
   }
 
@@ -254,24 +295,16 @@ export class FulfillmentService {
     ctx: RequestContext,
     items: { variantId: string; copies: number }[],
     labelFormat: BarcodeLabelFormat,
-  ): Promise<DocumentRow> {
-    return withTenantTx(this.db, ctx, async (tx) => {
+    print?: PrintTarget,
+  ): Promise<DocumentWithPrint> {
+    return this.withPrint(ctx, print, async (tx) => {
       const found = await this.inventory.variantsIn(
         tx,
         items.map((i) => i.variantId),
       );
       const unknown = items.findIndex((i) => !found.has(i.variantId));
       if (unknown >= 0) throw variantNotFound(`items.${unknown}.variantId`);
-      const row = await this.repo.insertDocument(tx, {
-        id: newId(),
-        tenantId: ctx.tenantId,
-        kind: "barcode_labels",
-        status: "queued",
-        params: { orderIds: [], items, labelFormat },
-        requestedBy: ctx.actor.id,
-      });
-      await this.outbox.enqueue(tx, ctx, documentRequested, { documentId: row.id }, row.id);
-      return row;
+      return this.requestDocumentIn(tx, ctx, "barcode_labels", { orderIds: [], items, labelFormat });
     });
   }
 
@@ -279,11 +312,13 @@ export class FulfillmentService {
    * A document of this tenant. Users limited to some stores or warehouses see only their own requests:
    * someone else's document may hold orders outside their scope.
    */
-  async document(ctx: RequestContext, id: string): Promise<DocumentRow> {
-    const row = await withTenantTx(this.db, ctx, (tx) => this.repo.getDocument(tx, id));
-    const scoped = ctx.storeScope !== null || ctx.warehouseScope !== null;
-    if (!row || (scoped && row.requestedBy !== ctx.actor.id)) throw documentNotFound();
-    return row;
+  async document(ctx: RequestContext, id: string): Promise<DocumentWithPrint> {
+    return withTenantTx(this.db, ctx, async (tx) => {
+      const doc = await this.repo.getDocument(tx, id);
+      const scoped = ctx.storeScope !== null || ctx.warehouseScope !== null;
+      if (!doc || (scoped && doc.requestedBy !== ctx.actor.id)) throw documentNotFound();
+      return { doc, printJob: (await this.print.latestOfDocumentsIn(tx, [doc.id])).get(doc.id) ?? null };
+    });
   }
 
   /**

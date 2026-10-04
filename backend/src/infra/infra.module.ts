@@ -16,6 +16,7 @@ import { QueueRegistry } from "../jobs/queues";
 import { JOB_DEFINITIONS, JobRegistry } from "../jobs/registry";
 import { STOCK_DIRTY_KEY, StockDirtySet } from "../jobs/stock-dirty";
 import { Outbox } from "../outbox/outbox";
+import { REALTIME, RedisRealtime, realtimeKey } from "../realtime/realtime";
 import {
   DB_API,
   DB_SYSTEM,
@@ -61,6 +62,7 @@ export class InfraModule {
       SESSIONS,
       RATE_LIMITER,
       STOCK_DIRTY,
+      REALTIME,
     ];
 
     const addDb = (token: symbol, handle: DbHandle) => {
@@ -108,6 +110,8 @@ export class InfraModule {
       { provide: OUTBOX, useValue: new Outbox(registry) },
       { provide: SESSIONS, useValue: new SessionStore(redisCache) },
       { provide: RATE_LIMITER, useValue: new RateLimiter(redisCache) },
+      // Socket.IO's pub/sub runs on the cache Redis (technology doc 7.2); every process can push.
+      { provide: REALTIME, useValue: new RedisRealtime(redisCache, realtimeKey(opts.queuePrefix)) },
       { provide: "INFRA_CLOSERS", useValue: closers },
       InfraShutdown,
     );

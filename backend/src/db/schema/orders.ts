@@ -1,4 +1,11 @@
-import type { Channel, DocumentJobStatus, OrderStatus, ShipmentStatus } from "@omniseller/shared";
+import type {
+  Channel,
+  DocumentJobStatus,
+  HandoverStatus,
+  OrderStatus,
+  PrintJobStatus,
+  ShipmentStatus,
+} from "@omniseller/shared";
 import { boolean, char, integer, jsonb, pgTable, smallint, text } from "drizzle-orm/pg-core";
 import { appendOnlyColumns, baseColumns, money, tstz, ulid } from "../columns";
 
@@ -240,21 +247,37 @@ export const shipmentPackage = pgTable("shipment_package", {
   labelFileId: ulid("label_file_id"),
 });
 
+export type PrintJobKind = "label" | "pick_list" | "packing_list" | "invoice" | "barcode" | "manifest" | "test";
+
+/**
+ * What a print agent prints (backend doc 8.24). A job waits for its document (`document_id`) until the
+ * worker attaches the file; status changes are checked by trigger.
+ */
 export const printJob = pgTable("print_job", {
   ...baseColumns(),
   deviceId: ulid("device_id").notNull(),
-  kind: text("kind").$type<"label" | "pick_list" | "packing_list" | "invoice" | "barcode" | "manifest">().notNull(),
-  fileObjectId: ulid("file_object_id").notNull(),
+  kind: text("kind").$type<PrintJobKind>().notNull(),
+  fileObjectId: ulid("file_object_id"),
   printerName: text("printer_name"),
   copies: smallint("copies").notNull().default(1),
-  status: text("status").$type<"queued" | "sent" | "printed" | "failed" | "cancelled">().notNull().default("queued"),
+  status: text("status").$type<PrintJobStatus>().notNull().default("queued"),
   attempts: integer("attempts").notNull().default(0),
   error: text("error"),
   requestedBy: ulid("requested_by"),
   printedAt: tstz("printed_at"),
+  documentId: ulid("document_id"),
+  title: text("title").notNull().default(""),
+  sentAt: tstz("sent_at"),
+  statusChangedAt: tstz("status_changed_at").notNull().defaultNow(),
 });
 
-export type DocumentKind = "labels" | "pick_list" | "packing_list" | "barcode_labels";
+export type DocumentKind =
+  | "labels"
+  | "pick_list"
+  | "packing_list"
+  | "barcode_labels"
+  | "handover_manifest"
+  | "test_page";
 
 export interface DocumentParams {
   /** Orders of label, pick list, and packing list documents; empty for barcode labels. */
@@ -269,6 +292,10 @@ export interface DocumentParams {
   items?: { variantId: string; copies: number }[];
   /** Barcode labels: label stock or A4 sheet. */
   labelFormat?: "label_50x30" | "label_40x30" | "a4_3x10";
+  /** Handover manifest (FR-SHP-05). */
+  handoverId?: string;
+  /** Test page of a print agent (UI L42): which computer and printer it was sent to. */
+  device?: { name: string; printer: string | null };
 }
 
 export interface DocumentResult {
@@ -293,4 +320,29 @@ export const documentJob = pgTable("document_job", {
   error: text("error"),
   requestedBy: ulid("requested_by"),
   finishedAt: tstz("finished_at"),
+});
+
+/** Courier handover manifests (FR-SHP-05, backend doc 8.24): one open per warehouse and courier. */
+export const handover = pgTable("handover", {
+  ...baseColumns(),
+  number: text("number").notNull(),
+  warehouseId: ulid("warehouse_id").notNull(),
+  courier: text("courier").notNull(),
+  status: text("status").$type<HandoverStatus>().notNull().default("open"),
+  statusChangedAt: tstz("status_changed_at").notNull().defaultNow(),
+  receivedBy: text("received_by"),
+  createdBy: ulid("created_by"),
+  completedBy: ulid("completed_by"),
+  completedAt: tstz("completed_at"),
+});
+
+/** A parcel scanned into a manifest. */
+export const handoverItem = pgTable("handover_item", {
+  ...baseColumns(),
+  handoverId: ulid("handover_id").notNull(),
+  orderId: ulid("order_id").notNull(),
+  shipmentId: ulid("shipment_id"),
+  trackingNumber: text("tracking_number").notNull(),
+  orderNumber: text("order_number").notNull(),
+  scannedBy: ulid("scanned_by"),
 });

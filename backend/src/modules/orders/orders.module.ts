@@ -15,7 +15,7 @@ import { OrdersService } from "./orders.service";
 import { TagsRepository } from "./tags.repository";
 import { TagsService } from "./tags.service";
 
-const SERVICES = [OrdersRepository, TagsRepository, OrderIntakeService, OrdersService];
+const SERVICES = [OrdersRepository, TagsRepository, OrderIntakeService, OrdersService, ManualOrdersService];
 
 /** Orders (api and worker): the queue, one order, seller actions, and marketplace intake. */
 @Module({
@@ -33,10 +33,10 @@ export class OrdersModule {}
 })
 export class OrdersWorkerModule {}
 
-/** Api only: manual orders (FR-ORD-09) and tags (FR-ORD-04). */
+/** Api only: the order endpoints, manual orders' among them (FR-ORD-09), and tags (FR-ORD-04). */
 @Module({
   imports: [OrdersModule, ChannelModule, InventoryModule, IdentityModule],
-  providers: [ManualOrdersService, TagsService],
+  providers: [TagsService],
   controllers: [OrdersController, TagsController],
 })
 export class OrdersHttpModule {}

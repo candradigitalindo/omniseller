@@ -35,6 +35,8 @@ Gudang, stok, pergerakan stok, aturan alokasi, dan push stok ke marketplace (PRD
 - Hanya worker: `StockPushService.push(ctx, marks)` (penolakan marketplace yang baru diumumkan sebagai `sync.stock_push_failed`), `StockTriggersService` (`markPairs`, `listingMapped`, `listingUnmapped`, `resyncStore`), `StockAlertsService.check(ctx, pairs)` (notifikasi `stock.critical`).
 
 ## Aturan
+- Nilai persediaan di ringkasan stok (`GET /v1/inventory/summary`, stok fisik x HPP) bernilai `null` bagi yang tidak memegang `finance:read`, karena mengungkap HPP (`seesCost`, backend doc 8.24).
+- `WarehousesService.anyIn(tx, id)` membaca gudang yang sudah dihapus juga, untuk dokumen masa lalu (manifest serah terima).
 - Jumlah stok hanya berubah lewat `apply_stock_movement()` dan `confirm_stock()`, dan setiap perubahan menulis `inventory.changed` di transaksi yang sama.
 - Stok yang belum pernah ditetapkan (`stock_set_at` kosong) tidak didorong. Penyesuaian, stok awal, dan konfirmasi menetapkannya; mutasi pesanan tidak.
 - Penyesuaian: semua baris atau tidak sama sekali, alasan wajib, catatan wajib untuk `other`.

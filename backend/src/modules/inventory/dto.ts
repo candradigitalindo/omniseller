@@ -121,10 +121,11 @@ export class StockSummaryDto extends createZodDto(
     out: count.describe("habis: siap jual 0 atau kurang"),
     negative: count.describe("kelebihan jual"),
     unset: count.describe("stok belum pernah ditetapkan"),
-    value: count.describe("nilai persediaan (stok fisik x HPP), rupiah"),
+    value: count.nullable().describe("nilai persediaan (stok fisik x HPP), rupiah; null tanpa izin finance:read"),
   }),
 ) {}
-export const summaryView = (s: StockSummary) => s;
+/** `showCost`: the caller holds finance:read (`seesCost`); the stock value reveals cost prices. */
+export const summaryView = (s: StockSummary, showCost: boolean) => ({ ...s, value: showCost ? s.value : null });
 
 // ---- adjustments (FR-STK-05) ----
 

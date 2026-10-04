@@ -18,6 +18,7 @@ import { ApiOkResponse, ApiProduces, ApiTags } from "@nestjs/swagger";
 import type { Response } from "express";
 import { ZodResponse } from "nestjs-zod";
 import type { RequestContext } from "../../common/context/request-context";
+import { seesCost } from "../../common/cost-visibility";
 import { Ctx, Isolation, RequirePermission } from "../../common/http/decorators";
 import { parseIfMatch } from "../../common/http/if-match";
 import { decodeCursor, encodeCursor } from "../../common/http/pagination";
@@ -83,7 +84,8 @@ export class ProductsController {
   @ZodResponse({ type: ProductPageDto })
   async list(@Ctx() ctx: RequestContext, @Query() q: ProductQueryDto) {
     const page = await this.products.list(ctx, { q: q.q, status: q.status }, decodeCursor(q.cursor), q.limit);
-    const items = page.items.map(productView);
+    const showCost = seesCost(ctx);
+    const items = page.items.map((v) => productView(v, showCost));
     return { items, next_cursor: nextCursor(items, page.more) };
   }
 
@@ -114,7 +116,7 @@ export class ProductsController {
   @Isolation("self")
   @ZodResponse({ status: 201, type: ProductDto })
   async create(@Ctx() ctx: RequestContext, @Body() body: CreateProductDto) {
-    return productView(await this.products.create(ctx, body));
+    return productView(await this.products.create(ctx, body), seesCost(ctx));
   }
 
   /** FR-PRD-12: an internal EAN-13 (prefix 20) for each variant without a barcode; others keep theirs. */
@@ -151,7 +153,7 @@ export class ProductsController {
   async get(@Ctx() ctx: RequestContext, @Param() p: ProductIdParamDto, @Res({ passthrough: true }) res: Response) {
     const view = await this.products.get(ctx, p.id);
     res.setHeader("ETag", `"${view.product.rowVersion}"`);
-    return productView(view);
+    return productView(view, seesCost(ctx));
   }
 
   /** FR-PRD-11: who changed the product or its variants, what, and when; newest first. */
@@ -177,7 +179,7 @@ export class ProductsController {
   ) {
     const view = await this.products.update(ctx, p.id, body, parseIfMatch(req));
     res.setHeader("ETag", `"${view.product.rowVersion}"`);
-    return productView(view);
+    return productView(view, seesCost(ctx));
   }
 
   /** Refused while listings point at its variants; archive the product instead. */
@@ -194,7 +196,7 @@ export class ProductsController {
   @Isolation({ fixture: "product" })
   @ZodResponse({ status: 201, type: ProductDto })
   async addVariant(@Ctx() ctx: RequestContext, @Param() p: ProductIdParamDto, @Body() body: CreateVariantDto) {
-    return productView(await this.products.addVariant(ctx, p.id, body));
+    return productView(await this.products.addVariant(ctx, p.id, body), seesCost(ctx));
   }
 
   @Patch(":id/variants/:variantId")
@@ -202,7 +204,7 @@ export class ProductsController {
   @Isolation({ fixture: "product" })
   @ZodResponse({ type: ProductDto })
   async updateVariant(@Ctx() ctx: RequestContext, @Param() p: VariantParamDto, @Body() body: UpdateVariantDto) {
-    return productView(await this.products.updateVariant(ctx, p.id, p.variantId, body));
+    return productView(await this.products.updateVariant(ctx, p.id, p.variantId, body), seesCost(ctx));
   }
 }
 

@@ -20,6 +20,7 @@ Produk master dan variannya, listing marketplace, dan pemetaan keduanya (PRD 6.2
 - Untuk checklist cutover: `ListingsService.unmappedInStoreIn(tx, storeId)`.
 
 ## Aturan
+- **HPP** (backend doc 8.24): hanya pemegang `finance:read` yang melihatnya (`seesCost` di `common/cost-visibility.ts`). Tanpa izin itu `costPrice` di jawaban produk bernilai `null`, perubahan HPP di riwayat tampil tanpa nilai (`withoutCost`, `hidden: true`), dan kolom `hpp` CSV ekspor kosong; impor ulang berkas itu tidak mengubah HPP karena sel kosong tidak mengubah apa pun. Mengisi HPP tetap dengan `catalog:write`. `produk.csv` di ekspor data penuh selalu memuat HPP.
 - SKU produk dan SKU varian unik per bisnis tanpa membedakan huruf besar dan spasi tepi (`lower(btrim(sku))`, indeks unik migrasi 0004), sama dengan aturan pencocokan listing. Barcode unik persis.
 - Barcode (`common/barcode.ts`, `barcodeProblem`): ASCII yang bisa dicetak tanpa spasi, paling banyak 48 karakter; angka sepanjang EAN-8, UPC-A, EAN-13, atau GTIN-14 harus punya check digit GS1 yang benar. Berlaku di API, impor CSV, dan impor migrasi; barcode lama tidak diubah.
 - Setiap perubahan kolom produk dan varian masuk `audit_log` (trigger `audit_change_trg`), jadi riwayat produk lengkap; penulisan yang hanya mengubah `updated_at` dan `row_version` tidak dicatat.

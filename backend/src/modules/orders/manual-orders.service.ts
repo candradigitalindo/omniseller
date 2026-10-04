@@ -303,19 +303,39 @@ export class ManualOrdersService {
     input: { shippingProvider?: string | undefined; trackingNumber?: string | undefined },
   ): Promise<void> {
     await withTenantTx(this.db, ctx, async (tx) => {
-      const o = await this.loadManual(tx, ctx, id);
-      this.ready(o);
-      if (!o.shippingAddress) throw orderWithoutAddress();
-      const steps = pathTo(o.status, "shipped");
-      if (!steps) throw orderStatusInvalid(orderStatusLabel(o.status), "yang belum dikirim");
-      const info = {
-        ...(input.shippingProvider ? { shippingProvider: input.shippingProvider } : {}),
-        ...(input.trackingNumber ? { trackingNumber: input.trackingNumber } : {}),
-      };
-      await this.repo.update(tx, id, info);
-      const moved = await this.intake.stepIn(tx, ctx, { ...o, ...info }, steps, this.actor(ctx), info);
-      await this.intake.settleIn(tx, ctx, moved, await this.repo.items(tx, [id]));
+      await this.shipIn(tx, ctx, await this.loadManual(tx, ctx, id), input);
     });
+  }
+
+  /**
+   * "Kirim" in the caller's transaction, for a manual order the caller loaded and locked (the courier
+   * handover, FR-SHP-05, ships every manual order of its manifest).
+   */
+  async shipIn(
+    tx: Tx,
+    ctx: RequestContext,
+    o: OrderRow,
+    input: {
+      shippingProvider?: string | undefined;
+      trackingNumber?: string | undefined;
+      payload?: Record<string, unknown>;
+    },
+  ): Promise<void> {
+    if (!isManualChannel(o.channel)) throw notManual();
+    this.ready(o);
+    if (!o.shippingAddress) throw orderWithoutAddress();
+    const steps = pathTo(o.status, "shipped");
+    if (!steps) throw orderStatusInvalid(orderStatusLabel(o.status), "yang belum dikirim");
+    const info = {
+      ...(input.shippingProvider ? { shippingProvider: input.shippingProvider } : {}),
+      ...(input.trackingNumber ? { trackingNumber: input.trackingNumber } : {}),
+    };
+    await this.repo.update(tx, o.id, info);
+    const moved = await this.intake.stepIn(tx, ctx, { ...o, ...info }, steps, this.actor(ctx), {
+      ...info,
+      ...input.payload,
+    });
+    await this.intake.settleIn(tx, ctx, moved, await this.repo.items(tx, [o.id]));
   }
 
   /**

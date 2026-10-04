@@ -163,6 +163,33 @@ SELECT gen_ulid(), t.f, t.t, 'any'
   ) AS t(f, t)
 ON CONFLICT (from_status, to_status) DO NOTHING;
 
+-- Print jobs (backend doc 8.24): queued until the agent takes the file (sent), then printed or failed. A
+-- failed job, or one the agent took and never reported, can be queued again; a printed one is final
+-- (printing it again is a new job). The worker fails a job whose document could not be made.
+INSERT INTO print_job_status_transition (id, from_status, to_status, via)
+SELECT gen_ulid(), t.f, t.t, 'any'
+  FROM (VALUES
+    ('queued', 'sent'),
+    ('queued', 'failed'),
+    ('queued', 'cancelled'),
+    ('sent', 'printed'),
+    ('sent', 'failed'),
+    ('sent', 'queued'),
+    ('sent', 'cancelled'),
+    ('failed', 'queued'),
+    ('failed', 'cancelled')
+  ) AS t(f, t)
+ON CONFLICT (from_status, to_status) DO NOTHING;
+
+-- Courier handover manifests (backend doc 8.24): an open manifest is completed or cancelled, once.
+INSERT INTO handover_status_transition (id, from_status, to_status, via)
+SELECT gen_ulid(), t.f, t.t, 'any'
+  FROM (VALUES
+    ('open', 'completed'),
+    ('open', 'cancelled')
+  ) AS t(f, t)
+ON CONFLICT (from_status, to_status) DO NOTHING;
+
 -- Full data export (backend doc 8.18): rendered once by the worker. A failed or stuck export is not
 -- queued again: the next request starts a new one.
 INSERT INTO data_export_status_transition (id, from_status, to_status, via)

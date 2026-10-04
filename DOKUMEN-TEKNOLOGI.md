@@ -2,11 +2,11 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.13 |
+| Versi dokumen | 1.14 |
 | Tanggal | 4 Oktober 2026 |
 | Status | Keputusan final untuk implementasi |
 | Pemilik dokumen | Candra Syahputra |
-| Dokumen induk | DOKUMEN-SPESIFIKASI-APLIKASI.md versi 1.11 (PRD); rincian backend di DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.14 |
+| Dokumen induk | DOKUMEN-SPESIFIKASI-APLIKASI.md versi 1.11 (PRD); rincian backend di DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.15 |
 | Audiens | Tech lead, engineer backend, frontend, mobile, DevOps, QA |
 
 Dokumen ini menetapkan teknologi yang dipakai OmniSeller. Setiap lapisan memiliki **satu keputusan**, bukan daftar pilihan. Alasan dan konsekuensinya dicatat agar keputusan dapat ditinjau ulang dengan dasar yang jelas, bukan diganti karena selera. Perubahan keputusan hanya melalui ADR baru (bagian 25).
@@ -366,6 +366,11 @@ Tabel bervolume tinggi dipartisi **range pada kolom `id`** (ULID terurut waktu) 
 - Socket.IO di proses api dengan `@socket.io/redis-adapter`. Room per tenant dan per pengguna.
 - Event yang dikirim: `order.new`, `order.updated`, `sync.status`, `print.job`, `campaign.live_stats`, `notification`.
 - Agen cetak dan aplikasi gudang berlangganan lewat WebSocket yang sama dengan token perangkat.
+- Implementasi (backend 8.24):
+  - **Server.** `socket.io` 4.8.4 dipasang ke server HTTP Nest oleh provider di proses api (path `/socket.io`), tanpa `@nestjs/websockets`. Proyek memakai NestJS 11, sedangkan rilis terbaru paket itu untuk Nest 12, dan sejauh ini server hanya mendorong.
+  - **Mendorong dari proses lain.** Adapter `@socket.io/redis-adapter` 8.3.0 di Redis cache. Worker dan proses lain mendorong lewat `@socket.io/redis-emitter` 5.1.0 di kanal yang sama, dengan publish yang kegagalannya dicatat, tidak menjatuhkan proses.
+  - **Agen cetak.** Room `device:<id>`; event `print.job` dan `print.cancelled`. Agen tersambung dengan transport WebSocket saja, karena polling HTTP butuh sticky session di ALB.
+  - **Pengiriman tidak dijamin.** Agen membaca daftar pekerjaannya lewat REST setelah tersambung dan setiap menit.
 
 ---
 
@@ -473,7 +478,7 @@ Setiap marketplace adalah paket di `packages/connectors/<nama>` yang mengimpleme
 | Kerangka | Electron dengan `electron-builder` dan `electron-updater` untuk pembaruan otomatis |
 | Platform | Windows 10 dan 11 sebagai utama (mayoritas komputer gudang), macOS sekunder |
 | Cetak | Windows: `pdf-to-printer` dengan SumatraPDF yang dibundel, cetak langsung tanpa dialog. macOS: `lp` |
-| Koneksi | WebSocket ke backend dengan token perangkat. Menerima `print.job` berisi URL PDF bertanda tangan (R2, kedaluwarsa 10 menit) dan nama printer tujuan |
+| Koneksi | WebSocket ke backend dengan token perangkat (`auth.token` saat handshake; `Authorization: Bearer` untuk REST). Menerima `print.job` berisi id pekerjaan, jenis, judul, nama printer tujuan (kosong: printer bawaan komputer), dan jumlah salinan. PDF-nya diunduh dari `GET /v1/agent/print-jobs/{id}/file`, yang mengalihkan ke URL bertanda tangan R2 (kedaluwarsa 10 menit) dan menandai pekerjaan terkirim. Status cetak dilaporkan lewat REST. Daftar pekerjaan tertunda dibaca lagi setelah tersambung dan setiap menit, karena push bisa terlewat (backend 8.24) |
 | Antrean lokal | SQLite kecil untuk antrean cetak, ulang otomatis bila printer sibuk, laporan status kembali ke server |
 | Keamanan | Tidak menyimpan data pesanan selain PDF sementara yang dihapus setelah dicetak. Pembaruan ditandatangani kode |
 | Ukuran | Sekitar 80 MB. Diterima karena dipasang sekali per komputer gudang |
@@ -1003,3 +1008,4 @@ export interface MarketplaceConnector {
 | 1.11 | 4 Oktober 2026 | Hasil implementasi migrasi dari aplikasi lain: antrean `import` (7.1); pembaca .xlsx sendiri di atas fflate dengan batas ekstraksi, tanpa SheetJS (13) | Candra Syahputra |
 | 1.12 | 4 Oktober 2026 | Hasil implementasi pelacakan paket: antrean `mp.track` dan bucket pekerjaan latar per toko, 30% laju toko dengan waktu tunggu sampai 2 menit (7.1) | Candra Syahputra |
 | 1.13 | 4 Oktober 2026 | Hasil implementasi putus toko dan barcode: antrean `import` juga menjalankan penghapusan data toko yang diputus (7.1); barcode digambar sendiri dengan pdf-lib (EAN-13, EAN-8, Code 128), tanpa pustaka barcode tambahan | Candra Syahputra |
+| 1.14 | 4 Oktober 2026 | Hasil implementasi agen cetak: Socket.IO 4.8 di proses api tanpa `@nestjs/websockets`, dengan adapter dan emitter Redis; event `print.job` dan `print.cancelled` ke room `device:<id>`; agen hanya memakai transport WebSocket (7.3). Protokol agen dirinci: token perangkat, PDF lewat redirect ke URL R2 bertanda tangan, laporan status lewat REST, dan daftar pekerjaan tertunda sebagai jaring pengaman (12) | Candra Syahputra |
