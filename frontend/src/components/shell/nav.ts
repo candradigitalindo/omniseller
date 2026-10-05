@@ -1,10 +1,12 @@
 import {
   ArrowLeftRight,
+  BarChart3,
   Boxes,
   ClipboardCheck,
   LayoutDashboard,
   type LucideIcon,
   Package,
+  PackagePlus,
   Plug,
   RotateCcw,
   ShoppingBag,
@@ -23,8 +25,10 @@ type NavKey =
   | "stock"
   | "stockCounts"
   | "transfers"
+  | "restock"
+  | "salesReport"
   | "stores";
-type GroupKey = "groupHome" | "groupSales" | "groupCatalog" | "groupStock" | "groupSettings";
+type GroupKey = "groupHome" | "groupSales" | "groupCatalog" | "groupStock" | "groupAnalytics" | "groupSettings";
 
 export interface NavItem {
   key: NavKey;
@@ -83,6 +87,13 @@ export const NAV: readonly NavGroup[] = [
         permission: "inventory:transfer",
         ready: true,
       },
+      { key: "restock", href: "/stok/restock", icon: PackagePlus, permission: "inventory:read", ready: true },
+    ],
+  },
+  {
+    key: "groupAnalytics",
+    items: [
+      { key: "salesReport", href: "/laporan/penjualan", icon: BarChart3, permission: "report:read", ready: true },
     ],
   },
   {

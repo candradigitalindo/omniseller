@@ -64,6 +64,15 @@
   --chart-6: #008300;
   --chart-7: #4a3aa7;
   --chart-8: #e34948;
+  /* sequential scale for magnitude (13.2): one sea-blue hue, lightest to darkest */
+  --seq-1: #dceef4;
+  --seq-2: #b9dce8;
+  --seq-3: #8fc6da;
+  --seq-4: #5fafca;
+  --seq-5: #3a93b1;
+  --seq-6: #1e6b8c;
+  --seq-7: #175570;
+  --seq-8: #0f3f55;
 
   --sidebar: var(--surface);
   --sidebar-foreground: var(--text-700);
@@ -110,6 +119,15 @@
   --chart-6: #008300;
   --chart-7: #9085e9;
   --chart-8: #e66767;
+  /* the same steps reversed: on a dark card little is close to the card and much is bright */
+  --seq-1: #0f3f55;
+  --seq-2: #175570;
+  --seq-3: #1e6b8c;
+  --seq-4: #3a93b1;
+  --seq-5: #5fafca;
+  --seq-6: #8fc6da;
+  --seq-7: #b9dce8;
+  --seq-8: #dceef4;
 
   --sidebar-primary-foreground: #0f141a;
 }
@@ -168,6 +186,14 @@
   --color-chart-6: var(--chart-6);
   --color-chart-7: var(--chart-7);
   --color-chart-8: var(--chart-8);
+  --color-seq-1: var(--seq-1);
+  --color-seq-2: var(--seq-2);
+  --color-seq-3: var(--seq-3);
+  --color-seq-4: var(--seq-4);
+  --color-seq-5: var(--seq-5);
+  --color-seq-6: var(--seq-6);
+  --color-seq-7: var(--seq-7);
+  --color-seq-8: var(--seq-8);
 
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);

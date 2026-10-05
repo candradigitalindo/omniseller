@@ -2,7 +2,7 @@
 
 Web app OmniSeller untuk penjual: Next.js 16 (App Router), React 19, Tailwind CSS 4, shadcn/ui, TanStack Query, dan klien API bertipe dari `backend/openapi.json`. Keputusan teknologinya ada di `DOKUMEN-TEKNOLOGI.md` bagian 9 dan ADR-039; spesifikasi layar di `DOKUMEN-UI-UX.md`.
 
-Layar yang sudah ada: masuk, daftar, lupa dan atur ulang kata sandi, undangan (L49 dan sekitarnya), Ringkasan (L01), Pesanan dengan panel detail (L03, L04), Pengiriman dengan kemas dengan scan, cetak label dan daftar ambil, antrean cetak, dan serah terima kurir (L05 sampai L08), Retur & Batal dengan keputusan, foto bukti, dan penerimaan barang (L09), Produk dengan tambah manual, impor CSV, dan halaman detail (Informasi, Varian, Listing tertaut, Riwayat; L13, L14), Listing Toko dengan progres dan pemetaan SKU (L15), Stok dengan dialog Sesuaikan stok (L19), Stock Opname dengan pindai, tinjau, dan terapkan (L22), Transfer Stok dari draf sampai diterima (L23), dan Toko Terhubung dengan wizard hubungkan toko dan halaman callback otorisasi (L40).
+Layar yang sudah ada: masuk, daftar, lupa dan atur ulang kata sandi, undangan (L49 dan sekitarnya), Ringkasan (L01), Pesanan dengan panel detail (L03, L04), Pengiriman dengan kemas dengan scan, cetak label dan daftar ambil, antrean cetak, dan serah terima kurir (L05 sampai L08), Retur & Batal dengan keputusan, foto bukti, dan penerimaan barang (L09), Produk dengan tambah manual, impor CSV, dan halaman detail (Informasi, Varian, Listing tertaut, Riwayat; L13, L14), Listing Toko dengan progres dan pemetaan SKU (L15), Stok dengan dialog Sesuaikan stok (L19), Stock Opname dengan pindai, tinjau, dan terapkan (L22), Transfer Stok dari draf sampai diterima (L23), Perlu Restock dengan sisa hari dan saran pesan per gudang (L24a), Laporan Penjualan dengan pembanding, grafik tren, rincian per kanal, toko, produk, kategori, provinsi, dan jam, serta CSV tiap bagian (L30), dan Toko Terhubung dengan wizard hubungkan toko dan halaman callback otorisasi (L40).
 
 ## Menjalankan
 
@@ -31,9 +31,9 @@ Web app memanggil api di origin-nya sendiri (`/v1/...`), jadi cookie sesi `os_se
 messages/id.json           semua teks antarmuka (next-intl); kuncinya dicek tipe
 src/app/                   rute: (auth) masuk, daftar, sandi, undangan; (app) layar di dalam shell
 src/proxy.ts               tanpa cookie sesi, halaman aplikasi dialihkan ke /masuk?next=
-src/features/<area>/       layar per area: auth, dashboard, listings, orders, products, returns, shipping, stock, stock-ops, stores
+src/features/<area>/       layar per area: auth, dashboard, listings, orders, products, reports, returns, shipping, stock, stock-ops, stores
 src/components/ui/         komponen shadcn/ui (Radix), disesuaikan dengan token desain
-src/components/common/     PageHeader, StatusPill, SlaPill, EmptyState, ErrorState, Field, FilterChip, ikon kanal
+src/components/common/     PageHeader, StatusPill, SlaPill, EmptyState, ErrorState, KpiTile, Segmented, Field, FilterChip, ikon kanal
 src/components/shell/      sidebar, bar atas, navigasi bawah, notifikasi, menu pengguna
 src/lib/api/               klien openapi-fetch, unwrap, ApiError (Problem Details), tipe hasil generate
 src/lib/session.tsx        GET /v1/me, useCan (izin), useTimeZone (zona waktu bisnis)
@@ -55,6 +55,7 @@ src/test/                  harness tes: renderApp, mockApi, next/navigation tiru
 - Membuat dokumen dengan `Idempotency-Key` (transfer stok): satu kunci per formulir yang terbuka (`crypto.randomUUID()`), agar klik ganda atau ulangan setelah jawaban hilang tidak membuat dua dokumen.
 - Pilihan cetak stasiun (agen cetak, format, templat) disimpan di `localStorage` browser itu saja, karena tiap PC kemas punya printernya sendiri. Bacaan dan tulisannya dibungkus `try/catch`, dan tanpa storage nilai bawaan berlaku. Tanpa agen cetak, dokumen diunduh sebagai PDF.
 - Filter daftar disimpan di URL (`useUrlParams`), sehingga tampilan bisa dibagikan dan notifikasi bisa menautkan ke daftar yang sudah tersaring.
+- Grafik mengikuti DOKUMEN-UI-UX 13: warna dari token CSS (`--chart-1` sampai `--chart-8` per entitas lewat `channelChartSlot`, `--seq-1` sampai `--seq-8` untuk besaran), dibaca ulang saat tema berganti; legenda untuk dua seri atau lebih; setiap grafik punya "Lihat tabel" dan "Unduh". ECharts dimuat dengan `next/dynamic` tanpa SSR; di tes komponen grafiknya diganti tiruan (`vi.mock`), karena jsdom tidak punya canvas.
 - Status selalu ikon, teks, dan warna sekaligus (`StatusPill`). Ikon kanal di samping namanya yang tertulis memakai `decorative`, agar pembaca layar tidak menyebut nama dua kali.
 - Data pembeli (nama, telepon, alamat) tidak boleh masuk `console`, `localStorage`, atau URL.
 - Pindah ke alamat lain dengan muat ulang penuh (halaman izin marketplace, masuk ulang) lewat `leaveTo` dari `@/lib/navigate`, agar bisa diganti di tes.
@@ -88,4 +89,6 @@ CI (`.github/workflows/ci.yml`) menjalankan hal yang sama terhadap stack yang di
 - Di browser sungguhan, pengumum rute Next.js juga ber-`role="alert"`: di uji e2e cari pesannya (`getByRole("alert").filter({ hasText })`), bukan sekadar alert pertama.
 - Pilihan yang tidak punya panel sendiri (rentang dasbor) adalah radio, bukan Tabs: Tabs tanpa panel membuat `aria-controls` menunjuk ke elemen yang tidak ada (axe: kritis). `Segmented` memakai `<input type="radio">` asli; di Playwright klik labelnya, karena inputnya `sr-only`.
 - Pesan error formulir di dalam dialog yang bergulir diletakkan di dekat tombol yang memicunya (`FormAlert`), bukan di atas: penolakan api dari tombol di bawah tidak terlihat bila pesannya di luar layar.
+- `TabsList` bawaan memakai `justify-center`: tab yang meluap di ponsel terpotong di kiri dan tidak bisa digulir ke sana. Daftar tab yang bisa lebih lebar dari layar diberi `max-w-full justify-start overflow-x-auto`.
+- "Bulan ini" di laporan penjualan diminta sebagai bulan kalender penuh (tanggal 1 sampai akhir bulan), bukan tanggal 1 sampai hari ini: hanya dengan begitu api membandingkannya dengan bulan lalu sampai titik yang sama (backend 8.20). Hari yang belum lewat dipotong dari grafik (`trendPoints`).
 - jsdom tidak punya `URL.createObjectURL`; `src/test/setup.ts` memasang penggantinya untuk pratinjau foto.

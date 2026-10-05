@@ -1,22 +1,22 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { cn } from "cn";
-import { ArrowDownRight, ArrowRight, ArrowUpRight, Plug, ShoppingBag } from "lucide-react";
+import { ArrowRight, BarChart3, Plug, ShoppingBag } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { ChannelIcon } from "@/components/common/channel";
+import { KpiTile } from "@/components/common/kpi";
 import { EmptyState, ErrorState, PageHeader, StatusPill, type Tone } from "@/components/common/page";
 import { Segmented } from "@/components/common/segmented";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { criticalStockHref } from "@/features/stock/stock-meta";
 import { api, unwrap } from "@/lib/api/client";
 import type { components } from "@/lib/api/schema";
-import { firstName, formatNumber, formatPercentChange, formatRupiah, greeting } from "@/lib/format";
+import { firstName, formatNumber, formatRupiah, greeting } from "@/lib/format";
 import { useCan, useSession } from "@/lib/session";
 
 const SalesChart = dynamic(() => import("./sales-chart").then((m) => m.SalesChart), {
@@ -43,60 +43,6 @@ const HEALTH_TONE: Record<Dashboard["stores"][number]["health"], Tone> = {
   attention: "warning",
   problem: "danger",
 };
-
-function KpiTile({
-  label,
-  value,
-  change,
-  note,
-  href,
-  tone,
-}: {
-  label: string;
-  value: string;
-  change?: { pct: number | null; versus: string } | undefined;
-  note?: string | undefined;
-  href?: string | undefined;
-  tone?: Tone | undefined;
-}) {
-  const body = (
-    <Card className="h-full gap-1 transition-colors hover:border-border-strong">
-      <CardContent className="grid gap-1">
-        <span className="text-[13px] text-text-500">{label}</span>
-        <span
-          className={cn(
-            "tabular text-[26px] leading-tight font-bold text-text-900 md:text-[28px]",
-            tone === "warning" && "text-warning",
-            tone === "danger" && "text-danger",
-          )}
-        >
-          {value}
-        </span>
-        {change && change.pct !== null ? (
-          <span
-            className={cn(
-              "flex items-center gap-1 text-[13px] font-medium",
-              change.pct > 0 ? "text-success" : change.pct < 0 ? "text-danger" : "text-text-500",
-            )}
-          >
-            {change.pct > 0 ? <ArrowUpRight className="size-4" aria-hidden /> : null}
-            {change.pct < 0 ? <ArrowDownRight className="size-4" aria-hidden /> : null}
-            {formatPercentChange(change.pct)} <span className="font-normal text-text-500">{change.versus}</span>
-          </span>
-        ) : note ? (
-          <span className="text-[13px] text-text-500">{note}</span>
-        ) : null}
-      </CardContent>
-    </Card>
-  );
-  return href ? (
-    <Link href={href} className="rounded-[10px] outline-none focus-visible:ring-2 focus-visible:ring-ring">
-      {body}
-    </Link>
-  ) : (
-    body
-  );
-}
 
 function DashboardSkeleton() {
   return (
@@ -300,6 +246,16 @@ function DashboardBody({
         <Card>
           <CardHeader>
             <CardTitle>{t("salesChart")}</CardTitle>
+            {can("report:read") ? (
+              <CardAction>
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/laporan/penjualan">
+                    <BarChart3 aria-hidden />
+                    {t("salesReport")}
+                  </Link>
+                </Button>
+              </CardAction>
+            ) : null}
           </CardHeader>
           <CardContent>
             {data.salesChart.series.length === 0 ? (

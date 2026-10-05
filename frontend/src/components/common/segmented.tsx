@@ -31,7 +31,7 @@ export function Segmented<T extends string>({
             onChange={() => onChange(o.value)}
             className="peer sr-only"
           />
-          <span className="inline-flex h-8 cursor-pointer items-center rounded-md px-3 text-sm font-medium text-text-700 hover:text-text-900 peer-checked:bg-surface peer-checked:text-text-900 peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-ring">
+          <span className="inline-flex h-8 cursor-pointer items-center rounded-md px-3 text-sm font-medium whitespace-nowrap text-text-700 hover:text-text-900 peer-checked:bg-surface peer-checked:text-text-900 peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-ring">
             {o.label}
           </span>
         </label>

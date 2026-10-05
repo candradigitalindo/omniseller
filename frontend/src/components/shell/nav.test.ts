@@ -9,12 +9,15 @@ const holding =
 
 describe("sidebar (DOKUMEN-UI-UX 7.1)", () => {
   it("shows only screens that exist, and only to users with the permission", () => {
-    const owner = visibleNav(holding("order:read", "inventory:read", "catalog:read", "catalog:map", "settings:store"));
+    const owner = visibleNav(
+      holding("order:read", "inventory:read", "catalog:read", "catalog:map", "report:read", "settings:store"),
+    );
     expect(owner.map((g) => [g.key, g.items.map((i) => i.key)])).toEqual([
       ["groupHome", ["overview"]],
       ["groupSales", ["orders", "returns"]],
       ["groupCatalog", ["products", "listings"]],
-      ["groupStock", ["stock"]],
+      ["groupStock", ["stock", "restock"]],
+      ["groupAnalytics", ["salesReport"]],
       ["groupSettings", ["stores"]],
     ]);
     const warehouse = visibleNav(holding("inventory:read", "inventory:count", "inventory:transfer"));
@@ -22,7 +25,10 @@ describe("sidebar (DOKUMEN-UI-UX 7.1)", () => {
       "stock",
       "stockCounts",
       "transfers",
+      "restock",
     ]);
+    // the sales report needs report:read (backend 8.20), so the warehouse role does not see Analitik
+    expect(warehouse.map((g) => g.key)).not.toContain("groupAnalytics");
     // shipping shows to anyone holding one of its permissions
     const packer = visibleNav(holding("order:read", "shipment:pack"));
     expect(packer.find((g) => g.key === "groupSales")?.items.map((i) => i.key)).toEqual([

@@ -2,8 +2,8 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.3 |
-| Tanggal | 5 Oktober 2026 |
+| Versi dokumen | 1.4 |
+| Tanggal | 6 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
 | Dokumen terkait | DOKUMEN-SPESIFIKASI-APLIKASI.md (PRD) versi 1.10, DOKUMEN-UI-UX-MOBILE.md versi 1.0 (aplikasi mobile), DOKUMEN-TEKNOLOGI.md versi 1.1, DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.0 |
@@ -238,12 +238,13 @@ Item diberi nama sehari-hari. Kolom "Fase" mengikuti roadmap PRD; item fase lanj
 | | Stock Opname | `clipboard-check` | `inventory:count` | 3 |
 | | Transfer Stok | `arrow-left-right` | `inventory:transfer` | 3 |
 | | Pembelian & Supplier | `shopping-cart` | `inventory:adjust` | 3 |
+| | Perlu Restock | `package-plus` | `inventory:read` | 2 |
 | **Keuangan** | Dana Cair & Rekonsiliasi | `banknote` | `finance:read` | 3 |
 | | Laba per Pesanan | `trending-up` | `finance:read` | 3 |
 | | Biaya Marketplace | `receipt` | `finance:read` | 2 |
 | | Pajak & Dokumen | `file-text` | `finance:read` | 3 |
 | | Piutang Pelanggan | `hand-coins` | `finance:read` | 3 |
-| **Analitik** | Laporan Penjualan | `bar-chart-3` | semua | 1 |
+| **Analitik** | Laporan Penjualan | `bar-chart-3` | `report:read` | 1 |
 | | Laporan Stok | `pie-chart` | `inventory:read` | 2 |
 | | Kesehatan Toko | `heart-pulse` | semua | 2 |
 | | Kinerja Tim | `users` | `settings:user` | 2 |
@@ -480,7 +481,7 @@ Urutan slot tidak boleh diacak; seri pertama selalu slot 1. Warna mengikuti enti
 
 Aturan tambahan: slot 3, 4, dan 5 pada mode terang berkontras di bawah 3:1 terhadap kartu putih, sehingga grafik yang memakainya wajib memberi label langsung pada seri atau menyediakan tampilan tabel. Untuk grafik sebar (scatter) dan peta, maksimal tiga seri; sisanya digabung "Lainnya". Seri kesembilan tidak pernah dibuat warna baru.
 
-Skala berurutan (magnitudo, misalnya peta panas penjualan per jam): satu hue biru laut dari muda ke tua: `#DCEEF4`, `#B9DCE8`, `#8FC6DA`, `#5FAFCA`, `#3A93B1`, `#1E6B8C`, `#175570`, `#0F3F55`. Skala menyimpang (untung dan rugi): biru `#2A78D6` ke merah `#E34948` dengan abu netral `#EEF0F2` di tengah.
+Skala berurutan (magnitudo, misalnya peta panas penjualan per jam): satu hue biru laut dari muda ke tua: `#DCEEF4`, `#B9DCE8`, `#8FC6DA`, `#5FAFCA`, `#3A93B1`, `#1E6B8C`, `#175570`, `#0F3F55`. Di mode gelap urutan yang sama dibalik (nilai kecil `#0F3F55`, nilai besar `#DCEEF4`), agar yang ramai tetap paling menonjol di atas kartu gelap. Sel bernilai nol memakai `surface-2` dengan garis tepi, bukan langkah pertama skala. Skala menyimpang (untung dan rugi): biru `#2A78D6` ke merah `#E34948` dengan abu netral `#EEF0F2` di tengah.
 
 Warna status di grafik (tepat waktu, hampir terlambat, terlambat) memakai token semantik bagian 4 dengan ikon dan label, dan tidak pernah dipakai sebagai warna seri biasa.
 
@@ -642,6 +643,15 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **L22 Stock Opname**: daftar opname (nomor, gudang, mode penuh atau sebagian, status, selisih total); halaman hitung: daftar SKU dengan stok sistem tersembunyi sampai dihitung (mode buta), input jumlah besar, scan; halaman tinjau: tabel selisih dengan warna, tombol "Terapkan selisih" yang butuh konfirmasi. Prompt: "Halaman hitung opname di tablet: baris SKU dengan gambar, nama, lokasi rak, input angka besar, tombol scan. Halaman tinjau: tabel 'Sistem 120, Dihitung 117, Selisih -3' merah, total nilai selisih, tombol utama 'Terapkan 14 penyesuaian'."
 - **L23 Transfer Stok**: formulir gudang asal dan tujuan, tabel SKU dan jumlah, status Draf, Dikirim, Diterima; penerimaan dengan jumlah diterima. Prompt: "Formulir transfer 'Gudang Jakarta ke Gudang Surabaya', tabel SKU dengan jumlah, tombol 'Kirim transfer'. Daftar transfer dengan pil status."
 - **L24 Pembelian dan Supplier**: daftar supplier; daftar PO dengan status; formulir PO (supplier, gudang, tabel SKU, jumlah, harga beli, total); penerimaan barang per PO dengan jumlah diterima; saran restock menjadi draf PO. Prompt: "Halaman pembelian: tab Supplier dan Pesanan pembelian. Tabel PO 'PO-202609-0012, PT Kain Jaya, Gudang Jakarta, 24 SKU, Rp 18.500.000, Diterima sebagian' dengan bar progres. Banner biru 'Saran restock: 9 SKU akan habis dalam 7 hari' dengan tombol 'Buat draf PO'."
+
+#### L24a Perlu Restock
+
+- **Tujuan**: tahu barang mana yang harus dipesan lagi sebelum habis, sambil menunggu modul pembelian (L24).
+- **Isi**: dua KPI kecil (Perlu restock, SKU per gudang yang dipantau); filter: cari SKU atau nama, gudang, penjualan yang dihitung (7, 14, atau 30 hari terakhir), "Tampilkan semua", dan "Atur hitungan" (stok dianggap segera habis bila cukup untuk kurang dari 14 hari; saran pesan untuk 30 hari penjualan); tabel per SKU per gudang: SKU (tautan ke halaman Stok), nama, gudang, tersedia, terjual, per hari, "Cukup untuk 3,5 hari" (merah bila habis, kuning di bawah batas), stok minimum, saran pesan (tebal), alasan sebagai pil (Habis merah, Di bawah minimum dan Segera habis kuning, Aman hijau saat semua ditampilkan).
+- **Aksi utama**: "Unduh CSV" (semua baris dengan filter yang sama). Setelah modul pembelian ada: "Buat draf PO" dari baris terpilih.
+- **Keadaan khusus**: barang yang belum terjual menulis "Belum terjual", bukan angka hari; stok yang belum ditetapkan tidak dihitung (ADR-036).
+- **Mobile**: kartu per SKU dengan saran pesan besar di kanan, pil alasan, gudang, dan sisa hari.
+- **Prompt untuk AI**: "Halaman perlu restock. Dua KPI kecil 'Perlu restock 5' kuning dan 'SKU per gudang yang dipantau 16'. Baris filter: kotak cari, 'Semua gudang', pilihan '7 hari, 14 hari, 30 hari', chip 'Tampilkan semua', tombol 'Atur hitungan'. Tabel: 'KAOS-POLOS-HTM-L' biru mono, 'Gudang Surabaya', tersedia '1', terjual 30 hari '64', per hari '2,1', cukup untuk '0,5 hari' kuning tebal, saran pesan '64' tebal, pil kuning 'Segera habis'. Satu baris 'Tersedia 0, Habis' merah dengan pil merah."
 
 ### 14.5 Keuangan
 
@@ -925,3 +935,4 @@ Sebelum layar dinyatakan selesai:
 | 1.1 | 30 September 2026 | Rujukan ke DOKUMEN-UI-UX-MOBILE.md di bagian 16 | Candra Syahputra |
 | 1.2 | 1 Oktober 2026 | Kanal TikTok Shop dan Tokopedia tampil sebagai "Tokopedia & Shop" di semua teks dan prompt, sesuai pedoman merek platform untuk pasar Indonesia (PRD 5.6) | Candra Syahputra |
 | 1.3 | 5 Oktober 2026 | `text-500` mode terang menjadi `#5F6B78`: `#6B7683` mencapai 4,6:1 pada putih, tetapi hanya 4,3:1 pada `canvas` dan 4,4:1 pada `surface-2`, di bawah WCAG AA (4,5:1) untuk teks keterangan yang memang tampil di sana. Ditemukan pemeriksaan axe pada uji end-to-end web app | Candra Syahputra |
+| 1.4 | 6 Oktober 2026 | Layar L24a Perlu Restock (FR-STK-07) dan item sidebarnya; Laporan Penjualan butuh izin `report:read` seperti api; skala berurutan untuk mode gelap dan sel nol (13.2) | Candra Syahputra |

@@ -12,6 +12,8 @@ const PAGES = [
   "/stok",
   "/stok/opname",
   "/stok/transfer",
+  "/stok/restock",
+  "/laporan/penjualan",
   "/integrasi",
 ];
 
