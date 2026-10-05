@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.4 |
+| Versi dokumen | 1.5 |
 | Tanggal | 6 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
@@ -539,6 +539,15 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **Mobile**: halaman penuh dengan kartu bertumpuk; bar bawah berisi aksi utama.
 - **Prompt untuk AI**: "Panel samping detail pesanan selebar 420 px di kanan daftar. Judul 'SP-2609-88123' dengan pil biru 'Baru' dan ikon Shopee. Stepper mendatar empat langkah dengan langkah pertama aktif. Kartu 'Item (3)' berisi gambar produk 56 px, nama, varian 'Hitam, L', SKU mono 'KAOS-POLOS-HTM-L', 'x2', harga. Kartu 'Pengiriman': J&T Express Reguler, resi belum ada, batas kirim '30 Sep, 15.00 (2 jam lagi)' pil kuning, alamat pembeli. Kartu 'Pembayaran' dengan baris subtotal, voucher penjual, ongkir, total tebal, dan 'Perkiraan laba Rp 62.000' hijau. Kartu 'Masalah' merah muda: 'Stok Kaos Polos Hitam L di Gudang Jakarta tinggal 1, butuh 2' dengan tombol 'Pindahkan dari gudang lain' dan 'Tambah stok'. Footer lengket dengan tombol utama 'Terima pesanan' dan menu titik tiga."
 
+#### L04a Pesanan Manual Baru
+
+- **Tujuan**: mencatat penjualan di luar marketplace (WhatsApp, Instagram, toko) secepat menulis nota, dengan stok yang langsung ditahan.
+- **Isi**: halaman dua kolom dari tombol "Pesanan manual" di L03 (izin `order:write`). Kiri: kartu Barang (kotak cari SKU, nama, atau barcode; Enter pada barcode atau SKU lengkap langsung menambah; hasil menampilkan harga dan stok siap jual; baris barang dengan jumlah, tombol tambah dan kurang, harga satuan yang bisa diubah dengan keterangan harga produk, dan peringatan kuning bila jumlah melebihi stok), kartu Pembeli (nama, telepon), kartu Pengiriman (pilihan "Dikirim ke alamat" atau "Diambil pembeli atau di tempat"; penerima, telepon, alamat, kecamatan, kota, provinsi dari daftar, kode pos, kurir dengan saran, layanan), kartu Lainnya (saluran penjualan, gudang otomatis atau pilihan, waktu pesanan sampai 90 hari ke belakang, catatan pembeli yang tercetak di label, catatan internal). Kanan, lengket di desktop: Ringkasan (subtotal, diskon, ongkir, total besar, cara bayar: Transfer, Tunai, E-wallet, COD, Lainnya; sakelar "Sudah dibayar" kecuali COD; kalimat status awal pesanan).
+- **Aksi utama**: "Buat pesanan". Satu kunci idempoten per formulir, jadi klik ganda tidak membuat dua pesanan. Setelah berhasil, daftar pesanan terbuka dengan panel detail pesanan baru.
+- **Keadaan khusus**: kesalahan tampil di bawah kolomnya dan satu kalimat di atas tombol; stok kurang tidak menolak pesanan (pesanan masuk bermasalah, seperti pesanan marketplace).
+- **Mobile**: kolom bertumpuk, ringkasan dan tombol di akhir halaman.
+- **Prompt untuk AI**: "Formulir pesanan manual dua kolom. Kiri: kartu 'Barang' dengan kotak cari 'Cari SKU atau nama produk, atau pindai barcode', baris 'Kaos Polos Hitam L, KAOS-HTM-L mono, Stok siap jual 83', jumlah dengan tombol minus dan plus, harga satuan 'Rp 65.000', total baris 'Rp 130.000'; kartu 'Pembeli' dan 'Pengiriman' dengan pilihan 'Dikirim ke alamat' atau 'Diambil pembeli'. Kanan: kartu 'Ringkasan' lengket dengan 'Subtotal (2 barang) Rp 250.000', diskon, ongkir, 'Total Rp 260.000' tebal, pilihan cara bayar berbentuk kotak, sakelar 'Sudah dibayar', tombol utama lebar penuh 'Buat pesanan'."
+
 #### L05 Pengiriman: Ambil dan Kemas
 
 - **Tujuan**: mengelompokkan pesanan siap dikemas menjadi gelombang dan mencetak daftar ambil.
@@ -936,3 +945,4 @@ Sebelum layar dinyatakan selesai:
 | 1.2 | 1 Oktober 2026 | Kanal TikTok Shop dan Tokopedia tampil sebagai "Tokopedia & Shop" di semua teks dan prompt, sesuai pedoman merek platform untuk pasar Indonesia (PRD 5.6) | Candra Syahputra |
 | 1.3 | 5 Oktober 2026 | `text-500` mode terang menjadi `#5F6B78`: `#6B7683` mencapai 4,6:1 pada putih, tetapi hanya 4,3:1 pada `canvas` dan 4,4:1 pada `surface-2`, di bawah WCAG AA (4,5:1) untuk teks keterangan yang memang tampil di sana. Ditemukan pemeriksaan axe pada uji end-to-end web app | Candra Syahputra |
 | 1.4 | 6 Oktober 2026 | Layar L24a Perlu Restock (FR-STK-07) dan item sidebarnya; Laporan Penjualan butuh izin `report:read` seperti api; skala berurutan untuk mode gelap dan sel nol (13.2) | Candra Syahputra |
+| 1.5 | 6 Oktober 2026 | Layar L04a Pesanan Manual Baru (FR-ORD-09) | Candra Syahputra |

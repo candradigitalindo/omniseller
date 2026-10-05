@@ -5,6 +5,7 @@ import { expect, seedShop, tag, test } from "./fixtures";
 const PAGES = [
   "/",
   "/pesanan",
+  "/pesanan/baru",
   "/pengiriman",
   "/retur",
   "/produk",

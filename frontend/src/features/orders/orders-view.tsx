@@ -2,7 +2,8 @@
 
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { cn } from "cn";
-import { AlertOctagon, PackageCheck, Search, ShoppingBag, Truck } from "lucide-react";
+import { AlertOctagon, PackageCheck, Plus, Search, ShoppingBag, Truck } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { ChannelIcon } from "@/components/common/channel";
@@ -126,19 +127,29 @@ export function OrdersView() {
       <PageHeader
         title={t("title")}
         actions={
-          !can("shipment:arrange") ? null : f.tab === "new" ? (
-            newWithoutProblems.length > 0 ? (
-              <Button onClick={() => setArranging(newWithoutProblems.map((o) => o.id))}>
-                <Truck aria-hidden />
-                {t("processAllNew", { count: newWithoutProblems.length })}
+          <>
+            {can("order:write") ? (
+              <Button asChild variant="secondary">
+                <Link href="/pesanan/baru">
+                  <Plus aria-hidden />
+                  {t("manualOrder")}
+                </Link>
               </Button>
-            ) : null
-          ) : newCount > 0 ? (
-            <Button onClick={() => set({ status: "new", id: null })}>
-              <Truck aria-hidden />
-              {t("processNew", { count: newCount })}
-            </Button>
-          ) : null
+            ) : null}
+            {!can("shipment:arrange") ? null : f.tab === "new" ? (
+              newWithoutProblems.length > 0 ? (
+                <Button onClick={() => setArranging(newWithoutProblems.map((o) => o.id))}>
+                  <Truck aria-hidden />
+                  {t("processAllNew", { count: newWithoutProblems.length })}
+                </Button>
+              ) : null
+            ) : newCount > 0 ? (
+              <Button onClick={() => set({ status: "new", id: null })}>
+                <Truck aria-hidden />
+                {t("processNew", { count: newCount })}
+              </Button>
+            ) : null}
+          </>
         }
       />
 
