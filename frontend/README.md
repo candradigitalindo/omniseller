@@ -64,6 +64,18 @@ src/test/                  harness tes: renderApp, mockApi, next/navigation tiru
 
 Tes berada di samping kodenya (`*.test.ts`, `*.test.tsx`). Tes komponen memakai `renderApp` (pesan, TanStack Query, sesi, tooltip), `mockApi` (menjawab `fetch` per `"METHOD /path"` dan mencatat setiap panggilan beserta body-nya), dan `setUrl` atau `currentUrl` untuk `next/navigation` tiruan yang dipasang `src/test/setup.ts`. Tes memeriksa permintaan yang dikirim ke api, bukan detail implementasi.
 
+## Uji end-to-end
+
+`e2e/` berisi uji Playwright terhadap web app hasil build dan backend yang berjalan: masuk dan daftar, pesanan sampai dikirim (terima, kemas dengan scan, label PDF, serah terima), stok (sesuaikan, opname, transfer), katalog, dan pemeriksaan axe (WCAG 2 A dan AA) di halaman harian. Setiap tes mendaftarkan bisnisnya sendiri lewat API (`e2e/fixtures.ts`) dengan alamat klien acak di `CF-Connecting-IP`, karena api membatasi pendaftaran per alamat. Karena itu tes tidak saling bergantung dan bisa berjalan paralel.
+
+```bash
+# backend berjalan (pnpm dev di backend/) dan web app hasil build berjalan di port 3100
+E2E_CHROME=1 pnpm e2e        # memakai Google Chrome yang terpasang
+pnpm exec playwright install chromium && pnpm e2e   # atau Chromium milik Playwright
+```
+
+CI (`.github/workflows/ci.yml`) menjalankan hal yang sama terhadap stack yang dibangun di runner.
+
 ## Jebakan yang sudah pernah terjadi
 
 - `API_ORIGIN` dibaca saat `next build`: rewrites masuk ke hasil build. Build untuk smoke lokal dengan `API_ORIGIN=... pnpm build`.
@@ -73,5 +85,7 @@ Tes berada di samping kodenya (`*.test.ts`, `*.test.tsx`). Tes komponen memakai 
 - Komponen yang memakai `useSearchParams` dibungkus `Suspense` di halamannya, atau build gagal saat prerender.
 - Next 16: middleware bernama `proxy.ts`, `params` halaman adalah Promise, dan `error.tsx` menerima `retry`. Panduan versi terpasang ada di `node_modules/next/dist/docs/`.
 - Dialog dan sheet Radix butuh judul; saat memuat pakai `SheetTitle` dengan `sr-only`.
+- Di browser sungguhan, pengumum rute Next.js juga ber-`role="alert"`: di uji e2e cari pesannya (`getByRole("alert").filter({ hasText })`), bukan sekadar alert pertama.
+- Pilihan yang tidak punya panel sendiri (rentang dasbor) adalah radio, bukan Tabs: Tabs tanpa panel membuat `aria-controls` menunjuk ke elemen yang tidak ada (axe: kritis). `Segmented` memakai `<input type="radio">` asli; di Playwright klik labelnya, karena inputnya `sr-only`.
 - Pesan error formulir di dalam dialog yang bergulir diletakkan di dekat tombol yang memicunya (`FormAlert`), bukan di atas: penolakan api dari tombol di bawah tidak terlihat bila pesannya di luar layar.
 - jsdom tidak punya `URL.createObjectURL`; `src/test/setup.ts` memasang penggantinya untuk pratinjau foto.

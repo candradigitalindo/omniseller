@@ -62,3 +62,9 @@ pnpm lint && pnpm typecheck && pnpm test
 ```
 
 Setelah kontrak API berubah: `pnpm openapi:emit` di `backend/`, lalu `pnpm api:types` di `frontend/`.
+
+Uji end-to-end (Playwright) berjalan terhadap backend dan web app yang sedang berjalan: `E2E_CHROME=1 pnpm e2e` di `frontend/`.
+
+## CI
+
+`.github/workflows/ci.yml` menjalankan lint, typecheck, unit, dan uji integrasi backend (PostgreSQL dan Redis sebagai service), pemeriksaan web app, dan uji end-to-end terhadap stack yang dibangun di runner. Workflow ini berjalan setelah repositori didorong ke GitHub.

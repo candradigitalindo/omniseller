@@ -143,7 +143,8 @@ NestJS injection always uses explicit `@Inject(TOKEN)`; do not rely on construct
 
 ## Frontend (`frontend/`, commands from there)
 - Read `frontend/README.md` (structure, rules, traps). Next.js 16 differs from older versions: `frontend/AGENTS.md` points to the guides in `node_modules/next/dist/docs/`.
-- `pnpm dev` (port 3100, `/v1/*` forwarded to `API_ORIGIN`), `pnpm lint && pnpm typecheck && pnpm test`, `pnpm build`.
+- `pnpm dev` (port 3100, `/v1/*` forwarded to `API_ORIGIN`), `pnpm lint && pnpm typecheck && pnpm test`, `pnpm build`, and `pnpm e2e` (Playwright against a running backend and built web app; `E2E_CHROME=1` uses the installed Chrome).
+- CI is `.github/workflows/ci.yml`: it fails when `backend/openapi.json` or `frontend/src/lib/api/schema.d.ts` differ from what the code emits, so commit both after a contract change.
 - API types are generated from `backend/openapi.json`: after a contract change run `pnpm openapi:emit` in `backend/`, then `pnpm api:types` here. Never write response types by hand.
 - Every call goes through `api` and `unwrap` (`src/lib/api/client.ts`); UI text lives only in `messages/id.json`; dates use the business's time zone (`useTimeZone`); actions without permission are hidden (`useCan`).
 - Buyer data never goes to `console`, `localStorage`, or URLs.

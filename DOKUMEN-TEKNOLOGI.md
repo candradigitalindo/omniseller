@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.18 |
+| Versi dokumen | 1.19 |
 | Tanggal | 5 Oktober 2026 |
 | Status | Keputusan final untuk implementasi |
 | Pemilik dokumen | Candra Syahputra |
@@ -589,7 +589,7 @@ Semua lingkungan didefinisikan dengan **Terraform** (modul per komponen, state d
 
 | Tahap | Isi | Pemicu |
 |---|---|---|
-| Verifikasi | Biome, `tsc --noEmit`, Vitest unit, uji integrasi dengan Testcontainers (PostgreSQL, Redis), uji isolasi tenant, Semgrep | Setiap pull request |
+| Verifikasi | `.github/workflows/ci.yml`. Backend: Biome, `tsc --noEmit`, Vitest unit, uji integrasi (termasuk isolasi tenant) pada service PostgreSQL 17 dan Redis 7.2 dengan role aplikasi, dan `openapi.json` harus sama dengan hasil emit. Web app: Biome, `tsc`, Vitest, tipe API harus sama dengan `backend/openapi.json`, `next build`. End-to-end: backend hasil build (api, worker, scheduler) dan web app hasil build, lalu Playwright di Chromium, termasuk pemeriksaan axe. Semgrep menyusul | Setiap push ke `main` dan pull request |
 | Build | Image Docker multi-stage ARM64, push ke ECR, pemindaian Trivy (gagal bila ada kerentanan kritis) | Merge ke `main` |
 | Deploy staging | Migrasi DB sebagai tugas ECS satu kali, lalu deploy semua layanan, lalu Playwright end-to-end dan uji kontrak connector | Setiap merge ke `main` |
 | Deploy produksi | Tag `v*` dengan persetujuan manual satu orang. Migrasi, lalu CodeDeploy blue/green per layanan: 10% lalu lintas selama 10 menit, alarm (error rate, p95 latensi, DLQ) memicu rollback otomatis, lalu 100% | Tag rilis |
@@ -681,7 +681,7 @@ Memetakan lapisan pengujian di PRD bagian 13 ke perkakas:
 | Kontrak connector | Vitest dengan fixture respons nyata teranonimkan, ditambah job harian terhadap sandbox nyata yang melaporkan ke Grafana | `packages/connectors/*` |
 | Isolasi tenant | Generator uji otomatis yang memanggil setiap endpoint OpenAPI sebagai tenant A dengan sumber daya tenant B dan mengharapkan 404 | `backend/test/tenant-isolation` |
 | Komponen web | Vitest, Testing Library, jsdom; api dijawab di level `fetch` (`mockApi`), memeriksa permintaan yang dikirim | `frontend/src` |
-| End-to-end web | Playwright dengan axe untuk aksesibilitas, berjalan terhadap staging | `frontend/e2e` |
+| End-to-end web | Playwright dengan axe untuk aksesibilitas (WCAG 2 A dan AA, pelanggaran serius dan kritis gagal), terhadap stack hasil build di CI dan nanti terhadap staging (`E2E_BASE_URL`); setiap tes membuat bisnisnya sendiri lewat API | `frontend/e2e` |
 | End-to-end mobile | Maestro terhadap build EAS internal | `mobile/.maestro` |
 | Beban | k6 dengan skenario 10.000 pesanan per hari, 500 webhook per menit, 5.000 pesanan dalam 10 menit (live), dijalankan terhadap staging berukuran produksi sebelum rilis besar | `tools/load` |
 | Keamanan | OWASP ZAP baseline terhadap staging, Semgrep, Trivy, gitleaks | CI |
@@ -1045,3 +1045,4 @@ export interface MarketplaceConnector {
 | 1.16 | 4 Oktober 2026 | Hasil implementasi retur: bagian connector `returns` (26.4) untuk Shopee (`v2.returns` daftar, detail, alasan sanggahan, `convert_image`, `confirm`, `dispute`; `handle_buyer_cancellation`) dan TikTok Shop (Search Returns dan Search Cancellations 202602, Get Decision Eligibility 202601, Get Return Records, Approve 202309, Reject Return 202606 dengan kunci idempoten, foto lewat Upload Product Image); webhook tipe 12 `return.changed`; Shopee tanpa push retur ditarik setiap 10 menit (antrean `mp.poll`) | Candra Syahputra |
 | 1.17 | 4 Oktober 2026 | Hasil implementasi stok opname dan transfer stok: antrean `import` juga menerapkan stok opname yang disetujui (7.1); tidak ada pustaka atau layanan baru | Candra Syahputra |
 | 1.18 | 5 Oktober 2026 | Web app dimulai di `frontend/` (ADR-039, menutup pertanyaan terbuka ADR-032): Next.js 16 dengan React 19, Tailwind CSS 4, shadcn/ui yang disalin ke `frontend/src/components/ui`, TanStack Query, openapi-fetch dengan tipe dari `backend/openapi.json`, react-hook-form dan Zod 4, ECharts 6, next-intl tanpa rute bahasa, Vitest dengan Testing Library. Bagian 9 ditulis ulang sesuai yang dibangun: api di origin yang sama dengan cookie sesi, tanpa SSR data tenant, filter di URL, `Intl` dengan zona waktu bisnis menggantikan Luxon; 1, 4, 20, 21, 26.1, dan 26.2 (`API_ORIGIN`) disesuaikan | Candra Syahputra |
+| 1.19 | 5 Oktober 2026 | CI pertama (`.github/workflows/ci.yml`): backend, web app, dan end-to-end Playwright terhadap stack hasil build dengan PostgreSQL dan Redis sebagai service (17.1); uji end-to-end web dengan axe (20). Pemeriksaan axe menemukan kontras `text-500` di bawah AA pada `canvas` dan `surface-2`, sehingga token itu menjadi `#5F6B78` (DOKUMEN-UI-UX 1.3) | Candra Syahputra |

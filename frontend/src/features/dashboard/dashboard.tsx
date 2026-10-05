@@ -9,10 +9,10 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { ChannelIcon } from "@/components/common/channel";
 import { EmptyState, ErrorState, PageHeader, StatusPill, type Tone } from "@/components/common/page";
+import { Segmented } from "@/components/common/segmented";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { criticalStockHref } from "@/features/stock/stock-meta";
 import { api, unwrap } from "@/lib/api/client";
 import type { components } from "@/lib/api/schema";
@@ -139,13 +139,16 @@ export function DashboardView() {
         description={me.tenant.name}
         actions={
           <>
-            <Tabs value={range} onValueChange={(v) => setRange(v as Range)}>
-              <TabsList aria-label={t("range")}>
-                <TabsTrigger value="today">{t("today")}</TabsTrigger>
-                <TabsTrigger value="7d">{t("days7")}</TabsTrigger>
-                <TabsTrigger value="30d">{t("days30")}</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <Segmented
+              label={t("range")}
+              value={range}
+              onChange={setRange}
+              options={[
+                { value: "today", label: t("today") },
+                { value: "7d", label: t("days7") },
+                { value: "30d", label: t("days30") },
+              ]}
+            />
             {can("order:read") ? (
               <Button asChild>
                 <Link href="/pesanan?status=new">

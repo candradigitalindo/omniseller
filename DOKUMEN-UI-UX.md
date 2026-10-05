@@ -2,8 +2,8 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.2 |
-| Tanggal | 30 September 2026 |
+| Versi dokumen | 1.3 |
+| Tanggal | 5 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
 | Dokumen terkait | DOKUMEN-SPESIFIKASI-APLIKASI.md (PRD) versi 1.10, DOKUMEN-UI-UX-MOBILE.md versi 1.0 (aplikasi mobile), DOKUMEN-TEKNOLOGI.md versi 1.1, DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.0 |
@@ -97,7 +97,7 @@ Satu warna utama biru laut yang teduh (bukan biru terang khas media sosial), lat
 | `border-strong` | `#C9D0D8` | Tepi input saat hover, pemisah kuat | |
 | `text-900` | `#1B2430` | Judul, angka utama, teks isi | 14,5:1 pada canvas |
 | `text-700` | `#3D4754` | Teks isi sekunder, label | 9,4:1 |
-| `text-500` | `#6B7683` | Keterangan, placeholder, waktu | 4,6:1 |
+| `text-500` | `#5F6B78` | Keterangan, placeholder, waktu | 5,0:1 pada canvas, 5,2:1 pada `surface-2` |
 | `text-disabled` | `#9AA3AD` | Teks nonaktif (bukan untuk informasi penting) | |
 | `primary-700` | `#175570` | Tombol utama saat hover, teks tautan saat hover | 8,2:1 |
 | `primary-600` | `#1E6B8C` | Tombol utama, tautan, ikon aktif, fokus | 5,9:1; teks putih di atasnya 5,9:1 |
@@ -853,7 +853,7 @@ Sebelum layar dinyatakan selesai:
 :root {
   --canvas: #F4F6F8; --surface: #FFFFFF; --surface-2: #F8FAFB;
   --border: #E1E5EA; --border-strong: #C9D0D8;
-  --text-900: #1B2430; --text-700: #3D4754; --text-500: #6B7683; --text-disabled: #9AA3AD;
+  --text-900: #1B2430; --text-700: #3D4754; --text-500: #5F6B78; --text-disabled: #9AA3AD;
   --primary-700: #175570; --primary-600: #1E6B8C; --primary-100: #E3F0F5; --primary-50: #F1F7FA;
   --success-600: #1F7A4D; --success-100: #E3F4EA;
   --warning-700: #8A5A00; --warning-100: #FBF1DA;
@@ -924,3 +924,4 @@ Sebelum layar dinyatakan selesai:
 | 1.0 | 30 September 2026 | Dokumen awal: brief induk, prinsip, sistem warna terverifikasi, tipografi, tata letak responsif, struktur sidebar berkelompok, komponen, pola interaksi, aturan visualisasi data, 52 spesifikasi layar dengan prompt, alur kunci, mobile dan agen cetak, checklist | Candra Syahputra |
 | 1.1 | 30 September 2026 | Rujukan ke DOKUMEN-UI-UX-MOBILE.md di bagian 16 | Candra Syahputra |
 | 1.2 | 1 Oktober 2026 | Kanal TikTok Shop dan Tokopedia tampil sebagai "Tokopedia & Shop" di semua teks dan prompt, sesuai pedoman merek platform untuk pasar Indonesia (PRD 5.6) | Candra Syahputra |
+| 1.3 | 5 Oktober 2026 | `text-500` mode terang menjadi `#5F6B78`: `#6B7683` mencapai 4,6:1 pada putih, tetapi hanya 4,3:1 pada `canvas` dan 4,4:1 pada `surface-2`, di bawah WCAG AA (4,5:1) untuk teks keterangan yang memang tampil di sana. Ditemukan pemeriksaan axe pada uji end-to-end web app | Candra Syahputra |

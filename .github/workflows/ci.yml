@@ -1,0 +1,185 @@
+# Checks every push and pull request (DOKUMEN-TEKNOLOGI 17.1): the backend with its integration tests on
+# real PostgreSQL and Redis, the web app, and end-to-end tests of the web app against the built backend.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7.2
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: backend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Integration tests (application roles, never a superuser)
+        run: pnpm test:int
+        env:
+          TEST_PG_ADMIN_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+          TEST_REDIS_URL: redis://127.0.0.1:6379
+      - name: openapi.json matches the code
+        run: |
+          pnpm openapi:emit
+          git diff --exit-code -- openapi.json
+
+  frontend:
+    name: Web app
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: API types match backend/openapi.json
+        run: |
+          pnpm api:types
+          git diff --exit-code -- src/lib/api/schema.d.ts
+      - run: pnpm build
+
+  e2e:
+    name: End-to-end
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7.2
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      NODE_ENV: local
+      LOG_LEVEL: warn
+      REDIS_QUEUE_URL: redis://127.0.0.1:6379/0
+      REDIS_CACHE_URL: redis://127.0.0.1:6379/1
+      DATABASE_URL: postgres://omniseller_api:omniseller_api@127.0.0.1:5432/omniseller
+      DATABASE_URL_WORKER: postgres://omniseller_worker:omniseller_worker@127.0.0.1:5432/omniseller
+      DATABASE_URL_SYSTEM: postgres://omniseller_system:omniseller_system@127.0.0.1:5432/omniseller
+      DATABASE_MIGRATOR_URL: postgres://omniseller_migrator:omniseller_migrator@127.0.0.1:5432/omniseller
+      DATABASE_ADMIN_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+      PUBLIC_WEB_URL: http://127.0.0.1:3100
+      PUBLIC_WEBHOOK_URL: http://127.0.0.1:3001
+      FILE_STORAGE: local
+      FILE_STORAGE_LOCAL_DIR: .local/files
+      EMAIL_TRANSPORT: log
+      EMAIL_FROM: OmniSeller <noreply@omniseller.local>
+      TOKEN_KEY_PROVIDER: local
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: |
+            backend/pnpm-lock.yaml
+            frontend/pnpm-lock.yaml
+      - name: A throwaway key for the local token vault
+        run: echo "TOKEN_LOCAL_MASTER_KEY=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
+      - name: Backend build and database
+        working-directory: backend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+          pnpm db:bootstrap
+          pnpm db:migrate
+      - name: Start api, worker, and scheduler
+        working-directory: backend
+        run: |
+          mkdir -p "$RUNNER_TEMP/logs"
+          for role in api worker scheduler; do
+            APP_ROLE=$role nohup node --enable-source-maps dist/main.js > "$RUNNER_TEMP/logs/$role.log" 2>&1 &
+          done
+          for i in $(seq 1 60); do
+            [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/v1/me)" = "401" ] && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/logs/api.log"
+          exit 1
+      - name: Build and start the web app
+        working-directory: frontend
+        run: |
+          pnpm install --frozen-lockfile
+          API_ORIGIN=http://127.0.0.1:3000 pnpm build
+          nohup pnpm start > "$RUNNER_TEMP/logs/web.log" 2>&1 &
+          for i in $(seq 1 60); do
+            curl -s -o /dev/null http://127.0.0.1:3100/masuk && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/logs/web.log"
+          exit 1
+      - name: Chromium for Playwright
+        working-directory: frontend
+        run: pnpm exec playwright install --with-deps chromium
+      - name: End-to-end tests
+        working-directory: frontend
+        run: pnpm e2e
+      - name: Keep the report and the process logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+            ${{ runner.temp }}/logs
+          retention-days: 7

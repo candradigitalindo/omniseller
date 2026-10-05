@@ -14,6 +14,7 @@
     "format": "biome format --write .",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
+    "e2e": "playwright test",
     "api:types": "openapi-typescript ../backend/openapi.json -o src/lib/api/schema.d.ts && biome format --write src/lib/api/schema.d.ts"
   },
   "dependencies": {
@@ -36,7 +37,9 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@biomejs/biome": "2.5.14",
+    "@playwright/test": "1.63.0",
     "@tailwindcss/postcss": "4.3.3",
     "@testing-library/dom": "10.4.2",
     "@testing-library/jest-dom": "7.0.1",
