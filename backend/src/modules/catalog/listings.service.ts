@@ -460,6 +460,13 @@ export class ListingsService {
 
   /** Listings of a store keyed `${externalItemId}|${externalVariantId}` (order lines to variants). */
   /** Listings still to connect to a product, in the caller's stores (dashboard task). */
+  /** How many listings the caller's stores have and how many are mapped to a variant (L15's progress). */
+  async summary(ctx: RequestContext, storeId?: string): Promise<{ total: number; mapped: number; unmapped: number }> {
+    if (storeId) await this.stores.get(ctx, storeId); // 404 for a store of another tenant or out of scope
+    const c = await withTenantTx(this.db, ctx, (tx) => this.repo.listingCounts(tx, ctx.storeScope, storeId));
+    return { ...c, unmapped: c.total - c.mapped };
+  }
+
   unmappedCountIn(tx: Tx, ctx: RequestContext): Promise<number> {
     return this.repo.unmappedCount(tx, ctx.storeScope);
   }

@@ -274,6 +274,15 @@ export class MapListingDto extends createZodDto(
 export class AutoMapDto extends createZodDto(z.object({ storeId: ulidSchema.optional() })) {}
 export class AutoMapResultDto extends createZodDto(z.object({ mapped: z.number().int() })) {}
 
+export class ListingSummaryQueryDto extends createZodDto(z.object({ storeId: ulidSchema.optional() })) {}
+export class ListingSummaryDto extends createZodDto(
+  z.object({
+    total: z.number().int().describe("listing yang belum dihapus di marketplace, di toko dalam cakupan"),
+    mapped: z.number().int().describe("terhubung ke varian produk"),
+    unmapped: z.number().int(),
+  }),
+) {}
+
 const listingIds = z.array(ulidSchema).min(1).max(500);
 export class CreateFromListingsDto extends createZodDto(z.object({ listingIds })) {}
 export class CreateFromListingsResultDto extends createZodDto(

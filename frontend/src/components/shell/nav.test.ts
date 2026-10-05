@@ -9,10 +9,11 @@ const holding =
 
 describe("sidebar (DOKUMEN-UI-UX 7.1)", () => {
   it("shows only screens that exist, and only to users with the permission", () => {
-    const owner = visibleNav(holding("order:read", "inventory:read", "catalog:read", "settings:store"));
+    const owner = visibleNav(holding("order:read", "inventory:read", "catalog:read", "catalog:map", "settings:store"));
     expect(owner.map((g) => [g.key, g.items.map((i) => i.key)])).toEqual([
       ["groupHome", ["overview"]],
       ["groupSales", ["orders", "returns"]],
+      ["groupCatalog", ["products", "listings"]],
       ["groupStock", ["stock"]],
       ["groupSettings", ["stores"]],
     ]);

@@ -8,10 +8,20 @@ import {
   Plug,
   RotateCcw,
   ShoppingBag,
+  Store,
 } from "lucide-react";
 import type { Permission } from "@/lib/session";
 
-type NavKey = "overview" | "orders" | "returns" | "products" | "stock" | "stockCounts" | "transfers" | "stores";
+type NavKey =
+  | "overview"
+  | "orders"
+  | "returns"
+  | "products"
+  | "listings"
+  | "stock"
+  | "stockCounts"
+  | "transfers"
+  | "stores";
 type GroupKey = "groupHome" | "groupSales" | "groupCatalog" | "groupStock" | "groupSettings";
 
 export interface NavItem {
@@ -44,7 +54,10 @@ export const NAV: readonly NavGroup[] = [
   },
   {
     key: "groupCatalog",
-    items: [{ key: "products", href: "/produk", icon: Package, permission: "catalog:read", ready: false }],
+    items: [
+      { key: "products", href: "/produk", icon: Package, permission: "catalog:read", ready: true },
+      { key: "listings", href: "/listing", icon: Store, permission: "catalog:map", ready: true },
+    ],
   },
   {
     key: "groupStock",

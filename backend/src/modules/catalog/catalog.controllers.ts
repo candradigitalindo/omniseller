@@ -42,6 +42,8 @@ import {
   ListingQueryDto,
   ListingStatusAcceptedDto,
   ListingStatusDto,
+  ListingSummaryDto,
+  ListingSummaryQueryDto,
   ListingSyncDto,
   listingView,
   MapListingDto,
@@ -248,6 +250,15 @@ export class ListingsController {
     );
     const items = page.items.map(unmappedView);
     return { items, next_cursor: nextCursor(items, page.more) };
+  }
+
+  /** L15's progress: listings of the caller's stores, and how many are mapped to a variant. */
+  @Get("summary")
+  @RequirePermission("catalog:read")
+  @Isolation("self")
+  @ZodResponse({ type: ListingSummaryDto })
+  async summary(@Ctx() ctx: RequestContext, @Query() q: ListingSummaryQueryDto) {
+    return this.listings.summary(ctx, q.storeId);
   }
 
   @Post("auto-map")

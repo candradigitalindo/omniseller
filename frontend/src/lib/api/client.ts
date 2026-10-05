@@ -55,3 +55,21 @@ export async function unwrap<R extends { data?: unknown; error?: unknown; respon
   if (!response.ok || error !== undefined) throw new ApiError(response.status, toProblem(response.status, error));
   return data as NonNullable<R["data"]>;
 }
+
+/**
+ * Like `unwrap`, with the answer's `ETag` (the row version) for a later `If-Match`: a save then fails
+ * instead of overwriting what someone else saved in between (backend 8.8).
+ */
+export async function unwrapWithEtag<R extends { data?: unknown; error?: unknown; response: Response }>(
+  call: Promise<R>,
+): Promise<{ data: NonNullable<R["data"]>; etag: string | null }> {
+  let result: R;
+  try {
+    result = await call;
+  } catch (cause) {
+    throw new NetworkError(cause);
+  }
+  const { data, error, response } = result;
+  if (!response.ok || error !== undefined) throw new ApiError(response.status, toProblem(response.status, error));
+  return { data: data as NonNullable<R["data"]>, etag: response.headers.get("etag") };
+}

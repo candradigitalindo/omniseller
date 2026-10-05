@@ -3,6 +3,7 @@ import { render } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { vi } from "vitest";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { type Me, type Permission, SessionProvider } from "@/lib/session";
 import messages from "../../messages/id.json";
@@ -21,6 +22,10 @@ export const ALL_PERMISSIONS: Permission[] = [
   "return:receive",
   "inventory:read",
   "inventory:adjust",
+  "catalog:read",
+  "catalog:write",
+  "catalog:map",
+  "catalog:publish",
   "finance:read",
   "settings:store",
 ];
@@ -42,21 +47,30 @@ export function testMe(permissions: Permission[] = ALL_PERMISSIONS): Me {
   };
 }
 
-/** A screen inside the providers the app shell gives it: messages, queries, the session, tooltips. */
+/** A screen inside the providers the app shell gives it: messages, queries, the session, tooltips, toasts. */
 export function renderApp(ui: ReactNode, { me = testMe() }: { me?: Me } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(
     <NextIntlClientProvider locale="id" messages={messages} timeZone="Asia/Jakarta">
       <QueryClientProvider client={queryClient}>
         <SessionProvider me={me}>
-          <TooltipProvider>{ui}</TooltipProvider>
+          <TooltipProvider>
+            {ui}
+            <Toaster />
+          </TooltipProvider>
         </SessionProvider>
       </QueryClientProvider>
     </NextIntlClientProvider>,
   );
 }
 
-export type ApiCall = { method: string; path: string; query: Record<string, string>; body: unknown };
+export type ApiCall = {
+  method: string;
+  path: string;
+  query: Record<string, string>;
+  body: unknown;
+  headers?: Record<string, string>;
+};
 type Handler = (call: ApiCall) => unknown;
 
 /**
@@ -75,6 +89,7 @@ export function mockApi(handlers: Record<string, Handler>): ApiCall[] {
         path: url.pathname,
         query: Object.fromEntries(url.searchParams),
         body: text ? JSON.parse(text) : undefined,
+        headers: Object.fromEntries(request.headers),
       };
       calls.push(call);
       const handler = handlers[`${request.method} ${url.pathname}`];

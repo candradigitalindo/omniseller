@@ -284,6 +284,29 @@ export class CatalogRepository {
     return r?.n ?? 0;
   }
 
+  /** Listings not deleted at the marketplace, and how many of them are mapped (L15's progress). */
+  async listingCounts(
+    tx: Tx,
+    scope: ReadonlySet<string> | null,
+    storeId: string | undefined,
+  ): Promise<{ total: number; mapped: number }> {
+    if (scope && scope.size === 0) return { total: 0, mapped: 0 };
+    const [r] = await tx
+      .select({
+        total: sql<number>`count(*)::int`,
+        mapped: sql<number>`count(${channelListing.variantId})::int`,
+      })
+      .from(channelListing)
+      .where(
+        and(
+          scope ? inArray(channelListing.storeId, [...scope]) : undefined,
+          storeId ? eq(channelListing.storeId, storeId) : undefined,
+          ne(channelListing.status, "deleted"),
+        ),
+      );
+    return { total: r?.total ?? 0, mapped: r?.mapped ?? 0 };
+  }
+
   async listListings(
     tx: Tx,
     filter: {

@@ -1,5 +1,6 @@
 import type { INestApplication } from "@nestjs/common";
 import type { NestExpressApplication } from "@nestjs/platform-express";
+import { newId } from "@omniseller/shared";
 import { sql } from "drizzle-orm";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -293,6 +294,12 @@ describe("listing pull and mapping (FR-INT-04, FR-PRD-02, 03)", () => {
 
     expect((await c.post("/v1/listings/auto-map", { storeId: a.storeId })).body).toEqual({ mapped: 1 });
     expect(await mapping(a.storeId)).toEqual({ "AM-1": "auto_sku", "AM-2": null, "AM-3": null });
+    // a deleted listing no longer counts; each store counts its own
+    const summary = async (storeId?: string) =>
+      (await c.get(`/v1/listings/summary${storeId ? `?storeId=${storeId}` : ""}`)).body;
+    expect(await summary(a.storeId)).toEqual({ total: 2, mapped: 1, unmapped: 1 });
+    expect(await summary(b.storeId)).toEqual({ total: 3, mapped: 0, unmapped: 3 });
+    expect(await summary()).toEqual({ total: 5, mapped: 1, unmapped: 4 });
     expect(await mapping(b.storeId)).toEqual({ "AM-1": null, "AM-2": null, "AM-3": null });
     // without a store: every store of the business
     expect((await c.post("/v1/listings/auto-map", {})).body).toEqual({ mapped: 2 });
@@ -315,6 +322,12 @@ describe("listing pull and mapping (FR-INT-04, FR-PRD-02, 03)", () => {
       sku: string;
     }[];
     expect(unmapped.map((u) => u.sku).sort()).toEqual(["TOPI-01", "kaos-htm-m"]);
+    // L15's progress counts every live listing of the caller's stores
+    const before = (await c.get("/v1/listings/summary")).body;
+    expect(before).toMatchObject({ unmapped: 2 });
+    expect(before.total).toBe(before.mapped + 2);
+    expect((await c.get(`/v1/listings/summary?storeId=${storeId}`)).body).toEqual(before);
+    expect((await c.get(`/v1/listings/summary?storeId=${newId()}`)).status).toBe(404);
 
     const res = await c.post("/v1/listings/create-products", { listingIds: unmapped.map((u) => u.id) });
     expect(res.status).toBe(200);
@@ -337,6 +350,11 @@ describe("listing pull and mapping (FR-INT-04, FR-PRD-02, 03)", () => {
       }),
     ]);
     expect((await c.get(`/v1/listings/unmapped?storeId=${storeId}`)).body.items).toEqual([]);
+    expect((await c.get("/v1/listings/summary")).body).toEqual({
+      total: before.total,
+      mapped: before.total,
+      unmapped: 0,
+    });
 
     const topiListing = unmapped.find((u) => u.sku === "TOPI-01")!;
     const unmap = await c.put(`/v1/listings/${topiListing.id}/mapping`, { variantId: null });

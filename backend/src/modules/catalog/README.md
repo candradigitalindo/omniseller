@@ -10,7 +10,7 @@ Produk master dan variannya, listing marketplace, dan pemetaan keduanya (PRD 6.2
 
 ## Service publik
 - `ProductsService` (api dan worker): `list`, `get`, `create`, `update` (`If-Match`), `remove`, `addVariant`, `updateVariant`; versi `...In(tx, ...)` untuk dipakai di transaksi lain (impor CSV, produk dari listing). Error: `product.not_found`, `variant.not_found`, `catalog.sku_taken`, `catalog.barcode_taken`, `product.has_listings`, `row.stale`, validasi atribut (422).
-- `ListingsService` (api dan worker): `list`, `get`, `unmappedWithSuggestions`, `map`, `autoMap`, `autoMapIn`, `createProductsFromListings`, `requestStatus`, `requestPull`. Error: `listing.not_found`, `listing.store_not_active`, `store.not_found`, varian tidak tersedia (422).
+- `ListingsService` (api dan worker): `list`, `get`, `summary` (jumlah listing dan yang terpetakan, untuk progres L15), `unmappedWithSuggestions`, `map`, `autoMap`, `autoMapIn`, `createProductsFromListings`, `requestStatus`, `requestPull`. Error: `listing.not_found`, `listing.store_not_active`, `store.not_found`, varian tidak tersedia (422).
 - `ProductsService` untuk riwayat dan barcode (backend doc 8.23): `history` (dari `audit_log` lewat `AuditService.entriesIn`, nama pelaku lewat `UsersService`; entri dibentuk `product-history.ts`), `generateBarcodes` (EAN-13 internal awalan 20, nomor dari `document_sequence` jenis `barcode`), `lookup` (barcode persis, lalu SKU).
 - `ListingsService.deleteStoreListingsIn` (modul retention, toko diputus tanpa data).
 - `ProductTransferService` (api dan worker): `exportCsv`, `importCsv(ctx, content, dryRun)`, `exportSheets` (`produk.csv` ekspor data penuh, backend doc 8.18), `importRecordsIn(tx, ctx, records)`: baris templat produk di transaksi pemanggil, masalah dikembalikan per baris dan kolom (impor migrasi, 8.19).
@@ -60,7 +60,7 @@ Satu job `listing.pull` membaca maksimal 10 halaman (`PAGES_PER_JOB`). Tarikan i
 | GET | `/v1/products/lookup?code=` | `catalog:read` |
 | POST | `/v1/products/barcodes` | `catalog:write` |
 | POST | `/v1/products/import` | `catalog:write` |
-| GET | `/v1/listings`, `/v1/listings/{id}` | `catalog:read` |
+| GET | `/v1/listings`, `/v1/listings/summary`, `/v1/listings/{id}` | `catalog:read` |
 | GET | `/v1/listings/unmapped` | `catalog:map` |
 | POST | `/v1/listings/auto-map` | `catalog:map` |
 | PUT | `/v1/listings/{id}/mapping` | `catalog:map` |

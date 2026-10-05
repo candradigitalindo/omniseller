@@ -3541,6 +3541,38 @@
         }
       }
     },
+    "/v1/listings/summary": {
+      "get": {
+        "operationId": "ListingsController_summary",
+        "parameters": [
+          {
+            "name": "storeId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListingSummaryDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "listings"
+        ],
+        "x-isolation": "self"
+      }
+    },
     "/v1/listings/auto-map": {
       "post": {
         "operationId": "ListingsController_autoMap",
@@ -16406,6 +16438,34 @@
         "required": [
           "items",
           "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "ListingSummaryDto_Output": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "listing yang belum dihapus di marketplace, di toko dalam cakupan"
+          },
+          "mapped": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "terhubung ke varian produk"
+          },
+          "unmapped": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "total",
+          "mapped",
+          "unmapped"
         ],
         "additionalProperties": false
       },
