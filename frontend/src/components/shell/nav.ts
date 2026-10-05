@@ -3,6 +3,7 @@ import {
   BarChart3,
   Boxes,
   ClipboardCheck,
+  Copy,
   LayoutDashboard,
   type LucideIcon,
   Package,
@@ -22,6 +23,7 @@ type NavKey =
   | "returns"
   | "products"
   | "listings"
+  | "copyListings"
   | "stock"
   | "stockCounts"
   | "transfers"
@@ -73,6 +75,7 @@ export const NAV: readonly NavGroup[] = [
     items: [
       { key: "products", href: "/produk", icon: Package, permission: "catalog:read", ready: true },
       { key: "listings", href: "/listing", icon: Store, permission: "catalog:map", ready: true },
+      { key: "copyListings", href: "/listing/salin", icon: Copy, permission: "catalog:write", ready: true },
     ],
   },
   {

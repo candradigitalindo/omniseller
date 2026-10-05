@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.5 |
+| Versi dokumen | 1.6 |
 | Tanggal | 6 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
@@ -229,6 +229,7 @@ Item diberi nama sehari-hari. Kolom "Fase" mengikuti roadmap PRD; item fase lanj
 | | Pesanan Tautan | `link` | `order:read` | 3 |
 | **Katalog** | Produk | `package` | `catalog:*` | 1 |
 | | Listing Toko (pemetaan SKU) | `store` | `catalog:map` | 1 |
+| | Salin Listing | `copy` | `catalog:write` | 2 |
 | | Harga | `tag` | `price:write` | 2 |
 | | Promosi | `percent` | `promo:write` | 2 |
 | | Naikkan Produk | `arrow-up-circle` | `promo:write` | 2 |
@@ -622,6 +623,16 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **Aksi utama**: "Terapkan semua saran (14)".
 - **Prompt untuk AI**: "Halaman pemetaan listing. Banner biru muda dengan bar progres '412 dari 430 listing terhubung (95%)'. Tabel 'Belum terhubung': thumbnail, 'Kaos Polos Premium Hitam L' dari Tokopedia & Shop 'Toko Utama', SKU marketplace 'KP-HTM-L', kolom Saran menampilkan 'KAOS-POLOS-HTM-L, Kaos Polos Cotton 30s Hitam L' dengan badge ungu 'AI 92% mirip' dan tombol 'Hubungkan'. Tombol utama 'Terapkan semua saran (14)'."
 
+#### L15a Salin Listing
+
+- **Tujuan**: membuka toko di marketplace lain dari produk yang sudah laris, tanpa mengetik ulang, dengan semua hasil ditinjau sebelum terbit (FR-PRD-13).
+- **Isi**: dua tab. **Salinan**: kartu per salinan (toko asal ke toko tujuan dengan ikon kanal, pil status Menyiapkan, Siap ditinjau, Gagal, Dibatalkan; seluruh toko atau jumlah produk; ubah harga; bar progres saat disiapkan; jumlah draf, dilewati, gagal dengan daftar alasan yang bisa dibuka; tombol "Tinjau draf" dan "Hentikan"). **Draf**: antrean Semua, Perlu diperbaiki, Siap terbit, Gagal terbit, Terbit; cari nama, toko tujuan, penanda "Dari satu salinan"; tabel dengan kotak centang, foto, nama (tautan ke editor) dan kategori, toko tujuan, jumlah varian, rentang harga, pil masalah ("2 perlu diperbaiki" merah, "1 catatan" kuning, "Siap" hijau), status; bar aksi massal: Terbitkan (hanya yang siap), Ganti kategori, Isi atribut, Hapus.
+- **Dialog Salin listing**: toko asal, "Seluruh toko" atau "Pilih produk" (cari dan centang produk toko asal), toko tujuan berupa kotak centang (paling banyak 10, peringatan bila toko masih mode uji berdampingan), ubah harga dalam persen, sakelar "Lewati yang sudah ada".
+- **Editor draf** (halaman penuh): ringkasan masalah di atas (penghalang merah, catatan kuning); kartu Kategori dengan "Ganti kategori" (pemilih kategori: telusuri atau cari, hanya kategori akhir, yang tidak diizinkan tampil nonaktif); Informasi produk dengan penghitung panjang terhadap batas marketplace; Atribut dari aturan kategori (wajib dengan tanda bintang di atas, yang lain disembunyikan sampai diminta, wajib bersyarat muncul saat syaratnya terpenuhi); Foto yang bisa digeser dan dihapus; berat dan ukuran paket; variasi dan varian (nama, SKU, harga, terhubung atau belum ke produk OmniSeller, hapus varian). Bar "Simpan perubahan" lengket; "Terbitkan" aktif bila tidak ada masalah penghalang dan tidak ada perubahan yang belum disimpan.
+- **Aksi utama**: "Salin listing" di halaman, "Terbitkan" di draf.
+- **Keadaan khusus**: draf yang sedang disiapkan atau diterbitkan diperbarui sendiri; draf yang sudah terbit hanya bisa dilihat.
+- **Prompt untuk AI**: "Halaman Salin Listing tab Draf. Deretan tombol antrean 'Semua, Perlu diperbaiki, Siap terbit, Gagal terbit, Terbit'. Tabel draf: foto kecil, 'Kaos Polos Katun Combed 30s' biru dengan kategori 'Pakaian Pria > Kaos' abu di bawahnya, toko tujuan dengan ikon Tokopedia & Shop, '4' varian, 'Rp 60.500 – Rp 62.700', pil merah '1 perlu diperbaiki', pil 'Draf'. Saat dua baris dicentang, bar aksi: 'Terbitkan (1)', 'Ganti kategori', 'Isi atribut', 'Hapus'."
+
 #### L16 Harga, L17 Promosi, L18 Naikkan Produk
 
 - **L16 Harga**: dua bagian: "Kalkulator harga" (input HPP, pilih toko, tabel biaya otomatis, target margin, hasil harga jual per kanal dengan posisi terhadap kompetitor bila riset aktif) dan "Ubah harga massal" (filter produk, aturan: naik atau turun persen atau nominal, pratinjau tabel sebelum dan sesudah, simulasi margin dengan peringatan merah bila di bawah margin minimum). Prompt: "Kalkulator harga: input 'HPP Rp 35.000', pilih 'Shopee Toko Utama', baris biaya 'Admin 4,5%, Layanan 2%, Gratis ongkir 4%', 'Target margin 25%', hasil besar 'Harga jual disarankan Rp 63.900', catatan 'Termurah di antara 4 kompetitor yang dipantau'."
@@ -946,3 +957,4 @@ Sebelum layar dinyatakan selesai:
 | 1.3 | 5 Oktober 2026 | `text-500` mode terang menjadi `#5F6B78`: `#6B7683` mencapai 4,6:1 pada putih, tetapi hanya 4,3:1 pada `canvas` dan 4,4:1 pada `surface-2`, di bawah WCAG AA (4,5:1) untuk teks keterangan yang memang tampil di sana. Ditemukan pemeriksaan axe pada uji end-to-end web app | Candra Syahputra |
 | 1.4 | 6 Oktober 2026 | Layar L24a Perlu Restock (FR-STK-07) dan item sidebarnya; Laporan Penjualan butuh izin `report:read` seperti api; skala berurutan untuk mode gelap dan sel nol (13.2) | Candra Syahputra |
 | 1.5 | 6 Oktober 2026 | Layar L04a Pesanan Manual Baru (FR-ORD-09) | Candra Syahputra |
+| 1.6 | 6 Oktober 2026 | Layar L15a Salin Listing dengan dialog salin, antrean draf, aksi massal, dan editor draf (FR-PRD-13); item sidebar | Candra Syahputra |

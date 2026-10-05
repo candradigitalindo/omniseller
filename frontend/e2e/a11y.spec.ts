@@ -10,6 +10,7 @@ const PAGES = [
   "/retur",
   "/produk",
   "/listing",
+  "/listing/salin",
   "/stok",
   "/stok/opname",
   "/stok/transfer",

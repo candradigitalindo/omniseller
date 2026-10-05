@@ -2,7 +2,7 @@
 
 Web app OmniSeller untuk penjual: Next.js 16 (App Router), React 19, Tailwind CSS 4, shadcn/ui, TanStack Query, dan klien API bertipe dari `backend/openapi.json`. Keputusan teknologinya ada di `DOKUMEN-TEKNOLOGI.md` bagian 9 dan ADR-039; spesifikasi layar di `DOKUMEN-UI-UX.md`.
 
-Layar yang sudah ada: masuk, daftar, lupa dan atur ulang kata sandi, undangan (L49 dan sekitarnya), Ringkasan (L01), Pesanan dengan panel detail (L03, L04), Pesanan Manual Baru dengan cari atau pindai barang, pembeli, pengiriman atau ambil sendiri, dan cara bayar (L04a), Pengiriman dengan kemas dengan scan, cetak label dan daftar ambil, antrean cetak, dan serah terima kurir (L05 sampai L08), Retur & Batal dengan keputusan, foto bukti, dan penerimaan barang (L09), Produk dengan tambah manual, impor CSV, dan halaman detail (Informasi, Varian, Listing tertaut, Riwayat; L13, L14), Listing Toko dengan progres dan pemetaan SKU (L15), Stok dengan dialog Sesuaikan stok (L19), Stock Opname dengan pindai, tinjau, dan terapkan (L22), Transfer Stok dari draf sampai diterima (L23), Perlu Restock dengan sisa hari dan saran pesan per gudang (L24a), Laporan Penjualan dengan pembanding, grafik tren, rincian per kanal, toko, produk, kategori, provinsi, dan jam, serta CSV tiap bagian (L30), dan Toko Terhubung dengan wizard hubungkan toko dan halaman callback otorisasi (L40).
+Layar yang sudah ada: masuk, daftar, lupa dan atur ulang kata sandi, undangan (L49 dan sekitarnya), Ringkasan (L01), Pesanan dengan panel detail (L03, L04), Pesanan Manual Baru dengan cari atau pindai barang, pembeli, pengiriman atau ambil sendiri, dan cara bayar (L04a), Pengiriman dengan kemas dengan scan, cetak label dan daftar ambil, antrean cetak, dan serah terima kurir (L05 sampai L08), Retur & Batal dengan keputusan, foto bukti, dan penerimaan barang (L09), Produk dengan tambah manual, impor CSV, dan halaman detail (Informasi, Varian, Listing tertaut, Riwayat; L13, L14), Listing Toko dengan progres dan pemetaan SKU (L15), Salin Listing antartoko dengan antrean draf, aksi massal, pemilih kategori, dan editor draf (L15a), Stok dengan dialog Sesuaikan stok (L19), Stock Opname dengan pindai, tinjau, dan terapkan (L22), Transfer Stok dari draf sampai diterima (L23), Perlu Restock dengan sisa hari dan saran pesan per gudang (L24a), Laporan Penjualan dengan pembanding, grafik tren, rincian per kanal, toko, produk, kategori, provinsi, dan jam, serta CSV tiap bagian (L30), dan Toko Terhubung dengan wizard hubungkan toko dan halaman callback otorisasi (L40).
 
 ## Menjalankan
 
@@ -31,7 +31,7 @@ Web app memanggil api di origin-nya sendiri (`/v1/...`), jadi cookie sesi `os_se
 messages/id.json           semua teks antarmuka (next-intl); kuncinya dicek tipe
 src/app/                   rute: (auth) masuk, daftar, sandi, undangan; (app) layar di dalam shell
 src/proxy.ts               tanpa cookie sesi, halaman aplikasi dialihkan ke /masuk?next=
-src/features/<area>/       layar per area: auth, dashboard, listings, orders, products, reports, returns, shipping, stock, stock-ops, stores
+src/features/<area>/       layar per area: auth, dashboard, listing-copy, listings, orders, products, reports, returns, shipping, stock, stock-ops, stores
 src/components/ui/         komponen shadcn/ui (Radix), disesuaikan dengan token desain
 src/components/common/     PageHeader, StatusPill, SlaPill, EmptyState, ErrorState, KpiTile, Segmented, Field, FilterChip, ikon kanal
 src/components/shell/      sidebar, bar atas, navigasi bawah, notifikasi, menu pengguna
@@ -89,6 +89,9 @@ CI (`.github/workflows/ci.yml`) menjalankan hal yang sama terhadap stack yang di
 - Di browser sungguhan, pengumum rute Next.js juga ber-`role="alert"`: di uji e2e cari pesannya (`getByRole("alert").filter({ hasText })`), bukan sekadar alert pertama.
 - Pilihan yang tidak punya panel sendiri (rentang dasbor) adalah radio, bukan Tabs: Tabs tanpa panel membuat `aria-controls` menunjuk ke elemen yang tidak ada (axe: kritis). `Segmented` memakai `<input type="radio">` asli; di Playwright klik labelnya, karena inputnya `sr-only`.
 - Pesan error formulir di dalam dialog yang bergulir diletakkan di dekat tombol yang memicunya (`FormAlert`), bukan di atas: penolakan api dari tombol di bawah tidak terlihat bila pesannya di luar layar.
+- Menyimpan draf salinan hanya mengirim bagian yang berubah (`draftPatch`): deskripsi yang dikirim ulang tanpa diubah akan mengganti deskripsi HTML asal dengan teks biasa, dan atribut serta varian selalu diganti seluruhnya.
+- Satuan yang tampil terpilih harus ikut tersimpan: nilai atribut yang diketik mengambil satuan pertama sampai pengguna memilih yang lain (`AttributeInput`). Sebelumnya "g" tampil tetapi tidak terkirim.
+- Pemeriksaan axe pada dialog menunggu animasi munculnya selesai; selama memudar teksnya setengah transparan dan axe melaporkan kontras rendah yang tidak nyata.
 - Pencarian yang menunggu jeda ketik hanya menampilkan hasil bila katanya sama dengan isi kotak saat ini. Hasil kata sebelumnya yang masih tampil sempat menerima klik, dan di pesanan manual klik untuk "tumbler" menambah kaos lagi.
 - `Segmented` memakai `block` untuk pilihan berlabel panjang di dalam formulir: lebar penuh, pilihan sama lebar, teks boleh turun baris. Tanpa itu labelnya tidak pernah patah dan melebar keluar kartu di ponsel.
 - `TabsList` bawaan memakai `justify-center`: tab yang meluap di ponsel terpotong di kiri dan tidak bisa digulir ke sana. Daftar tab yang bisa lebih lebar dari layar diberi `max-w-full justify-start overflow-x-auto`.
