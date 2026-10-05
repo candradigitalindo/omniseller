@@ -9,12 +9,14 @@ import {
   RotateCcw,
   ShoppingBag,
   Store,
+  Truck,
 } from "lucide-react";
 import type { Permission } from "@/lib/session";
 
 type NavKey =
   | "overview"
   | "orders"
+  | "shipping"
   | "returns"
   | "products"
   | "listings"
@@ -28,8 +30,11 @@ export interface NavItem {
   key: NavKey;
   href: string;
   icon: LucideIcon;
-  /** Shown only to users holding it (DOKUMEN-UI-UX 7.1, "Izin minimal"); none: everyone. */
-  permission?: Permission;
+  /**
+   * Shown only to users holding it, or one of them for a list (DOKUMEN-UI-UX 7.1, "Izin minimal"); none:
+   * everyone.
+   */
+  permission?: Permission | readonly Permission[];
   /**
    * Whether the screen exists in this web app yet. Items of screens still to come are hidden, not shown
    * disabled (7.1: "disembunyikan sampai fiturnya aktif").
@@ -49,6 +54,13 @@ export const NAV: readonly NavGroup[] = [
     key: "groupSales",
     items: [
       { key: "orders", href: "/pesanan", icon: ShoppingBag, permission: "order:read", ready: true },
+      {
+        key: "shipping",
+        href: "/pengiriman",
+        icon: Truck,
+        permission: ["shipment:pack", "shipment:print", "shipment:handover"],
+        ready: true,
+      },
       { key: "returns", href: "/retur", icon: RotateCcw, permission: "order:read", ready: true },
     ],
   },
@@ -79,11 +91,16 @@ export const NAV: readonly NavGroup[] = [
   },
 ];
 
+function allowed(permission: NavItem["permission"], can: (p: Permission) => boolean): boolean {
+  if (!permission) return true;
+  return typeof permission === "string" ? can(permission) : permission.some(can);
+}
+
 /** Groups with the items this user may open now; empty groups disappear. */
 export function visibleNav(can: (p: Permission) => boolean): NavGroup[] {
   return NAV.map((g) => ({
     ...g,
-    items: g.items.filter((i) => i.ready && (!i.permission || can(i.permission))),
+    items: g.items.filter((i) => i.ready && allowed(i.permission, can)),
   })).filter((g) => g.items.length > 0);
 }
 

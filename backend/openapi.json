@@ -23830,7 +23830,7 @@
                   "type": "string",
                   "minLength": 1,
                   "maxLength": 64,
-                  "description": "nomor pesanan atau nomor resi seperti terbaca pemindai"
+                  "description": "barcode, SKU, atau kunci baris (`lines[].key`) barang yang dipindai"
                 },
                 "qty": {
                   "default": 1,

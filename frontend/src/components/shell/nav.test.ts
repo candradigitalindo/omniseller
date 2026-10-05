@@ -23,6 +23,18 @@ describe("sidebar (DOKUMEN-UI-UX 7.1)", () => {
       "stockCounts",
       "transfers",
     ]);
+    // shipping shows to anyone holding one of its permissions
+    const packer = visibleNav(holding("order:read", "shipment:pack"));
+    expect(packer.find((g) => g.key === "groupSales")?.items.map((i) => i.key)).toEqual([
+      "orders",
+      "shipping",
+      "returns",
+    ]);
+    expect(
+      visibleNav(holding("shipment:handover"))
+        .find((g) => g.key === "groupSales")
+        ?.items.map((i) => i.key),
+    ).toEqual(["shipping"]);
     // a role without order:read keeps the overview and loses the sales group
     expect(visibleNav(holding("inventory:read")).map((g) => g.key)).toEqual(["groupHome", "groupStock"]);
   });

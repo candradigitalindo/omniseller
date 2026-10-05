@@ -5978,7 +5978,7 @@ export interface components {
     CompletePackingDto: {
       /** @description kode yang dipindai dan berapa kali; jumlah per baris harus sama persis dengan pesanan */
       scans: {
-        /** @description nomor pesanan atau nomor resi seperti terbaca pemindai */
+        /** @description barcode, SKU, atau kunci baris (`lines[].key`) barang yang dipindai */
         code: string;
         /** @default 1 */
         qty: number;

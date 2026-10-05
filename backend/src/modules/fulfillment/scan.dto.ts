@@ -92,7 +92,13 @@ export class OrderIdParamDto extends createZodDto(z.object({ id: ulidSchema })) 
 export class CompletePackingDto extends createZodDto(
   z.object({
     scans: z
-      .array(z.object({ code, qty: z.number().int().min(1).max(1000).default(1) }))
+      .array(
+        z.object({
+          // the item's barcode, SKU, or line key: not the order code the lookup took
+          code: code.describe("barcode, SKU, atau kunci baris (`lines[].key`) barang yang dipindai"),
+          qty: z.number().int().min(1).max(1000).default(1),
+        }),
+      )
       .min(1)
       .max(500)
       .describe("kode yang dipindai dan berapa kali; jumlah per baris harus sama persis dengan pesanan"),
