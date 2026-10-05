@@ -22,6 +22,8 @@ export const ALL_PERMISSIONS: Permission[] = [
   "return:receive",
   "inventory:read",
   "inventory:adjust",
+  "inventory:count",
+  "inventory:transfer",
   "catalog:read",
   "catalog:write",
   "catalog:map",

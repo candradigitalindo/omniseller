@@ -18,7 +18,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useCan } from "@/lib/session";
-import { isActive, visibleNav } from "./nav";
+import { activeHref, visibleNav } from "./nav";
 import { UserMenu } from "./user-menu";
 
 /**
@@ -31,6 +31,10 @@ export function AppSidebar() {
   const can = useCan();
   const { state, isMobile, setOpenMobile } = useSidebar();
   const groups = visibleNav(can);
+  const active = activeHref(
+    groups.flatMap((g) => g.items.map((i) => i.href)),
+    pathname,
+  );
 
   return (
     <Sidebar collapsible="icon">
@@ -46,7 +50,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {group.items.map((item) => (
                 <SidebarMenuItem key={item.key}>
-                  <SidebarMenuButton asChild isActive={isActive(item.href, pathname)} tooltip={t(item.key)}>
+                  <SidebarMenuButton asChild isActive={item.href === active} tooltip={t(item.key)}>
                     <Link href={item.href} onClick={() => isMobile && setOpenMobile(false)}>
                       <item.icon aria-hidden />
                       <span>{t(item.key)}</span>

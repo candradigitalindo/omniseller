@@ -63,13 +63,13 @@ export const NAV: readonly NavGroup[] = [
     key: "groupStock",
     items: [
       { key: "stock", href: "/stok", icon: Boxes, permission: "inventory:read", ready: true },
-      { key: "stockCounts", href: "/stok/opname", icon: ClipboardCheck, permission: "inventory:count", ready: false },
+      { key: "stockCounts", href: "/stok/opname", icon: ClipboardCheck, permission: "inventory:count", ready: true },
       {
         key: "transfers",
         href: "/stok/transfer",
         icon: ArrowLeftRight,
         permission: "inventory:transfer",
-        ready: false,
+        ready: true,
       },
     ],
   },
@@ -90,4 +90,12 @@ export function visibleNav(can: (p: Permission) => boolean): NavGroup[] {
 /** Whether `pathname` is inside the item: `/` only itself, others their subtree. */
 export function isActive(href: string, pathname: string): boolean {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/**
+ * The one item to mark for `pathname`: the most specific match, so `/stok/opname` marks "Stock Opname"
+ * and not also "Stok".
+ */
+export function activeHref(hrefs: readonly string[], pathname: string): string | null {
+  return hrefs.filter((h) => isActive(h, pathname)).sort((a, b) => b.length - a.length)[0] ?? null;
 }

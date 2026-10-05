@@ -2,7 +2,7 @@
 
 Web app OmniSeller untuk penjual: Next.js 16 (App Router), React 19, Tailwind CSS 4, shadcn/ui, TanStack Query, dan klien API bertipe dari `backend/openapi.json`. Keputusan teknologinya ada di `DOKUMEN-TEKNOLOGI.md` bagian 9 dan ADR-039; spesifikasi layar di `DOKUMEN-UI-UX.md`.
 
-Layar yang sudah ada: masuk, daftar, lupa dan atur ulang kata sandi, undangan (L49 dan sekitarnya), Ringkasan (L01), Pesanan dengan panel detail (L03, L04), Retur & Batal dengan keputusan, foto bukti, dan penerimaan barang (L09), Produk dengan tambah manual, impor CSV, dan halaman detail (Informasi, Varian, Listing tertaut, Riwayat; L13, L14), Listing Toko dengan progres dan pemetaan SKU (L15), Stok dengan dialog Sesuaikan stok (L19), dan Toko Terhubung dengan wizard hubungkan toko dan halaman callback otorisasi (L40).
+Layar yang sudah ada: masuk, daftar, lupa dan atur ulang kata sandi, undangan (L49 dan sekitarnya), Ringkasan (L01), Pesanan dengan panel detail (L03, L04), Retur & Batal dengan keputusan, foto bukti, dan penerimaan barang (L09), Produk dengan tambah manual, impor CSV, dan halaman detail (Informasi, Varian, Listing tertaut, Riwayat; L13, L14), Listing Toko dengan progres dan pemetaan SKU (L15), Stok dengan dialog Sesuaikan stok (L19), Stock Opname dengan pindai, tinjau, dan terapkan (L22), Transfer Stok dari draf sampai diterima (L23), dan Toko Terhubung dengan wizard hubungkan toko dan halaman callback otorisasi (L40).
 
 ## Menjalankan
 
@@ -31,7 +31,7 @@ Web app memanggil api di origin-nya sendiri (`/v1/...`), jadi cookie sesi `os_se
 messages/id.json           semua teks antarmuka (next-intl); kuncinya dicek tipe
 src/app/                   rute: (auth) masuk, daftar, sandi, undangan; (app) layar di dalam shell
 src/proxy.ts               tanpa cookie sesi, halaman aplikasi dialihkan ke /masuk?next=
-src/features/<area>/       layar per area: auth, dashboard, listings, orders, products, returns, stock, stores
+src/features/<area>/       layar per area: auth, dashboard, listings, orders, products, returns, stock, stock-ops, stores
 src/components/ui/         komponen shadcn/ui (Radix), disesuaikan dengan token desain
 src/components/common/     PageHeader, StatusPill, SlaPill, EmptyState, ErrorState, Field, FilterChip, ikon kanal
 src/components/shell/      sidebar, bar atas, navigasi bawah, notifikasi, menu pengguna
@@ -51,6 +51,8 @@ src/test/                  harness tes: renderApp, mockApi, next/navigation tiru
 - Aksi yang tidak diizinkan disembunyikan (`useCan()`); api tetap menolaknya dengan 403.
 - Toko yang masih mode uji berdampingan (`syncMode: read_only`): api menolak langkah penjual pada pesanan dan retur tokonya (409 `store.read_only`). Layar menyembunyikan aksi itu lewat `useStores().readOnly(storeId)` dan menjelaskan di mana harus dikerjakan; penerimaan barang retur tetap boleh.
 - Menyimpan sesuatu yang bisa diubah dua orang bersamaan (produk): baca dengan `unwrapWithEtag`, simpan dengan header `If-Match` berisi ETag itu; api menolak bila ada yang menyimpan lebih dulu.
+- Pindaian dikirim lewat `ScanBuffer`: kode yang sama dalam jeda singkat menjadi satu request dengan jumlahnya. Satu request per unit menghabiskan batas 600 request per menit per bisnis.
+- Membuat dokumen dengan `Idempotency-Key` (transfer stok): satu kunci per formulir yang terbuka (`crypto.randomUUID()`), agar klik ganda atau ulangan setelah jawaban hilang tidak membuat dua dokumen.
 - Filter daftar disimpan di URL (`useUrlParams`), sehingga tampilan bisa dibagikan dan notifikasi bisa menautkan ke daftar yang sudah tersaring.
 - Status selalu ikon, teks, dan warna sekaligus (`StatusPill`). Ikon kanal di samping namanya yang tertulis memakai `decorative`, agar pembaca layar tidak menyebut nama dua kali.
 - Data pembeli (nama, telepon, alamat) tidak boleh masuk `console`, `localStorage`, atau URL.
