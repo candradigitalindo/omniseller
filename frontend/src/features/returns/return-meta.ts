@@ -70,15 +70,7 @@ export function receiptLineProblem(
 export const MAX_EVIDENCE = 9;
 export const MAX_EVIDENCE_BYTES = 5 * 1024 * 1024;
 
-/** A photo's bytes as the api takes them (`content`, base64 without the data URL prefix). */
-export async function fileToBase64(file: Blob): Promise<string> {
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  }
-  return btoa(binary);
-}
+export { fileToBase64 } from "@/lib/file";
 
 /** Where a return notification leads: its one request, else the tab it is about. */
 export function returnNoticeHref(kind: string, data: unknown): string {

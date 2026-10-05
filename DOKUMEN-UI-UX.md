@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.6 |
+| Versi dokumen | 1.7 |
 | Tanggal | 6 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
@@ -747,6 +747,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **Tujuan**: pindah dari aplikasi lain tanpa stok kacau.
 - **Isi**: wizard: 1) pilih asal (BigSeller, Ginee, Jubelio, Spreadsheet) kartu besar; 2) unggah berkas ekspor dengan pemetaan kolom terpandu (kolom asal di kiri, kolom OmniSeller di kanan, saran otomatis, pratinjau lima baris); 3) hasil validasi (berhasil, gagal per baris dengan alasan, unduh daftar gagal); 4) mode uji berdampingan: penjelasan dengan ilustrasi, perbandingan stok dua sistem per SKU dengan selisih, checklist cutover (semua listing terhubung, selisih stok nol, otorisasi aplikasi lama dicabut dengan tautan panduan); 5) tombol besar "Pindah sepenuhnya ke OmniSeller" dengan konfirmasi dan catatan "bisa dibatalkan dalam 24 jam".
 - **Aksi utama**: per langkah.
+- **Di web app**: langkah 1 sampai 3 dan langkah 4 sampai 5 ada di dua tab, karena impor produk bisa diulang kapan saja dan tidak harus mendahului uji berdampingan. Impor punya stepper sendiri (Unggah, Petakan kolom, Periksa, Impor) dan riwayat impor; pratinjau pemetaan menampilkan semua kolom berkas beserta isian OmniSeller yang membacanya, sehingga baris judul yang salah langsung terlihat. Tab kedua menampilkan kartu per toko mode uji (pesanan masuk sejak mode uji, perbandingan stok per status dengan tabel per listing, syarat pindah dengan detail dari api, "Tarik ulang listing", "Ambil stok awal dari toko" dengan pratinjau), lalu kartu "Pindah sepenuhnya" untuk semua toko yang siap sekaligus, dan kartu pembatalan selama 24 jam.
 - **Prompt untuk AI**: "Wizard migrasi lima langkah dengan stepper di atas. Langkah 2: dua kolom pemetaan 'Nama Produk ke Nama produk', 'Harga Modal ke HPP' dengan ikon centang hijau untuk saran otomatis, pratinjau tabel lima baris. Langkah 4: kartu penjelasan 'Mode uji berdampingan: OmniSeller membaca pesanan dan stok tetapi belum mengubah apa pun di marketplace', tabel perbandingan 'SKU, Stok aplikasi lama 120, Stok OmniSeller 120, Selisih 0' hijau, checklist tiga poin dengan dua tercentang, tombol besar nonaktif 'Pindah sepenuhnya ke OmniSeller' dengan keterangan 'Selesaikan checklist dulu'."
 
 #### L47 Profil Bisnis dan Legalitas, L48 Integrasi
@@ -958,3 +959,4 @@ Sebelum layar dinyatakan selesai:
 | 1.4 | 6 Oktober 2026 | Layar L24a Perlu Restock (FR-STK-07) dan item sidebarnya; Laporan Penjualan butuh izin `report:read` seperti api; skala berurutan untuk mode gelap dan sel nol (13.2) | Candra Syahputra |
 | 1.5 | 6 Oktober 2026 | Layar L04a Pesanan Manual Baru (FR-ORD-09) | Candra Syahputra |
 | 1.6 | 6 Oktober 2026 | Layar L15a Salin Listing dengan dialog salin, antrean draf, aksi massal, dan editor draf (FR-PRD-13); item sidebar | Candra Syahputra |
+| 1.7 | 6 Oktober 2026 | L46 Migrasi Data: catatan susunan di web app (dua tab, stepper impor, pratinjau semua kolom, kartu per toko, pindah sekaligus, batal 24 jam) | Candra Syahputra |

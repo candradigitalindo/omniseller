@@ -4,6 +4,7 @@ import {
   Boxes,
   ClipboardCheck,
   Copy,
+  Database,
   LayoutDashboard,
   type LucideIcon,
   Package,
@@ -29,7 +30,8 @@ type NavKey =
   | "transfers"
   | "restock"
   | "salesReport"
-  | "stores";
+  | "stores"
+  | "migration";
 type GroupKey = "groupHome" | "groupSales" | "groupCatalog" | "groupStock" | "groupAnalytics" | "groupSettings";
 
 export interface NavItem {
@@ -101,7 +103,10 @@ export const NAV: readonly NavGroup[] = [
   },
   {
     key: "groupSettings",
-    items: [{ key: "stores", href: "/integrasi", icon: Plug, permission: "settings:store", ready: true }],
+    items: [
+      { key: "stores", href: "/integrasi", icon: Plug, permission: "settings:store", ready: true },
+      { key: "migration", href: "/migrasi", icon: Database, permission: "settings:store", ready: true },
+    ],
   },
 ];
 

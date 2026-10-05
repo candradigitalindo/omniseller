@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCsv } from "../modules/catalog/csv";
+import { detectDelimiter, parseCsv } from "../modules/catalog/csv";
 import { CSV_BOM, csvCell, csvLine, toCsv, unguardCell } from "./csv";
 
 describe("CSV writer (common/csv.ts)", () => {
@@ -54,5 +54,27 @@ describe("CSV writer (common/csv.ts)", () => {
     expect(unguardCell("''=1")).toBe("'=1");
     expect(unguardCell("'abc")).toBe("'abc");
     expect(unguardCell("=1")).toBe("=1");
+  });
+});
+
+describe("CSV reader delimiter (catalog/csv.ts)", () => {
+  it("finds the delimiter below a title row without any", () => {
+    const text = "Ekspor Produk BigSeller - Toko Rina\r\nJudul;SKU;Berat\r\nKemeja;MIG-1-S;0,3\r\n";
+    expect(detectDelimiter(text)).toBe(";");
+    expect(parseCsv(text)).toEqual([
+      ["Ekspor Produk BigSeller - Toko Rina"],
+      ["Judul", "SKU", "Berat"],
+      ["Kemeja", "MIG-1-S", "0,3"],
+    ]);
+  });
+
+  it("does not count commas inside quoted values", () => {
+    const text = 'name,weight\n"Kaos, Hitam","0,25"\n"Topi; Rajut","0,1"\n';
+    expect(detectDelimiter(text)).toBe(",");
+    expect(parseCsv(text)[1]).toEqual(["Kaos, Hitam", "0,25"]);
+  });
+
+  it("keeps a decimal comma in a semicolon file a value", () => {
+    expect(detectDelimiter("SKU;Berat;Harga\nA;0,25;65.000\nB;1,5;70.000")).toBe(";");
   });
 });

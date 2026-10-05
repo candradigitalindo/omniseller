@@ -18,8 +18,10 @@ describe("sidebar (DOKUMEN-UI-UX 7.1)", () => {
       ["groupCatalog", ["products", "listings"]],
       ["groupStock", ["stock", "restock"]],
       ["groupAnalytics", ["salesReport"]],
-      ["groupSettings", ["stores"]],
+      ["groupSettings", ["stores", "migration"]],
     ]);
+    // copying listings needs catalog:write, which this role does not hold
+    expect(owner.find((g) => g.key === "groupCatalog")?.items.map((i) => i.key)).not.toContain("copyListings");
     const warehouse = visibleNav(holding("inventory:read", "inventory:count", "inventory:transfer"));
     expect(warehouse.find((g) => g.key === "groupStock")?.items.map((i) => i.key)).toEqual([
       "stock",

@@ -7,9 +7,25 @@ import { unguardCell } from "../../common/csv";
  */
 export { toCsv } from "../../common/csv";
 
+/** How often `c` separates fields in a line, quoted text left out ("0,25" in a comma file is one value). */
+function unquotedCount(line: string, c: string): number {
+  let n = 0;
+  let quoted = false;
+  for (const ch of line) {
+    if (ch === '"') quoted = !quoted;
+    else if (ch === c && !quoted) n++;
+  }
+  return n;
+}
+
+/**
+ * `;` or `,`, whichever separates more fields in the first ten lines. Not the first line alone: exports
+ * from other apps often open with a title row ("Ekspor Produk BigSeller - Toko Rina") that has neither,
+ * above the real header the migration import looks for (backend doc 8.19).
+ */
 export function detectDelimiter(text: string): "," | ";" {
-  const firstLine = text.slice(0, Math.max(0, text.indexOf("\n")) || text.length);
-  const count = (c: string) => firstLine.split(c).length - 1;
+  const lines = text.split(/\r?\n/, 10);
+  const count = (c: string) => lines.reduce((n, line) => n + unquotedCount(line, c), 0);
   return count(";") > count(",") ? ";" : ",";
 }
 
