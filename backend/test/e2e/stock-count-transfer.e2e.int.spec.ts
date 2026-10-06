@@ -342,8 +342,21 @@ describe("stock counts (FR-STK-08)", () => {
       }),
     ]);
     // started, sent for review twice, reopened, approved, applied
-    const audit = (await c.get(`/v1/audit-logs?entity_type=stock_count&entity_id=${id}`)).body.items as unknown[];
+    const audit = (await c.get(`/v1/audit-logs?entity_type=stock_count&entity_id=${id}`)).body.items as {
+      actorId: string | null;
+      change: string;
+      changes: { field: string; after: unknown }[];
+    }[];
     expect(audit).toHaveLength(6);
+    // the worker applied it on the approver's word: the log names them for the count and its stock moves
+    const appliedEntry = audit.find((e) => e.changes.some((ch) => ch.field === "status" && ch.after === "applied"));
+    expect(appliedEntry?.actorId).toBe(admin.id);
+    const countMoves = (await c.get(`/v1/audit-logs?entity_type=stock_movement&actor_id=${admin.id}`)).body.items as {
+      changes: { field: string; after: unknown }[];
+    }[];
+    expect(
+      countMoves.filter((e) => e.changes.some((ch) => ch.field === "type" && ch.after === "count_apply")),
+    ).toHaveLength(2);
 
     // the warehouse may be counted again
     const next = await gudang.c.post("/v1/stock-counts", { warehouseId: jakarta, mode: "full" });

@@ -398,6 +398,17 @@ describe("marketplace changes (FR-PRD-09, 10)", () => {
     expect(push.result.failed).toEqual([
       { externalItemId: "302", ok: false, error: "Can't unlist item when item is under promotion" },
     ]);
+    // the worker read them back because the seller asked: the audit log names the seller (backend doc 8.28)
+    const audit = (await c.get("/v1/audit-logs?entity_type=channel_listing&limit=20")).body.items as {
+      actor: { type: string; id: string | null };
+      changes: { field: string; after: unknown }[];
+    }[];
+    const switched = audit.filter((e) => e.changes.some((ch) => ch.field === "status" && ch.after === "inactive"));
+    expect(switched).toHaveLength(2);
+    expect(switched.map((e) => e.actor)).toEqual([
+      expect.objectContaining({ type: "user", id: me.user.id }),
+      expect.objectContaining({ type: "user", id: me.user.id }),
+    ]);
   });
 
   it("refreshes an item when Shopee pushes a violation, and closes items deleted on the marketplace", async () => {

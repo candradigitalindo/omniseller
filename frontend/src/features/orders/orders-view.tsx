@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { ChannelIcon } from "@/components/common/channel";
 import { FilterChip } from "@/components/common/filter-chip";
 import { EmptyState, ErrorState, PageHeader, SlaPill, StatusPill } from "@/components/common/page";
+import { SelectionBar } from "@/components/common/selection-bar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -259,8 +260,7 @@ export function OrdersView() {
       </div>
 
       {selected.size > 0 ? (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-[10px] border border-primary-100 bg-primary-50 px-3 py-2">
-          <span className="text-sm font-medium text-text-900">{t("selected", { count: selected.size })}</span>
+        <SelectionBar count={t("selected", { count: selected.size })}>
           {can("order:accept") ? (
             <Button
               size="sm"
@@ -304,7 +304,7 @@ export function OrdersView() {
           <Button size="sm" variant="ghost" onClick={() => setSelected(NONE)}>
             {t("clearSelection")}
           </Button>
-        </div>
+        </SelectionBar>
       ) : (
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <div className="relative min-w-[220px] flex-1 md:max-w-sm">

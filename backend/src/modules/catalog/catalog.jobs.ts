@@ -35,6 +35,8 @@ export const listingStatusPushJob = defineJob({
   name: "listing.status_push",
   schema: z.object({ storeId: ulidSchema, externalItemIds: z.array(z.string()).min(1), active: z.boolean() }),
   triggeredBy: [listingStatusPushRequested],
+  // the seller switched these listings on or off: what the marketplace confirms is theirs
+  actsForRequester: true,
   options: { attempts: 5, backoff: { type: "exponential", delay: 5_000 } },
   jobId: (p, meta) => jobKey("listing.status_push", p.storeId, meta.eventId ?? "direct"),
   handler: async (p, run) => {

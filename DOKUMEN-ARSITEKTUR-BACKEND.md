@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.25 |
+| Versi dokumen | 1.26 |
 | Tanggal | 7 Oktober 2026 |
 | Status | Keputusan final untuk implementasi; fondasi (bagian 4 sampai 9, 12, 13), identitas, autentikasi, dan audit (8.1, 8.10), koneksi toko Shopee dan Tokopedia & Shop (8.6, 8.11), katalog, listing, dan pemetaan SKU (7.8.3, 8.12), stok, penyesuaian, dan push stok ke marketplace (7.8.4, 8.13, 9.4), pesanan dari Shopee dan Tokopedia & Shop (7.8.6, 7.9, 8.14, 10.6), pengiriman, label, pick list, dan peringatan batas kirim (8.15), dasbor, notifikasi in-app, ekspor data penuh, dan audit aksi sensitif (8.16 sampai 8.18), migrasi dari aplikasi lain dengan mode paralel dan cutover (8.19), laporan penjualan, daftar perlu restock, ringkasan email harian, dan preferensi notifikasi (8.20), banyak gudang fisik, pesanan manual, alokasi gudang otomatis, dan tag pesanan (8.21), pelacakan paket, daftar kemas, dan template label kustom (8.22), putus toko dengan atau tanpa data, peringatan koneksi, riwayat produk, dan barcode (8.23), agen cetak, scan untuk cetak, kemas dengan scan, serah terima kurir dengan manifest, dan visibilitas HPP (8.24), salin listing antar toko sendiri (8.25), retur, refund, permintaan batal pembeli, dan paket kembali (8.26), stok opname dan transfer stok antar gudang (8.27), serta log audit yang terbaca (8.28) sudah diimplementasikan di folder `backend/` |
 | Pemilik dokumen | Candra Syahputra |
@@ -1326,6 +1326,7 @@ Aturan:
 
 - Skema payload setiap event didefinisikan Zod di `<modul>.events.ts` dan diekspor ke `packages/shared` bila dikonsumsi modul lain.
 - Event ditulis dengan `outbox.enqueue(tx, event)` dalam transaksi yang sama dengan perubahan data. Tidak ada `queue.add()` langsung dari service.
+- Untuk job yang menjalankan permintaan seseorang (`actsForRequester`, 9.1), outbox menambahkan `requestedBy {type, id}` ke payload job bila pemintanya bukan sistem. Skema job tidak mendeklarasikannya, jadi handler tidak melihatnya; worker memakainya sebagai pelaku (8.28).
 - Payload berisi id dan data minimum yang diperlukan konsumen. Konsumen memuat ulang keadaan terkini dari basis data; tidak pernah mengandalkan payload sebagai kebenaran.
 - Konsumen idempoten: memeriksa keadaan sebelum bertindak (misalnya tidak memanggil `accept` bila `order.status` sudah melewati `ready_to_pack`).
 - Pemanggilan lintas modul yang sinkron dilakukan lewat service publik modul pemilik (`InventoryService.reserve`), bukan lewat repository modul lain dan bukan lewat event.
@@ -2373,7 +2374,16 @@ PRD: FR-USR-04; layar L41a Log Audit (DOKUMEN-UI-UX).
 
 **Rencana query.** Daftar seluruh bisnis memakai `audit_log_tenant_idx` dan filter pelaku memakai `audit_log_tenant_actor_idx`, keduanya dengan `tenant_id` dari RLS sebagai kondisi indeks dan merge append antarpartisi (0,1 ms untuk 200 baris di 23.840 baris smoke). Sebelumnya daftar tanpa `entity_type` membaca kunci primer mundur melewati baris semua tenant. Indeks dibuat di migrasi karena belum ada data produksi; setelah peluncuran, indeks tabel besar mengikuti 12.2.
 
-Belum termasuk: ekspor bulanan ke R2 (`audit.export_monthly`), pencarian teks, dan mencatat siapa yang meminta pekerjaan worker. Aktif atau nonaktif listing di marketplace, misalnya, tercatat atas nama Sistem karena barisnya ditulis worker setelah marketplace menjawab.
+**Atas nama siapa pekerjaan worker dicatat.** Job worker berjalan sebagai sistem, jadi perubahan yang ditulisnya tercatat atas nama Sistem. Itu benar untuk data yang datang dari marketplace (tarikan listing, pesanan, retur). Tetapi beberapa job hanya menjalankan permintaan seorang penjual, dan baris yang ditulisnya adalah akibat permintaan itu. Job seperti itu bertanda `actsForRequester: true`: outbox menyimpan siapa yang meminta (`requestedBy`), dan `jobContext` menjalankan job sebagai orang itu dengan izin dan cakupan sistem (ia sudah diizinkan saat meminta), sehingga trigger audit mencatat namanya. Job lanjutan yang ditulis job itu membawanya lewat outbox dengan cara yang sama. Saat ini:
+- `listing.status_push`: listing yang diaktifkan atau dinonaktifkan, setelah marketplace mengonfirmasi;
+- `listing_draft.publish`: draf salinan yang diterbitkan;
+- `return.respond`: jawaban retur yang dikirim ke marketplace;
+- `stock_count.apply`: stok dan status opname yang diterapkan atas persetujuan penyetuju;
+- `store.data_delete`: data toko yang dihapus karena penjual memutus toko tanpa menyimpan datanya.
+
+Sebelumnya, misalnya, listing yang dinonaktifkan penjual tercatat "Sistem: Status Aktif → Nonaktif". Diperiksa dengan smoke lewat relay, BullMQ, dan worker sungguhan.
+
+Belum termasuk: ekspor bulanan ke R2 (`audit.export_monthly`) dan pencarian teks.
 
 ---
 
@@ -2403,7 +2413,7 @@ export const acceptOrderJob = defineJob({
 });
 ```
 
-Service menulis event dengan `outbox.enqueue(tx, ctx, orderAcceptRequested, { orderId }, orderId)`; setiap job yang mencantumkan event itu di `triggeredBy` mendapat baris outbox sendiri. `jobs/registry.ts` (`JOB_DEFINITIONS`) memuat semua job. Worker membuat satu BullMQ Worker per antrean yang punya job terdaftar; payload divalidasi skema job sebelum handler dipanggil. Handler mengambil service lewat `run.deps.resolve(KelasService)`, yang meminta instance dari container NestJS proses worker; modul pemilik service cukup diimpor di peran `worker` pada `app.module.ts`.
+Service menulis event dengan `outbox.enqueue(tx, ctx, orderAcceptRequested, { orderId }, orderId)`; setiap job yang mencantumkan event itu di `triggeredBy` mendapat baris outbox sendiri. Job berjalan dengan konteks sistem (`jobContext` di `jobs/job-context.ts`), kecuali job bertanda `actsForRequester: true`, yang berjalan atas nama orang yang memintanya (8.28). `jobs/registry.ts` (`JOB_DEFINITIONS`) memuat semua job. Worker membuat satu BullMQ Worker per antrean yang punya job terdaftar; payload divalidasi skema job sebelum handler dipanggil. Handler mengambil service lewat `run.deps.resolve(KelasService)`, yang meminta instance dari container NestJS proses worker; modul pemilik service cukup diimpor di peran `worker` pada `app.module.ts`.
 
 ### 9.2 Kunci idempoten
 
@@ -3147,3 +3157,4 @@ Berkas `.env.example` adalah versi yang berlaku. Kunci dikelompokkan per peran p
 | 1.23 | 6 Oktober 2026 | Kartu stok (8.13): setiap mutasi membawa `document {type, id, number}`, yaitu pesanan, retur, stok opname, atau transfer asalnya, agar layar Riwayat Stok dapat menautkannya (DOKUMEN-UI-UX L21). Pesanan dan retur hanya untuk pemegang `order:read` dalam cakupan toko dan gudangnya. `StockHistoryService` baru di `InventoryStockModule`, yang kini juga mengimpor `ReturnsModule`. Endpoint 10.6, peta modul 11 | Candra Syahputra |
 | 1.24 | 6 Oktober 2026 | Log sinkron (`GET /v1/stores/{id}/sync-jobs`) menerima filter `status`, sehingga layar Kelola Toko dapat menampilkan semua kegagalan, bukan hanya yang ada di halaman termuat. Aturan alokasi stok (8.13) membawa `variant` (SKU dan nama) untuk aturan satu varian. Perbaikan connector TikTok Shop: `36009004` dengan pesan "The x-tts-access-token header is invalid" kini `auth_expired` (refresh lalu ulang sekali), bukan `permanent`. Kata kunci token dicocokkan dengan `_` atau `-`. Sebelumnya token yang tidak lagi dikenal TikTok membuat pembacaan gagal terus tanpa refresh, toko tetap tampil aktif, dan push stok tercatat berhasil dengan listing ditolak. Ditemukan saat smoke log sinkron. Endpoint 10.6 | Candra Syahputra |
 | 1.25 | 7 Oktober 2026 | Log audit yang terbaca (8.28): `GET /v1/audit-logs` memberi nama pelaku, label yang diubah, dan perubahan per field dengan nama API serta rujukan yang sudah dinamai, dan menerima filter beberapa jenis, pelaku, dan waktu. `GET /v1/audit-logs/people` baru. HPP disembunyikan dari pembaca tanpa `finance:read`; sebelumnya baris mentah membawanya. Baris tanpa perubahan yang dikenali dilewati. Migrasi 0018 menambah indeks per bisnis dan per pelaku. Uji unit mencocokkan trigger audit dengan tampilan setelah persetujuan opname sempat terbuang | Candra Syahputra |
+| 1.26 | 7 Oktober 2026 | Job yang menjalankan permintaan seorang penjual (`actsForRequester`: aktif atau nonaktif listing, terbitkan draf salinan, kirim jawaban retur, terapkan opname, hapus data toko yang diputus) berjalan atas nama peminta, sehingga log audit menyebut penjual itu, bukan Sistem. Outbox menyimpan `requestedBy` di payload job (8.5, 9.1, 8.28) | Candra Syahputra |

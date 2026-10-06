@@ -4,6 +4,7 @@ import type { RequestContext } from "../common/context/request-context";
 import type { Tx } from "../db/client";
 import { outboxEvent } from "../db/schema";
 import type { EventDef } from "../jobs/define";
+import { requesterOf } from "../jobs/job-context";
 import type { JobRegistry } from "../jobs/registry";
 
 /**
@@ -35,7 +36,7 @@ export class Outbox {
         aggregateType: event.aggregate,
         aggregateId,
         eventType: event.type,
-        payload: { ...jobPayload, tenantId: ctx.tenantId },
+        payload: { ...jobPayload, tenantId: ctx.tenantId, ...requesterOf(job, ctx) },
         queue: job.queue,
         jobName: job.name,
         jobId: job.jobId({ ...jobPayload, tenantId: ctx.tenantId } as never, { eventId: id }),

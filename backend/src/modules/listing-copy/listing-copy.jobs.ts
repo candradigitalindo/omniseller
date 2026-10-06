@@ -69,6 +69,7 @@ export const listingDraftPublishJob = defineJob({
   name: "listing_draft.publish",
   schema: z.object({ draftId: ulidSchema, attempt: z.number().int().min(1) }),
   triggeredBy: [listingDraftPublishRequested],
+  actsForRequester: true,
   options: { attempts: PUBLISH_ATTEMPTS, backoff: { type: "exponential", delay: 15_000 } },
   jobId: (p) => jobKey("listing_draft.publish", p.draftId, p.attempt),
   handler: async (p, run) => {

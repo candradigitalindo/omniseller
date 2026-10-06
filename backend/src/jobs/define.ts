@@ -52,6 +52,12 @@ export interface JobDef<S extends z.ZodType = z.ZodType> {
   readonly schema: S;
   readonly options?: JobsOptions;
   readonly triggeredBy?: readonly EventDef[];
+  /**
+   * The job carries out what a person asked for: it runs as that person (job-context.ts), so the audit log
+   * names them instead of the system. Only for jobs whose writes are the request's own effect; jobs that
+   * bring in what changed at a marketplace stay the system.
+   */
+  readonly actsForRequester?: boolean;
   /** Deterministic id; see job-id.ts for once-per-entity vs per-occurrence ids. */
   readonly jobId: (payload: WithTenant<z.infer<S>>, meta: JobIdMeta) => string;
   /** Must be idempotent: reload current state, check it, then act. */

@@ -233,7 +233,7 @@ const recommendCalls = () =>
 
 describe("copying Shopee listings to Tokopedia & Shop (FR-PRD-13)", () => {
   it("drafts with a recommended category, attributes and brand by name, then publishes with uploaded images and OmniSeller stock", async () => {
-    const { c, tenantId, warehouseId } = await business();
+    const { c, me, tenantId, warehouseId } = await business();
     const variants = await kaosProduct(c, warehouseId, { "KAOS-HTM-M": 7, "KAOS-HTM-L": 0, "KAOS-PTH-M": 3 });
     const src = await connectShopee(c, tenantId, [shopeeKaos(5101), shopeeTopi(5102)]);
     const dst = await connectTiktok(c, tenantId, [], warehouseId);
@@ -351,6 +351,16 @@ describe("copying Shopee listings to Tokopedia & Shop (FR-PRD-13)", () => {
     const ran = await drain(tenantId);
     expect(ran.filter((j) => j === "listing_draft.publish")).toHaveLength(2);
     expect(ran).toContain("stock.listing_mapped");
+    // the worker published what the seller asked for: the log names the seller (backend doc 8.28)
+    const draftAudit = (await c.get("/v1/audit-logs?entity_type=listing_draft")).body.items as {
+      actorId: string | null;
+      changes: { field: string; after: unknown }[];
+    }[];
+    const publishedEntries = draftAudit.filter((e) =>
+      e.changes.some((ch) => ch.field === "status" && ch.after === "published"),
+    );
+    expect(publishedEntries).toHaveLength(2);
+    expect(publishedEntries.every((e) => e.actorId === me.user.id)).toBe(true);
 
     // images: downloaded from the source's host and uploaded as multipart to TikTok Shop
     const uploads = mock.callsTo("POST", "/product/202309/images/upload");

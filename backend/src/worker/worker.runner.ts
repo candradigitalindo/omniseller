@@ -3,9 +3,10 @@ import { ModuleRef } from "@nestjs/core";
 import { logger } from "@omniseller/logging";
 import { Worker } from "bullmq";
 import type { Redis } from "ioredis";
-import { attachContext, runWithAmbient, systemContext } from "../common/context/request-context";
+import { attachContext, runWithAmbient } from "../common/context/request-context";
 import { JOB_REGISTRY, QUEUES, REDIS_QUEUE } from "../infra/tokens";
 import type { JobDeps } from "../jobs/define";
+import { jobContext } from "../jobs/job-context";
 import { isQueueName, QUEUE_CONCURRENCY, type QueueRegistry } from "../jobs/queues";
 import type { JobRegistry } from "../jobs/registry";
 
@@ -43,7 +44,7 @@ export class WorkerRunner implements OnApplicationBootstrap, OnApplicationShutdo
           const payload = def.schema.parse(job.data) as { tenantId?: unknown };
           const tenantId = (job.data as { tenantId?: unknown }).tenantId;
           if (typeof tenantId !== "string") throw new Error(`job ${job.id} has no tenantId`);
-          const ctx = systemContext(tenantId, { requestId: job.id ?? undefined });
+          const ctx = jobContext(def, tenantId, job.id, job.data);
           return runWithAmbient({ requestId: ctx.requestId }, async () => {
             attachContext(ctx);
             await def.handler({ ...(payload as object), tenantId } as never, {

@@ -83,6 +83,7 @@ export const returnRespondJob = defineJob({
   name: "return.respond",
   schema: z.object({ returnRequestId: ulidSchema, attempt: z.number().int().min(1) }),
   triggeredBy: [returnRespondRequested],
+  actsForRequester: true,
   options: { attempts: RESPOND_ATTEMPTS, backoff: { type: "exponential", delay: 15_000 } },
   jobId: (p) => jobKey("return.respond", p.returnRequestId, p.attempt),
   handler: async (p, run) => {

@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ChannelIcon } from "@/components/common/channel";
 import { EmptyState, ErrorState, StatusPill } from "@/components/common/page";
+import { SelectionBar } from "@/components/common/selection-bar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -229,12 +230,7 @@ function DraftsTable({ query }: { query: DraftQuery }) {
   return (
     <>
       {chosen.length > 0 ? (
-        <div
-          className="flex flex-wrap items-center gap-2 rounded-[10px] border bg-surface p-2 shadow-card"
-          role="toolbar"
-          aria-label={t("bulkActions")}
-        >
-          <span className="px-2 text-sm font-medium text-text-900">{t("selected", { count: chosen.length })}</span>
+        <SelectionBar count={t("selected", { count: chosen.length })}>
           {can("catalog:publish") ? (
             <Button
               size="sm"
@@ -273,7 +269,7 @@ function DraftsTable({ query }: { query: DraftQuery }) {
             </>
           ) : null}
           {!oneStore ? <span className="px-2 text-[13px] text-text-500">{t("oneStoreOnly")}</span> : null}
-        </div>
+        </SelectionBar>
       ) : null}
       {refused.length > 0 ? (
         <div role="alert" className="grid gap-1 rounded-lg bg-danger-soft px-3 py-2.5 text-sm text-danger">

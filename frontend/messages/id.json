@@ -20,7 +20,8 @@
     "notFoundTitle": "Halaman tidak ditemukan",
     "notFoundBody": "Tautan yang Anda buka tidak ada atau sudah dipindahkan.",
     "backHome": "Kembali ke beranda",
-    "copyFailed": "Tidak bisa menyalin. Salin secara manual."
+    "copyFailed": "Tidak bisa menyalin. Salin secara manual.",
+    "selectionActions": "Aksi untuk yang dipilih"
   },
   "auth": {
     "loginTitle": "Masuk ke OmniSeller",
@@ -1604,7 +1605,6 @@
     "allTargets": "Semua toko tujuan",
     "fromCopy": "Dari satu salinan",
     "clearCopy": "Tampilkan draf semua salinan",
-    "bulkActions": "Aksi untuk draf terpilih",
     "selected": "{count, plural, other {# dipilih}}",
     "selectAll": "Pilih semua draf di halaman ini",
     "select": "Pilih {title}",

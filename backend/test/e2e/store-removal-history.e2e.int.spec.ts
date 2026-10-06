@@ -332,7 +332,7 @@ describe("disconnecting a store (FR-INT-07)", () => {
   });
 
   it("deletes the store's orders, listings, warehouses, and sync log in batches, and keeps the store as a marker", async () => {
-    const { c, tenantId, warehouseId } = await business();
+    const { c, me, tenantId, warehouseId } = await business();
     const { v } = await product(c, "KAOS", ["KAOS-M", "KAOS-L"]);
     await stock(c, warehouseId, { [v["KAOS-M"]!]: 10, [v["KAOS-L"]!]: 10 });
     const t = nowSec();
@@ -390,6 +390,15 @@ describe("disconnecting a store (FR-INT-07)", () => {
     expect(await drain(tenantId)).toEqual(
       expect.arrayContaining(["order.store_disconnected", "store.data_delete", "store.data_delete"]),
     );
+    // the queued run deleted on the seller's word: the log names the seller, not the system (backend doc 8.28)
+    const deletions = (
+      (await c.get("/v1/audit-logs?entity_type=channel_listing,channel_warehouse&limit=50")).body.items as {
+        actorId: string | null;
+        change: string;
+      }[]
+    ).filter((e) => e.change === "deleted");
+    expect(deletions.length).toBeGreaterThan(0);
+    expect(deletions.every((e) => e.actorId === me.user.id)).toBe(true);
 
     const counts = await h.system.db.execute<Record<string, string>>(sql`
       SELECT (SELECT count(*) FROM "order" WHERE store_id = ${storeId})::text AS orders,

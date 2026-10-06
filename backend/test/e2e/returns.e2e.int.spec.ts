@@ -285,7 +285,7 @@ async function shippedShopeeOrder(tenantId: string, shopId: string, itemId: numb
 
 describe("returns from Shopee (FR-RET-01, 02, 03)", () => {
   it("reads a return when the order says TO_RETURN, answers it, and receives the goods into stock and quarantine", async () => {
-    const { c, tenantId, warehouseId } = await business();
+    const { c, me, tenantId, warehouseId } = await business();
     const v = await product(c, "KAOS", ["KAOS-M", "KAOS-L"]);
     await setStock(c, warehouseId, { [v["KAOS-M"]!]: 10 });
     const { shopId, storeId } = await connectShopee(c, tenantId, [kaosItem(801)]);
@@ -367,6 +367,14 @@ describe("returns from Shopee (FR-RET-01, 02, 03)", () => {
     });
     // in ACCEPTED Shopee still takes a dispute (after the goods come back), not another confirmation
     expect(now.decisions.map((d: { code: string }) => d.code)).toEqual(["dispute"]);
+    // the worker sent the seller's answer: the log names the seller for it, not the system (backend doc 8.28)
+    const answered = (await c.get(`/v1/audit-logs?entity_type=return_request&entity_id=${r!.id}`)).body.items as {
+      actorId: string | null;
+      changes: { field: string; after: unknown }[];
+    }[];
+    expect(
+      answered.find((e) => e.changes.some((ch) => ch.field === "responseStatus" && ch.after === "sent"))?.actorId,
+    ).toBe(me.user.id);
 
     // a snapshot older than the one applied changes nothing
     const applied = ret.update_time;

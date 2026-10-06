@@ -121,6 +121,8 @@ export const stockCountApplyJob = defineJob({
   name: "stock_count.apply",
   schema: z.object({ stockCountId: ulidSchema }),
   triggeredBy: [stockCountApplyRequested],
+  // the stock moves on the approver's word; the next job continues for them
+  actsForRequester: true,
   options: { attempts: 5, backoff: { type: "exponential", delay: 5_000 } },
   jobId: (p, meta) => jobKey("stock_count.apply", p.stockCountId, meta.eventId ?? "direct"),
   handler: async (p, run) => {

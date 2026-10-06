@@ -14,6 +14,8 @@ export const storeDataDeleteJob = defineJob({
   name: "store.data_delete",
   schema: z.object({ storeId: ulidSchema }),
   triggeredBy: [storeDataDeletionRequested],
+  // the seller chose to disconnect without keeping the data: the deletions are theirs
+  actsForRequester: true,
   options: { attempts: 5, backoff: { type: "exponential", delay: 30_000 } },
   jobId: (p, meta) => jobKey("store.data_delete", p.storeId, meta.eventId ?? "direct"),
   handler: async (p, run) => {

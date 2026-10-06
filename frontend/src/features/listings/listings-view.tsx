@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ChannelIcon } from "@/components/common/channel";
 import { EmptyState, ErrorState, PageHeader, StatusPill } from "@/components/common/page";
+import { SelectionBar } from "@/components/common/selection-bar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -299,8 +300,7 @@ function UnmappedList({ storeId, q, onChanged }: { storeId: string | null; q: st
   return (
     <>
       {selected.size > 0 && can("catalog:write") ? (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-[10px] border border-primary-100 bg-primary-50 px-3 py-2">
-          <span className="text-sm font-medium text-text-900">{t("selected", { count: selected.size })}</span>
+        <SelectionBar count={t("selected", { count: selected.size })}>
           <Button size="sm" variant="secondary" loading={create.isPending} onClick={() => create.mutate([...selected])}>
             <PackagePlus aria-hidden />
             {t("createProducts")}
@@ -308,7 +308,7 @@ function UnmappedList({ storeId, q, onChanged }: { storeId: string | null; q: st
           <Button size="sm" variant="ghost" onClick={() => setSelected(NONE)}>
             {t("clearSelection")}
           </Button>
-        </div>
+        </SelectionBar>
       ) : null}
       <Card className="gap-0 py-0">
         <ul className="divide-y">
@@ -486,8 +486,7 @@ function AllList({ storeId, q, onChanged }: { storeId: string | null; q: string;
   return (
     <>
       {selected.size > 0 ? (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-[10px] border border-primary-100 bg-primary-50 px-3 py-2">
-          <span className="text-sm font-medium text-text-900">{t("selected", { count: selected.size })}</span>
+        <SelectionBar count={t("selected", { count: selected.size })}>
           <Button size="sm" variant="secondary" onClick={() => setConfirm({ open: true, active: true })}>
             <Power aria-hidden />
             {t("activate")}
@@ -499,7 +498,7 @@ function AllList({ storeId, q, onChanged }: { storeId: string | null; q: string;
           <Button size="sm" variant="ghost" onClick={() => setSelected(NONE)}>
             {t("clearSelection")}
           </Button>
-        </div>
+        </SelectionBar>
       ) : null}
       <Card className="gap-0 py-0">
         <ul className="divide-y">

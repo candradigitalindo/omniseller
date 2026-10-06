@@ -6,7 +6,6 @@ import { newId } from "@omniseller/shared";
 import { sql } from "drizzle-orm";
 import request from "supertest";
 import { AppModule } from "../../src/app.module";
-import { systemContext } from "../../src/common/context/request-context";
 import { configureApiApp } from "../../src/common/http/api-app";
 import { ConfigModule } from "../../src/config/config.module";
 import { parseEnv } from "../../src/config/env.schema";
@@ -14,6 +13,7 @@ import type { DbHandle } from "../../src/db/client";
 import { InfraModule } from "../../src/infra/infra.module";
 import { STOCK_DIRTY } from "../../src/infra/tokens";
 import type { JobDef } from "../../src/jobs/define";
+import { jobContext } from "../../src/jobs/job-context";
 import { JOB_DEFINITIONS, JobRegistry } from "../../src/jobs/registry";
 import type { StockDirtySet } from "../../src/jobs/stock-dirty";
 import { AuthModule } from "../../src/modules/auth/auth.module";
@@ -195,7 +195,7 @@ export async function startWorker(infra: TestInfra, system: DbHandle, opts: { ma
       const payload = def.schema.parse(row.payload) as object;
       try {
         await def.handler({ ...payload, tenantId } as never, {
-          ctx: systemContext(tenantId, { requestId: newId() }),
+          ctx: jobContext(def, tenantId, newId(), row.payload),
           jobId: row.job_id,
           attemptsMade: 0,
           deps,
@@ -214,7 +214,7 @@ export async function startWorker(infra: TestInfra, system: DbHandle, opts: { ma
   async function runJob(def: JobDef, payload: object, tenantId: string, attemptsMade = 0): Promise<void> {
     const parsed = def.schema.parse({ ...payload, tenantId }) as object;
     await def.handler({ ...parsed, tenantId } as never, {
-      ctx: systemContext(tenantId, { requestId: newId() }),
+      ctx: jobContext(def, tenantId, newId(), payload),
       jobId: `test|${newId()}`,
       attemptsMade,
       deps,

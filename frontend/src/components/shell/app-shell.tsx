@@ -64,7 +64,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <AppSidebar />
         <SidebarInset className="min-w-0 bg-canvas">
           <TopBar />
-          <div className="mx-auto w-full max-w-[1440px] flex-1 px-4 pt-4 pb-24 md:px-6 md:pt-6 md:pb-10">
+          {/* room under the page for the phone's selection bar, as tall as the bar, above the bottom navigation */}
+          <div className="mx-auto w-full max-w-[1440px] flex-1 px-4 pt-4 pb-24 max-md:has-[[data-slot=selection-bar]]:pb-[calc(var(--selection-bar-height,3.5rem)+6.5rem)] md:px-6 md:pt-6 md:pb-10">
             {children}
           </div>
         </SidebarInset>

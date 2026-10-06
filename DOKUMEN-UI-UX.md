@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.13 |
+| Versi dokumen | 1.14 |
 | Tanggal | 7 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
@@ -194,6 +194,7 @@ Aturan: maksimal tiga ukuran teks dalam satu kartu; uang selalu `Rp 1.250.000` (
 - Filter dan urutan dibuka lewat tombol "Filter" yang memunculkan lembar bawah (bottom sheet) dengan tombol "Terapkan" lebar penuh.
 - Tabel menjadi daftar kartu: baris pertama nama dan status, baris kedua dua angka penting, baris ketiga waktu dan kanal. Ketuk membuka detail.
 - Aksi massal di mobile: ketuk lama memilih kartu, bar atas berubah menjadi mode pilih dengan jumlah terpilih dan tombol aksi.
+- **Di web app**: kartu dipilih dengan kotak centang (ketuk lama menyusul). Bar aksi untuk yang dipilih melayang di atas navigasi bawah, sehingga tetap terjangkau saat memilih kartu jauh di bawah, dan halaman memberi ruang di bawah setinggi bar agar kartu terakhir tetap bisa digulir ke atasnya. Satu komponen untuk semua daftar (pesanan, listing, draf salinan).
 
 ### 6.4 Spasi, radius, dan bayangan
 
@@ -323,6 +324,7 @@ Ukuran: `md` tinggi 40 px (desktop), `lg` tinggi 48 px (mobile dan gudang), `sm`
 - Header lengket, baris tinggi 52 px, zebra tidak dipakai; pemisah `border` tipis; hover `surface-2`; baris terpilih `primary-50` dengan kotak centang.
 - Kolom pertama selalu identitas (nomor pesanan atau nama produk) dan dapat diklik. Kolom angka rata kanan dengan `tabular-nums`. Kolom status berisi pil.
 - Kotak centang untuk aksi massal; saat ada yang terpilih, bar aksi massal muncul menggantikan bar filter: "12 pesanan dipilih: Terima, Atur Kirim, Cetak Label, Beri Tag, Batal pilih".
+- **Di web app**: bar aksi massal muncul di atas daftar, di bawah bar filter, dan menempel di bawah bilah atas saat daftar digulir, sehingga aksinya tetap terlihat di daftar panjang.
 - Kolom dapat disembunyikan dan diurutkan; pengaturan disimpan per pengguna.
 - Paginasi "Muat lebih banyak" atau gulir tak terbatas dengan penghitung "Menampilkan 50 dari 1.240".
 - Baris dapat diperluas untuk melihat item pesanan tanpa membuka detail.
@@ -1015,3 +1017,4 @@ Sebelum layar dinyatakan selesai:
 | 1.11 | 6 Oktober 2026 | L40 di web app: tombol "Kelola" per toko dan halaman bertab Koneksi (hubungkan ulang, putuskan dengan pilihan simpan atau hapus data), Gudang marketplace, Pengaturan sinkron (nama, gudang utama, kembali ke mode uji, kirim ulang stok, alokasi otomatis, aturan pembagian stok dengan contoh hitungan), Log sinkron (filter hasil, rincian panggilan); aktif penuh tetap lewat Migrasi Data | Candra Syahputra |
 | 1.12 | 6 Oktober 2026 | Di web app: "Pindai untuk cetak" (L07), batalkan manifest terbuka (L08), cetak label barcode varian (L14), aktif dan nonaktif listing di marketplace (L15), hapus pemetaan impor tersimpan (L46) | Candra Syahputra |
 | 1.13 | 7 Oktober 2026 | Layar baru L41a Log Audit (filter jenis, pelaku, dan periode; satu blok per tindakan dengan kalimat dan rincian sebelum dan sesudah; HPP disembunyikan tanpa izin keuangan) dan L41b Akun Saya (profil, ubah kata sandi yang mengeluarkan perangkat lain), dibuka dari menu profil. Sidebar Pengaturan mendapat Log Audit setelah Tim & Peran | Candra Syahputra |
+| 1.14 | 7 Oktober 2026 | Di web app: bar aksi untuk yang dipilih melayang di atas navigasi bawah di ponsel dan menempel di bawah bilah atas di layar lebar (pesanan, listing, draf salinan). L41a: perubahan yang dijalankan worker atas permintaan penjual (aktif atau nonaktif listing, terbitkan draf, jawaban retur, terapkan opname) tercatat atas nama penjual itu | Candra Syahputra |
