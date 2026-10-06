@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.7 |
+| Versi dokumen | 1.8 |
 | Tanggal | 6 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
@@ -255,11 +255,12 @@ Item diberi nama sehari-hari. Kolom "Fase" mengikuti roadmap PRD; item fase lanj
 | | Pelanggan | `user-round` | `chat:read` | 3 |
 | **Pengaturan** | Toko Terhubung (dan pemetaan gudang marketplace) | `plug` | `settings:store` | 1 |
 | | Tim & Peran | `users-round` | `settings:user` | 1 |
-| | Printer & Label | `printer` | `settings:warehouse` | 1 |
+| | Printer & Label | `printer` | `settings:warehouse` atau `shipment:print` | 1 |
 | | Kurir & Jam Operasional | `clock` | `settings:warehouse` | 2 |
 | | Notifikasi | `bell` | semua | 1 |
 | | Langganan & Tagihan | `credit-card` | `settings:billing` | 2 |
 | | Migrasi Data | `database` | `settings:store` | 1 |
+| | Ekspor Data | `download` | `data:export` | 1 |
 | | Profil Bisnis & Legalitas | `building-2` | `settings:billing` | 1 |
 | | Integrasi (Akuntansi, API, Ekstensi) | `puzzle` | `settings:store` | 3 |
 | **Bawah sidebar** | Bantuan & Status Sistem | `life-buoy` | semua | 1 |
@@ -736,10 +737,10 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 
 #### L41 Tim dan Peran, L42 Printer dan Label, L43 Kurir dan Jam Operasional, L44 Notifikasi, L45 Langganan dan Tagihan
 
-- **L41**: tabel pengguna (avatar, nama, email, peran pil, toko dan gudang yang diizinkan, terakhir aktif, status), tombol "Undang anggota"; halaman peran: matriks izin per modul dengan kotak centang dan penjelasan sederhana per izin. Prompt: "Tabel tim dengan pil peran 'Gudang', kolom cakupan 'Gudang Jakarta saja'. Halaman peran: matriks baris modul (Pesanan, Stok, Harga) dan kolom izin (Lihat, Ubah, Hapus) dengan kotak centang, keterangan 'Peran Gudang tidak bisa melihat harga dan laba'."
-- **L42**: daftar agen cetak (nama komputer, status terhubung, printer yang terdeteksi, versi), template label (pratinjau thermal dan A4, sakelar tambahkan SKU dan rak, catatan pembeli), tombol "Cetak percobaan". Prompt: "Halaman printer: kartu 'PC Gudang Jakarta, terhubung, printer Zebra GK420' hijau dan 'Laptop Kasir, terputus 2 hari' abu; pratinjau label thermal 100 x 150 di kanan dengan area tambahan SKU dan rak di bawah label resmi."
+- **L41**: tabel pengguna (avatar, nama, email, peran pil, toko dan gudang yang diizinkan, terakhir aktif, status), tombol "Undang anggota"; halaman peran: matriks izin per modul dengan kotak centang dan penjelasan sederhana per izin. Prompt: "Tabel tim dengan pil peran 'Gudang', kolom cakupan 'Gudang Jakarta saja'. Halaman peran: matriks baris modul (Pesanan, Stok, Harga) dan kolom izin (Lihat, Ubah, Hapus) dengan kotak centang, keterangan 'Peran Gudang tidak bisa melihat harga dan laba'." Di web app peran bawaan tampil sebagai matriks baca-saja per modul (peran kustom menyusul); dialog "Ubah peran" hanya mengaktifkan peran yang seluruh izinnya dimiliki pengguna yang mengubah; cakupan toko dan gudang dipilih dengan sakelar "Semua toko" atau daftar centang, tidak pernah daftar kosong; undangan bisa dikirim ulang (tautan lama tidak berlaku) atau dibatalkan.
+- **L42**: daftar agen cetak (nama komputer, status terhubung, printer yang terdeteksi, versi), template label (pratinjau thermal dan A4, sakelar tambahkan SKU dan rak, catatan pembeli), tombol "Cetak percobaan". Prompt: "Halaman printer: kartu 'PC Gudang Jakarta, terhubung, printer Zebra GK420' hijau dan 'Laptop Kasir, terputus 2 hari' abu; pratinjau label thermal 100 x 150 di kanan dengan area tambahan SKU dan rak di bawah label resmi." Di web app: "Pasang agen cetak" memberi kode yang tampil sekali dengan tombol salin; tiap agen memilih printer label dan printer dokumen dari printer yang dilaporkannya, bisa diganti nama, dicetak percobaan bila terhubung, dan dicabut; template label berupa lima sakelar (SKU, nama varian, lokasi rak, catatan pembeli, tag) dengan contoh PDF thermal atau A4 yang dimuat ulang setiap kali diubah.
 - **L43**: tabel cut-off per gudang per kurir (jam, hari), jam operasional dengan periode khusus (Ramadan), hari libur. Prompt: "Tabel cut-off: 'Gudang Jakarta, J&T, 15.00, Sen sampai Sab', tombol edit. Kartu 'Jam operasional Ramadan 1 sampai 30 Mar 2027: 08.00 sampai 20.00'."
-- **L44**: matriks jenis notifikasi (pesanan baru, hampir terlambat, stok kritis, toko terputus, dana cair, pajak) versus kanal (Dalam aplikasi, Email, WhatsApp) dengan sakelar; jam tenang. Prompt: "Matriks sakelar notifikasi, kolom ikon aplikasi, email, WhatsApp; baris 'Toko terputus' semua aktif dan terkunci dengan keterangan 'Selalu dikirim'."
+- **L44**: matriks jenis notifikasi (pesanan baru, hampir terlambat, stok kritis, toko terputus, dana cair, pajak) versus kanal (Dalam aplikasi, Email, WhatsApp) dengan sakelar; jam tenang. Prompt: "Matriks sakelar notifikasi, kolom ikon aplikasi, email, WhatsApp; baris 'Toko terputus' semua aktif dan terkunci dengan keterangan 'Selalu dikirim'." Di web app kolom Email bisa diatur per jenis dan langsung tersimpan; jenis yang selalu dikirim tampil terkunci dengan keterangan; kolom WhatsApp menyusul.
 - **L45**: kartu paket saat ini dengan pemakaian (pesanan bulan ini 3.200 dari 10.000 sebagai bar, toko 5 dari 10), tombol "Naik paket", riwayat tagihan dengan unduh PDF, metode bayar (virtual account, QRIS, kartu). Prompt: "Kartu 'Paket Growth, Rp 899.000 per bulan' dengan dua bar pemakaian dan tombol 'Naik ke Business'. Tabel tagihan 'Sep 2026, Rp 899.000, Lunas' dengan ikon unduh."
 
 #### L46 Migrasi Data
@@ -749,6 +750,12 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **Aksi utama**: per langkah.
 - **Di web app**: langkah 1 sampai 3 dan langkah 4 sampai 5 ada di dua tab, karena impor produk bisa diulang kapan saja dan tidak harus mendahului uji berdampingan. Impor punya stepper sendiri (Unggah, Petakan kolom, Periksa, Impor) dan riwayat impor; pratinjau pemetaan menampilkan semua kolom berkas beserta isian OmniSeller yang membacanya, sehingga baris judul yang salah langsung terlihat. Tab kedua menampilkan kartu per toko mode uji (pesanan masuk sejak mode uji, perbandingan stok per status dengan tabel per listing, syarat pindah dengan detail dari api, "Tarik ulang listing", "Ambil stok awal dari toko" dengan pratinjau), lalu kartu "Pindah sepenuhnya" untuk semua toko yang siap sekaligus, dan kartu pembatalan selama 24 jam.
 - **Prompt untuk AI**: "Wizard migrasi lima langkah dengan stepper di atas. Langkah 2: dua kolom pemetaan 'Nama Produk ke Nama produk', 'Harga Modal ke HPP' dengan ikon centang hijau untuk saran otomatis, pratinjau tabel lima baris. Langkah 4: kartu penjelasan 'Mode uji berdampingan: OmniSeller membaca pesanan dan stok tetapi belum mengubah apa pun di marketplace', tabel perbandingan 'SKU, Stok aplikasi lama 120, Stok OmniSeller 120, Selisih 0' hijau, checklist tiga poin dengan dua tercentang, tombol besar nonaktif 'Pindah sepenuhnya ke OmniSeller' dengan keterangan 'Selesaikan checklist dulu'."
+
+#### L46a Ekspor Data
+
+- **Tujuan**: data bisnis selalu milik penjual dan bisa dibawa kapan saja, tanpa biaya (FR-MIG-09).
+- **Isi**: penjelasan isi ekspor; daftar ekspor dengan waktu dibuat, pil status (Menunggu, Disiapkan, Siap diunduh, Gagal, Kedaluwarsa), jumlah berkas CSV, ukuran, batas waktu tersedia, jumlah unduhan, isi per berkas beserta jumlah barisnya, dan tombol "Unduh ZIP".
+- **Aksi utama**: "Buat ekspor" (nonaktif selama ada ekspor yang sedang disiapkan). Hanya pemilik (`data:export`).
 
 #### L47 Profil Bisnis dan Legalitas, L48 Integrasi
 
@@ -960,3 +967,4 @@ Sebelum layar dinyatakan selesai:
 | 1.5 | 6 Oktober 2026 | Layar L04a Pesanan Manual Baru (FR-ORD-09) | Candra Syahputra |
 | 1.6 | 6 Oktober 2026 | Layar L15a Salin Listing dengan dialog salin, antrean draf, aksi massal, dan editor draf (FR-PRD-13); item sidebar | Candra Syahputra |
 | 1.7 | 6 Oktober 2026 | L46 Migrasi Data: catatan susunan di web app (dua tab, stepper impor, pratinjau semua kolom, kartu per toko, pindah sekaligus, batal 24 jam) | Candra Syahputra |
+| 1.8 | 6 Oktober 2026 | Pengaturan di web app: catatan L41, L42, L44; layar L46a Ekspor Data dan item sidebarnya; Printer & Label juga untuk pemegang `shipment:print` | Candra Syahputra |

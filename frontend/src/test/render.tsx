@@ -31,6 +31,9 @@ export const ALL_PERMISSIONS: Permission[] = [
   "finance:read",
   "report:read",
   "settings:store",
+  "settings:warehouse",
+  "settings:user",
+  "data:export",
 ];
 
 export function testMe(permissions: Permission[] = ALL_PERMISSIONS): Me {

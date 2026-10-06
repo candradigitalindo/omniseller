@@ -16,15 +16,16 @@ describe("sidebar (DOKUMEN-UI-UX 7.1)", () => {
       ["groupHome", ["overview"]],
       ["groupSales", ["orders", "returns"]],
       ["groupCatalog", ["products", "listings"]],
-      ["groupStock", ["stock", "restock"]],
+      ["groupStock", ["stock", "warehouses", "restock"]],
       ["groupAnalytics", ["salesReport"]],
-      ["groupSettings", ["stores", "migration"]],
+      ["groupSettings", ["stores", "notifications", "migration"]],
     ]);
     // copying listings needs catalog:write, which this role does not hold
     expect(owner.find((g) => g.key === "groupCatalog")?.items.map((i) => i.key)).not.toContain("copyListings");
     const warehouse = visibleNav(holding("inventory:read", "inventory:count", "inventory:transfer"));
     expect(warehouse.find((g) => g.key === "groupStock")?.items.map((i) => i.key)).toEqual([
       "stock",
+      "warehouses",
       "stockCounts",
       "transfers",
       "restock",
@@ -43,8 +44,19 @@ describe("sidebar (DOKUMEN-UI-UX 7.1)", () => {
         .find((g) => g.key === "groupSales")
         ?.items.map((i) => i.key),
     ).toEqual(["shipping"]);
-    // a role without order:read keeps the overview and loses the sales group
-    expect(visibleNav(holding("inventory:read")).map((g) => g.key)).toEqual(["groupHome", "groupStock"]);
+    // a role without order:read keeps the overview and loses the sales group; everyone has their own
+    // notification settings
+    expect(visibleNav(holding("inventory:read")).map((g) => g.key)).toEqual([
+      "groupHome",
+      "groupStock",
+      "groupSettings",
+    ]);
+    // printers show to whoever prints or manages warehouses; team and data export to their own permission
+    expect(
+      visibleNav(holding("shipment:print", "settings:user", "data:export"))
+        .find((g) => g.key === "groupSettings")
+        ?.items.map((i) => i.key),
+    ).toEqual(["team", "printers", "notifications", "dataExport"]);
   });
 
   it("marks the home only on itself and other items on their whole subtree", () => {

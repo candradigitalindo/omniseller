@@ -1,19 +1,24 @@
 import {
   ArrowLeftRight,
   BarChart3,
+  Bell,
   Boxes,
   ClipboardCheck,
   Copy,
   Database,
+  Download,
   LayoutDashboard,
   type LucideIcon,
   Package,
   PackagePlus,
   Plug,
+  Printer,
   RotateCcw,
   ShoppingBag,
   Store,
   Truck,
+  UsersRound,
+  Warehouse,
 } from "lucide-react";
 import type { Permission } from "@/lib/session";
 
@@ -30,8 +35,13 @@ type NavKey =
   | "transfers"
   | "restock"
   | "salesReport"
+  | "warehouses"
   | "stores"
-  | "migration";
+  | "team"
+  | "printers"
+  | "notifications"
+  | "migration"
+  | "dataExport";
 type GroupKey = "groupHome" | "groupSales" | "groupCatalog" | "groupStock" | "groupAnalytics" | "groupSettings";
 
 export interface NavItem {
@@ -84,6 +94,7 @@ export const NAV: readonly NavGroup[] = [
     key: "groupStock",
     items: [
       { key: "stock", href: "/stok", icon: Boxes, permission: "inventory:read", ready: true },
+      { key: "warehouses", href: "/stok/gudang", icon: Warehouse, permission: "inventory:read", ready: true },
       { key: "stockCounts", href: "/stok/opname", icon: ClipboardCheck, permission: "inventory:count", ready: true },
       {
         key: "transfers",
@@ -105,7 +116,17 @@ export const NAV: readonly NavGroup[] = [
     key: "groupSettings",
     items: [
       { key: "stores", href: "/integrasi", icon: Plug, permission: "settings:store", ready: true },
+      { key: "team", href: "/tim", icon: UsersRound, permission: "settings:user", ready: true },
+      {
+        key: "printers",
+        href: "/printer",
+        icon: Printer,
+        permission: ["settings:warehouse", "shipment:print"],
+        ready: true,
+      },
+      { key: "notifications", href: "/notifikasi", icon: Bell, ready: true },
       { key: "migration", href: "/migrasi", icon: Database, permission: "settings:store", ready: true },
+      { key: "dataExport", href: "/ekspor", icon: Download, permission: "data:export", ready: true },
     ],
   },
 ];

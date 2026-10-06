@@ -16,8 +16,13 @@ const PAGES = [
   "/stok/transfer",
   "/stok/restock",
   "/laporan/penjualan",
+  "/stok/gudang",
   "/integrasi",
+  "/tim",
+  "/printer",
+  "/notifikasi",
   "/migrasi",
+  "/ekspor",
 ];
 
 test("the daily pages have no serious accessibility problems", async ({ page, business }) => {
