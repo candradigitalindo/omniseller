@@ -7,6 +7,7 @@ import {
   Copy,
   Database,
   Download,
+  History,
   LayoutDashboard,
   type LucideIcon,
   Package,
@@ -31,6 +32,7 @@ type NavKey =
   | "listings"
   | "copyListings"
   | "stock"
+  | "stockHistory"
   | "stockCounts"
   | "transfers"
   | "restock"
@@ -95,6 +97,7 @@ export const NAV: readonly NavGroup[] = [
     items: [
       { key: "stock", href: "/stok", icon: Boxes, permission: "inventory:read", ready: true },
       { key: "warehouses", href: "/stok/gudang", icon: Warehouse, permission: "inventory:read", ready: true },
+      { key: "stockHistory", href: "/stok/riwayat", icon: History, permission: "inventory:read", ready: true },
       { key: "stockCounts", href: "/stok/opname", icon: ClipboardCheck, permission: "inventory:count", ready: true },
       {
         key: "transfers",

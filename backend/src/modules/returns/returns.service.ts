@@ -90,7 +90,7 @@ export class ReturnsService {
     @Inject(OUTBOX) private readonly outbox: Outbox,
   ) {}
 
-  private visible(ctx: RequestContext, r: ReturnRow): boolean {
+  private visible(ctx: RequestContext, r: Pick<ReturnRow, "storeId" | "warehouseId">): boolean {
     return (
       this.stores.inScope(ctx, r.storeId) &&
       (ctx.warehouseScope === null || (r.warehouseId !== null && ctx.warehouseScope.has(r.warehouseId)))
@@ -155,6 +155,25 @@ export class ReturnsService {
 
   async get(ctx: RequestContext, id: string): Promise<ReturnView> {
     return withTenantTx(this.db, ctx, async (tx) => (await this.views(tx, ctx, [await this.load(tx, ctx, id)]))[0]!);
+  }
+
+  /**
+   * The request of each return line, by line id, with its order number, for the requests in the caller's
+   * scope (stock card, 8.13).
+   */
+  async requestsOfItemsIn(
+    tx: Tx,
+    ctx: RequestContext,
+    itemIds: string[],
+  ): Promise<Map<string, { id: string; externalOrderId: string | null }>> {
+    const rows = (await this.repo.itemRequests(tx, [...new Set(itemIds)])).filter((r) => this.visible(ctx, r));
+    const refs = await this.orders.refsIn(
+      tx,
+      rows.map((r) => r.orderId),
+    );
+    return new Map(
+      rows.map((r) => [r.itemId, { id: r.id, externalOrderId: refs.get(r.orderId)?.externalOrderId ?? null }]),
+    );
   }
 
   /** Reads the request again from the marketplace (worker), with what the seller may decide. */

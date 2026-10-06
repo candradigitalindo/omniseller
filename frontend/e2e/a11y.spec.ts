@@ -15,6 +15,7 @@ const PAGES = [
   "/stok/opname",
   "/stok/transfer",
   "/stok/restock",
+  "/stok/riwayat",
   "/laporan/penjualan",
   "/stok/gudang",
   "/integrasi",
@@ -27,9 +28,11 @@ const PAGES = [
 
 test("the daily pages have no serious accessibility problems", async ({ page, business }) => {
   void business;
-  await seedShop(page, tag());
+  const shop = await seedShop(page, tag());
+  // a stock card with movements, besides the empty one in the list
+  const card = `/stok/riwayat?variant=${shop.variants.black.id}&sku=${encodeURIComponent(shop.variants.black.sku)}`;
   const found: string[] = [];
-  for (const path of PAGES) {
+  for (const path of [...PAGES, card]) {
     await page.goto(path);
     await page.getByRole("heading", { level: 1 }).first().waitFor();
     await page.waitForLoadState("networkidle");

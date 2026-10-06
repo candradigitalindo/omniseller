@@ -123,7 +123,7 @@ export class OrdersService {
     return { ...this.scope(ctx), hiddenStoreIds: [...(await this.stores.disconnectedIdsIn(tx))] };
   }
 
-  private visible(ctx: RequestContext, o: OrderRow): boolean {
+  private visible(ctx: RequestContext, o: Pick<OrderRow, "storeId" | "warehouseId">): boolean {
     return (
       this.stores.inScope(ctx, o.storeId) &&
       (ctx.warehouseScope === null || (o.warehouseId !== null && ctx.warehouseScope.has(o.warehouseId)))
@@ -654,6 +654,18 @@ export class OrdersService {
   /** Marketplace order numbers and stores of these orders, for other modules' export sheets. */
   async refsIn(tx: Tx, ids: string[]): Promise<Map<string, { externalOrderId: string; storeId: string }>> {
     return new Map((await this.repo.refs(tx, [...new Set(ids)])).map((r) => [r.id, r]));
+  }
+
+  /** The order of each order line, by line id, for the orders in the caller's scope (stock card, 8.13). */
+  async ordersOfItemsIn(
+    tx: Tx,
+    ctx: RequestContext,
+    itemIds: string[],
+  ): Promise<Map<string, { id: string; externalOrderId: string }>> {
+    const rows = await this.repo.itemOrders(tx, [...new Set(itemIds)]);
+    return new Map(
+      rows.filter((r) => this.visible(ctx, r)).map((r) => [r.itemId, { id: r.id, externalOrderId: r.externalOrderId }]),
+    );
   }
 
   exportSheets(): ExportSheet[] {

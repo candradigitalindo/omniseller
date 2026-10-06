@@ -60,6 +60,7 @@ import {
 import { InitialStockService } from "./initial-stock.service";
 import { InventoryService } from "./inventory.service";
 import { RestockService } from "./restock.service";
+import { StockHistoryService } from "./stock-history.service";
 import { StockOverviewService } from "./stock-overview.service";
 import { WarehouseAdminService } from "./warehouse-admin.service";
 import { WarehousesService, type WarehouseView } from "./warehouses.service";
@@ -227,6 +228,7 @@ export class InventoryController {
     @Inject(InitialStockService) private readonly initial: InitialStockService,
     @Inject(AllocationRulesService) private readonly rules: AllocationRulesService,
     @Inject(RestockService) private readonly restock: RestockService,
+    @Inject(StockHistoryService) private readonly history: StockHistoryService,
   ) {}
 
   /** "Perlu restock" (FR-STK-07): what sells faster than its stock lasts, and how much to order. */
@@ -305,7 +307,8 @@ export class InventoryController {
       decodeCursor(q.cursor),
       q.limit,
     );
-    const items = page.items.map(movementView);
+    const documents = await this.history.documentsOf(ctx, page.items);
+    const items = page.items.map((m) => movementView(m, documents.get(m.id) ?? null));
     return { items, next_cursor: nextCursor(items[items.length - 1]?.id, page.more) };
   }
 

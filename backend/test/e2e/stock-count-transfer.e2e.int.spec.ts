@@ -338,6 +338,7 @@ describe("stock counts (FR-STK-08)", () => {
         referenceId: lines[1]!.id,
         note: `Stok opname ${number}`,
         actorUserId: admin.id,
+        document: { type: "stock_count", id, number },
       }),
     ]);
     // started, sent for review twice, reopened, approved, applied
@@ -625,6 +626,7 @@ describe("stock transfers between warehouses (FR-STK-09)", () => {
         referenceId: lineIds[0],
         note: `Transfer ${number}`,
         actorUserId: jkt.id,
+        document: { type: "stock_transfer", id, number },
       }),
     ]);
     expect((await sby.c.post(`/v1/stock-transfers/${id}/receive`, {})).body.code).toBe("stock_transfer.not_sent");

@@ -1,9 +1,11 @@
 import type { INestApplication } from "@nestjs/common";
 import type { NestExpressApplication } from "@nestjs/platform-express";
+import { newId } from "@omniseller/shared";
 import { sql } from "drizzle-orm";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { withTenantTx } from "../../src/db/tenant-tx";
+import { StockHistoryService } from "../../src/modules/inventory/stock-history.service";
 import { orderPullJob } from "../../src/modules/orders/orders.jobs";
 import {
   returnDueAlertJob,
@@ -403,12 +405,14 @@ describe("returns from Shopee (FR-RET-01, 02, 03)", () => {
     });
     expect(await stockOf(c, "KAOS-M")).toMatchObject({ onHand: 9, damaged: 1, available: 9 });
     const moves = (await c.get(`/v1/inventory/movements?variantId=${v["KAOS-M"]}`)).body.items as {
+      id: string;
       type: string;
       onHandDelta: number;
       damagedDelta: number;
       referenceType: string;
       referenceId: string;
       note: string;
+      document: unknown;
     }[];
     expect(moves.slice(0, 2)).toEqual([
       expect.objectContaining({
@@ -418,6 +422,7 @@ describe("returns from Shopee (FR-RET-01, 02, 03)", () => {
         referenceType: "return_item",
         referenceId: now.items[0].id,
         note: `Retur pesanan ${o.order_sn}`,
+        document: { type: "return", id: r!.id, number: o.order_sn },
       }),
       expect.objectContaining({
         type: "return_restock",
@@ -426,6 +431,10 @@ describe("returns from Shopee (FR-RET-01, 02, 03)", () => {
         referenceId: now.items[0].id,
       }),
     ]);
+    // the stock card names the return only to those who see its store
+    const history = worker.ctx.get(StockHistoryService);
+    const otherStore = { ...userCtx(tenantId), storeScope: new Set([newId()]) };
+    expect(await history.documentsOf(otherStore, moves.slice(0, 1))).toEqual(new Map());
     const after = await orderBy(c, o.order_sn);
     expect(after.status).toBe("returned");
     expect(after.items[0]).toMatchObject({ returnedQty: 2 });

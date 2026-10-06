@@ -54,3 +54,59 @@ export function criticalStockHref(items: readonly { sku: string }[]): string {
   const skus = [...new Set(items.map((i) => i.sku))];
   return skus.length === 1 ? `/stok?q=${encodeURIComponent(skus[0]!)}` : "/stok";
 }
+
+/** "Atur minimum & rak" (FR-STK-07, 12): one row per warehouse, as typed. */
+export interface LocationDraft {
+  warehouseId: string;
+  minStock: string;
+  binLocation: string;
+}
+
+/** Every active warehouse in scope, filled from the variant's stock there (a warehouse without stock yet starts empty). */
+export function locationDrafts(row: Pick<StockRow, "warehouses">, warehouses: Warehouse[]): LocationDraft[] {
+  return warehouses
+    .filter((w) => w.active)
+    .map((w) => {
+      const cell = row.warehouses.find((c) => c.warehouseId === w.id);
+      return {
+        warehouseId: w.id,
+        minStock: cell?.minStock === null || cell?.minStock === undefined ? "" : String(cell.minStock),
+        binLocation: cell?.binLocation ?? "",
+      };
+    });
+}
+
+const COUNT = /^\d+$/;
+
+/** What is wrong with a row: the minimum a whole number from 0 (empty: none), the bin at most 50 characters. */
+export function locationProblems(d: LocationDraft): { minStock?: "wholeNumber" | "tooLarge"; binLocation?: "tooLong" } {
+  const min = d.minStock.trim();
+  return {
+    ...(min !== "" && !COUNT.test(min)
+      ? { minStock: "wholeNumber" as const }
+      : min !== "" && Number(min) > 10_000_000
+        ? { minStock: "tooLarge" as const }
+        : {}),
+    ...(d.binLocation.trim().length > 50 ? { binLocation: "tooLong" as const } : {}),
+  };
+}
+
+/** The body to send for a row, only what changed; null when nothing did. */
+export function locationPatch(
+  before: LocationDraft,
+  after: LocationDraft,
+): { minStock?: number | null; binLocation?: string | null } | null {
+  const min = (d: LocationDraft) => (d.minStock.trim() === "" ? null : Number(d.minStock.trim()));
+  const bin = (d: LocationDraft) => d.binLocation.trim() || null;
+  const patch = {
+    ...(min(after) !== min(before) ? { minStock: min(after) } : {}),
+    ...(bin(after) !== bin(before) ? { binLocation: bin(after) } : {}),
+  };
+  return Object.keys(patch).length > 0 ? patch : null;
+}
+
+/** The stock card of a row (L21), in the warehouse the stock list is filtered to. */
+export function historyHref(row: Pick<StockRow, "id" | "sku">, warehouseId: string | null): string {
+  const q = new URLSearchParams({ variant: row.id, sku: row.sku, ...(warehouseId ? { warehouse: warehouseId } : {}) });
+  return `/stok/riwayat?${q.toString()}`;
+}

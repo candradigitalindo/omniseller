@@ -11,6 +11,7 @@ import type { InitialStockLine } from "./initial-stock.service";
 import type { InventoryRow, MovementRow, RuleRow, StockSummary } from "./inventory.repository";
 import type { AdjustmentResult } from "./inventory.service";
 import type { RestockItem } from "./restock.service";
+import type { MovementDocument } from "./stock-history.service";
 import type { StockItem } from "./stock-overview.service";
 
 /** Request and response DTOs of the inventory endpoints (backend doc 10.6). */
@@ -228,10 +229,20 @@ const movementSchema = z.object({
   reasonLabel: z.string().nullable(),
   note: z.string().nullable(),
   actorUserId: ulidSchema.nullable(),
+  document: z
+    .object({
+      type: z.enum(["order", "return", "stock_count", "stock_transfer"]),
+      id: ulidSchema,
+      number: z.string(),
+    })
+    .nullable()
+    .describe(
+      "dokumen asal: pesanan atau retur (nomor pesanan marketplace, hanya dengan order:read dan dalam cakupan), stok opname, transfer",
+    ),
   createdAt: iso,
 });
 export class MovementPageDto extends createZodDto(pageSchema(movementSchema)) {}
-export function movementView(m: MovementRow): z.infer<typeof movementSchema> {
+export function movementView(m: MovementRow, document: MovementDocument | null): z.infer<typeof movementSchema> {
   return {
     id: m.id,
     variantId: m.variantId,
@@ -255,6 +266,7 @@ export function movementView(m: MovementRow): z.infer<typeof movementSchema> {
         : null,
     note: m.note,
     actorUserId: m.actorUserId,
+    document,
     createdAt: m.createdAt.toISOString(),
   };
 }

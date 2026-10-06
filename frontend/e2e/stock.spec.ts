@@ -85,3 +85,43 @@ test("moves stock to another warehouse and receives it short", async ({ page, bu
   expect(cells.find((w) => w.warehouseId === shop.warehouseId)?.onHand).toBe(16);
   expect(cells.find((w) => w.warehouseId !== shop.warehouseId)?.onHand).toBe(3);
 });
+
+test("follows a SKU's stock card from the stock list to the order that reserved it", async ({ page, business }) => {
+  void business;
+  const t = tag();
+  const shop = await seedShop(page, t);
+  await page.goto(`/stok?q=KAOS-${t}-HTM`);
+  await page.getByRole("button", { name: `Aksi lain untuk KAOS-${t}-HTM` }).click();
+  await page.getByRole("menuitem", { name: "Lihat riwayat stok" }).click();
+  await page.waitForURL(/\/stok\/riwayat\?variant=/);
+
+  const table = page.getByRole("table");
+  await expect(table.getByText("Pesanan masuk")).toBeVisible();
+  await expect(table.getByText("Penyesuaian")).toBeVisible();
+  await expect(table.getByText("Koreksi · stok awal e2e")).toBeVisible();
+  await table.getByRole("link", { name: `Buka pesanan ${shop.order.number}` }).click();
+  await page.waitForURL(`**/pesanan?id=${shop.order.id}`);
+  await expect(page.getByRole("dialog").getByText(shop.order.number).first()).toBeVisible();
+});
+
+test("sets a SKU's minimum and shelf, and the stock list calls it running low", async ({ page, business }) => {
+  void business;
+  const t = tag();
+  const shop = await seedShop(page, t);
+  await page.goto(`/stok?q=TMB-${t}-500`);
+  await page.getByRole("button", { name: `Aksi lain untuk TMB-${t}-500` }).click();
+  await page.getByRole("menuitem", { name: "Atur minimum & rak" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Stok minimum").fill("12");
+  await dialog.getByLabel("Lokasi rak").fill("A-01-03");
+  await dialog.getByRole("button", { name: "Simpan" }).click();
+  await expect(page.getByText(`Pengaturan TMB-${t}-500 disimpan.`)).toBeVisible();
+
+  const stock = await call<{
+    items: { warehouses: { warehouseId: string; minStock: number | null; binLocation: string | null }[] }[];
+  }>(page, "GET", `/v1/inventory?q=TMB-${t}-500&stock=low`);
+  expect(stock.items[0]?.warehouses.find((w) => w.warehouseId === shop.warehouseId)).toMatchObject({
+    minStock: 12,
+    binLocation: "A-01-03",
+  });
+});

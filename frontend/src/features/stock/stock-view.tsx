@@ -2,7 +2,8 @@
 
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { cn } from "cn";
-import { AlertTriangle, Boxes, Search, SlidersHorizontal } from "lucide-react";
+import { AlertTriangle, Boxes, History, MapPin, MoreHorizontal, Search, SlidersHorizontal } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Fragment, useEffect, useState } from "react";
 import { ChannelIcon } from "@/components/common/channel";
@@ -10,6 +11,12 @@ import { FilterChip } from "@/components/common/filter-chip";
 import { EmptyState, ErrorState, PageHeader } from "@/components/common/page";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,7 +27,16 @@ import { api, unwrap } from "@/lib/api/client";
 import { formatDateTime, formatNumber, formatRupiah } from "@/lib/format";
 import { useCan, useTimeZone } from "@/lib/session";
 import { AdjustStockDialog, variantTitle } from "./adjust-dialog";
-import { PUSH_TONE, STOCK_FILTERS, type StockCell, type StockRow, stockFilterOf, warehouseColumns } from "./stock-meta";
+import { LocationDialog } from "./location-dialog";
+import {
+  historyHref,
+  PUSH_TONE,
+  STOCK_FILTERS,
+  type StockCell,
+  type StockRow,
+  stockFilterOf,
+  warehouseColumns,
+} from "./stock-meta";
 
 const PAGE = 50;
 const ALL = "all";
@@ -47,6 +63,7 @@ export function StockView() {
   const { q, set } = f;
   const [search, setSearch] = useState(q);
   const [adjusting, setAdjusting] = useState<{ row: StockRow | null } | null>(null);
+  const [locating, setLocating] = useState<StockRow | null>(null);
 
   // the search box writes the URL once the typing pauses
   useEffect(() => {
@@ -201,7 +218,7 @@ export function StockView() {
                     <TableHead rowSpan={2} className="border-l align-bottom">
                       {t("colPush")}
                     </TableHead>
-                    {canAdjust ? <TableHead rowSpan={2} className="w-px" /> : null}
+                    <TableHead rowSpan={2} className="w-px" />
                   </TableRow>
                   <TableRow>
                     {columns.map((w) => (
@@ -234,13 +251,14 @@ export function StockView() {
                       <TableCell className="border-l">
                         <PushIcons push={r.push} />
                       </TableCell>
-                      {canAdjust ? (
-                        <TableCell>
-                          <Button size="sm" variant="secondary" onClick={() => setAdjusting({ row: r })}>
-                            {t("adjust")}
-                          </Button>
-                        </TableCell>
-                      ) : null}
+                      <TableCell>
+                        <RowActions
+                          row={r}
+                          historyHref={historyHref(r, f.warehouseId)}
+                          onAdjust={canAdjust ? () => setAdjusting({ row: r }) : null}
+                          onLocation={canAdjust ? () => setLocating(r) : null}
+                        />
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -263,11 +281,12 @@ export function StockView() {
                   {!r.established ? <span className="text-[13px] text-warning">{t("notEstablished")}</span> : null}
                   <div className="flex items-center justify-between gap-2">
                     <PushIcons push={r.push} />
-                    {canAdjust ? (
-                      <Button size="sm" variant="secondary" onClick={() => setAdjusting({ row: r })}>
-                        {t("adjust")}
-                      </Button>
-                    ) : null}
+                    <RowActions
+                      row={r}
+                      historyHref={historyHref(r, f.warehouseId)}
+                      onAdjust={canAdjust ? () => setAdjusting({ row: r }) : null}
+                      onLocation={canAdjust ? () => setLocating(r) : null}
+                    />
                   </div>
                 </li>
               ))}
@@ -291,7 +310,61 @@ export function StockView() {
         warehouseId={f.warehouseId}
         onClose={() => setAdjusting(null)}
       />
+      <LocationDialog row={locating} warehouses={allWarehouses} onClose={() => setLocating(null)} />
     </>
+  );
+}
+
+/**
+ * A row's actions: "Sesuaikan" and a menu with the stock card and "Atur minimum & rak" for those who adjust
+ * stock; the stock card alone for those who only read it.
+ */
+function RowActions({
+  row,
+  historyHref,
+  onAdjust,
+  onLocation,
+}: {
+  row: StockRow;
+  historyHref: string;
+  onAdjust: (() => void) | null;
+  onLocation: (() => void) | null;
+}) {
+  const t = useTranslations("stock");
+  if (!onAdjust) {
+    return (
+      <Button asChild size="sm" variant="secondary">
+        <Link href={historyHref}>{t("history")}</Link>
+      </Button>
+    );
+  }
+  return (
+    <span className="flex items-center justify-end gap-1">
+      <Button size="sm" variant="secondary" onClick={onAdjust}>
+        {t("adjust")}
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="icon-sm" variant="ghost" aria-label={t("moreActions", { sku: row.sku })}>
+            <MoreHorizontal aria-hidden />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link href={historyHref}>
+              <History aria-hidden />
+              {t("viewHistory")}
+            </Link>
+          </DropdownMenuItem>
+          {onLocation ? (
+            <DropdownMenuItem onSelect={onLocation}>
+              <MapPin aria-hidden />
+              {t("setLocation")}
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </span>
   );
 }
 

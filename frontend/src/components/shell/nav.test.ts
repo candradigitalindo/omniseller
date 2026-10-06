@@ -16,7 +16,7 @@ describe("sidebar (DOKUMEN-UI-UX 7.1)", () => {
       ["groupHome", ["overview"]],
       ["groupSales", ["orders", "returns"]],
       ["groupCatalog", ["products", "listings"]],
-      ["groupStock", ["stock", "warehouses", "restock"]],
+      ["groupStock", ["stock", "warehouses", "stockHistory", "restock"]],
       ["groupAnalytics", ["salesReport"]],
       ["groupSettings", ["stores", "notifications", "migration"]],
     ]);
@@ -26,6 +26,7 @@ describe("sidebar (DOKUMEN-UI-UX 7.1)", () => {
     expect(warehouse.find((g) => g.key === "groupStock")?.items.map((i) => i.key)).toEqual([
       "stock",
       "warehouses",
+      "stockHistory",
       "stockCounts",
       "transfers",
       "restock",

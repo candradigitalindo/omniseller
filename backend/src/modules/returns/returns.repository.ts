@@ -151,6 +151,25 @@ export class ReturnsRepository {
     return rows.length > 0;
   }
 
+  /** The request of each return line (stock card references, 8.13). */
+  async itemRequests(
+    tx: Tx,
+    itemIds: string[],
+  ): Promise<{ itemId: string; id: string; orderId: string; storeId: string; warehouseId: string | null }[]> {
+    if (itemIds.length === 0) return [];
+    return tx
+      .select({
+        itemId: returnItem.id,
+        id: returnRequest.id,
+        orderId: returnRequest.orderId,
+        storeId: returnRequest.storeId,
+        warehouseId: returnRequest.warehouseId,
+      })
+      .from(returnItem)
+      .innerJoin(returnRequest, eq(returnRequest.id, returnItem.returnRequestId))
+      .where(inArray(returnItem.id, itemIds));
+  }
+
   async items(tx: Tx, requestIds: string[]): Promise<ReturnItemRow[]> {
     const unique = [...new Set(requestIds)];
     if (unique.length === 0) return [];

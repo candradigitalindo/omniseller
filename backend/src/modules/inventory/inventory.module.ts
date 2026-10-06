@@ -4,6 +4,7 @@ import { ChannelModule } from "../channel/channel.module";
 import { IdentityModule } from "../identity/identity.module";
 import { NotificationInboxModule } from "../notification/notification.module";
 import { OrdersModule } from "../orders/orders.module";
+import { ReturnsModule } from "../returns/returns.module";
 import { AllocationRulesService } from "./allocation-rules.service";
 import { InitialStockService } from "./initial-stock.service";
 import { InventoryController, StockRulesController, WarehousesController } from "./inventory.controllers";
@@ -12,6 +13,7 @@ import { RestockService } from "./restock.service";
 import { StockAlertsService } from "./stock-alerts.service";
 import { StockComparisonService } from "./stock-comparison.service";
 import { StockCountService } from "./stock-count.service";
+import { StockHistoryService } from "./stock-history.service";
 import { StockCountsController, StockTransfersController } from "./stock-ops.controllers";
 import { StockOpsRepository } from "./stock-ops.repository";
 import { StockOverviewService } from "./stock-overview.service";
@@ -32,14 +34,23 @@ const STOCK = [
   StockOpsRepository,
   StockCountService,
   StockTransferService,
+  StockHistoryService,
 ];
 
 /**
  * Stock list with push state, initial stock, allocation rules, comparison with the marketplace, stock
- * counts and transfers (api and worker; the worker applies approved counts).
+ * counts and transfers, the stock card's documents (api and worker; the worker applies approved counts).
  */
 @Module({
-  imports: [InventoryModule, CatalogModule, ChannelModule, OrdersModule, IdentityModule, NotificationInboxModule],
+  imports: [
+    InventoryModule,
+    CatalogModule,
+    ChannelModule,
+    OrdersModule,
+    ReturnsModule,
+    IdentityModule,
+    NotificationInboxModule,
+  ],
   providers: STOCK,
   exports: STOCK,
 })

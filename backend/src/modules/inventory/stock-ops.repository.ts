@@ -522,6 +522,26 @@ export class StockOpsRepository {
       .limit(limit + 1);
   }
 
+  /** The stock count of each count line (stock card references, 8.13). */
+  async countsOfLines(tx: Tx, lineIds: string[]): Promise<{ lineId: string; id: string; number: string }[]> {
+    if (lineIds.length === 0) return [];
+    return tx
+      .select({ lineId: stockCountLine.id, id: stockCount.id, number: stockCount.number })
+      .from(stockCountLine)
+      .innerJoin(stockCount, eq(stockCount.id, stockCountLine.stockCountId))
+      .where(inArray(stockCountLine.id, lineIds));
+  }
+
+  /** The transfer of each transfer line (stock card references, 8.13). */
+  async transfersOfLines(tx: Tx, lineIds: string[]): Promise<{ lineId: string; id: string; number: string }[]> {
+    if (lineIds.length === 0) return [];
+    return tx
+      .select({ lineId: stockTransferLine.id, id: stockTransfer.id, number: stockTransfer.number })
+      .from(stockTransferLine)
+      .innerJoin(stockTransfer, eq(stockTransfer.id, stockTransferLine.stockTransferId))
+      .where(inArray(stockTransferLine.id, lineIds));
+  }
+
   async transferLines(tx: Tx, transferIds: string[]): Promise<StockTransferLineRow[]> {
     if (transferIds.length === 0) return [];
     return tx

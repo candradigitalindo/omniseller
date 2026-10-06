@@ -3252,6 +3252,13 @@ export interface components {
         reasonLabel: string | null;
         note: string | null;
         actorUserId: string | null;
+        /** @description dokumen asal: pesanan atau retur (nomor pesanan marketplace, hanya dengan order:read dan dalam cakupan), stok opname, transfer */
+        document: {
+          /** @enum {string} */
+          type: "order" | "return" | "stock_count" | "stock_transfer";
+          id: string;
+          number: string;
+        } | null;
         /** Format: date-time */
         createdAt: string;
       }[];

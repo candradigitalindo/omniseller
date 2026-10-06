@@ -5,9 +5,21 @@ import { sql } from "drizzle-orm";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { withTenantTx } from "../../src/db/tenant-tx";
+import { StockHistoryService } from "../../src/modules/inventory/stock-history.service";
 import { orderPullJob } from "../../src/modules/orders/orders.jobs";
 import { webhookProcessJob } from "../../src/modules/sync/sync.jobs";
-import { type Client, signup, startApi, startWebhook, startWorker, WEBHOOK_URL } from "../setup/app";
+import {
+  type Client,
+  client,
+  PASSWORD,
+  signup,
+  startApi,
+  startWebhook,
+  startWorker,
+  tokenFrom,
+  uniqueEmail,
+  WEBHOOK_URL,
+} from "../setup/app";
 import { userCtx } from "../setup/factories";
 import { testHandles } from "../setup/handles";
 import {
@@ -161,6 +173,24 @@ async function pushShopeeOrder(tenantId: string, shopId: string, o: MockShopeeOr
   );
   for (const r of rows.rows) await worker.runJob(webhookProcessJob, { inboxId: r.id }, tenantId);
   await drain(tenantId);
+}
+
+/** Invites a member with a built-in role and an optional store scope, and signs them in. */
+async function addMember(owner: Client, tenantId: string, role: string, scope?: { storeIds: string[] }) {
+  const roles = (await owner.get("/v1/roles")).body.items as { id: string; name: string }[];
+  const email = uniqueEmail(role.toLowerCase());
+  const invite = await owner.post("/v1/invitations", { email, roleId: roles.find((r) => r.name === role)!.id });
+  expect(invite.status).toBe(201);
+  await drain(tenantId);
+  const member = client(api);
+  const accepted = await member.post("/v1/auth/invitations/accept", {
+    token: tokenFrom(worker.email.lastTo(email)!.text),
+    name: role,
+    password: PASSWORD,
+  });
+  expect(accepted.status).toBe(201);
+  if (scope) expect((await owner.put(`/v1/users/${accepted.body.user.id}/scopes`, scope)).status).toBe(200);
+  return member;
 }
 
 async function orderBy(c: Client, externalOrderId: string) {
@@ -340,6 +370,23 @@ describe("orders from Shopee (FR-ORD-01, 02, 05, 06, 14, FR-STK-03)", () => {
       onHandDelta: -3,
       reservedDelta: -3,
       referenceType: "order_item",
+      document: { type: "order", id: order.id, number: sold.order_sn },
+    });
+    // someone who sees only another store sees the movement, not the order behind it
+    const other = await connectShopee(c, tenantId, []);
+    const viewer = await addMember(c, tenantId, "Viewer", { storeIds: [other.storeId] });
+    expect((await viewer.get(`/v1/inventory/movements?variantId=${v["KAOS-M"]}`)).body.items[0]).toMatchObject({
+      id: card[0].id,
+      document: null,
+    });
+    // nor for someone who may read stock but not orders (no built-in role is like that yet)
+    const history = worker.ctx.get(StockHistoryService);
+    const stockOnly = { ...userCtx(tenantId), permissions: new Set(["inventory:read"]) };
+    expect(await history.documentsOf(stockOnly, [card[0]])).toEqual(new Map());
+    expect((await history.documentsOf(userCtx(tenantId), [card[0]])).get(card[0].id)).toEqual({
+      type: "order",
+      id: order.id,
+      number: sold.order_sn,
     });
 
     // a late notification with an older snapshot changes nothing

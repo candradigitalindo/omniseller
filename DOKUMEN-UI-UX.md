@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.8 |
+| Versi dokumen | 1.9 |
 | Tanggal | 6 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
@@ -661,6 +661,14 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 #### L21 Riwayat Stok, L22 Stock Opname, L23 Transfer Stok, L24 Pembelian dan Supplier
 
 - **L21 Riwayat Stok**: pilih SKU dan gudang; kartu stok berbentuk tabel kronologis: waktu, jenis (pil: Pesanan, Batal, Kirim, Retur, Penyesuaian, Opname, Transfer, Pembelian), perubahan (+ hijau, - merah), stok setelah, referensi (nomor pesanan yang dapat diklik), oleh siapa. Prompt: "Kartu stok untuk 'KAOS-POLOS-HTM-L, Gudang Jakarta': tabel dengan kolom waktu, jenis pil, perubahan '-2' merah, stok setelah '118', referensi 'SP-2609-88123', oleh 'Sistem'. Grafik garis kecil stok 30 hari di atas tabel."
+  - **Di web app**:
+    - Dibuka dari menu "Riwayat Stok" dengan kotak cari SKU, atau dari baris halaman Stok ("Lihat riwayat stok") untuk SKU dan gudang filter halaman itu. SKU, gudang, dan jenis tersimpan di URL.
+    - Jenis tampil sebagai pil dengan nama yang dikenal penjual (Pesanan masuk, Pesanan dilepas, Dikirim, Retur layak jual, Retur rusak, Penyesuaian, Stok opname, Transfer keluar dan masuk, Pembelian, Stok awal). "Pesanan dilepas" menggantikan "Batal", karena reservasi juga dilepas saat pesanan pindah gudang.
+    - Perubahan ditulis per bagian (Fisik, Dipesan, Rusak, Cadangan) dengan + hijau dan - merah. Stok setelah menampilkan fisik dan siap jual, merah bila siap jual di bawah nol.
+    - Referensi berupa nomor dokumen asal: pesanan atau retur (nomor pesanan marketplace), `OP-…`, `TF-…`. Nomor menjadi tautan bila pengguna boleh membuka layarnya; catatan otomatis yang hanya mengulang nomor itu tidak ditampilkan.
+    - "Oleh" berisi Sistem, Anda, atau nama anggota tim (nama hanya untuk pemegang `settings:user`, selain itu "Anggota tim").
+    - Garis kecil siap jual mengikuti gudang dengan mutasi terbanyak di halaman yang dimuat, dengan rentang tanggalnya. Garis tidak dipaksa 30 hari, karena kartu stok dimuat per halaman. Setiap mutasi mendapat satu langkah selebar sama, karena pesanan datang beruntun dan sumbu waktu menumpuknya di satu titik. Arahkan kursor atau ketuk garis untuk membaca satu mutasi beserta waktunya; tabel di bawahnya memuat semua angka.
+  - **Di halaman Stok**: baris punya menu "Lihat riwayat stok" dan "Atur minimum & rak". Dialognya berisi stok minimum dan lokasi rak per gudang aktif, dan hanya mengirim yang berubah. Pengguna tanpa `inventory:adjust` mendapat tombol "Riwayat" saja.
 - **L22 Stock Opname**: daftar opname (nomor, gudang, mode penuh atau sebagian, status, selisih total); halaman hitung: daftar SKU dengan stok sistem tersembunyi sampai dihitung (mode buta), input jumlah besar, scan; halaman tinjau: tabel selisih dengan warna, tombol "Terapkan selisih" yang butuh konfirmasi. Prompt: "Halaman hitung opname di tablet: baris SKU dengan gambar, nama, lokasi rak, input angka besar, tombol scan. Halaman tinjau: tabel 'Sistem 120, Dihitung 117, Selisih -3' merah, total nilai selisih, tombol utama 'Terapkan 14 penyesuaian'."
 - **L23 Transfer Stok**: formulir gudang asal dan tujuan, tabel SKU dan jumlah, status Draf, Dikirim, Diterima; penerimaan dengan jumlah diterima. Prompt: "Formulir transfer 'Gudang Jakarta ke Gudang Surabaya', tabel SKU dengan jumlah, tombol 'Kirim transfer'. Daftar transfer dengan pil status."
 - **L24 Pembelian dan Supplier**: daftar supplier; daftar PO dengan status; formulir PO (supplier, gudang, tabel SKU, jumlah, harga beli, total); penerimaan barang per PO dengan jumlah diterima; saran restock menjadi draf PO. Prompt: "Halaman pembelian: tab Supplier dan Pesanan pembelian. Tabel PO 'PO-202609-0012, PT Kain Jaya, Gudang Jakarta, 24 SKU, Rp 18.500.000, Diterima sebagian' dengan bar progres. Banner biru 'Saran restock: 9 SKU akan habis dalam 7 hari' dengan tombol 'Buat draf PO'."
@@ -968,3 +976,4 @@ Sebelum layar dinyatakan selesai:
 | 1.6 | 6 Oktober 2026 | Layar L15a Salin Listing dengan dialog salin, antrean draf, aksi massal, dan editor draf (FR-PRD-13); item sidebar | Candra Syahputra |
 | 1.7 | 6 Oktober 2026 | L46 Migrasi Data: catatan susunan di web app (dua tab, stepper impor, pratinjau semua kolom, kartu per toko, pindah sekaligus, batal 24 jam) | Candra Syahputra |
 | 1.8 | 6 Oktober 2026 | Pengaturan di web app: catatan L41, L42, L44; layar L46a Ekspor Data dan item sidebarnya; Printer & Label juga untuk pemegang `shipment:print` | Candra Syahputra |
+| 1.9 | 6 Oktober 2026 | L21 Riwayat Stok di web app: nama jenis ("Pesanan dilepas" menggantikan "Batal"), referensi bertaut ke pesanan, retur, opname, dan transfer, garis siap jual atas mutasi yang dimuat dengan satu langkah per mutasi. L19: menu baris "Lihat riwayat stok" dan "Atur minimum & rak" | Candra Syahputra |

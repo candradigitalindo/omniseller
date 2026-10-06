@@ -20,7 +20,7 @@ Pengajuan pembeli setelah membeli (PRD FR-RET-01, 02, 03, 06, 07; backend doc 8.
   - `addEvidence(ctx, id, base64)`: foto JPEG atau PNG paling besar 5 MB, disimpan privat 180 hari, paling banyak 20 per pengajuan;
   - `respond(ctx, id, "accept" | "reject", input)`: keputusan diperiksa terhadap pilihan dari marketplace, lalu dikirim worker;
   - `receive(ctx, id, {warehouseId?, note?, items})`: sekali per pengajuan;
-  - modul lain: `deleteStoreReturnsIn` (retention), `exportSheets()` (`retur.csv`, `retur_barang.csv`);
+  - modul lain: `deleteStoreReturnsIn` (retention), `exportSheets()` (`retur.csv`, `retur_barang.csv`), `requestsOfItemsIn` (pengajuan dan nomor pesanan per baris retur dalam cakupan, kartu stok 8.13);
   - `awaitsSeller(row)`: pengajuan menunggu keputusan penjual sekarang.
   - Error: `return.not_found`, `return.not_marketplace` (RTO tidak ditanggapi), `return.response_pending`, `return.decisions_stale` (pilihan keputusan sedang dibaca ulang), `return.nothing_to_decide`, `return.already_received`, `return.no_goods`, `return.evidence_limit`, validasi (`decision`, `reason`, `email`, `evidence...`, `items...`, `warehouseId`, `content`); dari channel `store.not_active`; `store.read_only` untuk toko mode paralel.
 - Hanya worker:

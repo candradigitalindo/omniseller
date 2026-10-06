@@ -608,6 +608,25 @@ export class OrdersRepository {
       .where(inArray(o.id, ids));
   }
 
+  /** The order of each order line (stock card references, 8.13). */
+  async itemOrders(
+    tx: Tx,
+    itemIds: string[],
+  ): Promise<{ itemId: string; id: string; externalOrderId: string; storeId: string; warehouseId: string | null }[]> {
+    if (itemIds.length === 0) return [];
+    return tx
+      .select({
+        itemId: orderItem.id,
+        id: o.id,
+        externalOrderId: o.externalOrderId,
+        storeId: o.storeId,
+        warehouseId: o.warehouseId,
+      })
+      .from(orderItem)
+      .innerJoin(o, eq(o.id, orderItem.orderId))
+      .where(inArray(orderItem.id, itemIds));
+  }
+
   // ---- sales report (reporting, FR-RPT-02): sold orders by order time, in the caller's scope ----
 
   /** Sold orders per calendar bucket of the business's time zone (day, ISO week from Monday, month). */
