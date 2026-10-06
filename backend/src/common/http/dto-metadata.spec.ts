@@ -2,7 +2,7 @@ import "reflect-metadata";
 import { ROUTE_ARGS_METADATA } from "@nestjs/common/constants";
 import { RouteParamtypes } from "@nestjs/common/enums/route-paramtypes.enum";
 import { describe, expect, it } from "vitest";
-import { AuditController } from "../../modules/audit/audit.module";
+import { AuditController } from "../../modules/audit/audit.controller";
 import { AuthController } from "../../modules/auth/auth.controller";
 import { ListingsController, ProductsController } from "../../modules/catalog/catalog.controllers";
 import {

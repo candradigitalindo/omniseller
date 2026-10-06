@@ -55,6 +55,11 @@ export class DevicesService {
     return { device, token };
   }
 
+  /** Device names by id, revoked ones included, in the caller's transaction (the audit log). */
+  async namesIn(tx: Tx): Promise<Map<string, string>> {
+    return new Map((await this.repo.names(tx)).map((d) => [d.id, d.name]));
+  }
+
   getIn(tx: Tx, id: string, lock = false): Promise<DeviceRow | undefined> {
     return this.repo.get(tx, id, lock);
   }

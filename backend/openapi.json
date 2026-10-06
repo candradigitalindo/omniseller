@@ -692,9 +692,10 @@
             "name": "entity_type",
             "required": false,
             "in": "query",
+            "description": "satu jenis atau beberapa dipisah koma, misalnya product,variant",
             "schema": {
-              "maxLength": 60,
-              "pattern": "^[a-z_]+$",
+              "maxLength": 400,
+              "pattern": "^[a-z_]+(,[a-z_]+){0,19}$",
               "type": "string"
             }
           },
@@ -704,6 +705,38 @@
             "in": "query",
             "schema": {
               "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "actor_id",
+            "required": false,
+            "in": "query",
+            "description": "pengguna atau agen cetak yang bertindak",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "sejak waktu ini",
+            "schema": {
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "sebelum waktu ini",
+            "schema": {
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
               "type": "string"
             }
           }
@@ -725,6 +758,30 @@
         ],
         "x-isolation": {
           "fixture": "audit"
+        }
+      }
+    },
+    "/v1/audit-logs/people": {
+      "get": {
+        "operationId": "AuditController_people",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditPeopleDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "audit"
+        ],
+        "x-isolation": {
+          "fixture": "user"
         }
       }
     },
@@ -9322,6 +9379,7 @@
                   ]
                 },
                 "requestId": {
+                  "description": "entri dengan requestId yang sama berasal dari satu tindakan",
                   "type": [
                     "string",
                     "null"
@@ -9354,7 +9412,8 @@
                     {
                       "type": "null"
                     }
-                  ]
+                  ],
+                  "description": "baris sebelum diubah (nama kolom basis data); HPP tidak ada tanpa izin finance:read"
                 },
                 "after": {
                   "anyOf": [
@@ -9369,6 +9428,84 @@
                       "type": "null"
                     }
                   ]
+                },
+                "actor": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "user",
+                        "system",
+                        "api_key",
+                        "device"
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "name": {
+                      "description": "nama pengguna atau agen cetak; null untuk sistem",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "id",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "change": {
+                  "type": "string",
+                  "enum": [
+                    "created",
+                    "updated",
+                    "deleted",
+                    "restored"
+                  ],
+                  "description": "deleted dan restored juga untuk data yang diarsipkan lalu dipulihkan"
+                },
+                "label": {
+                  "description": "yang diubah: SKU varian, nama produk atau toko, nomor pesanan atau dokumen, nama pengguna",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "changes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "field": {
+                        "type": "string",
+                        "description": "nama field di API, misalnya basePrice; rujukan tanpa Id, misalnya warehouse"
+                      },
+                      "before": {
+                        "description": "rujukan (warehouse, role, variant, order) berupa namanya"
+                      },
+                      "after": {},
+                      "hidden": {
+                        "description": "nilainya disembunyikan (HPP tanpa izin finance:read)",
+                        "type": "boolean",
+                        "const": true
+                      }
+                    },
+                    "required": [
+                      "field",
+                      "before",
+                      "after"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "field yang dikenali penjual: yang berubah, atau isinya saat dibuat atau dihapus"
                 }
               },
               "required": [
@@ -9381,7 +9518,11 @@
                 "entityType",
                 "entityId",
                 "before",
-                "after"
+                "after",
+                "actor",
+                "change",
+                "label",
+                "changes"
               ],
               "additionalProperties": false
             }
@@ -9400,6 +9541,35 @@
         "required": [
           "items",
           "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "AuditPeopleDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
         ],
         "additionalProperties": false
       },

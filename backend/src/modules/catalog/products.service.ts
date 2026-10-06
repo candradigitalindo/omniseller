@@ -217,6 +217,11 @@ export class ProductsService {
     });
   }
 
+  /** SKUs of these variants by id, deleted ones too, in the caller's transaction (the audit log). */
+  async variantSkusIn(tx: Tx, ids: string[]): Promise<Map<string, string>> {
+    return new Map((await this.repo.variantSkus(tx, ids)).map((v) => [v.id, v.sku]));
+  }
+
   /**
    * FR-PRD-12: an internal EAN-13 (prefix 20) for each of these variants that has no barcode, numbered
    * per business. Variants with a barcode keep it. A number someone already typed in is skipped.

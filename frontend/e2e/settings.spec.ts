@@ -34,7 +34,8 @@ test("invites a team member and exports all data", async ({ page, business }) =>
   await dialog.getByRole("combobox", { name: "Peran" }).click();
   await page.getByRole("option", { name: "Gudang" }).click();
   await dialog.getByRole("button", { name: "Kirim undangan" }).click();
-  await expect(page.getByText(email)).toBeVisible();
+  // the invitation's row, not the toast that also names the address
+  await expect(page.getByText(email, { exact: true })).toBeVisible();
 
   await page.goto("/ekspor");
   await page.getByRole("button", { name: "Buat ekspor" }).click();

@@ -318,6 +318,11 @@ export class ChannelRepository {
 
   // ---- channel_warehouse ----
 
+  /** Every marketplace warehouse of the tenant, by name (the audit log). */
+  async channelWarehouseNames(tx: Tx): Promise<{ id: string; name: string }[]> {
+    return tx.select({ id: channelWarehouse.id, name: channelWarehouse.name }).from(channelWarehouse);
+  }
+
   async channelWarehouses(tx: Tx, storeId: string): Promise<ChannelWarehouseRow[]> {
     return tx
       .select()

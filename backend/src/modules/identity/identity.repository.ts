@@ -94,6 +94,19 @@ export class IdentityRepository {
     return row;
   }
 
+  /** Every role of the tenant: names for the audit log. */
+  async roleNames(tx: Tx): Promise<{ id: string; name: string }[]> {
+    return tx.select({ id: role.id, name: role.name }).from(role);
+  }
+
+  /** What each permission allows, in the seller's words ("Lihat log audit"). */
+  async permissionNames(tx: Tx): Promise<{ id: string; name: string }[]> {
+    const rows = await tx
+      .select({ id: permission.id, code: permission.code, description: permission.description })
+      .from(permission);
+    return rows.map((p) => ({ id: p.id, name: p.description ?? p.code }));
+  }
+
   async permissionIdsByCode(tx: Tx): Promise<Map<string, string>> {
     const rows = await tx.select({ id: permission.id, code: permission.code }).from(permission);
     return new Map(rows.map((r) => [r.code, r.id]));

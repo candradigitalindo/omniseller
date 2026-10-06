@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { cn } from "cn";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -16,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api, unwrap } from "@/lib/api/client";
 import { meQueryKey } from "@/lib/session";
-import { passwordStrength } from "./shared";
+import { PasswordHint } from "./password-hint";
 
 /** L49 Daftar: a business, its Owner, and a first warehouse in one step (backend `POST /v1/auth/signup`). */
 export function SignupForm() {
@@ -37,7 +36,6 @@ export function SignupForm() {
     defaultValues: { businessName: "", name: "", email: "", password: "", agree: false as unknown as true },
   });
   const password = useWatch({ control: form.control, name: "password" }) ?? "";
-  const strength = passwordStrength(password);
 
   const signup = useMutation({
     mutationFn: ({ agree: _agree, ...body }: Values) => unwrap(api.POST("/v1/auth/signup", { body })),
@@ -49,7 +47,6 @@ export function SignupForm() {
   });
 
   const { errors } = form.formState;
-  const strengthLabel = { weak: t("strengthWeak"), fair: t("strengthFair"), strong: t("strengthStrong") }[strength];
 
   return (
     <div className="grid gap-6">
@@ -86,28 +83,7 @@ export function SignupForm() {
         <Field
           id="password"
           label={t("password")}
-          hint={
-            password ? (
-              <span className="flex items-center gap-2">
-                <span aria-hidden className="flex gap-1">
-                  {[0, 1, 2].map((i) => (
-                    <span
-                      key={i}
-                      className={cn(
-                        "h-1.5 w-8 rounded-full bg-border",
-                        i === 0 && "bg-danger",
-                        i === 1 && strength !== "weak" && "bg-warning",
-                        i === 2 && strength === "strong" && "bg-success",
-                      )}
-                    />
-                  ))}
-                </span>
-                {t("strength", { level: strengthLabel })}
-              </span>
-            ) : (
-              t("passwordHint")
-            )
-          }
+          hint={<PasswordHint password={password} />}
           error={errors.password?.message}
         >
           <Input

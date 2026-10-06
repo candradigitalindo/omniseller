@@ -7,7 +7,7 @@ import { AppValidationPipe } from "./common/http/validation";
 import { ConfigModule } from "./config/config.module";
 import type { Env } from "./config/env.schema";
 import { InfraModule } from "./infra/infra.module";
-import { AuditHttpModule } from "./modules/audit/audit.module";
+import { AuditHttpModule } from "./modules/audit/audit-http.module";
 import { AuthHttpModule, AuthModule } from "./modules/auth/auth.module";
 import { CatalogHttpModule, CatalogModule, CatalogWorkerModule } from "./modules/catalog/catalog.module";
 import {

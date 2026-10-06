@@ -20,6 +20,12 @@ describe("sidebar (DOKUMEN-UI-UX 7.1)", () => {
       ["groupAnalytics", ["salesReport"]],
       ["groupSettings", ["stores", "notifications", "migration"]],
     ]);
+    // the audit log is for audit:read (Owner and Admin), next to the team
+    expect(
+      visibleNav(holding("settings:user", "audit:read"))
+        .find((g) => g.key === "groupSettings")
+        ?.items.map((i) => i.key),
+    ).toEqual(["team", "auditLog", "notifications"]);
     // copying listings needs catalog:write, which this role does not hold
     expect(owner.find((g) => g.key === "groupCatalog")?.items.map((i) => i.key)).not.toContain("copyListings");
     const warehouse = visibleNav(holding("inventory:read", "inventory:count", "inventory:transfer"));

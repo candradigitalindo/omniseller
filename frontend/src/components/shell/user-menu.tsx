@@ -2,7 +2,8 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "cn";
-import { LogOut, Moon } from "lucide-react";
+import { LogOut, Moon, UserRound } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -26,7 +27,10 @@ export function initials(name: string): string {
   return `${first}${last}`.toUpperCase();
 }
 
-/** The user's avatar (initials, 32 px), roles, the light or dark theme, and signing out (7.1, bottom). */
+/**
+ * The user's avatar (initials, 32 px), roles, their account page, the light or dark theme, and signing out
+ * (7.1, bottom).
+ */
 export function UserMenu({ showName = false }: { showName?: boolean }) {
   const t = useTranslations("shell");
   const me = useSession();
@@ -68,6 +72,12 @@ export function UserMenu({ showName = false }: { showName?: boolean }) {
           <span className="truncate text-[13px] text-text-500">{me.tenant.name}</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/akun">
+            <UserRound aria-hidden />
+            {t("account")}
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={(e) => {
             e.preventDefault();

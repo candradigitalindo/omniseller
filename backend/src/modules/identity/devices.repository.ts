@@ -14,6 +14,11 @@ export class DevicesRepository {
     return r!;
   }
 
+  /** Every device, revoked ones included: names of who acted in the audit log. */
+  async names(tx: Tx): Promise<{ id: string; name: string }[]> {
+    return tx.select({ id: device.id, name: device.name }).from(device);
+  }
+
   async get(tx: Tx, id: string, lock = false): Promise<DeviceRow | undefined> {
     const q = tx.select().from(device).where(eq(device.id, id));
     const [r] = lock ? await q.for("update") : await q;

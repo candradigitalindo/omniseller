@@ -15,6 +15,7 @@ import {
   Plug,
   Printer,
   RotateCcw,
+  ScrollText,
   ShoppingBag,
   Store,
   Truck,
@@ -40,6 +41,7 @@ type NavKey =
   | "warehouses"
   | "stores"
   | "team"
+  | "auditLog"
   | "printers"
   | "notifications"
   | "migration"
@@ -120,6 +122,7 @@ export const NAV: readonly NavGroup[] = [
     items: [
       { key: "stores", href: "/integrasi", icon: Plug, permission: "settings:store", ready: true },
       { key: "team", href: "/tim", icon: UsersRound, permission: "settings:user", ready: true },
+      { key: "auditLog", href: "/log-audit", icon: ScrollText, permission: "audit:read", ready: true },
       {
         key: "printers",
         href: "/printer",

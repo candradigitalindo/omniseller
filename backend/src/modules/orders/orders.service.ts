@@ -203,6 +203,14 @@ export class OrdersService {
     return (await this.repo.getMany(tx, [...new Set(ids)])).filter((o) => this.visible(ctx, o));
   }
 
+  /**
+   * Order numbers by id in the caller's transaction, for the audit log (backend doc 8.28): its readers
+   * (audit:read) see every entry, so this is not limited to the caller's stores.
+   */
+  async numbersIn(tx: Tx, ids: string[]): Promise<Map<string, string>> {
+    return new Map((await this.repo.numbers(tx, ids)).map((o) => [o.id, o.number]));
+  }
+
   /** Manual orders of a warehouse waiting for a courier (packed, not shipped), in the caller's scope. */
   async manualAwaitingIn(tx: Tx, ctx: RequestContext, warehouseId: string, limit: number): Promise<OrderRow[]> {
     return (await this.repo.manualAwaiting(tx, warehouseId, limit)).filter((o) => this.visible(ctx, o));

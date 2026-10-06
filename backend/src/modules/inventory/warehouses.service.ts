@@ -159,6 +159,12 @@ export class WarehousesService {
   // ---- full data export (FR-MIG-09) ----
 
   /** Every warehouse, deleted ones included: codes for the other export sheets. */
+  /** Every warehouse's name by id, deleted ones included, in the caller's transaction (the audit log). */
+  async namesIn(tx: Tx): Promise<Map<string, string>> {
+    const rows = await tx.select({ id: warehouse.id, name: warehouse.name }).from(warehouse);
+    return new Map(rows.map((r) => [r.id, r.name]));
+  }
+
   async codesIn(tx: Tx): Promise<Map<string, string>> {
     const rows = await tx.select({ id: warehouse.id, code: warehouse.code }).from(warehouse);
     return new Map(rows.map((r) => [r.id, r.code]));

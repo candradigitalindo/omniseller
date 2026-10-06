@@ -340,6 +340,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/audit-logs/people": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["AuditController_people"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/warehouses": {
     parameters: {
       query?: never;
@@ -3048,19 +3064,54 @@ export interface components {
         /** @enum {string} */
         actorType: "user" | "system" | "api_key" | "device";
         actorId: string | null;
+        /** @description entri dengan requestId yang sama berasal dari satu tindakan */
         requestId: string | null;
         /** @enum {string} */
         action: "insert" | "update" | "delete";
         entityType: string;
         entityId: string;
+        /** @description baris sebelum diubah (nama kolom basis data); HPP tidak ada tanpa izin finance:read */
         before: {
           [key: string]: unknown;
         } | null;
         after: {
           [key: string]: unknown;
         } | null;
+        actor: {
+          /** @enum {string} */
+          type: "user" | "system" | "api_key" | "device";
+          id: string | null;
+          /** @description nama pengguna atau agen cetak; null untuk sistem */
+          name: string | null;
+        };
+        /**
+         * @description deleted dan restored juga untuk data yang diarsipkan lalu dipulihkan
+         * @enum {string}
+         */
+        change: "created" | "updated" | "deleted" | "restored";
+        /** @description yang diubah: SKU varian, nama produk atau toko, nomor pesanan atau dokumen, nama pengguna */
+        label: string | null;
+        /** @description field yang dikenali penjual: yang berubah, atau isinya saat dibuat atau dihapus */
+        changes: {
+          /** @description nama field di API, misalnya basePrice; rujukan tanpa Id, misalnya warehouse */
+          field: string;
+          /** @description rujukan (warehouse, role, variant, order) berupa namanya */
+          before: unknown;
+          after: unknown;
+          /**
+           * @description nilainya disembunyikan (HPP tanpa izin finance:read)
+           * @constant
+           */
+          hidden?: true;
+        }[];
       }[];
       next_cursor: string | null;
+    };
+    AuditPeopleDto_Output: {
+      items: {
+        id: string;
+        name: string;
+      }[];
     };
     WarehouseListDto_Output: {
       items: {
@@ -7812,8 +7863,15 @@ export interface operations {
       query?: {
         cursor?: string;
         limit?: number;
+        /** @description satu jenis atau beberapa dipisah koma, misalnya product,variant */
         entity_type?: string;
         entity_id?: string;
+        /** @description pengguna atau agen cetak yang bertindak */
+        actor_id?: string;
+        /** @description sejak waktu ini */
+        from?: string;
+        /** @description sebelum waktu ini */
+        to?: string;
       };
       header?: never;
       path?: never;
@@ -7827,6 +7885,25 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["AuditPageDto_Output"];
+        };
+      };
+    };
+  };
+  AuditController_people: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuditPeopleDto_Output"];
         };
       };
     };

@@ -171,6 +171,15 @@ export class CatalogRepository {
     return forUpdate ? q.for("update") : q;
   }
 
+  /** SKUs of these variants, deleted ones too: names in the audit log (backend doc 8.28). */
+  async variantSkus(tx: Tx, ids: string[]): Promise<{ id: string; sku: string }[]> {
+    if (ids.length === 0) return [];
+    return tx
+      .select({ id: variant.id, sku: variant.sku })
+      .from(variant)
+      .where(inArray(variant.id, [...new Set(ids)]));
+  }
+
   /** Every variant a product ever had, deleted ones too: the ids its history is about (FR-PRD-11). */
   async variantIdsEver(tx: Tx, productId: string): Promise<string[]> {
     const rows = await tx.select({ id: variant.id }).from(variant).where(eq(variant.productId, productId));

@@ -549,6 +549,11 @@ export class StoresService {
     return new Map((await this.repo.listStores(tx, null, true)).map((s) => [s.id, s.name]));
   }
 
+  /** Marketplace warehouses' names by id, in the caller's transaction (the audit log, backend doc 8.28). */
+  async channelWarehouseNamesIn(tx: Tx): Promise<Map<string, string>> {
+    return new Map((await this.repo.channelWarehouseNames(tx)).map((w) => [w.id, w.name]));
+  }
+
   exportSheets(): ExportSheet[] {
     return [
       {

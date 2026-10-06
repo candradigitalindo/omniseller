@@ -2,9 +2,9 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.24 |
-| Tanggal | 5 Oktober 2026 |
-| Status | Keputusan final untuk implementasi; fondasi (bagian 4 sampai 9, 12, 13), identitas, autentikasi, dan audit (8.1, 8.10), koneksi toko Shopee dan Tokopedia & Shop (8.6, 8.11), katalog, listing, dan pemetaan SKU (7.8.3, 8.12), stok, penyesuaian, dan push stok ke marketplace (7.8.4, 8.13, 9.4), pesanan dari Shopee dan Tokopedia & Shop (7.8.6, 7.9, 8.14, 10.6), pengiriman, label, pick list, dan peringatan batas kirim (8.15), dasbor, notifikasi in-app, ekspor data penuh, dan audit aksi sensitif (8.16 sampai 8.18), migrasi dari aplikasi lain dengan mode paralel dan cutover (8.19), laporan penjualan, daftar perlu restock, ringkasan email harian, dan preferensi notifikasi (8.20), banyak gudang fisik, pesanan manual, alokasi gudang otomatis, dan tag pesanan (8.21), pelacakan paket, daftar kemas, dan template label kustom (8.22), putus toko dengan atau tanpa data, peringatan koneksi, riwayat produk, dan barcode (8.23), agen cetak, scan untuk cetak, kemas dengan scan, serah terima kurir dengan manifest, dan visibilitas HPP (8.24), salin listing antar toko sendiri (8.25), retur, refund, permintaan batal pembeli, dan paket kembali (8.26), serta stok opname dan transfer stok antar gudang (8.27) sudah diimplementasikan di folder `backend/` |
+| Versi dokumen | 1.25 |
+| Tanggal | 7 Oktober 2026 |
+| Status | Keputusan final untuk implementasi; fondasi (bagian 4 sampai 9, 12, 13), identitas, autentikasi, dan audit (8.1, 8.10), koneksi toko Shopee dan Tokopedia & Shop (8.6, 8.11), katalog, listing, dan pemetaan SKU (7.8.3, 8.12), stok, penyesuaian, dan push stok ke marketplace (7.8.4, 8.13, 9.4), pesanan dari Shopee dan Tokopedia & Shop (7.8.6, 7.9, 8.14, 10.6), pengiriman, label, pick list, dan peringatan batas kirim (8.15), dasbor, notifikasi in-app, ekspor data penuh, dan audit aksi sensitif (8.16 sampai 8.18), migrasi dari aplikasi lain dengan mode paralel dan cutover (8.19), laporan penjualan, daftar perlu restock, ringkasan email harian, dan preferensi notifikasi (8.20), banyak gudang fisik, pesanan manual, alokasi gudang otomatis, dan tag pesanan (8.21), pelacakan paket, daftar kemas, dan template label kustom (8.22), putus toko dengan atau tanpa data, peringatan koneksi, riwayat produk, dan barcode (8.23), agen cetak, scan untuk cetak, kemas dengan scan, serah terima kurir dengan manifest, dan visibilitas HPP (8.24), salin listing antar toko sendiri (8.25), retur, refund, permintaan batal pembeli, dan paket kembali (8.26), stok opname dan transfer stok antar gudang (8.27), serta log audit yang terbaca (8.28) sudah diimplementasikan di folder `backend/` |
 | Pemilik dokumen | Candra Syahputra |
 | Dokumen terkait | DOKUMEN-SPESIFIKASI-APLIKASI.md (PRD) versi 1.11, DOKUMEN-TEKNOLOGI.md versi 1.18; web app di `frontend/README.md` |
 | Audiens | Engineer backend, tech lead, QA, dan **agen AI** yang mengerjakan basis kode |
@@ -1186,7 +1186,7 @@ Semua tabel di skema `research`. `research_source` global. Tidak ada kunci asing
 | `ai_budget` | `period text`, `token_limit bigint`, `tokens_used bigint` | UNIQUE `(tenant_id, period)` |
 | `data_export` | `status` (7.9), `status_changed_at`, `file_object_id`, `size_bytes bigint CHECK (>= 0)`, `result jsonb` (`{files: [{name, rows}]}`), `error text`, `requested_by`, `finished_at`, `expires_at`, `download_count integer NOT NULL DEFAULT 0 CHECK (>= 0)`, `last_downloaded_at` | `file_object_id → file_object` SET NULL (`file_object_id`), `requested_by → user` SET NULL (`requested_by`); INDEX `(tenant_id, id DESC)`; UNIQUE parsial `(tenant_id) WHERE status IN ('queued','running')` (satu ekspor berjalan per bisnis); audit saat dibuat dan setiap `download_count` berubah; migrasi 0008 (8.18) |
 | `file_object` | `tenant_id` NULL untuk berkas sistem, `bucket text`, `object_key text`, `mime text`, `size_bytes bigint`, `sha256 text`, `purpose CHECK IN ('product_image','label','pick_list','export','import','settlement','tax_document','evidence','other')`, `expires_at`, `created_by` | UNIQUE `(bucket, object_key)`; CHECK `size_bytes > 0` |
-| `audit_log` (partisi bulanan, hanya tambah, tanpa `updated_at` dan `row_version`) | `actor_type CHECK IN ('user','system','api_key','device')`, `actor_id text`, `request_id text`, `action text`, `entity_type text`, `entity_id ulid`, `before jsonb`, `after jsonb`, `ip inet` | INDEX `(tenant_id, entity_type, entity_id, id DESC)`; trigger `audit_log_immutable`; id dari `gen_ulid()` (7.7); hanya ditulis trigger `audit_row` |
+| `audit_log` (partisi bulanan, hanya tambah, tanpa `updated_at` dan `row_version`) | `actor_type CHECK IN ('user','system','api_key','device')`, `actor_id text`, `request_id text`, `action text`, `entity_type text`, `entity_id ulid`, `before jsonb`, `after jsonb`, `ip inet` | INDEX `(tenant_id, entity_type, entity_id, id DESC)`, `(tenant_id, id DESC)`, dan `(tenant_id, actor_id, id DESC) WHERE actor_id IS NOT NULL` (0018); trigger `audit_log_immutable`; id dari `gen_ulid()` (7.7); hanya ditulis trigger `audit_row` |
 
 ### 7.9 Mesin status
 
@@ -2345,6 +2345,38 @@ Belum termasuk: opname offline di aplikasi gudang (DOKUMEN-UI-UX-MOBILE G07), ja
 
 ---
 
+### 8.28 Log audit yang terbaca
+
+Implementasi:
+- modul `audit`:
+  - `audit-view.ts` (murni, uji unit): per tabel yang diaudit, field yang dikenali penjual beserta nama API-nya, rujukan ke data lain, dan apa yang menamai entri; `auditDiff` memutuskan perubahan apa yang terlihat, `auditEntryView` menyusun entri;
+  - `AuditLogService` dan `AuditController` di `audit-http.module.ts`: berkas sendiri, karena katalog mengimpor `audit.module.ts` untuk riwayat produk (8.23), sehingga modul yang menamai rujukan tidak boleh diimpor dari berkas itu;
+  - `AuditService.rowsIn` membaca baris dengan filter di transaksi pemanggil; `entriesIn` tetap untuk riwayat produk;
+- nama dari service modul pemiliknya, di transaksi yang sama: `UsersService.namesIn`, `RolesService.namesIn` dan `permissionNamesIn`, `DevicesService.namesIn`, `StoresService.namesIn` dan `channelWarehouseNamesIn`, `WarehousesService.namesIn`, `ProductsService.variantSkusIn`, `OrdersService.numbersIn`;
+- migrasi `0018_audit_log_reading.sql`: indeks `(tenant_id, id DESC)` dan `(tenant_id, actor_id, id DESC)`.
+
+PRD: FR-USR-04; layar L41a Log Audit (DOKUMEN-UI-UX).
+
+**Endpoint.** `GET /v1/audit-logs` (`audit:read`) menerima `entity_type` (satu jenis atau beberapa dipisah koma), `entity_id`, `actor_id` (pengguna atau agen cetak), `from` dan `to` (waktu ISO, `to` tidak termasuk), serta kursor. Setiap entri tetap membawa kolom lamanya (`actorType`, `actorId`, `requestId`, `action`, `entityType`, `entityId`, `before`, `after`), ditambah:
+- `actor {type, id, name}`: nama pengguna (juga yang dinonaktifkan) atau agen cetak; `null` untuk sistem;
+- `change`: `created`, `updated`, `deleted`, atau `restored`. Mengarsipkan dan memulihkan produk, varian, atau gudang (`deleted_at`) juga `deleted` dan `restored`;
+- `label`: yang diubah, yaitu SKU varian, nama produk, toko, gudang, atau peran, nomor pesanan atau dokumen (`MNF-`, `OP-`, `TF-`), atau nama pengguna untuk peran dan aksesnya; `null` bila tidak ada;
+- `changes [{field, before, after, hidden?}]`: field yang dikenali penjual dengan nama API-nya (`basePrice`; rujukan tanpa `Id`, misalnya `warehouse`). Untuk baris yang diubah, field yang berubah; untuk yang dibuat atau dihapus, isinya yang tidak kosong. Rujukan berisi namanya, bukan id, dan `null` bila datanya sudah tidak ada (peran yang dihapus).
+
+`GET /v1/audit-logs/people` (`audit:read`) memberi semua pengguna bisnis, juga yang dinonaktifkan, untuk pilihan filter pelaku.
+
+**Siapa melihat apa.** Pembaca log (`audit:read`: Owner dan Admin) melihat semua entri, tanpa batas toko atau gudang, seperti sebelumnya. Admin tidak memegang `settings:user`, jadi tidak bisa membaca `/v1/users`; nama pelaku, pengguna, dan peran di entri membuat lognya tetap terbaca. HPP hanya untuk `finance:read` (8.24): perubahannya `hidden: true` tanpa nilai, dan kolom `cost_price` dibuang dari `before` dan `after`. Sebelumnya baris varian mentah membawa HPP ke setiap pembaca log.
+
+**Baris yang tidak terlihat.** Trigger beberapa tabel menulis pada setiap perubahan baris, misalnya gudang marketplace yang terlihat lagi oleh sinkron (`last_seen_at`) atau gudang yang disimpan tanpa perubahan. Baris yang field-nya tidak berubah dilewati, dan halaman diisi terus dari baris berikutnya (200 per query, paling banyak 2.000 per halaman). Bila batas itu tercapai, halaman berakhir lebih pendek dan `next_cursor` melanjutkan dari baris terakhir yang dibaca, sehingga halaman bisa kosong dengan kursor lanjutan. Tabel yang belum dikenal `audit-view.ts` tetap tampil tanpa field, agar tidak ada yang hilang diam-diam.
+
+**Trigger dan tampilan harus sepakat.** Trigger yang hanya aktif pada kolom tertentu (`UPDATE OF ...`, `WHEN (OLD.x ...)`) berarti setiap barisnya penting, jadi kolom itu wajib menjadi field. Persetujuan opname hanya mengisi `apply_requested_at`; tanpa field itu barisnya terbuang sebagai baris tanpa perubahan. Ini ditemukan uji integrasi opname. `audit-view.spec.ts` membaca `drizzle/sql/20_triggers.sql` dan gagal bila ada tabel beraudit yang tidak dikenal atau kolom pemicu yang bukan field. Field yang nol pada baris baru dan hanya berarti "tidak bergerak" (stok rusak dan cadangan pada penyesuaian) tidak dicantumkan.
+
+**Rencana query.** Daftar seluruh bisnis memakai `audit_log_tenant_idx` dan filter pelaku memakai `audit_log_tenant_actor_idx`, keduanya dengan `tenant_id` dari RLS sebagai kondisi indeks dan merge append antarpartisi (0,1 ms untuk 200 baris di 23.840 baris smoke). Sebelumnya daftar tanpa `entity_type` membaca kunci primer mundur melewati baris semua tenant. Indeks dibuat di migrasi karena belum ada data produksi; setelah peluncuran, indeks tabel besar mengikuti 12.2.
+
+Belum termasuk: ekspor bulanan ke R2 (`audit.export_monthly`), pencarian teks, dan mencatat siapa yang meminta pekerjaan worker. Aktif atau nonaktif listing di marketplace, misalnya, tercatat atas nama Sistem karena barisnya ditulis worker setelah marketplace menjawab.
+
+---
+
 ## 9. Pekerjaan Latar dan Penjadwalan
 
 ### 9.1 Definisi job
@@ -2578,7 +2610,7 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `finance:read`, `finance:reconcile`, `finance:export` | Keuangan; `finance:read` juga membuka laba kotor di dasbor (8.16), HPP produk dan riwayatnya, kolom HPP ekspor produk, dan nilai persediaan (8.24) |
 | `report:read` | Penjualan, grafik, dan produk terlaris di `GET /v1/dashboard` (8.16); laporan penjualan `GET /v1/reports/sales*` (8.20); menerima ringkasan email harian secara bawaan |
 | `data:export` | `/v1/exports*`: ekspor seluruh data bisnis (8.18). Hanya Owner secara bawaan; peran bawaan Owner selalu memegang semua izin, termasuk yang ditambahkan kemudian (seed) |
-| `audit:read` | `GET /v1/audit-logs` |
+| `audit:read` | `GET /v1/audit-logs`, `GET /v1/audit-logs/people` |
 | `chat:read`, `chat:write`, `chat:assign` | Chat |
 | `settings:store`, `settings:warehouse`, `settings:user`, `settings:billing` | Pengaturan; `settings:store` juga saluran pesanan manual, `settings:warehouse` menambah, mengubah, dan menghapus gudang (8.21) serta memasang, mengubah, dan mencabut agen cetak (8.24) |
 | `research:read`, `research:write` | Riset |
@@ -2596,7 +2628,8 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `GET /v1/users`, `GET/PATCH /v1/users/{id}`, `PUT /v1/users/{id}/roles`, `PUT /v1/users/{id}/scopes` | `settings:user` | `GET` satu pengguna mengembalikan `ETag`, `PATCH` menerima `If-Match` (8.8). Ditolak: menonaktifkan diri sendiri, menghapus Owner aktif terakhir, memberi peran yang izinnya tidak dimiliki pemberi (403 `role.privilege_escalation`). Menonaktifkan pengguna mencabut semua sesinya |
 | `GET /v1/roles`, `GET /v1/permissions` | `settings:user` | |
 | `GET/POST /v1/invitations`, `POST /v1/invitations/{id}/resend`, `DELETE /v1/invitations/{id}` | `settings:user` | Satu undangan terbuka per email; kirim ulang membatalkan tautan lama |
-| `GET /v1/audit-logs` | `audit:read` | Filter `entity_type`, `entity_id` |
+| `GET /v1/audit-logs` | `audit:read` | Filter `entity_type` (beberapa dipisah koma), `entity_id`, `actor_id`, `from`, `to`; entri dengan nama pelaku, label, dan perubahan yang terbaca (8.28) |
+| `GET /v1/audit-logs/people` | `audit:read` | Pengguna bisnis untuk filter pelaku (8.28) |
 | `GET /v1/warehouses`, `GET /v1/warehouses/{id}` | `inventory:read` | Gudang OmniSeller dalam cakupan gudang pengguna; satu gudang dengan `ETag` |
 | `POST /v1/warehouses`, `PATCH /v1/warehouses/{id}`, `POST /v1/warehouses/{id}/default`, `DELETE /v1/warehouses/{id}` | `settings:warehouse` | 8.21. Tambah (201), ubah dengan `If-Match`, jadikan gudang utama, hapus lunak bila tidak dipakai (409 dengan alasan) |
 | `GET /v1/channels` | `settings:store` | Marketplace yang didukung, nama tampilannya, dan apakah sudah dikonfigurasi |
@@ -2723,7 +2756,7 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `retention` | Tidak punya tabel. Menghapus data toko yang diputus tanpa menyimpan data (8.23) lewat service modul pemilik: `OrdersService` (`storeOrderIdsIn`, `deleteOrdersIn`), `FulfillmentService.deleteForOrdersIn`, `ListingsService.deleteStoreListingsIn`, `InventoryService.deleteStoreRulesIn`, `SyncLogService.deleteStoreLogIn`, `ListingCopyService.deleteStoreCopiesIn` dan `CategoriesService.deleteStoreCategoriesIn` (8.25), `StoresService.finishDataDeletionIn`. Hanya worker | | `store.data_deletion_requested` | `store.data_delete`; menyusul `retention.run` (9.5) |
 | `ai` | `ai_route_config`, `ai_call_log`, `ai_budget` | `ai.budget_exhausted` | | `ai.*` |
 | `files` | `file_object`. `FilesService` (simpan, baca, unduh, hapus kedaluwarsa) di atas `FileStorage` (`r2` atau `local`) | | | `files.cleanup_expired` |
-| `audit` | `audit_log` (ditulis trigger `audit_row()`, dibaca `GET /v1/audit-logs`) | | | `audit.export_monthly` |
+| `audit` | `audit_log` (ditulis trigger `audit_row()`). `AuditService` (inti, diimpor katalog); `AuditLogService` di `audit-http.module.ts` membaca log untuk `GET /v1/audit-logs` dan menamai rujukannya lewat service modul pemilik (8.28) | | | `audit.export_monthly` |
 | `platform` | `feature_flag`, `feature_flag_override` | | | |
 
 Tabel bersama: `document_sequence` (nomor dokumen) dan `idempotency_record` (Idempotency-Key) tidak dimiliki satu modul; keduanya hanya ditulis lewat `nextDocumentNumber` dan `claimIdempotencyKey` di `common/`, di transaksi dokumen yang dibuat (8.21).
@@ -3113,3 +3146,4 @@ Berkas `.env.example` adalah versi yang berlaku. Kunci dikelompokkan per peran p
 | 1.22 | 6 Oktober 2026 | Impor CSV (8.12, 8.19): pemisah `;` atau `,` dikenali dari sepuluh baris pertama di luar tanda kutip, bukan dari baris pertama saja. Ekspor yang diawali baris judul (misalnya "Ekspor Produk BigSeller") sebelumnya terbaca satu kolom, sehingga judul kolom dan pemetaannya tidak bisa ditebak. Ditemukan saat uji layar Migrasi Data web app | Candra Syahputra |
 | 1.23 | 6 Oktober 2026 | Kartu stok (8.13): setiap mutasi membawa `document {type, id, number}`, yaitu pesanan, retur, stok opname, atau transfer asalnya, agar layar Riwayat Stok dapat menautkannya (DOKUMEN-UI-UX L21). Pesanan dan retur hanya untuk pemegang `order:read` dalam cakupan toko dan gudangnya. `StockHistoryService` baru di `InventoryStockModule`, yang kini juga mengimpor `ReturnsModule`. Endpoint 10.6, peta modul 11 | Candra Syahputra |
 | 1.24 | 6 Oktober 2026 | Log sinkron (`GET /v1/stores/{id}/sync-jobs`) menerima filter `status`, sehingga layar Kelola Toko dapat menampilkan semua kegagalan, bukan hanya yang ada di halaman termuat. Aturan alokasi stok (8.13) membawa `variant` (SKU dan nama) untuk aturan satu varian. Perbaikan connector TikTok Shop: `36009004` dengan pesan "The x-tts-access-token header is invalid" kini `auth_expired` (refresh lalu ulang sekali), bukan `permanent`. Kata kunci token dicocokkan dengan `_` atau `-`. Sebelumnya token yang tidak lagi dikenal TikTok membuat pembacaan gagal terus tanpa refresh, toko tetap tampil aktif, dan push stok tercatat berhasil dengan listing ditolak. Ditemukan saat smoke log sinkron. Endpoint 10.6 | Candra Syahputra |
+| 1.25 | 7 Oktober 2026 | Log audit yang terbaca (8.28): `GET /v1/audit-logs` memberi nama pelaku, label yang diubah, dan perubahan per field dengan nama API serta rujukan yang sudah dinamai, dan menerima filter beberapa jenis, pelaku, dan waktu. `GET /v1/audit-logs/people` baru. HPP disembunyikan dari pembaca tanpa `finance:read`; sebelumnya baris mentah membawanya. Baris tanpa perubahan yang dikenali dilewati. Migrasi 0018 menambah indeks per bisnis dan per pelaku. Uji unit mencocokkan trigger audit dengan tampilan setelah persetujuan opname sempat terbuang | Candra Syahputra |

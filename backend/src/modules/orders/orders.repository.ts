@@ -100,6 +100,15 @@ export class OrdersRepository {
     return row;
   }
 
+  /** The marketplace numbers of these orders (the audit log names orders by them). */
+  async numbers(tx: Tx, ids: string[]): Promise<{ id: string; number: string }[]> {
+    if (ids.length === 0) return [];
+    return tx
+      .select({ id: order.id, number: order.externalOrderId })
+      .from(order)
+      .where(inArray(order.id, [...new Set(ids)]));
+  }
+
   async getMany(tx: Tx, ids: string[]): Promise<OrderRow[]> {
     if (ids.length === 0) return [];
     return tx.select().from(order).where(inArray(order.id, ids));

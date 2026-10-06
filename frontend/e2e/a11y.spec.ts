@@ -26,6 +26,8 @@ const PAGES = [
   "/notifikasi",
   "/migrasi",
   "/ekspor",
+  "/log-audit",
+  "/akun",
 ];
 
 test("the daily pages have no serious accessibility problems", async ({ page, business }) => {

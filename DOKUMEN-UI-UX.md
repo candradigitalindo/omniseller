@@ -2,8 +2,8 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.12 |
-| Tanggal | 6 Oktober 2026 |
+| Versi dokumen | 1.13 |
+| Tanggal | 7 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
 | Dokumen terkait | DOKUMEN-SPESIFIKASI-APLIKASI.md (PRD) versi 1.10, DOKUMEN-UI-UX-MOBILE.md versi 1.0 (aplikasi mobile), DOKUMEN-TEKNOLOGI.md versi 1.1, DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.0 |
@@ -255,6 +255,7 @@ Item diberi nama sehari-hari. Kolom "Fase" mengikuti roadmap PRD; item fase lanj
 | | Pelanggan | `user-round` | `chat:read` | 3 |
 | **Pengaturan** | Toko Terhubung (dan pemetaan gudang marketplace) | `plug` | `settings:store` | 1 |
 | | Tim & Peran | `users-round` | `settings:user` | 1 |
+| | Log Audit | `scroll-text` | `audit:read` | 1 |
 | | Printer & Label | `printer` | `settings:warehouse` atau `shipment:print` | 1 |
 | | Kurir & Jam Operasional | `clock` | `settings:warehouse` | 2 |
 | | Notifikasi | `bell` | semua | 1 |
@@ -264,7 +265,7 @@ Item diberi nama sehari-hari. Kolom "Fase" mengikuti roadmap PRD; item fase lanj
 | | Profil Bisnis & Legalitas | `building-2` | `settings:billing` | 1 |
 | | Integrasi (Akuntansi, API, Ekstensi) | `puzzle` | `settings:store` | 3 |
 | **Bawah sidebar** | Bantuan & Status Sistem | `life-buoy` | semua | 1 |
-| | Profil pengguna (nama, peran, keluar) | avatar | semua | 1 |
+| | Profil pengguna (nama, peran, Akun saya, mode gelap, keluar) | avatar | semua | 1 |
 
 Perilaku: kelompok dapat dilipat dan ingat keadaannya; item aktif berlatar `primary-100` dengan teks dan ikon `primary-600` serta garis 3 px di kiri; penghitung kecil (badge angka) pada Pesanan, Chat, dan Tugas Hari Ini; saat sidebar dilipat menjadi rel ikon, nama kelompok hilang dan ikon mendapat tooltip.
 
@@ -770,6 +771,20 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **L44**: matriks jenis notifikasi (pesanan baru, hampir terlambat, stok kritis, toko terputus, dana cair, pajak) versus kanal (Dalam aplikasi, Email, WhatsApp) dengan sakelar; jam tenang. Prompt: "Matriks sakelar notifikasi, kolom ikon aplikasi, email, WhatsApp; baris 'Toko terputus' semua aktif dan terkunci dengan keterangan 'Selalu dikirim'." Di web app kolom Email bisa diatur per jenis dan langsung tersimpan; jenis yang selalu dikirim tampil terkunci dengan keterangan; kolom WhatsApp menyusul.
 - **L45**: kartu paket saat ini dengan pemakaian (pesanan bulan ini 3.200 dari 10.000 sebagai bar, toko 5 dari 10), tombol "Naik paket", riwayat tagihan dengan unduh PDF, metode bayar (virtual account, QRIS, kartu). Prompt: "Kartu 'Paket Growth, Rp 899.000 per bulan' dengan dua bar pemakaian dan tombol 'Naik ke Business'. Tabel tagihan 'Sep 2026, Rp 899.000, Lunas' dengan ikon unduh."
 
+#### L41a Log Audit
+
+- **Tujuan**: menjawab "siapa mengubah ini, dan kapan" untuk aksi sensitif: harga, stok, pembatalan pesanan, hak akses, dan koneksi toko (PRD FR-USR-04). Untuk pemegang izin log audit (Owner dan Admin).
+- **Isi**: baris filter (Jenis perubahan: Produk dan harga, Stok, Pesanan, retur, dan kiriman, Tim dan hak akses, Toko, gudang, dan perangkat, Impor, ekspor, dan migrasi; Pelaku; Periode 7, 30, atau 90 hari terakhir atau semua waktu; "Hapus filter"). Di bawahnya daftar terbaru dulu, satu blok per tindakan: avatar dan nama pelaku ("Sistem" atau "Agen cetak PC Gudang" bila bukan orang), waktu, lalu setiap data yang diubah sebagai kalimat ("Mengubah varian **KAOS-HTM-L**", "Menyetujui opname **OP-2610-0001**", "Memberi peran kepada **Sari Dewi**") dengan rinciannya ("Harga dasar: Rp 65.000 → Rp 69.000", "Peran: CS"). Satu tindakan bisa mengubah banyak data (menyimpan produk dengan banyak varian, mendaftar bisnis); blok lebih dari lima baris menampilkan tiga dan tombol "Tampilkan 12 perubahan lain". HPP tertulis "disembunyikan" bagi yang tidak memegang izin keuangan. "Muat lebih banyak" di bawah daftar.
+- **Aksi utama**: tidak ada; halaman ini hanya dibaca dan catatannya tidak bisa diubah atau dihapus.
+- **Prompt untuk AI**: "Halaman Log Audit: tiga dropdown filter 'Semua jenis', 'Semua orang', 'Semua waktu'. Kartu daftar: blok dengan avatar 'RW', 'Rina Wulandari', waktu '6 Okt 2026, 17.55' di kanan, baris 'Mengubah varian KAOS-HTM-L' dengan SKU tebal, di bawahnya teks kecil abu 'Harga dasar: Rp 65.000 → Rp 69.000'. Blok berikutnya ikon gerigi 'Sistem' dengan tiga baris 'Mengubah listing ... Status: Aktif → Nonaktif' dan tombol teks 'Tampilkan 16 perubahan lain'."
+
+#### L41b Akun Saya
+
+- **Tujuan**: melihat akun yang sedang masuk dan mengganti kata sandi (PRD FR-USR-03). Dibuka dari menu profil ("Akun saya"), tidak ada di sidebar.
+- **Isi**: kartu Profil (nama, email, bisnis, peran) dan kartu "Ubah kata sandi": kata sandi saat ini, kata sandi baru dengan pengukur kekuatan seperti di halaman Daftar, ulangi kata sandi baru. Penjelasan: setelah diganti, perangkat lain yang masih masuk dengan akun ini dikeluarkan, perangkat ini tetap masuk. Kata sandi saat ini yang salah ditandai di kolomnya; kata sandi baru harus minimal 10 karakter dan berbeda dari yang sekarang. Nanti di sini juga 2FA (FR-USR-05) dan sesi aktif (FR-USR-06).
+- **Aksi utama**: "Simpan kata sandi baru".
+- **Prompt untuk AI**: "Halaman Akun saya dua kolom: kiri kartu 'Profil' berisi pasangan label dan nilai (Nama, Email, Bisnis, Peran); kanan kartu 'Ubah kata sandi' dengan teks penjelas abu, tiga input kata sandi, pengukur kekuatan tiga batang di bawah kata sandi baru, tombol utama 'Simpan kata sandi baru'."
+
 #### L46 Migrasi Data
 
 - **Tujuan**: pindah dari aplikasi lain tanpa stok kacau.
@@ -999,3 +1014,4 @@ Sebelum layar dinyatakan selesai:
 | 1.10 | 6 Oktober 2026 | L03 dan L04 di web app: filter Toko, Gudang, dan Tag, kolom Gudang, pil tag, "Beri tag" dengan kotak tiga keadaan, "Kelola tag", tarik ulang pesanan per toko, pindah gudang, perbarui pelacakan; tag di L04 diubah di kartu Tag | Candra Syahputra |
 | 1.11 | 6 Oktober 2026 | L40 di web app: tombol "Kelola" per toko dan halaman bertab Koneksi (hubungkan ulang, putuskan dengan pilihan simpan atau hapus data), Gudang marketplace, Pengaturan sinkron (nama, gudang utama, kembali ke mode uji, kirim ulang stok, alokasi otomatis, aturan pembagian stok dengan contoh hitungan), Log sinkron (filter hasil, rincian panggilan); aktif penuh tetap lewat Migrasi Data | Candra Syahputra |
 | 1.12 | 6 Oktober 2026 | Di web app: "Pindai untuk cetak" (L07), batalkan manifest terbuka (L08), cetak label barcode varian (L14), aktif dan nonaktif listing di marketplace (L15), hapus pemetaan impor tersimpan (L46) | Candra Syahputra |
+| 1.13 | 7 Oktober 2026 | Layar baru L41a Log Audit (filter jenis, pelaku, dan periode; satu blok per tindakan dengan kalimat dan rincian sebelum dan sesudah; HPP disembunyikan tanpa izin keuangan) dan L41b Akun Saya (profil, ubah kata sandi yang mengeluarkan perangkat lain), dibuka dari menu profil. Sidebar Pengaturan mendapat Log Audit setelah Tim & Peran | Candra Syahputra |
