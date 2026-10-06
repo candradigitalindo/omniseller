@@ -1,6 +1,7 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { mockApi, renderApp } from "@/test/render";
+import { type ApiCall, mockApi, renderApp, testMe } from "@/test/render";
 import { OrderDetailSheet } from "./order-detail";
 import type { OrderDetail } from "./order-meta";
 
@@ -80,5 +81,183 @@ describe("OrderDetailSheet", () => {
     expect(await screen.findByText(/Toko Utama masih mode uji berdampingan/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Terima pesanan" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Aksi lain" })).toBeNull();
+  });
+});
+
+describe("OrderDetailSheet: warehouse, tracking, and tags", () => {
+  const ID = "01JORDER000000000000000001";
+  const JKT = "01JWAREHOUSE00000000000001";
+  const SBY = "01JWAREHOUSE00000000000002";
+  const TAG = { id: "01JTAG00000000000000000001", name: "Prioritas", color: "#E34948" };
+  const warehouse = (id: string, name: string) => ({
+    id,
+    code: name.slice(7, 10).toUpperCase(),
+    name,
+    isDefault: id === JKT,
+    active: true,
+    address: {},
+    createdAt: "2026-09-01T00:00:00.000Z",
+  });
+
+  function setup(
+    o: OrderDetail,
+    opts: { warehouses?: string[]; extra?: Record<string, (c: ApiCall) => unknown> } = {},
+  ) {
+    const names: Record<string, string> = { [JKT]: "Gudang Jakarta", [SBY]: "Gudang Surabaya" };
+    return mockApi({
+      [`GET /v1/orders/${ID}`]: () => o,
+      [`GET /v1/orders/${ID}/shipments`]: () => ({ items: [] }),
+      "GET /v1/stores": () => ({
+        items: [
+          { id: STORE, name: "Toko Utama", channel: o.store?.channel ?? "shopee", status: "active", syncMode: "live" },
+        ],
+      }),
+      "GET /v1/warehouses": () => ({ items: (opts.warehouses ?? [JKT, SBY]).map((id) => warehouse(id, names[id]!)) }),
+      "GET /v1/tags": () => ({ items: [{ ...TAG, orders: 1 }] }),
+      [`PUT /v1/orders/${ID}/warehouse`]: () => undefined,
+      ...opts.extra,
+    });
+  }
+  const open = (me?: ReturnType<typeof testMe>) =>
+    renderApp(<OrderDetailSheet orderId={ID} onClose={() => {}} />, me ? { me } : undefined);
+
+  it("moves an order nobody packed to another warehouse", async () => {
+    const calls = setup(order({ warehouseId: JKT }));
+    const user = userEvent.setup();
+    open();
+    expect(await screen.findByText("Gudang Jakarta")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Aksi lain" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Pindah gudang" }));
+    const dialog = await screen.findByRole("dialog", { name: "Pindah gudang" });
+    expect(within(dialog).getByText("Sekarang dikirim dari Gudang Jakarta.")).toBeInTheDocument();
+    // only the other warehouses
+    expect(within(dialog).getAllByRole("radio")).toHaveLength(1);
+    expect(within(dialog).getByRole("button", { name: "Pindahkan" })).toBeDisabled();
+    await user.click(within(dialog).getByRole("radio", { name: "Gudang Surabaya" }));
+    await user.click(within(dialog).getByRole("button", { name: "Pindahkan" }));
+
+    await waitFor(() => expect(calls.some((c) => c.method === "PUT")).toBe(true));
+    expect(calls.find((c) => c.method === "PUT")).toMatchObject({
+      path: `/v1/orders/${ID}/warehouse`,
+      body: { warehouseId: SBY },
+    });
+    expect(await screen.findByText("Pesanan dipindah ke Gudang Surabaya.")).toBeInTheDocument();
+  });
+
+  it("opens the move from the shipping card and from a short-stock problem", async () => {
+    setup(
+      order({
+        warehouseId: JKT,
+        status: "problem",
+        problems: [
+          {
+            id: "01JPROB0000000000000000001",
+            code: "insufficient_stock",
+            detail: null,
+            resolvedAt: null,
+            resolution: null,
+          },
+        ],
+      }),
+    );
+    const user = userEvent.setup();
+    open();
+    await user.click(await screen.findByRole("button", { name: "Pindah" }));
+    expect(await screen.findByRole("dialog", { name: "Pindah gudang" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Batal" }));
+    await user.click(screen.getByRole("button", { name: "Pindah gudang" }));
+    expect(await screen.findByRole("dialog", { name: "Pindah gudang" })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["the marketplace placed it", { warehouseFixed: true }, undefined, undefined],
+    ["it is packed", { status: "packed" as const }, undefined, undefined],
+    ["there is no other warehouse", {}, [JKT], undefined],
+    ["the user may not accept orders", {}, undefined, ["order:read", "shipment:arrange"] as const],
+  ])("keeps the warehouse when %s", async (_, over, warehouses, permissions) => {
+    setup(order({ warehouseId: JKT, ...over }), warehouses ? { warehouses } : {});
+    const user = userEvent.setup();
+    open(permissions ? testMe([...permissions]) : undefined);
+    expect(await screen.findByText("Gudang Jakarta")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Pindah" })).not.toBeInTheDocument();
+    const more = screen.queryByRole("button", { name: "Aksi lain" });
+    if (more) {
+      await user.click(more);
+      await screen.findByRole("menu");
+      expect(screen.queryByRole("menuitem", { name: "Pindah gudang" })).not.toBeInTheDocument();
+    }
+  });
+
+  it("reads a shipped parcel again, at most every 10 minutes", async () => {
+    let queued = true;
+    const calls = setup(order({ status: "shipped", trackingNumber: "SPXID0123" }), {
+      extra: {
+        [`POST /v1/orders/${ID}/tracking/refresh`]: () => Response.json({ queued }, { status: 202 }),
+        [`GET /v1/orders/${ID}/tracking`]: () => ({ trackingNumber: "SPXID0123", events: [], error: null }),
+      },
+    });
+    const user = userEvent.setup();
+    open();
+
+    await user.click(await screen.findByRole("button", { name: "Perbarui" }));
+    expect(await screen.findByText("Pelacakan sedang diperbarui.")).toBeInTheDocument();
+    // the tracking opens and is read
+    await waitFor(() => expect(calls.some((c) => c.path === `/v1/orders/${ID}/tracking`)).toBe(true));
+    expect(screen.getByRole("button", { name: "Tutup pelacakan" })).toBeInTheDocument();
+
+    queued = false;
+    await user.click(screen.getByRole("button", { name: "Perbarui" }));
+    expect(await screen.findByText("Pelacakan sudah diperbarui dalam 10 menit terakhir.")).toBeInTheDocument();
+  });
+
+  it("offers no tracking refresh for a manual order or one the marketplace ships", async () => {
+    setup(
+      order({
+        status: "shipped",
+        trackingNumber: "MN-RESI-1",
+        store: { id: STORE, name: "WhatsApp", channel: "manual", channelName: "Penjualan langsung" },
+      }),
+    );
+    const { unmount } = open();
+    await screen.findByText("MN-RESI-1");
+    expect(screen.queryByRole("button", { name: "Perbarui" })).not.toBeInTheDocument();
+    unmount();
+
+    setup(order({ status: "shipped", trackingNumber: "SPXID0123", fulfillmentMode: "marketplace" }));
+    open();
+    await screen.findByText("SPXID0123");
+    expect(screen.queryByRole("button", { name: "Perbarui" })).not.toBeInTheDocument();
+  });
+
+  it("shows the order's tags and changes them for this order", async () => {
+    const calls = setup(order({ tags: [TAG] }), {
+      extra: {
+        "POST /v1/orders/tags": () => ({ items: [{ orderId: ID, tags: [] }] }),
+      },
+    });
+    const user = userEvent.setup();
+    open();
+    const card = (await screen.findByRole("heading", { name: "Tag" })).closest("section")!;
+    expect(within(card).getByText("Prioritas")).toBeInTheDocument();
+
+    await user.click(within(card).getByRole("button", { name: "Ubah tag" }));
+    expect(await screen.findByText("Tag pesanan ini")).toBeInTheDocument();
+    await user.click(await screen.findByRole("checkbox", { name: "Prioritas" }));
+    await user.click(screen.getByRole("button", { name: "Terapkan" }));
+    await waitFor(() => expect(calls.some((c) => c.path === "/v1/orders/tags")).toBe(true));
+    expect(calls.find((c) => c.path === "/v1/orders/tags")?.body).toEqual({
+      orderIds: [ID],
+      add: [],
+      remove: [TAG.id],
+    });
+  });
+
+  it("shows the tags without the editor to those who may not tag orders", async () => {
+    setup(order({ tags: [] }));
+    open(testMe(["order:read"]));
+    const card = (await screen.findByRole("heading", { name: "Tag" })).closest("section")!;
+    expect(within(card).getByText("Belum ada tag.")).toBeInTheDocument();
+    expect(within(card).queryByRole("button", { name: "Ubah tag" })).not.toBeInTheDocument();
   });
 });

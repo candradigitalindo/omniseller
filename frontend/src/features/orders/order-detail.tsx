@@ -13,8 +13,11 @@ import {
   MoreHorizontal,
   PackageCheck,
   Printer,
+  RefreshCw,
+  Tag,
   Truck,
   Wallet,
+  Warehouse,
 } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
@@ -54,6 +57,7 @@ import {
   ARRANGEABLE,
   addressLines,
   canCancel,
+  MOVABLE,
   ORDER_STEPS,
   type OrderDetail,
   type OrderStatus,
@@ -61,7 +65,9 @@ import {
   primaryActionOf,
   STATUS_PILL,
   stepOf,
+  TRACKED,
 } from "./order-meta";
+import { TagPicker, TagPills, TagsDialog } from "./tags";
 import { useOrderActions } from "./use-order-actions";
 
 type Shipments = components["schemas"]["ShipmentListDto_Output"];
@@ -134,7 +140,7 @@ function OrderDetailContent({ order: o }: { order: OrderDetail }) {
   const tz = useTimeZone();
   const queryClient = useQueryClient();
   const actions = useOrderActions();
-  const [dialog, setDialog] = useState<"arrange" | "cancel" | "ship" | null>(null);
+  const [dialog, setDialog] = useState<"arrange" | "cancel" | "ship" | "warehouse" | "tags" | null>(null);
   const [waitingLabel, setWaitingLabel] = useState(false);
   const channel = o.store?.channel ?? null;
   const readOnly = useStores().readOnly(o.store?.id);
@@ -149,6 +155,23 @@ function OrderDetailContent({ order: o }: { order: OrderDetail }) {
     refetchInterval: (q) => (waitingLabel && labelFiles(q.state.data).length === 0 ? 5_000 : false),
   });
   const labels = labelFiles(shipments.data);
+  const warehouses = useQuery({
+    queryKey: ["stock", "warehouses"],
+    queryFn: () => unwrap(api.GET("/v1/warehouses")),
+    staleTime: 5 * 60_000,
+  });
+  const warehouseName = o.warehouseId
+    ? (warehouses.data?.items.find((w) => w.id === o.warehouseId)?.name ?? null)
+    : null;
+  // another active warehouse in scope, for an order nobody packed that the marketplace did not place (FR-ORD-12)
+  const moveTargets = (warehouses.data?.items ?? []).filter((w) => w.active && w.id !== o.warehouseId);
+  const canMove =
+    !readOnly &&
+    can("order:accept") &&
+    o.fulfillmentMode === "seller" &&
+    !o.warehouseFixed &&
+    MOVABLE.has(o.status) &&
+    moveTargets.length > 0;
 
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ["orders"] });
@@ -253,7 +276,14 @@ function OrderDetailContent({ order: o }: { order: OrderDetail }) {
           </Banner>
         ) : null}
 
-        {openProblems.length > 0 ? <ProblemsCard orderId={o.id} problems={openProblems} onResolved={refresh} /> : null}
+        {openProblems.length > 0 ? (
+          <ProblemsCard
+            orderId={o.id}
+            problems={openProblems}
+            onResolved={refresh}
+            onMove={canMove ? () => setDialog("warehouse") : null}
+          />
+        ) : null}
 
         <Section title={t("itemsTitle", { count: o.items.length })}>
           <ul className="grid gap-3">
@@ -280,7 +310,13 @@ function OrderDetailContent({ order: o }: { order: OrderDetail }) {
           </ul>
         </Section>
 
-        <ShippingCard order={o} shipments={shipments.data} labels={labels} />
+        <ShippingCard
+          order={o}
+          shipments={shipments.data}
+          labels={labels}
+          warehouseName={warehouseName}
+          onMove={canMove ? () => setDialog("warehouse") : null}
+        />
 
         <Section title={t("paymentTitle")}>
           <dl className="grid gap-1.5 text-sm">
@@ -305,6 +341,8 @@ function OrderDetailContent({ order: o }: { order: OrderDetail }) {
           </Section>
         ) : null}
 
+        <TagsCard order={o} editable={can("order:tag")} onManage={() => setDialog("tags")} />
+
         <NoteCard order={o} editable={can("order:tag")} />
 
         <Section title={t("historyTitle")}>
@@ -322,7 +360,7 @@ function OrderDetailContent({ order: o }: { order: OrderDetail }) {
         </Section>
       </div>
 
-      {primary || menuArrange || menuCancel ? (
+      {primary || menuArrange || menuCancel || canMove ? (
         <div className="flex items-center gap-2 border-t bg-surface p-4">
           {primary === "label" && labels.length > 0 ? (
             <Button asChild className="flex-1">
@@ -339,7 +377,7 @@ function OrderDetailContent({ order: o }: { order: OrderDetail }) {
           ) : (
             <span className="flex-1" />
           )}
-          {menuArrange || menuCancel ? (
+          {menuArrange || menuCancel || canMove ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="secondary" size="icon" aria-label={t("moreActions")}>
@@ -349,6 +387,12 @@ function OrderDetailContent({ order: o }: { order: OrderDetail }) {
               <DropdownMenuContent align="end">
                 {menuArrange ? (
                   <DropdownMenuItem onSelect={() => setDialog("arrange")}>{t("action_arrange")}</DropdownMenuItem>
+                ) : null}
+                {canMove ? (
+                  <DropdownMenuItem onSelect={() => setDialog("warehouse")}>
+                    <Warehouse aria-hidden />
+                    {t("moveWarehouse")}
+                  </DropdownMenuItem>
                 ) : null}
                 {menuCancel ? (
                   <DropdownMenuItem variant="destructive" onSelect={() => setDialog("cancel")}>
@@ -370,6 +414,15 @@ function OrderDetailContent({ order: o }: { order: OrderDetail }) {
         }
       />
       <CancelDialog orderId={dialog === "cancel" ? o.id : null} onClose={() => setDialog(null)} onDone={refresh} />
+      <MoveWarehouseDialog
+        open={dialog === "warehouse"}
+        orderId={o.id}
+        current={warehouseName}
+        targets={moveTargets}
+        onClose={() => setDialog(null)}
+        onDone={refresh}
+      />
+      <TagsDialog open={dialog === "tags"} onClose={() => setDialog(null)} />
       <ShipDialog
         open={dialog === "ship"}
         busy={manual.isPending}
@@ -512,10 +565,12 @@ function ProblemsCard({
   orderId,
   problems,
   onResolved,
+  onMove,
 }: {
   orderId: string;
   problems: OrderDetail["problems"];
   onResolved: () => void;
+  onMove: (() => void) | null;
 }) {
   const t = useTranslations("orders");
   const can = useCan();
@@ -545,17 +600,25 @@ function ProblemsCard({
                 <span className="block text-[13px] text-text-700">{t(`problemHint_${p.code}`)}</span>
               </span>
             </p>
-            {can("order:accept") ? (
-              <Button
-                size="sm"
-                variant="secondary"
-                className="justify-self-start"
-                loading={resolve.isPending && resolve.variables === p.id}
-                onClick={() => resolve.mutate(p.id)}
-              >
-                {t("markResolved")}
-              </Button>
-            ) : null}
+            <span className="flex flex-wrap gap-2">
+              {/* L04: stock short here, maybe not in another warehouse */}
+              {p.code === "insufficient_stock" && onMove ? (
+                <Button size="sm" variant="secondary" onClick={onMove}>
+                  <Warehouse aria-hidden />
+                  {t("moveWarehouse")}
+                </Button>
+              ) : null}
+              {can("order:accept") ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  loading={resolve.isPending && resolve.variables === p.id}
+                  onClick={() => resolve.mutate(p.id)}
+                >
+                  {t("markResolved")}
+                </Button>
+              ) : null}
+            </span>
           </li>
         ))}
       </ul>
@@ -567,22 +630,46 @@ function ShippingCard({
   order: o,
   shipments,
   labels,
+  warehouseName,
+  onMove,
 }: {
   order: OrderDetail;
   shipments: Shipments | undefined;
   labels: string[];
+  warehouseName: string | null;
+  onMove: (() => void) | null;
 }) {
   const t = useTranslations("orders");
   const can = useCan();
   const tz = useTimeZone();
+  const queryClient = useQueryClient();
   const [tracking, setTracking] = useState(false);
+  // after "Perbarui", the worker reads the parcel; look again for a short while
+  const [watchUntil, setWatchUntil] = useState(0);
   const address = addressLines(o.shippingAddress);
   const shipment = shipments?.items[0];
   const track = useQuery({
     queryKey: ["orders", "tracking", o.id],
     queryFn: () => unwrap(api.GET("/v1/orders/{id}/tracking", { params: { path: { id: o.id } } })),
     enabled: tracking,
+    refetchInterval: () => (Date.now() < watchUntil ? 5_000 : false),
   });
+  const refreshTracking = useMutation({
+    mutationFn: () => unwrap(api.POST("/v1/orders/{id}/tracking/refresh", { params: { path: { id: o.id } } })),
+    onSuccess: (r) => {
+      if (!r.queued) {
+        toast.info(t("trackingFresh"));
+        return;
+      }
+      toast.success(t("trackingQueued"));
+      setTracking(true);
+      setWatchUntil(Date.now() + 30_000);
+      void queryClient.invalidateQueries({ queryKey: ["orders", "shipments", o.id] });
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+  // the api reads parcels again for marketplace orders the seller ships, once they left
+  const refreshable = o.store?.channel !== "manual" && o.fulfillmentMode === "seller" && TRACKED.has(o.status);
   return (
     <Section title={t("shippingTitle")}>
       <dl className="grid gap-1.5 text-sm">
@@ -618,6 +705,19 @@ function ShippingCard({
         ) : null}
         {shipment ? (
           <Row label={t("shipmentStatus")} value={shipment.trackingStageLabel ?? shipment.statusLabel} />
+        ) : null}
+        {o.fulfillmentMode === "seller" ? (
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-text-500">{t("warehouse")}</dt>
+            <dd className="flex items-center gap-1 text-right text-text-900">
+              {warehouseName ?? "—"}
+              {onMove ? (
+                <Button size="sm" variant="link" className="h-auto" onClick={onMove}>
+                  {t("moveShort")}
+                </Button>
+              ) : null}
+            </dd>
+          </div>
         ) : null}
         {shipment?.lastError ? <p className="text-[13px] text-danger">{shipment.lastError}</p> : null}
       </dl>
@@ -659,16 +759,23 @@ function ShippingCard({
       {o.trackingNumber &&
       ["shipped", "delivered", "completed", "return_in_progress", "returned"].includes(o.status) ? (
         <div className="grid gap-2 border-t pt-3">
-          <Button
-            size="sm"
-            variant="ghost"
-            className="justify-self-start"
-            onClick={() => setTracking((v) => !v)}
-            aria-expanded={tracking}
-          >
-            <Truck aria-hidden />
-            {tracking ? t("hideTracking") : t("showTracking")}
-          </Button>
+          <span className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="ghost" onClick={() => setTracking((v) => !v)} aria-expanded={tracking}>
+              <Truck aria-hidden />
+              {tracking ? t("hideTracking") : t("showTracking")}
+            </Button>
+            {refreshable ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                loading={refreshTracking.isPending}
+                onClick={() => refreshTracking.mutate()}
+              >
+                <RefreshCw aria-hidden />
+                {t("refreshTracking")}
+              </Button>
+            ) : null}
+          </span>
           {tracking ? (
             track.isPending ? (
               <Skeleton className="h-16" />
@@ -865,6 +972,92 @@ function ShipDialog({
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** L04 "Beri tag": the order's tags, changed with the same picker as the list's bulk bar. */
+function TagsCard({ order: o, editable, onManage }: { order: OrderDetail; editable: boolean; onManage: () => void }) {
+  const t = useTranslations("orders");
+  return (
+    <Section title={t("tagsTitle")}>
+      {o.tags.length > 0 ? <TagPills tags={o.tags} max={20} /> : <p className="text-sm text-text-500">{t("noTags")}</p>}
+      {editable ? (
+        <TagPicker
+          orders={[o]}
+          onManage={onManage}
+          trigger={
+            <Button size="sm" variant="secondary" className="justify-self-start">
+              <Tag aria-hidden />
+              {t("editTags")}
+            </Button>
+          }
+        />
+      ) : null}
+    </Section>
+  );
+}
+
+/**
+ * "Pindah gudang" (FR-ORD-12): another warehouse for an order nobody packed yet. Its reservations follow;
+ * recorded stock short there turns the order into a problem, as when it came in.
+ */
+function MoveWarehouseDialog({
+  open,
+  orderId,
+  current,
+  targets,
+  onClose,
+  onDone,
+}: {
+  open: boolean;
+  orderId: string;
+  current: string | null;
+  targets: { id: string; name: string }[];
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const t = useTranslations("orders");
+  const tCommon = useTranslations("common");
+  const [target, setTarget] = useState<string | null>(null);
+  const move = useMutation({
+    mutationFn: (warehouseId: string) =>
+      unwrap(api.PUT("/v1/orders/{id}/warehouse", { params: { path: { id: orderId } }, body: { warehouseId } })),
+    onSuccess: (_, warehouseId) => {
+      toast.success(t("moved", { warehouse: targets.find((w) => w.id === warehouseId)?.name ?? "" }));
+      setTarget(null);
+      onDone();
+      onClose();
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-[440px]">
+        <DialogHeader>
+          <DialogTitle>{t("moveTitle")}</DialogTitle>
+          <DialogDescription>{t("moveBody")}</DialogDescription>
+        </DialogHeader>
+        {current ? <p className="text-sm text-text-700">{t("moveFrom", { warehouse: current })}</p> : null}
+        <RadioGroup value={target ?? ""} onValueChange={setTarget} className="gap-2" aria-label={t("moveTo")}>
+          {targets.map((w) => (
+            <div key={w.id} className="flex items-center gap-3 rounded-lg border p-3">
+              <RadioGroupItem value={w.id} id={`move-${w.id}`} />
+              <Label htmlFor={`move-${w.id}`} className="font-normal text-text-900">
+                {w.name}
+              </Label>
+            </div>
+          ))}
+        </RadioGroup>
+        <DialogFooter>
+          <Button variant="secondary" onClick={onClose}>
+            {tCommon("cancel")}
+          </Button>
+          <Button disabled={!target} loading={move.isPending} onClick={() => target && move.mutate(target)}>
+            {t("moveSubmit")}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

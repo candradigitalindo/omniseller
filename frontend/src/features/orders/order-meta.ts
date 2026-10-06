@@ -166,3 +166,23 @@ export function addressLines(address: Record<string, unknown> | null): {
   const areaLine = area.length > 0 && !(street && area.every((a) => street.includes(a))) ? area.join(", ") : null;
   return { name: text("name"), phone: text("phone"), lines: [street, areaLine].filter((x): x is string => x !== null) };
 }
+
+/**
+ * Stores whose orders can be read again from the marketplace: marketplace stores whose connection works. A store
+ * waiting for its permission again would only fail in the worker; manual channels have nothing to read.
+ */
+export function syncableStores<T extends { channel: string; status: string }>(stores: readonly T[]): T[] {
+  return stores.filter((s) => s.channel !== "manual" && (s.status === "active" || s.status === "token_expiring"));
+}
+
+/** Statuses an order may move warehouse from (backend `MOVABLE`): before anyone packed it. */
+export const MOVABLE: ReadonlySet<OrderStatus> = new Set(["unpaid", "new", "problem", "ready_to_pack"]);
+
+/** Statuses whose parcel can be tracked again (backend `TRACKED`). */
+export const TRACKED: ReadonlySet<OrderStatus> = new Set([
+  "shipped",
+  "delivered",
+  "completed",
+  "return_in_progress",
+  "returned",
+]);

@@ -133,3 +133,154 @@ describe("OrdersView", () => {
     expect(screen.queryByRole("button", { name: /Proses semua/ })).not.toBeInTheDocument();
   });
 });
+
+describe("OrdersView: stores, warehouses, tags, and reading orders again", () => {
+  const TAG = { id: "01JTAG00000000000000000001", name: "Prioritas", color: "#E34948" };
+  const JKT = "01JWAREHOUSE00000000000001";
+  const SBY = "01JWAREHOUSE00000000000002";
+  const SHOP = "01JSTORE000000000000000001";
+  const warehouse = (id: string, name: string) => ({
+    id,
+    code: name.slice(7, 10).toUpperCase(),
+    name,
+    isDefault: id === JKT,
+    active: true,
+    address: {},
+    createdAt: "2026-09-01T00:00:00.000Z",
+  });
+  const store = (id: string, name: string, channel: string, status: string) => ({
+    id,
+    name,
+    channel,
+    status,
+    syncMode: "live",
+  });
+  const tagged = listItem({ tags: [TAG], warehouseId: JKT });
+  const plain = listItem({ id: "01JORDER000000000000000002", externalOrderId: "2609300AB2", warehouseId: SBY });
+
+  function api() {
+    return mockApi({
+      "GET /v1/orders/summary": () => ({
+        statuses: {},
+        overdue: 0,
+        dueSoon: 0,
+        codOutstanding: { orders: 0, total: 0 },
+      }),
+      "GET /v1/orders": () => ({ items: [tagged, plain], next_cursor: null }),
+      "GET /v1/warehouses": () => ({ items: [warehouse(JKT, "Gudang Jakarta"), warehouse(SBY, "Gudang Surabaya")] }),
+      "GET /v1/tags": () => ({ items: [{ ...TAG, orders: 1 }] }),
+      "GET /v1/stores": () => ({
+        items: [
+          store(SHOP, "Toko Utama", "shopee", "active"),
+          store("01JSTORE000000000000000002", "Toko Kedua", "tiktokshop", "reauth_required"),
+          store("01JSTORE000000000000000003", "WhatsApp", "manual", "active"),
+        ],
+      }),
+      "POST /v1/orders/sync": () => undefined,
+      "POST /v1/orders/tags": (c) => ({
+        items: (c.body as { orderIds: string[] }).orderIds.map((orderId) => ({ orderId, tags: [TAG] })),
+      }),
+    });
+  }
+  const listQuery = (calls: { path: string; query: Record<string, string> }[]) =>
+    calls.filter((c) => c.path === "/v1/orders").at(-1)?.query;
+
+  beforeEach(() => setUrl("/pesanan"));
+
+  it("filters by store, warehouse, and tag through the URL, and clears them together", async () => {
+    setUrl(`/pesanan?store=${SHOP}&warehouse=${SBY}&tag=${TAG.id}`);
+    const calls = api();
+    const user = userEvent.setup();
+    renderApp(<OrdersView />);
+
+    await waitFor(() => expect(listQuery(calls)).toMatchObject({ storeId: SHOP, warehouseId: SBY, tagId: TAG.id }));
+    expect(await screen.findByRole("combobox", { name: "Tag" })).toHaveTextContent("Prioritas");
+    expect(screen.getByRole("combobox", { name: "Toko" })).toHaveTextContent("Toko Utama");
+    expect(screen.getByRole("combobox", { name: "Gudang" })).toHaveTextContent("Gudang Surabaya");
+
+    await user.click(screen.getByRole("button", { name: "Bersihkan" }));
+    expect(currentUrl()).toBe("/pesanan");
+
+    await user.click(screen.getByRole("combobox", { name: "Tag" }));
+    await user.click(await screen.findByRole("option", { name: "Prioritas" }));
+    expect(currentUrl()).toBe(`/pesanan?tag=${TAG.id}`);
+  });
+
+  it("shows each order's warehouse and tags", async () => {
+    api();
+    renderApp(<OrdersView />);
+    const table = await screen.findByRole("table");
+    await within(table).findByText("Gudang Jakarta");
+    expect(within(table).getByRole("columnheader", { name: "Gudang" })).toBeInTheDocument();
+    expect(within(table).getByText("Gudang Surabaya")).toBeInTheDocument();
+    const [, first] = within(table).getAllByRole("row");
+    expect(within(first!).getByText("Prioritas")).toBeInTheDocument();
+  });
+
+  it("tags the selected orders from the bulk bar", async () => {
+    const calls = api();
+    const user = userEvent.setup();
+    renderApp(<OrdersView />);
+    const table = await screen.findByRole("table");
+
+    await user.click(within(table).getByRole("checkbox", { name: "Pilih pesanan 2609300AB2" }));
+    await user.click(screen.getByRole("button", { name: "Beri tag" }));
+    const list = await screen.findByRole("list", { name: "Daftar tag" });
+    await user.click(await within(list).findByRole("checkbox", { name: "Prioritas" }));
+    await user.click(screen.getByRole("button", { name: "Terapkan" }));
+
+    await waitFor(() => expect(calls.some((c) => c.path === "/v1/orders/tags")).toBe(true));
+    expect(calls.find((c) => c.path === "/v1/orders/tags")?.body).toEqual({
+      orderIds: [plain.id],
+      add: [TAG.id],
+      remove: [],
+    });
+    // the selection is done with, and the filters are back
+    await waitFor(() => expect(screen.queryByText("1 dipilih")).not.toBeInTheDocument());
+    expect(screen.getByRole("combobox", { name: "Tag" })).toBeInTheDocument();
+  });
+
+  it("reads a store's orders again, offering only marketplace stores whose connection works", async () => {
+    const calls = api();
+    const user = userEvent.setup();
+    renderApp(<OrdersView />);
+
+    await user.click(await screen.findByRole("button", { name: "Aksi lain" }));
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).getAllByRole("menuitem")).toHaveLength(2);
+    expect(within(menu).getByRole("menuitem", { name: "Kelola tag" })).toBeInTheDocument();
+    // not a store waiting for its permission again, nor a manual channel
+    expect(within(menu).queryByRole("menuitem", { name: "Toko Kedua" })).not.toBeInTheDocument();
+    expect(within(menu).queryByRole("menuitem", { name: "WhatsApp" })).not.toBeInTheDocument();
+    await user.click(within(menu).getByRole("menuitem", { name: "Toko Utama" }));
+
+    await waitFor(() => expect(calls.some((c) => c.path === "/v1/orders/sync")).toBe(true));
+    expect(calls.find((c) => c.path === "/v1/orders/sync")?.body).toEqual({ storeId: SHOP });
+    expect(await screen.findByText(/Pesanan Toko Utama sedang ditarik ulang/)).toBeInTheDocument();
+  });
+
+  it("manages the tags from the same menu", async () => {
+    api();
+    const user = userEvent.setup();
+    renderApp(<OrdersView />);
+    await user.click(await screen.findByRole("button", { name: "Aksi lain" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Kelola tag" }));
+    expect(await screen.findByRole("dialog", { name: "Kelola tag" })).toBeInTheDocument();
+  });
+
+  it("gives the menu only what the user may do", async () => {
+    api();
+    const user = userEvent.setup();
+    const { unmount } = renderApp(<OrdersView />, { me: testMe(["order:read", "settings:store"]) });
+    await user.click(await screen.findByRole("button", { name: "Aksi lain" }));
+    expect(await screen.findAllByRole("menuitem")).toHaveLength(1);
+    expect(screen.getByRole("menuitem", { name: "Toko Utama" })).toBeInTheDocument();
+    unmount();
+
+    renderApp(<OrdersView />, { me: testMe(["order:read"]) });
+    const table = await screen.findByRole("table");
+    expect(screen.queryByRole("button", { name: "Aksi lain" })).not.toBeInTheDocument();
+    await user.click(within(table).getByRole("checkbox", { name: "Pilih pesanan 2609300AB2" }));
+    expect(screen.queryByRole("button", { name: "Beri tag" })).not.toBeInTheDocument();
+  });
+});

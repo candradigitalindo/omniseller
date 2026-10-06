@@ -1,32 +1,45 @@
 "use client";
 
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "cn";
-import { AlertOctagon, PackageCheck, Plus, Search, ShoppingBag, Truck } from "lucide-react";
+import { AlertOctagon, MoreHorizontal, PackageCheck, Plus, Search, ShoppingBag, Tag, Truck } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { ChannelIcon } from "@/components/common/channel";
 import { FilterChip } from "@/components/common/filter-chip";
 import { EmptyState, ErrorState, PageHeader, SlaPill, StatusPill } from "@/components/common/page";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useStores } from "@/features/stores/use-store-modes";
 import { useUrlParams } from "@/hooks/use-url-params";
 import { api, unwrap } from "@/lib/api/client";
+import { errorMessage } from "@/lib/api/errors";
 import { formatNumber, formatRupiah } from "@/lib/format";
 import { useCan } from "@/lib/session";
 import { ArrangeDialog } from "./arrange-dialog";
 import { OrderDetailSheet } from "./order-detail";
-import { ORDER_TABS, type OrderListItem, STATUS_PILL, tabCount, tabOf } from "./order-meta";
+import { ORDER_TABS, type OrderListItem, STATUS_PILL, syncableStores, tabCount, tabOf } from "./order-meta";
+import { TagDot, TagPicker, TagPills, TagsDialog, useTags } from "./tags";
 import { useOrderActions } from "./use-order-actions";
 
 const PAGE = 50;
 const NONE: ReadonlySet<string> = new Set();
+const ALL = "all";
 
 /** Filters live in the URL, so a view can be shared and the notifications can link to one. */
 function useOrderFilters() {
@@ -39,6 +52,9 @@ function useOrderFilters() {
     q: params.get("q") ?? "",
     due: due === "soon" || due === "overdue" ? (due as "soon" | "overdue") : null,
     cod: params.get("cod") === "true",
+    storeId: params.get("store"),
+    warehouseId: params.get("warehouse"),
+    tagId: params.get("tag"),
     openId: params.get("id"),
     set,
   };
@@ -62,6 +78,8 @@ export function OrdersView() {
   const { q, set } = f;
   const [search, setSearch] = useState(q);
   const [arranging, setArranging] = useState<string[] | null>(null);
+  const [managingTags, setManagingTags] = useState(false);
+  const queryClient = useQueryClient();
 
   // the search box writes the URL once the typing pauses
   useEffect(() => {
@@ -77,6 +95,9 @@ export function OrdersView() {
     q: f.q || undefined,
     due: f.due ?? undefined,
     cod: f.cod ? ("true" as const) : undefined,
+    storeId: f.storeId ?? undefined,
+    warehouseId: f.warehouseId ?? undefined,
+    tagId: f.tagId ?? undefined,
     sort: f.tab === "new" || f.due ? ("ship_by" as const) : ("newest" as const),
   };
 
@@ -121,6 +142,29 @@ export function OrdersView() {
   const newWithoutProblems = orders.filter(
     (o) => o.status === "new" && !o.problems.some((p) => !p.resolvedAt) && !stores.readOnly(o.store?.id),
   );
+  const warehouses = useQuery({
+    queryKey: ["stock", "warehouses"],
+    queryFn: () => unwrap(api.GET("/v1/warehouses")),
+    staleTime: 5 * 60_000,
+  });
+  const warehouseList = warehouses.data?.items ?? [];
+  const warehouseNames = new Map(warehouseList.map((w) => [w.id, w.name]));
+  const showWarehouse = warehouseList.length > 1;
+  const tags = useTags();
+  const tagList = tags.data?.items ?? [];
+  const storeList = [...stores.byId.values()];
+  const syncable = can("settings:store") ? syncableStores(storeList) : [];
+  const filtered = f.q || f.due || f.cod || f.storeId || f.warehouseId || f.tagId;
+  const sync = useMutation({
+    mutationFn: (store: { id: string; name: string }) =>
+      unwrap(api.POST("/v1/orders/sync", { body: { storeId: store.id } })),
+    onSuccess: (_, store) => {
+      toast.success(t("syncQueued", { store: store.name }));
+      // the worker reads the store in the background; look again once it had time to
+      setTimeout(() => void queryClient.invalidateQueries({ queryKey: ["orders"] }), 15_000);
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
 
   return (
     <>
@@ -128,6 +172,31 @@ export function OrdersView() {
         title={t("title")}
         actions={
           <>
+            {can("order:tag") || syncable.length > 0 ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="secondary" size="icon" aria-label={t("moreActions")}>
+                    <MoreHorizontal aria-hidden />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-56">
+                  {can("order:tag") ? (
+                    <DropdownMenuItem onSelect={() => setManagingTags(true)}>
+                      <Tag aria-hidden />
+                      {t("manageTags")}
+                    </DropdownMenuItem>
+                  ) : null}
+                  {can("order:tag") && syncable.length > 0 ? <DropdownMenuSeparator /> : null}
+                  {syncable.length > 0 ? <DropdownMenuLabel>{t("syncTitle")}</DropdownMenuLabel> : null}
+                  {syncable.map((st) => (
+                    <DropdownMenuItem key={st.id} disabled={sync.isPending} onSelect={() => sync.mutate(st)}>
+                      <ChannelIcon channel={st.channel} decorative />
+                      {st.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
             {can("order:write") ? (
               <Button asChild variant="secondary">
                 <Link href="/pesanan/baru">
@@ -219,6 +288,19 @@ export function OrdersView() {
               {t("markPacked")}
             </Button>
           ) : null}
+          {can("order:tag") ? (
+            <TagPicker
+              orders={orders.filter((o) => selected.has(o.id))}
+              onManage={() => setManagingTags(true)}
+              onApplied={() => setSelected(NONE)}
+              trigger={
+                <Button size="sm" variant="secondary">
+                  <Tag aria-hidden />
+                  {t("tagOrders")}
+                </Button>
+              }
+            />
+          ) : null}
           <Button size="sm" variant="ghost" onClick={() => setSelected(NONE)}>
             {t("clearSelection")}
           </Button>
@@ -244,13 +326,59 @@ export function OrdersView() {
           <FilterChip active={f.cod} onClick={() => set({ cod: f.cod ? null : "true" })}>
             {t("codOnly")}
           </FilterChip>
-          {f.q || f.due || f.cod ? (
+          {storeList.length > 1 ? (
+            <Select value={f.storeId ?? ALL} onValueChange={(v) => set({ store: v === ALL ? null : v })}>
+              <SelectTrigger className="h-10 w-44" aria-label={t("filterStore")}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>{t("allStores")}</SelectItem>
+                {storeList.map((st) => (
+                  <SelectItem key={st.id} value={st.id}>
+                    {st.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+          {showWarehouse ? (
+            <Select value={f.warehouseId ?? ALL} onValueChange={(v) => set({ warehouse: v === ALL ? null : v })}>
+              <SelectTrigger className="h-10 w-44" aria-label={t("filterWarehouse")}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>{tCommon("allWarehouses")}</SelectItem>
+                {warehouseList.map((w) => (
+                  <SelectItem key={w.id} value={w.id}>
+                    {w.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+          {tagList.length > 0 ? (
+            <Select value={f.tagId ?? ALL} onValueChange={(v) => set({ tag: v === ALL ? null : v })}>
+              <SelectTrigger className="h-10 w-40" aria-label={t("filterTag")}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>{t("allTags")}</SelectItem>
+                {tagList.map((tag) => (
+                  <SelectItem key={tag.id} value={tag.id}>
+                    <TagDot color={tag.color} />
+                    {tag.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+          {filtered ? (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => {
                 setSearch("");
-                set({ q: null, due: null, cod: null });
+                set({ q: null, due: null, cod: null, store: null, warehouse: null, tag: null });
               }}
             >
               {tCommon("clear")}
@@ -269,7 +397,11 @@ export function OrdersView() {
         ) : list.isError ? (
           <ErrorState error={list.error} onRetry={() => list.refetch()} />
         ) : orders.length === 0 ? (
-          <EmptyState icon={ShoppingBag} title={f.tab === "new" ? t("emptyNew") : t("empty")} body={t("emptyBody")} />
+          <EmptyState
+            icon={ShoppingBag}
+            title={filtered ? t("emptyFiltered") : f.tab === "new" ? t("emptyNew") : t("empty")}
+            body={filtered ? undefined : t("emptyBody")}
+          />
         ) : (
           <>
             <Table className="hidden md:table">
@@ -287,6 +419,7 @@ export function OrdersView() {
                   <TableHead>{t("colProducts")}</TableHead>
                   <TableHead className="text-right">{t("colTotal")}</TableHead>
                   <TableHead>{t("colCourier")}</TableHead>
+                  {showWarehouse ? <TableHead>{t("colWarehouse")}</TableHead> : null}
                   <TableHead>{t("colShipBy")}</TableHead>
                   <TableHead>{t("colStatus")}</TableHead>
                 </TableRow>
@@ -321,6 +454,7 @@ export function OrdersView() {
                               {problem}
                             </span>
                           ) : null}
+                          <TagPills tags={o.tags} />
                         </div>
                       </TableCell>
                       <TableCell className="max-w-40 truncate">{o.buyerName ?? "—"}</TableCell>
@@ -343,6 +477,11 @@ export function OrdersView() {
                         ) : null}
                       </TableCell>
                       <TableCell className="max-w-36 truncate">{o.shippingProvider ?? "—"}</TableCell>
+                      {showWarehouse ? (
+                        <TableCell className="max-w-36 truncate text-text-700">
+                          {o.warehouseId ? (warehouseNames.get(o.warehouseId) ?? "—") : "—"}
+                        </TableCell>
+                      ) : null}
                       <TableCell>
                         {o.sla ? <SlaPill sla={o.sla} /> : <span className="text-text-500">—</span>}
                       </TableCell>
@@ -395,6 +534,7 @@ export function OrdersView() {
                         {o.shippingProvider ? ` · ${o.shippingProvider}` : ""}
                       </span>
                       {problem ? <span className="text-[13px] text-danger">{problem}</span> : null}
+                      <TagPills tags={o.tags} />
                     </button>
                   </li>
                 );
@@ -413,6 +553,7 @@ export function OrdersView() {
       </Card>
 
       <OrderDetailSheet orderId={f.openId} onClose={() => set({ id: null })} />
+      <TagsDialog open={managingTags} onClose={() => setManagingTags(false)} />
       <ArrangeDialog
         orderIds={arranging}
         busy={actions.arrange.isPending}

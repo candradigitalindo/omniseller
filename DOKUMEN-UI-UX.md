@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.9 |
+| Versi dokumen | 1.10 |
 | Tanggal | 6 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
@@ -532,6 +532,11 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **Keadaan khusus**: baris bermasalah berlatar `danger-100` tipis dengan ikon dan alasan singkat di bawah nomor; pesanan COD berpil "COD"; pesanan dari gudang fulfillment marketplace berpil "Dikirim marketplace" dan tanpa aksi kemas.
 - **Mobile**: tab dapat digulir; kartu: nomor dan pil status, nama produk pertama plus "+2 lainnya", total dan batas kirim, kanal dan kurir; bar bawah "Proses 86 pesanan baru".
 - **Prompt untuk AI**: "Halaman daftar pesanan. Tab status di atas dengan angka. Bar filter satu baris. Tabel padat dengan baris 52 px: kolom nomor pesanan 'SP-2609-88123' dengan ikon Shopee kecil dan 'Toko Utama' di bawahnya, pembeli 'Dewi A.', produk thumbnail 'Kaos Polos Cotton 30s Hitam L, +2 item', total 'Rp 245.000' rata kanan, kurir 'J&T Express', batas kirim '2 jam 15 menit' dengan pil kuning, gudang 'Jakarta', status pil biru 'Baru', tombol ikon terima dan cetak. Satu baris berlatar merah muda tipis dengan catatan 'SKU belum terhubung'. Tombol utama kanan atas 'Proses semua yang baru'. Saat 12 baris dicentang, bar aksi massal menggantikan filter: '12 dipilih: Terima, Atur kirim, Cetak label, Beri tag'."
+- **Di web app**:
+  - Filter Toko, Gudang, dan Tag tersimpan di URL bersama pencarian, "Hampir terlambat", dan "Hanya COD"; "Bersihkan" mengosongkan semuanya. Pilihan gudang dan kolom Gudang hanya tampil bila ada lebih dari satu gudang.
+  - Tag tampil sebagai pil di bawah nomor pesanan: titik berwarna dan nama dalam warna teks, paling banyak tiga lalu "+n".
+  - "Beri tag" di bar aksi massal membuka daftar tag berkotak centang: penuh bila semua pesanan terpilih memakai tag itu, garis bila hanya sebagian. Tag yang semula sebagian berputar penuh, kosong, lalu kembali sebagian. Mengetik menyaring daftar; nama baru langsung bisa dibuat dengan Enter. "Terapkan" hanya mengirim yang berubah.
+  - Menu titik tiga di kanan atas berisi "Kelola tag" (nama, warna dari palet kategori, jumlah pesanan, hapus dengan konfirmasi jumlah pesanan yang kehilangan tagnya) dan "Tarik ulang pesanan dari" per toko marketplace yang koneksinya berfungsi (`settings:store`).
 
 #### L04 Detail Pesanan
 
@@ -539,6 +544,10 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **Isi**: panel samping 420 px (dari daftar) atau halaman penuh; header nomor pesanan, pil status, tombol salin, tautan buka di marketplace; stepper status mendatar (Baru, Dikemas, Dikirim, Selesai); kartu Item (gambar, nama, varian, SKU mono, jumlah, harga, gudang); kartu Pengiriman (kurir, layanan, resi dengan tombol salin dan lacak, batas kirim, alamat yang dapat disembunyikan untuk peran tanpa izin); kartu Pembayaran (subtotal, diskon, ongkir, total, perkiraan laba dengan tautan rincian); kartu Masalah (bila ada) dengan tombol penyelesaian per masalah; catatan internal (simpan otomatis); riwayat aktivitas (siapa, kapan, dari perangkat apa).
 - **Aksi utama**: tergantung status: "Terima pesanan", "Cetak label", "Tandai dikirim". Aksi sekunder di menu titik tiga: Batalkan, Pecah paket, Beri tag.
 - **Mobile**: halaman penuh dengan kartu bertumpuk; bar bawah berisi aksi utama.
+- **Di web app**:
+  - Tag diubah di kartu Tag ("Ubah tag", daftar yang sama dengan bar aksi massal), bukan di menu titik tiga.
+  - Kartu Pengiriman menampilkan gudang pengirim dengan tautan "Pindah". "Pindah gudang" juga ada di menu titik tiga dan di kartu Masalah untuk stok yang kurang. Pindah hanya ditawarkan untuk pesanan yang belum dikemas, tidak ditetapkan marketplace, dari toko yang sudah pindah sepenuhnya, dan bila ada gudang lain. Reservasi ikut pindah; stok tercatat yang kurang di gudang tujuan membuat pesanan bermasalah (stok yang belum pernah ditetapkan tidak dihitung, ADR-036).
+  - "Perbarui" di samping "Lacak paket" meminta pelacakan dibaca ulang (paling sering sekali per 10 menit per pesanan) untuk pesanan marketplace yang dikirim penjual dan sudah dikirim.
 - **Prompt untuk AI**: "Panel samping detail pesanan selebar 420 px di kanan daftar. Judul 'SP-2609-88123' dengan pil biru 'Baru' dan ikon Shopee. Stepper mendatar empat langkah dengan langkah pertama aktif. Kartu 'Item (3)' berisi gambar produk 56 px, nama, varian 'Hitam, L', SKU mono 'KAOS-POLOS-HTM-L', 'x2', harga. Kartu 'Pengiriman': J&T Express Reguler, resi belum ada, batas kirim '30 Sep, 15.00 (2 jam lagi)' pil kuning, alamat pembeli. Kartu 'Pembayaran' dengan baris subtotal, voucher penjual, ongkir, total tebal, dan 'Perkiraan laba Rp 62.000' hijau. Kartu 'Masalah' merah muda: 'Stok Kaos Polos Hitam L di Gudang Jakarta tinggal 1, butuh 2' dengan tombol 'Pindahkan dari gudang lain' dan 'Tambah stok'. Footer lengket dengan tombol utama 'Terima pesanan' dan menu titik tiga."
 
 #### L04a Pesanan Manual Baru
@@ -977,3 +986,4 @@ Sebelum layar dinyatakan selesai:
 | 1.7 | 6 Oktober 2026 | L46 Migrasi Data: catatan susunan di web app (dua tab, stepper impor, pratinjau semua kolom, kartu per toko, pindah sekaligus, batal 24 jam) | Candra Syahputra |
 | 1.8 | 6 Oktober 2026 | Pengaturan di web app: catatan L41, L42, L44; layar L46a Ekspor Data dan item sidebarnya; Printer & Label juga untuk pemegang `shipment:print` | Candra Syahputra |
 | 1.9 | 6 Oktober 2026 | L21 Riwayat Stok di web app: nama jenis ("Pesanan dilepas" menggantikan "Batal"), referensi bertaut ke pesanan, retur, opname, dan transfer, garis siap jual atas mutasi yang dimuat dengan satu langkah per mutasi. L19: menu baris "Lihat riwayat stok" dan "Atur minimum & rak" | Candra Syahputra |
+| 1.10 | 6 Oktober 2026 | L03 dan L04 di web app: filter Toko, Gudang, dan Tag, kolom Gudang, pil tag, "Beri tag" dengan kotak tiga keadaan, "Kelola tag", tarik ulang pesanan per toko, pindah gudang, perbarui pelacakan; tag di L04 diubah di kartu Tag | Candra Syahputra |

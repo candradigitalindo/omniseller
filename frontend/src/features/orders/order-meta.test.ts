@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { Permission } from "@/lib/session";
-import { addressLines, canCancel, type OrderDetail, primaryActionOf, stepOf, tabCount, tabOf } from "./order-meta";
+import {
+  addressLines,
+  canCancel,
+  type OrderDetail,
+  primaryActionOf,
+  stepOf,
+  syncableStores,
+  tabCount,
+  tabOf,
+} from "./order-meta";
 
 const everything = () => true;
 const only =
@@ -126,5 +135,19 @@ describe("addressLines", () => {
   it("ignores blanks and values that are not text", () => {
     expect(addressLines({ name: " ", fullAddress: 5 })).toEqual({ name: null, phone: null, lines: [] });
     expect(addressLines(null).lines).toEqual([]);
+  });
+});
+
+describe("reading a store's orders again", () => {
+  it("offers marketplace stores whose connection works", () => {
+    const stores = [
+      { id: "a", channel: "shopee", status: "active" },
+      { id: "b", channel: "tiktokshop", status: "token_expiring" },
+      { id: "c", channel: "shopee", status: "reauth_required" },
+      { id: "d", channel: "shopee", status: "disconnected" },
+      { id: "e", channel: "shopee", status: "connecting" },
+      { id: "f", channel: "manual", status: "active" },
+    ];
+    expect(syncableStores(stores).map((s) => s.id)).toEqual(["a", "b"]);
   });
 });
