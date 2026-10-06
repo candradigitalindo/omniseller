@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.11 |
+| Versi dokumen | 1.12 |
 | Tanggal | 6 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
@@ -581,6 +581,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **Isi**: kiri daftar pesanan yang siap cetak dengan kotak centang dan filter gelombang, kurir; kanan panel "Pengaturan cetak": format (Thermal 100 x 150, A4 4 label), template (Standar marketplace, Kustom dengan SKU dan rak), printer tujuan (daftar dari agen cetak dengan status hijau atau merah), urutan (ikuti daftar ambil), sertakan daftar kemas. Bagian bawah "Antrean cetak" dengan progres per pekerjaan dan tombol cetak ulang.
 - **Aksi utama**: "Cetak 120 label".
 - **Prompt untuk AI**: "Halaman cetak label. Kiri: daftar pesanan tercentang dengan ikon kurir. Kanan: panel pengaturan cetak berisi pilihan radio 'Thermal 100 x 150 mm' dan 'A4 (4 label)', dropdown template 'Kustom: tambah SKU dan rak', printer 'Zebra GK420 Gudang Jakarta' dengan titik hijau 'Terhubung', sakelar 'Sertakan daftar kemas'. Tombol utama 'Cetak 120 label'. Di bawah: 'Antrean cetak' dengan baris 'Gelombang 3, 120 label, 87 tercetak' dan bar progres biru, tombol 'Cetak ulang yang gagal (2)'."
+- **Di web app**: kartu "Pindai untuk cetak" di atas daftar. Nomor pesanan atau resi yang dipindai langsung mencetak labelnya di agen cetak stasiun, dengan format, template, dan daftar kemas dari Pengaturan cetak. Hasil tiap pindaian tampil di bawah kotak, yang terbaru di atas, termasuk alasan bila label belum bisa dicetak. Tanpa agen cetak, kotaknya nonaktif dengan penjelasan.
 
 #### L08 Pengiriman: Serah Terima Kurir
 
@@ -588,6 +589,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **Isi**: pilih kurir dan gudang; kotak scan resi; daftar paket dipindai hari ini per kurir dengan jumlah; tombol "Buat manifest" menghasilkan PDF dengan kolom tanda tangan kurir; riwayat manifest.
 - **Aksi utama**: "Selesaikan serah terima J&T (48 paket)".
 - **Prompt untuk AI**: "Halaman serah terima kurir. Atas: pemilih 'J&T Express' dan 'Gudang Jakarta', kotak scan resi besar. Tengah: angka besar '48 paket dipindai' dengan daftar resi mono dan waktu. Tombol utama 'Selesaikan serah terima dan cetak manifest'. Bawah: riwayat manifest 'Manifest J&T 29 Sep, 52 paket, ditandatangani Andi (kurir)'."
+- **Di web app**: manifest yang masih terbuka bisa dibatalkan setelah konfirmasi. Paket di dalamnya bisa dipindai lagi ke manifest lain, lalu layar kembali ke daftar kurir.
 
 #### L09 Retur dan Batal
 
@@ -625,6 +627,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **Isi**: tab: Informasi (nama, deskripsi, kategori, merek, gambar dengan urutan seret), Varian (tabel varian: nama, SKU, barcode, HPP, harga, berat, dimensi, dengan edit sebaris), Paket produk (komponen bundle), Listing tertaut (per toko: judul, harga di kanal, status, sakelar "ikuti produk induk" per field: judul, deskripsi, harga, gambar), Riwayat perubahan.
 - **Aksi utama**: "Simpan perubahan" (lengket di bawah, aktif hanya bila ada perubahan) dan "Terbitkan ke toko".
 - **Prompt untuk AI**: "Halaman edit produk dengan tab Informasi, Varian, Paket, Listing tertaut. Tab Varian menampilkan tabel enam baris 'Hitam S', 'Hitam M' dengan kolom SKU mono, barcode, HPP 'Rp 35.000', harga 'Rp 65.000', berat '200 g', sel dapat diedit langsung dengan garis bawah saat fokus. Tab Listing tertaut: kartu per toko dengan ikon kanal, judul di kanal, harga 'Rp 69.000 (markup 6%)', dan empat sakelar kecil 'Judul, Deskripsi, Harga, Gambar mengikuti produk induk'. Footer lengket 'Simpan perubahan'."
+- **Di web app**: tab Varian punya "Cetak label barcode" (izin `shipment:print`). Dialognya memuat jumlah label per varian (0 untuk melewati), ukuran label 50 x 30 mm, 40 x 30 mm, atau A4 30 label. Hasilnya dikirim ke agen cetak stasiun atau dibuat PDF. Varian tanpa barcode memakai SKU-nya; paling banyak 2.000 label sekali cetak.
 
 #### L15 Listing Toko dan Pemetaan SKU
 
@@ -632,6 +635,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **Isi**: banner progres "412 dari 430 listing sudah terhubung"; tab "Belum terhubung (18)" dan "Semua"; tabel belum terhubung: gambar dan judul listing, toko, SKU di marketplace, kolom "Saran" berisi produk induk yang mirip dengan tombol "Hubungkan" (saran dari kesamaan SKU atau gambar, badge ungu bila dari AI), tombol "Cari manual", "Buat produk baru dari listing ini".
 - **Aksi utama**: "Terapkan semua saran (14)".
 - **Prompt untuk AI**: "Halaman pemetaan listing. Banner biru muda dengan bar progres '412 dari 430 listing terhubung (95%)'. Tabel 'Belum terhubung': thumbnail, 'Kaos Polos Premium Hitam L' dari Tokopedia & Shop 'Toko Utama', SKU marketplace 'KP-HTM-L', kolom Saran menampilkan 'KAOS-POLOS-HTM-L, Kaos Polos Cotton 30s Hitam L' dengan badge ungu 'AI 92% mirip' dan tombol 'Hubungkan'. Tombol utama 'Terapkan semua saran (14)'."
+- **Di web app**: tab "Semua" bisa memilih listing (izin `catalog:publish`) untuk "Aktifkan di marketplace" atau "Nonaktifkan di marketplace" setelah konfirmasi. Konfirmasi menyebut jumlah produk marketplace, karena marketplace mengubah status per produk sehingga semua variannya ikut. Listing yang sudah dihapus dan listing dari toko yang perlu dihubungkan ulang tidak bisa dipilih.
 
 #### L15a Salin Listing
 
@@ -771,7 +775,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **Tujuan**: pindah dari aplikasi lain tanpa stok kacau.
 - **Isi**: wizard: 1) pilih asal (BigSeller, Ginee, Jubelio, Spreadsheet) kartu besar; 2) unggah berkas ekspor dengan pemetaan kolom terpandu (kolom asal di kiri, kolom OmniSeller di kanan, saran otomatis, pratinjau lima baris); 3) hasil validasi (berhasil, gagal per baris dengan alasan, unduh daftar gagal); 4) mode uji berdampingan: penjelasan dengan ilustrasi, perbandingan stok dua sistem per SKU dengan selisih, checklist cutover (semua listing terhubung, selisih stok nol, otorisasi aplikasi lama dicabut dengan tautan panduan); 5) tombol besar "Pindah sepenuhnya ke OmniSeller" dengan konfirmasi dan catatan "bisa dibatalkan dalam 24 jam".
 - **Aksi utama**: per langkah.
-- **Di web app**: langkah 1 sampai 3 dan langkah 4 sampai 5 ada di dua tab, karena impor produk bisa diulang kapan saja dan tidak harus mendahului uji berdampingan. Impor punya stepper sendiri (Unggah, Petakan kolom, Periksa, Impor) dan riwayat impor; pratinjau pemetaan menampilkan semua kolom berkas beserta isian OmniSeller yang membacanya, sehingga baris judul yang salah langsung terlihat. Tab kedua menampilkan kartu per toko mode uji (pesanan masuk sejak mode uji, perbandingan stok per status dengan tabel per listing, syarat pindah dengan detail dari api, "Tarik ulang listing", "Ambil stok awal dari toko" dengan pratinjau), lalu kartu "Pindah sepenuhnya" untuk semua toko yang siap sekaligus, dan kartu pembatalan selama 24 jam.
+- **Di web app**: langkah 1 sampai 3 dan langkah 4 sampai 5 ada di dua tab, karena impor produk bisa diulang kapan saja dan tidak harus mendahului uji berdampingan. Impor punya stepper sendiri (Unggah, Petakan kolom, Periksa, Impor) dan riwayat impor; pratinjau pemetaan menampilkan semua kolom berkas beserta isian OmniSeller yang membacanya, sehingga baris judul yang salah langsung terlihat. Pemetaan kolom bisa disimpan dengan nama untuk impor berikutnya dari aplikasi yang sama, dan pemetaan tersimpan yang dipilih bisa dihapus setelah konfirmasi tanpa memengaruhi impor yang sudah berjalan. Tab kedua menampilkan kartu per toko mode uji (pesanan masuk sejak mode uji, perbandingan stok per status dengan tabel per listing, syarat pindah dengan detail dari api, "Tarik ulang listing", "Ambil stok awal dari toko" dengan pratinjau), lalu kartu "Pindah sepenuhnya" untuk semua toko yang siap sekaligus, dan kartu pembatalan selama 24 jam.
 - **Prompt untuk AI**: "Wizard migrasi lima langkah dengan stepper di atas. Langkah 2: dua kolom pemetaan 'Nama Produk ke Nama produk', 'Harga Modal ke HPP' dengan ikon centang hijau untuk saran otomatis, pratinjau tabel lima baris. Langkah 4: kartu penjelasan 'Mode uji berdampingan: OmniSeller membaca pesanan dan stok tetapi belum mengubah apa pun di marketplace', tabel perbandingan 'SKU, Stok aplikasi lama 120, Stok OmniSeller 120, Selisih 0' hijau, checklist tiga poin dengan dua tercentang, tombol besar nonaktif 'Pindah sepenuhnya ke OmniSeller' dengan keterangan 'Selesaikan checklist dulu'."
 
 #### L46a Ekspor Data
@@ -994,3 +998,4 @@ Sebelum layar dinyatakan selesai:
 | 1.9 | 6 Oktober 2026 | L21 Riwayat Stok di web app: nama jenis ("Pesanan dilepas" menggantikan "Batal"), referensi bertaut ke pesanan, retur, opname, dan transfer, garis siap jual atas mutasi yang dimuat dengan satu langkah per mutasi. L19: menu baris "Lihat riwayat stok" dan "Atur minimum & rak" | Candra Syahputra |
 | 1.10 | 6 Oktober 2026 | L03 dan L04 di web app: filter Toko, Gudang, dan Tag, kolom Gudang, pil tag, "Beri tag" dengan kotak tiga keadaan, "Kelola tag", tarik ulang pesanan per toko, pindah gudang, perbarui pelacakan; tag di L04 diubah di kartu Tag | Candra Syahputra |
 | 1.11 | 6 Oktober 2026 | L40 di web app: tombol "Kelola" per toko dan halaman bertab Koneksi (hubungkan ulang, putuskan dengan pilihan simpan atau hapus data), Gudang marketplace, Pengaturan sinkron (nama, gudang utama, kembali ke mode uji, kirim ulang stok, alokasi otomatis, aturan pembagian stok dengan contoh hitungan), Log sinkron (filter hasil, rincian panggilan); aktif penuh tetap lewat Migrasi Data | Candra Syahputra |
+| 1.12 | 6 Oktober 2026 | Di web app: "Pindai untuk cetak" (L07), batalkan manifest terbuka (L08), cetak label barcode varian (L14), aktif dan nonaktif listing di marketplace (L15), hapus pemetaan impor tersimpan (L46) | Candra Syahputra |

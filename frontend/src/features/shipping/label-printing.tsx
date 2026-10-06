@@ -17,6 +17,7 @@ import { errorMessage } from "@/lib/api/errors";
 import { formatDateTime, formatNumber } from "@/lib/format";
 import { useCan, useTimeZone } from "@/lib/session";
 import { DocumentResult, PrintSettingsPanel, useDocument, usePrintSettings } from "./print-target";
+import { ScanToPrint } from "./scan-print";
 import { JOB_TONE } from "./shipping-meta";
 
 const PAGE = 100;
@@ -90,6 +91,7 @@ export function LabelPrinting() {
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
       <section className="grid content-start gap-3">
+        <ScanToPrint settings={settings} />
         <div className="flex flex-wrap items-center gap-2">
           <Checkbox
             checked={rows.length > 0 && rows.every((o) => selected.has(o.id))}

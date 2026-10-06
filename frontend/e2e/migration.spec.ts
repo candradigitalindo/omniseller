@@ -38,3 +38,32 @@ test("imports products from another app's export after checking every row", asyn
     ]),
   );
 });
+
+test("keeps a column mapping for the next import until it is deleted", async ({ page, business }) => {
+  void business;
+  const t = tag();
+  const csv = [
+    "Judul;Nomor SKU;Harga Jual;Harga Modal;Berat (gram);Stok",
+    `Kemeja Batik ${t};MAP-${t}-S;Rp 65.000;35.000;300;5`,
+  ].join("\r\n");
+  await page.goto("/migrasi");
+  await page.getByText("BigSeller", { exact: true }).click();
+  await page
+    .getByLabel("Berkas ekspor")
+    .setInputFiles({ name: "ekspor.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
+  await page.getByRole("button", { name: "Unggah dan petakan kolom" }).click();
+  await page.waitForURL(/job=01/);
+  await page.getByLabel("Simpan pemetaan ini (opsional)").fill(`BigSeller ${t}`);
+  await page.getByRole("button", { name: "Periksa berkas" }).click();
+  await expect(page.getByText("Berkas siap diimpor")).toBeVisible({ timeout: 30_000 });
+
+  await page.goto("/migrasi");
+  await page.getByText("BigSeller", { exact: true }).click();
+  await page.getByRole("combobox", { name: "Pemetaan tersimpan" }).click();
+  await page.getByRole("option", { name: `BigSeller ${t}` }).click();
+  await page.getByRole("button", { name: `Hapus pemetaan BigSeller ${t}` }).click();
+  await page.getByRole("button", { name: "Hapus pemetaan", exact: true }).click();
+  await expect(page.getByText(`Pemetaan BigSeller ${t} dihapus.`)).toBeVisible();
+  // it was the only one: nothing saved to choose from
+  await expect(page.getByRole("combobox", { name: "Pemetaan tersimpan" })).toHaveCount(0);
+});

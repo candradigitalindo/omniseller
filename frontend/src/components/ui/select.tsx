@@ -5,8 +5,19 @@ import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { Select as SelectPrimitive } from "radix-ui";
 import type * as React from "react";
 
-function Select({ ...props }: React.ComponentProps<typeof SelectPrimitive.Root>) {
-  return <SelectPrimitive.Root data-slot="select" {...props} />;
+/**
+ * Inside a form Radix keeps a hidden native select. When the value changes in the same render as its option
+ * appears (a list that loads after the value is known), that select reports "" and Radix passes it on as a
+ * change, wiping the choice. No item may have the value "", so an empty change is never the user's.
+ */
+function Select({ onValueChange, ...props }: React.ComponentProps<typeof SelectPrimitive.Root>) {
+  return (
+    <SelectPrimitive.Root
+      data-slot="select"
+      onValueChange={onValueChange ? (v) => v !== "" && onValueChange(v) : undefined}
+      {...props}
+    />
+  );
 }
 
 function SelectGroup({ className, ...props }: React.ComponentProps<typeof SelectPrimitive.Group>) {

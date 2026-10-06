@@ -2,7 +2,7 @@
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "cn";
-import { Link2, PackagePlus, RefreshCw, Search, Store, Unlink, Wand2 } from "lucide-react";
+import { Link2, PackagePlus, Power, PowerOff, RefreshCw, Search, Store, Unlink, Wand2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -11,7 +11,14 @@ import { EmptyState, ErrorState, PageHeader, StatusPill } from "@/components/com
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,12 +38,14 @@ import {
   variantLabel,
 } from "@/features/products/product-meta";
 import { Thumb } from "@/features/products/products-view";
+import { usableStore } from "@/features/stores/store-meta";
 import { useStores } from "@/features/stores/use-store-modes";
 import { useUrlParams } from "@/hooks/use-url-params";
 import { api, unwrap } from "@/lib/api/client";
 import { errorMessage } from "@/lib/api/errors";
 import { formatNumber, formatRupiah } from "@/lib/format";
 import { useCan } from "@/lib/session";
+import { marketplaceItems, switchable } from "./listing-status";
 
 const PAGE = 50;
 const ALL = "all";
@@ -400,8 +409,23 @@ function AllList({ storeId, q, onChanged }: { storeId: string | null; q: string;
   const t = useTranslations("listings");
   const tCommon = useTranslations("common");
   const can = useCan();
+  const queryClient = useQueryClient();
+  const stores = useStores();
   const [picking, setPicking] = useState<Listing | null>(null);
   const query = { ...(storeId ? { storeId } : {}), ...(q ? { q } : {}) };
+  // a selection belongs to the rows of one filter
+  const key = JSON.stringify(query);
+  const [selection, setSelection] = useState<{ key: string; ids: ReadonlySet<string> }>({ key, ids: NONE });
+  const selected = selection.key === key ? selection.ids : NONE;
+  const setSelected = (ids: ReadonlySet<string>) => setSelection({ key, ids });
+  // which action the dialog asks about stays set while it closes, so its text does not flip mid-fade
+  const [confirm, setConfirm] = useState<{ open: boolean; active: boolean }>({ open: false, active: true });
+  const closeConfirm = () => setConfirm((c) => ({ ...c, open: false }));
+  const publishes = can("catalog:publish");
+  const usable = (l: Listing) => {
+    const s = stores.byId.get(l.storeId);
+    return s ? usableStore(s.status) : false;
+  };
   const list = useInfiniteQuery({
     queryKey: ["listings", "all", query],
     queryFn: ({ pageParam }) =>
@@ -430,7 +454,20 @@ function AllList({ storeId, q, onChanged }: { storeId: string | null; q: string;
     },
     onError: (error) => toast.error(errorMessage(error)),
   });
+  const setStatus = useMutation({
+    mutationFn: (active: boolean) =>
+      unwrap(api.POST("/v1/listings/status", { body: { listingIds: [...selected], active } })),
+    onSuccess: (r, active) => {
+      toast.success(t(active ? "activateQueued" : "deactivateQueued", { items: r.items, stores: r.stores }));
+      setSelected(NONE);
+      closeConfirm();
+      // the worker tells the marketplace; the list shows the new status once it is read back
+      setTimeout(() => void queryClient.invalidateQueries({ queryKey: ["listings"] }), 8_000);
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
   const rows = list.data?.pages.flatMap((p) => p.items) ?? [];
+  const chosen = rows.filter((l) => selected.has(l.id));
   if (list.isPending) return <ListSkeleton />;
   if (list.isError) return <ErrorState error={list.error} onRetry={() => list.refetch()} />;
   if (rows.length === 0) {
@@ -440,12 +477,53 @@ function AllList({ storeId, q, onChanged }: { storeId: string | null; q: string;
       </Card>
     );
   }
+  const toggle = (id: string, on: boolean) => {
+    const next = new Set(selected);
+    if (on) next.add(id);
+    else next.delete(id);
+    setSelected(next);
+  };
   return (
     <>
+      {selected.size > 0 ? (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-[10px] border border-primary-100 bg-primary-50 px-3 py-2">
+          <span className="text-sm font-medium text-text-900">{t("selected", { count: selected.size })}</span>
+          <Button size="sm" variant="secondary" onClick={() => setConfirm({ open: true, active: true })}>
+            <Power aria-hidden />
+            {t("activate")}
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => setConfirm({ open: true, active: false })}>
+            <PowerOff aria-hidden />
+            {t("deactivate")}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setSelected(NONE)}>
+            {t("clearSelection")}
+          </Button>
+        </div>
+      ) : null}
       <Card className="gap-0 py-0">
         <ul className="divide-y">
           {rows.map((l) => (
-            <li key={l.id} className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto] lg:items-center">
+            <li
+              key={l.id}
+              className={cn(
+                "grid gap-3 p-4 lg:items-center",
+                publishes
+                  ? "lg:grid-cols-[auto_minmax(0,1.2fr)_minmax(0,1fr)_auto]"
+                  : "lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto]",
+              )}
+            >
+              {publishes ? (
+                switchable(l, usable(l)) ? (
+                  <Checkbox
+                    checked={selected.has(l.id)}
+                    onCheckedChange={(v) => toggle(l.id, v === true)}
+                    aria-label={t("selectListing", { title: l.title })}
+                  />
+                ) : (
+                  <span className="hidden size-4 lg:block" aria-hidden />
+                )
+              ) : null}
               <div className="flex min-w-0 gap-3">
                 <Thumb url={l.imageUrl} size={56} />
                 <div className="grid min-w-0 gap-0.5 text-sm">
@@ -514,6 +592,28 @@ function AllList({ storeId, q, onChanged }: { storeId: string | null; q: string;
         onClose={() => setPicking(null)}
         onPick={(variantId) => picking && map.mutate({ listingId: picking.id, variantId })}
       />
+      <Dialog open={confirm.open} onOpenChange={(v) => !v && closeConfirm()}>
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>{t(confirm.active ? "activateTitle" : "deactivateTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("statusBody", { count: chosen.length, items: marketplaceItems(chosen) })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="secondary" onClick={closeConfirm}>
+              {tCommon("cancel")}
+            </Button>
+            <Button
+              variant={confirm.active ? "default" : "destructive"}
+              loading={setStatus.isPending}
+              onClick={() => setStatus.mutate(confirm.active)}
+            >
+              {t(confirm.active ? "activate" : "deactivate")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

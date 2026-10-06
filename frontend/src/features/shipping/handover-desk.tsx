@@ -182,6 +182,7 @@ function Manifest({ id, onClose }: { id: string; onClose: () => void }) {
   const [code, setCode] = useState("");
   const [flash, setFlash] = useState<Flash | null>(null);
   const [completing, setCompleting] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [documentId, setDocumentId] = useState<string | null>(null);
   const document = useDocument(documentId);
   const manifest = useQuery({
@@ -207,6 +208,17 @@ function Manifest({ id, onClose }: { id: string; onClose: () => void }) {
     mutationFn: (itemId: string) =>
       unwrap(api.DELETE("/v1/handovers/{id}/items/{itemId}", { params: { path: { id, itemId } } })),
     onSuccess: refresh,
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+  // an open manifest given up: its parcels can go into another one
+  const cancel = useMutation({
+    mutationFn: () => unwrap(api.POST("/v1/handovers/{id}/cancel", { params: { path: { id } } })),
+    onSuccess: (h) => {
+      toast.success(t("manifestCancelled", { number: h.number }));
+      setCancelling(false);
+      refresh();
+      onClose();
+    },
     onError: (error) => toast.error(errorMessage(error)),
   });
   const manifestPdf = useMutation({
@@ -238,6 +250,11 @@ function Manifest({ id, onClose }: { id: string; onClose: () => void }) {
           <Button variant="ghost" onClick={onClose}>
             {t("backToCouriers")}
           </Button>
+          {isOpen ? (
+            <Button variant="secondary" className="text-danger" onClick={() => setCancelling(true)}>
+              {t("cancelManifest")}
+            </Button>
+          ) : null}
           {!isOpen ? (
             <Button variant="secondary" loading={manifestPdf.isPending} onClick={() => manifestPdf.mutate()}>
               <FileText aria-hidden />
@@ -333,6 +350,22 @@ function Manifest({ id, onClose }: { id: string; onClose: () => void }) {
           )}
         </section>
       </div>
+      <Dialog open={cancelling} onOpenChange={setCancelling}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>{t("cancelManifestTitle", { number: h.number })}</DialogTitle>
+            <DialogDescription>{t("cancelManifestBody", { count: h.parcels })}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setCancelling(false)}>
+              {t("keepManifest")}
+            </Button>
+            <Button variant="destructive" loading={cancel.isPending} onClick={() => cancel.mutate()}>
+              {t("cancelManifest")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <CompleteDialog
         open={completing}
         handoverId={h.id}

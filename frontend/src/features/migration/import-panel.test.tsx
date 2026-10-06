@@ -95,6 +95,59 @@ describe("import products (L46 steps 1 to 3)", () => {
     });
   });
 
+  it("deletes a saved mapping after asking, and goes back to guessing", async () => {
+    const preset = (id: string, name: string, sourceApp: string) => ({
+      id,
+      name,
+      sourceApp,
+      sourceAppName: sourceApp,
+      mapping: { fields: {}, weightUnit: "kg", dimensionUnit: "cm" },
+      createdAt: "2026-10-06T01:00:00.000Z",
+    });
+    let presets = [
+      preset("01JPRESET00000000000000001", "BigSeller gudang", "bigseller"),
+      preset("01JPRESET00000000000000002", "Ginee", "ginee"),
+      preset("01JPRESET00000000000000003", "BigSeller toko", "bigseller"),
+    ];
+    const calls = mockApi({
+      "GET /v1/migration/fields": () => FIELDS,
+      "GET /v1/migration/presets": () => ({ items: presets }),
+      "GET /v1/migration/imports": () => ({ items: [] }),
+      "DELETE /v1/migration/presets/01JPRESET00000000000000001": () => {
+        presets = presets.filter((p) => p.id !== "01JPRESET00000000000000001");
+        return undefined;
+      },
+    });
+    const user = userEvent.setup();
+    renderApp(<MigrationView />);
+    await user.click(await screen.findByText("BigSeller"));
+    const select = await screen.findByRole("combobox", { name: "Pemetaan tersimpan" });
+    // nothing to delete while guessing
+    expect(screen.queryByRole("button", { name: /Hapus pemetaan/ })).not.toBeInTheDocument();
+    await user.click(select);
+    // only this app's mappings are offered
+    expect(screen.queryByRole("option", { name: "Ginee" })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole("option", { name: "BigSeller gudang" }));
+
+    await user.click(screen.getByRole("button", { name: "Hapus pemetaan BigSeller gudang" }));
+    expect(
+      screen.getByText("Hapus pemetaan BigSeller gudang? Impor yang sudah berjalan tidak terpengaruh."),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Batal" }));
+    expect(calls.some((c) => c.method === "DELETE")).toBe(false);
+
+    await user.click(screen.getByRole("button", { name: "Hapus pemetaan BigSeller gudang" }));
+    await user.click(screen.getByRole("button", { name: "Hapus pemetaan" }));
+    await waitFor(() => expect(calls.some((c) => c.method === "DELETE")).toBe(true));
+    expect(await screen.findByText("Pemetaan BigSeller gudang dihapus.")).toBeInTheDocument();
+    // the choice goes back to guessing; the app's other mapping stays offered
+    await waitFor(() => expect(select).toHaveTextContent("Tebak dari judul kolom"));
+    expect(screen.queryByRole("button", { name: /Hapus pemetaan/ })).not.toBeInTheDocument();
+    await user.click(select);
+    expect(await screen.findByRole("option", { name: "BigSeller toko" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "BigSeller gudang" })).not.toBeInTheDocument();
+  });
+
   it("refuses a file over 8 MB before sending it", async () => {
     api();
     const user = userEvent.setup();

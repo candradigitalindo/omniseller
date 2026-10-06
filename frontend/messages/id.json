@@ -993,7 +993,25 @@
     "actor_user": "Pengguna",
     "actor_system": "Sistem",
     "actor_api_key": "Kunci API",
-    "actor_device": "Perangkat"
+    "actor_device": "Perangkat",
+    "printBarcodeLabels": "Cetak label barcode"
+  },
+  "barcodeLabels": {
+    "title": "Cetak label barcode",
+    "body": "Satu label per salinan. Varian tanpa barcode memakai SKU-nya sebagai barcode.",
+    "colVariant": "Varian",
+    "colCode": "Barcode",
+    "colCopies": "Jumlah",
+    "skuAsBarcode": "Memakai SKU",
+    "copiesOf": "Jumlah label {sku}",
+    "copiesInvalid": "Jumlah label berupa bilangan bulat 0 sampai 500.",
+    "tooMany": "{total, number} label; paling banyak 2.000 per cetak.",
+    "format": "Ukuran label",
+    "format_label_50x30": "Label 50 x 30 mm",
+    "format_label_40x30": "Label 40 x 30 mm",
+    "format_a4_3x10": "A4, 30 label",
+    "print": "Cetak {count, number} label",
+    "makePdf": "Buat PDF {count, number} label"
   },
   "listings": {
     "title": "Listing Toko",
@@ -1044,7 +1062,14 @@
     "pickBody": "Listing: {title}",
     "pickPlaceholder": "Cari nama produk atau SKU",
     "pickHint": "Ketik minimal 2 huruf.",
-    "pickNone": "Tidak ada varian yang cocok."
+    "pickNone": "Tidak ada varian yang cocok.",
+    "activate": "Aktifkan di marketplace",
+    "deactivate": "Nonaktifkan di marketplace",
+    "activateTitle": "Aktifkan di marketplace?",
+    "deactivateTitle": "Nonaktifkan di marketplace?",
+    "statusBody": "{count, number} listing dipilih, {items, number} produk di marketplace. Marketplace mengubah status per produk, jadi semua variannya ikut berubah.",
+    "activateQueued": "Permintaan aktif dikirim untuk {items, number} produk di {stores, number} toko. Status di daftar berubah setelah marketplace memprosesnya.",
+    "deactivateQueued": "Permintaan nonaktif dikirim untuk {items, number} produk di {stores, number} toko. Status di daftar berubah setelah marketplace memprosesnya."
   },
   "counts": {
     "title": "Stock Opname",
@@ -1270,7 +1295,18 @@
     "completeBody": "Paket ditandai sudah diserahkan dan manifest dibuat dengan kolom tanda tangan kurir.",
     "courierName": "Nama kurir yang menerima (opsional)",
     "completeConfirm": "Selesaikan serah terima",
-    "handoverDone": "{count, number} paket diserahkan ke {courier}."
+    "handoverDone": "{count, number} paket diserahkan ke {courier}.",
+    "scanPrintTitle": "Pindai untuk cetak",
+    "scanPrintBody": "Pindai nomor pesanan atau resi; labelnya langsung tercetak di {agent}.",
+    "scanPrintNeedsAgent": "Pilih agen cetak di Pengaturan cetak untuk mencetak label dengan memindai.",
+    "scanPrintPlaceholder": "Pindai nomor pesanan atau resi untuk dicetak",
+    "scanPrintResults": "Hasil pindai",
+    "scanPrinted": "Label {number} dikirim ke printer",
+    "cancelManifest": "Batalkan manifest",
+    "cancelManifestTitle": "Batalkan manifest {number}?",
+    "cancelManifestBody": "{count, plural, =0 {Belum ada paket yang dipindai.} other {# paket yang sudah dipindai bisa dipindai lagi ke manifest lain.}}",
+    "keepManifest": "Lanjutkan manifest",
+    "manifestCancelled": "Manifest {number} dibatalkan."
   },
   "reports": {
     "title": "Laporan Penjualan",
@@ -1851,7 +1887,12 @@
     "liveSince": "{store} aktif penuh {at}",
     "undoUntil": "Bisa dikembalikan ke mode uji sampai {at}.",
     "undo": "Kembalikan ke mode uji",
-    "undone": "{store} kembali ke mode uji berdampingan."
+    "undone": "{store} kembali ke mode uji berdampingan.",
+    "presetDeleteNamed": "Hapus pemetaan {name}",
+    "presetDeleteAsk": "Hapus pemetaan {name}? Impor yang sudah berjalan tidak terpengaruh.",
+    "presetDelete": "Hapus pemetaan",
+    "presetKeep": "Batal",
+    "presetDeleted": "Pemetaan {name} dihapus."
   },
   "team": {
     "title": "Tim & Peran",

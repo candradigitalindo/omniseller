@@ -6,6 +6,7 @@ import { ArrowLeft, Check, Download, FileSpreadsheet, Upload } from "lucide-reac
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
+import { toast } from "sonner";
 import { ErrorState, StatusPill } from "@/components/common/page";
 import { Segmented } from "@/components/common/segmented";
 import { Button } from "@/components/ui/button";
@@ -69,6 +70,7 @@ function ImportStart() {
   const fields = useFields();
   const [app, setApp] = useState<SourceApp | null>(null);
   const [presetId, setPresetId] = useState(NO_PRESET);
+  const [deletingPreset, setDeletingPreset] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -98,6 +100,17 @@ function ImportStart() {
     onError: (e) => setProblem(errorMessage(e)),
   });
   const ownPresets = (presets.data?.items ?? []).filter((p) => p.sourceApp === app);
+  const chosenPreset = ownPresets.find((p) => p.id === presetId) ?? null;
+  const removePreset = useMutation({
+    mutationFn: (id: string) => unwrap(api.DELETE("/v1/migration/presets/{id}", { params: { path: { id } } })),
+    onSuccess: () => {
+      toast.success(t("presetDeleted", { name: chosenPreset?.name ?? "" }));
+      setPresetId(NO_PRESET);
+      setDeletingPreset(false);
+      void queryClient.invalidateQueries({ queryKey: ["migration", "presets"] });
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
 
   return (
     <Card>
@@ -140,7 +153,13 @@ function ImportStart() {
         {ownPresets.length > 0 ? (
           <div className="grid gap-1.5 sm:max-w-sm">
             <Label htmlFor="import-preset">{t("preset")}</Label>
-            <Select value={presetId} onValueChange={setPresetId}>
+            <Select
+              value={presetId}
+              onValueChange={(v) => {
+                setPresetId(v);
+                setDeletingPreset(false);
+              }}
+            >
               <SelectTrigger id="import-preset" className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -153,6 +172,33 @@ function ImportStart() {
                 ))}
               </SelectContent>
             </Select>
+            {chosenPreset ? (
+              deletingPreset ? (
+                <div className="flex flex-wrap items-center gap-2 rounded-lg bg-danger-soft px-3 py-2 text-sm text-text-900">
+                  {t("presetDeleteAsk", { name: chosenPreset.name })}
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    loading={removePreset.isPending}
+                    onClick={() => removePreset.mutate(chosenPreset.id)}
+                  >
+                    {t("presetDelete")}
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => setDeletingPreset(false)}>
+                    {t("presetKeep")}
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="justify-self-start text-danger"
+                  onClick={() => setDeletingPreset(true)}
+                >
+                  {t("presetDeleteNamed", { name: chosenPreset.name })}
+                </Button>
+              )
+            ) : null}
           </div>
         ) : null}
 

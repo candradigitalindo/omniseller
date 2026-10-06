@@ -1,7 +1,7 @@
 "use client";
 
 import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Barcode, MoreHorizontal, Plus, Unlink } from "lucide-react";
+import { ArrowLeft, Barcode, MoreHorizontal, Plus, Printer, Unlink } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -35,6 +35,7 @@ import { api, unwrap, unwrapWithEtag } from "@/lib/api/client";
 import { ApiError, errorMessage } from "@/lib/api/errors";
 import { formatDateTime, formatNumber, formatRupiah } from "@/lib/format";
 import { useCan, useTimeZone } from "@/lib/session";
+import { BarcodeLabelsDialog } from "./barcode-labels";
 import {
   type HistoryEntry,
   historyValue,
@@ -360,8 +361,11 @@ function VariantsTab({ product: p }: { product: Product }) {
   const can = useCan();
   const queryClient = useQueryClient();
   const [adding, setAdding] = useState(false);
+  const [labels, setLabels] = useState(false);
   const seesCost = can("finance:read");
   const editable = can("catalog:write");
+  const prints = can("shipment:print");
+  const active = p.variants.filter((v) => v.status === "active");
   const withoutBarcode = p.variants.filter((v) => !v.barcode && v.status === "active");
   const barcodes = useMutation({
     mutationFn: () =>
@@ -374,20 +378,33 @@ function VariantsTab({ product: p }: { product: Product }) {
   });
   return (
     <section className="grid gap-3">
-      {editable ? (
+      {editable || (prints && active.length > 0) ? (
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => setAdding(true)}>
-            <Plus aria-hidden />
-            {t("addVariant")}
-          </Button>
-          {withoutBarcode.length > 0 ? (
+          {editable ? (
+            <Button variant="secondary" onClick={() => setAdding(true)}>
+              <Plus aria-hidden />
+              {t("addVariant")}
+            </Button>
+          ) : null}
+          {editable && withoutBarcode.length > 0 ? (
             <Button variant="secondary" loading={barcodes.isPending} onClick={() => barcodes.mutate()}>
               <Barcode aria-hidden />
               {t("makeBarcodes", { count: withoutBarcode.length })}
             </Button>
           ) : null}
+          {prints && active.length > 0 ? (
+            <Button variant="secondary" onClick={() => setLabels(true)}>
+              <Printer aria-hidden />
+              {t("printBarcodeLabels")}
+            </Button>
+          ) : null}
         </div>
       ) : null}
+      <BarcodeLabelsDialog
+        open={labels}
+        variants={active.map((v) => ({ id: v.id, sku: v.sku, name: v.name, barcode: v.barcode }))}
+        onClose={() => setLabels(false)}
+      />
       <div className="overflow-x-auto rounded-[10px] border bg-surface">
         <Table>
           <TableHeader className="bg-surface-2">

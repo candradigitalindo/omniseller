@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { productFixture } from "@/features/products/fixtures";
 import type { UnmappedListing } from "@/features/products/product-meta";
 import { currentUrl, setUrl } from "@/test/navigation";
-import { mockApi, renderApp } from "@/test/render";
+import { mockApi, renderApp, testMe } from "@/test/render";
 import { ListingsView } from "./listings-view";
 
 const STORE = "01JSTORE000000000000000001";
@@ -159,5 +159,104 @@ describe("ListingsView", () => {
     renderApp(<ListingsView />);
     await user.click(await screen.findByRole("tab", { name: "Semua" }));
     expect(currentUrl()).toBe("/listing?tab=all");
+  });
+});
+
+describe("ListingsView: switching listings on and off at the marketplace", () => {
+  const OLD_STORE = "01JSTORE000000000000000002";
+  const blackL = unmapped({ id: "01JLISTING0000000000000011", externalItemId: "7001", title: "Kaos Hitam L" });
+  const blackXl = unmapped({
+    id: "01JLISTING0000000000000012",
+    externalItemId: "7001",
+    externalVariantId: "70012",
+    title: "Kaos Hitam XL",
+  });
+  const hat = unmapped({
+    id: "01JLISTING0000000000000013",
+    externalItemId: "7002",
+    title: "Topi Rajut",
+    status: "inactive",
+  });
+  const gone = unmapped({
+    id: "01JLISTING0000000000000014",
+    externalItemId: "7003",
+    title: "Tas Lama",
+    status: "deleted",
+  });
+  const elsewhere = unmapped({
+    id: "01JLISTING0000000000000015",
+    storeId: OLD_STORE,
+    store: { name: "Toko Lama", channel: "shopee", channelName: "Shopee" },
+    externalItemId: "8001",
+    title: "Sandal Jepit",
+  });
+
+  function allApi() {
+    return mockApi({
+      "GET /v1/listings/summary": () => ({ total: 5, mapped: 0, unmapped: 5 }),
+      "GET /v1/listings": () => ({ items: [blackL, blackXl, hat, gone, elsewhere], next_cursor: null }),
+      "GET /v1/stores": () => ({
+        items: [
+          { id: STORE, name: "Toko Utama", channel: "shopee", status: "active", syncMode: "live" },
+          { id: OLD_STORE, name: "Toko Lama", channel: "shopee", status: "reauth_required", syncMode: "live" },
+        ],
+      }),
+      "POST /v1/listings/status": (c) => {
+        const ids = (c.body as { listingIds: string[] }).listingIds;
+        return Response.json(
+          { stores: 1, items: new Set(ids.map((id) => (id === hat.id ? "7002" : "7001"))).size },
+          { status: 202 },
+        );
+      },
+    });
+  }
+  const box = (title: string) => screen.queryByRole("checkbox", { name: `Pilih listing ${title}` });
+
+  beforeEach(() => setUrl("/listing?tab=all"));
+
+  it("offers listings that can change, and switches them off by marketplace product after asking", async () => {
+    const calls = allApi();
+    const user = userEvent.setup();
+    renderApp(<ListingsView />);
+    await screen.findByText("Kaos Hitam L");
+    // deleted at the marketplace, or of a store waiting to be connected again: nothing to switch
+    expect(box("Tas Lama")).not.toBeInTheDocument();
+    await waitFor(() => expect(box("Kaos Hitam L")).toBeInTheDocument());
+    expect(box("Sandal Jepit")).not.toBeInTheDocument();
+
+    for (const title of ["Kaos Hitam L", "Kaos Hitam XL", "Topi Rajut"]) await user.click(box(title)!);
+    expect(screen.getByText("3 dipilih")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Nonaktifkan di marketplace" }));
+    const dialog = await screen.findByRole("dialog", { name: "Nonaktifkan di marketplace?" });
+    expect(dialog).toHaveTextContent("3 listing dipilih, 2 produk di marketplace.");
+    await user.click(within(dialog).getByRole("button", { name: "Nonaktifkan di marketplace" }));
+
+    await waitFor(() => expect(calls.some((c) => c.path === "/v1/listings/status")).toBe(true));
+    expect(calls.find((c) => c.path === "/v1/listings/status")?.body).toEqual({
+      listingIds: [blackL.id, blackXl.id, hat.id],
+      active: false,
+    });
+    expect(await screen.findByText(/Permintaan nonaktif dikirim untuk 2 produk di 1 toko/)).toBeInTheDocument();
+    expect(screen.queryByText("3 dipilih")).not.toBeInTheDocument();
+  });
+
+  it("switches a listing on", async () => {
+    const calls = allApi();
+    const user = userEvent.setup();
+    renderApp(<ListingsView />);
+    await waitFor(() => expect(box("Topi Rajut")).toBeInTheDocument());
+    await user.click(box("Topi Rajut")!);
+    await user.click(screen.getByRole("button", { name: "Aktifkan di marketplace" }));
+    const dialog = await screen.findByRole("dialog", { name: "Aktifkan di marketplace?" });
+    await user.click(within(dialog).getByRole("button", { name: "Aktifkan di marketplace" }));
+    await waitFor(() => expect(calls.some((c) => c.path === "/v1/listings/status")).toBe(true));
+    expect(calls.find((c) => c.path === "/v1/listings/status")?.body).toEqual({ listingIds: [hat.id], active: true });
+  });
+
+  it("offers nothing to switch without catalog:publish", async () => {
+    allApi();
+    renderApp(<ListingsView />, { me: testMe(["catalog:read", "catalog:map"]) });
+    await screen.findByText("Kaos Hitam L");
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
   });
 });

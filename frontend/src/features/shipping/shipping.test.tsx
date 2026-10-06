@@ -238,8 +238,157 @@ describe("Pengiriman: labels", () => {
   });
 });
 
+describe("Pengiriman: scan to print", () => {
+  beforeEach(() => setUrl("/pengiriman?tab=label"));
+  afterEach(() => localStorage.clear());
+  const base = {
+    "GET /v1/orders": () => ({ items: [], next_cursor: null }),
+    "GET /v1/print-agents": () => agents,
+    "GET /v1/print-jobs": () => ({ items: [], next_cursor: null }),
+  };
+
+  it("waits for this station to print on an agent", async () => {
+    mockApi(base);
+    renderApp(<ShippingView />);
+    expect(
+      await screen.findByText("Pilih agen cetak di Pengaturan cetak untuk mencetak label dengan memindai."),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Pindai nomor pesanan atau resi untuk dicetak")).toBeDisabled();
+  });
+
+  it("prints the label of a scanned order on the station's agent, and says why another cannot print", async () => {
+    localStorage.setItem(
+      "omniseller.print",
+      JSON.stringify({ deviceId: AGENT, format: "a4", template: "custom", packingList: true }),
+    );
+    let refuse = false;
+    const calls = mockApi({
+      ...base,
+      "POST /v1/print-jobs/scan": (c) =>
+        refuse
+          ? problem(409, "label.not_ready", "Label belum tersedia: atur pengiriman dulu.")
+          : Response.json(
+              {
+                order: {
+                  ...view.order,
+                  status: "ready_to_ship",
+                  statusLabel: "Siap Kirim",
+                  // a manual order's parcel may go without a tracking number
+                  trackingNumber: (c.body as { code: string }).code === "MN-2610-0001" ? null : "SPXID0001",
+                  number: (c.body as { code: string }).code === "MN-2610-0001" ? "MN-2610-0001" : "2610050AB1",
+                },
+                documentId: "01JDOC0000000000000000001",
+                printJob: { id: "01JJOB0000000000000000001", deviceId: AGENT, kind: "label", status: "queued" },
+              },
+              { status: 201 },
+            ),
+    });
+    const user = userEvent.setup();
+    renderApp(<ShippingView />);
+    expect(
+      await screen.findByText("Pindai nomor pesanan atau resi; labelnya langsung tercetak di PC Gudang."),
+    ).toBeInTheDocument();
+    const box = screen.getByLabelText("Pindai nomor pesanan atau resi untuk dicetak");
+
+    await user.type(box, " SPXID0001 {Enter}");
+    expect(await screen.findByText("Label 2610050AB1 dikirim ke printer")).toBeInTheDocument();
+    expect(screen.getByText("SPX Express · SPXID0001")).toBeInTheDocument();
+    expect(calls.find((c) => c.path === "/v1/print-jobs/scan")?.body).toEqual({
+      deviceId: AGENT,
+      code: "SPXID0001",
+      copies: 1,
+      format: "a4",
+      template: "custom",
+      packingList: true,
+    });
+    expect(box).toHaveValue("");
+
+    await user.type(box, "MN-2610-0001{Enter}");
+    expect(await screen.findByText("Label MN-2610-0001 dikirim ke printer")).toBeInTheDocument();
+    expect(screen.getByText("SPX Express")).toBeInTheDocument();
+
+    refuse = true;
+    await user.type(box, "2610050AB9{Enter}");
+    expect(await screen.findByText("Label belum tersedia: atur pengiriman dulu.")).toBeInTheDocument();
+    // the newest scan first
+    const items = within(screen.getByRole("list", { name: "Hasil pindai" })).getAllByRole("listitem");
+    expect(items[0]).toHaveTextContent("2610050AB9");
+    expect(items[2]).toHaveTextContent("Label 2610050AB1 dikirim ke printer");
+  });
+});
+
 describe("Pengiriman: courier handover", () => {
   beforeEach(() => setUrl("/pengiriman?tab=serah-terima"));
+
+  it("offers no cancelling for a manifest already handed over", async () => {
+    const H = "01JHANDOVER000000000000003";
+    setUrl(`/pengiriman?tab=serah-terima&manifest=${H}`);
+    mockApi({
+      "GET /v1/warehouses": () => ({ items: [] }),
+      "GET /v1/handovers/couriers": () => ({ items: [] }),
+      "GET /v1/handovers": () => ({ items: [], next_cursor: null }),
+      [`GET /v1/handovers/${H}`]: () => ({
+        id: H,
+        number: "MNF-2610-0003",
+        warehouseId: null,
+        courier: "J&T Express",
+        status: "completed",
+        parcels: 4,
+        receivedBy: "Andi",
+        createdBy: null,
+        completedBy: null,
+        completedAt: "2026-10-05T03:00:00.000Z",
+        createdAt: "2026-10-05T01:00:00.000Z",
+        items: [],
+      }),
+      "GET /v1/print-agents": () => ({ items: [] }),
+    });
+    renderApp(<ShippingView />);
+    expect(await screen.findByText("MNF-2610-0003")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Batalkan manifest" })).not.toBeInTheDocument();
+  });
+
+  it("cancels an open manifest after asking, and goes back to the couriers", async () => {
+    const H = "01JHANDOVER000000000000002";
+    const detail = {
+      id: H,
+      number: "MNF-2610-0002",
+      warehouseId: "01JWH00000000000000000000A",
+      courier: "J&T Express",
+      status: "open",
+      parcels: 2,
+      receivedBy: null,
+      createdBy: null,
+      completedBy: null,
+      completedAt: null,
+      createdAt: "2026-10-05T01:00:00.000Z",
+      items: [],
+    };
+    setUrl(`/pengiriman?tab=serah-terima&manifest=${H}`);
+    const calls = mockApi({
+      "GET /v1/warehouses": () => ({ items: [] }),
+      "GET /v1/handovers/couriers": () => ({ items: [] }),
+      "GET /v1/handovers": () => ({ items: [], next_cursor: null }),
+      [`GET /v1/handovers/${H}`]: () => detail,
+      [`POST /v1/handovers/${H}/cancel`]: () => ({ ...detail, status: "cancelled" }),
+      "GET /v1/print-agents": () => ({ items: [] }),
+    });
+    const user = userEvent.setup();
+    renderApp(<ShippingView />);
+
+    await user.click(await screen.findByRole("button", { name: "Batalkan manifest" }));
+    let dialog = await screen.findByRole("dialog", { name: "Batalkan manifest MNF-2610-0002?" });
+    expect(dialog).toHaveTextContent("2 paket yang sudah dipindai bisa dipindai lagi ke manifest lain.");
+    await user.click(within(dialog).getByRole("button", { name: "Lanjutkan manifest" }));
+    expect(calls.some((c) => c.path.endsWith("/cancel"))).toBe(false);
+
+    await user.click(screen.getByRole("button", { name: "Batalkan manifest" }));
+    dialog = await screen.findByRole("dialog", { name: "Batalkan manifest MNF-2610-0002?" });
+    await user.click(within(dialog).getByRole("button", { name: "Batalkan manifest" }));
+    await waitFor(() => expect(calls.some((c) => c.path.endsWith("/cancel"))).toBe(true));
+    expect(await screen.findByText("Manifest MNF-2610-0002 dibatalkan.")).toBeInTheDocument();
+    await waitFor(() => expect(currentUrl()).toBe("/pengiriman?tab=serah-terima"));
+  });
 
   it("opens a manifest for a courier, scans parcels into it, and completes it", async () => {
     const H = "01JHANDOVER000000000000001";
