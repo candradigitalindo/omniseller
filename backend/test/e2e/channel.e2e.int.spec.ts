@@ -207,6 +207,27 @@ describe("connecting a Shopee shop", () => {
       "/api/v2/logistics/get_address_list",
     ]);
     for (const call of pull.calls) expect(call.path).toContain("access_token=%5Bredacted%5D");
+    // a filter by outcome: nothing failed here, and an unknown outcome is refused
+    expect((await c.get(`/v1/stores/${storeId}/sync-jobs?status=failed`)).body.items).toEqual([]);
+    expect(
+      ((await c.get(`/v1/stores/${storeId}/sync-jobs?status=succeeded`)).body.items as { kind: string }[]).map(
+        (j) => j.kind,
+      ),
+    ).toContain("warehouses.pull");
+    expect((await c.get(`/v1/stores/${storeId}/sync-jobs?status=done`)).status).toBe(422);
+    // a pull the marketplace refuses is kept apart with its reason
+    mock.failNext("GET", "/api/v2/shop/get_warehouse_detail", 400, {
+      error: "error_param",
+      message: "Wrong parameters",
+    });
+    await worker.runJob(storeWarehousesSyncJob, { storeId }, tenantId).catch(() => undefined);
+    const failed = (await c.get(`/v1/stores/${storeId}/sync-jobs?status=failed`)).body.items as {
+      kind: string;
+      status: string;
+      errorMessage: string | null;
+    }[];
+    expect(failed.map((j) => `${j.kind}:${j.status}`)).toEqual(["warehouses.pull:failed"]);
+    expect(failed[0]?.errorMessage).toBeTruthy();
 
     // The connection is audited as the user who started it, not as the system.
     const audit = await sql1<{ actor_type: string; actor_id: string }>(
@@ -315,6 +336,17 @@ describe("connecting a Tokopedia & Shop shop (TikTok Shop API)", () => {
       expect.arrayContaining(["SELLER_DEAUTHORIZATION", "UPCOMING_AUTHORIZATION_EXPIRATION", "ORDER_STATUS_CHANGE"]),
     );
     for (const address of topics.values()) expect(address).toBe(`${WEBHOOK_URL}/webhooks/tiktokshop`);
+
+    // an access token TikTok Shop no longer knows (36009004 naming x-tts-access-token) is refreshed, not
+    // taken for a refused request
+    mock.forgetTiktokAccessTokens();
+    await worker.runJob(storeWarehousesSyncJob, { storeId }, me.tenant.id);
+    const log = (await c.get(`/v1/stores/${storeId}/sync-jobs`)).body.items as { kind: string; status: string }[];
+    expect(log.slice(0, 2).map((j) => `${j.kind}:${j.status}`)).toEqual([
+      "auth.refresh:succeeded",
+      "warehouses.pull:succeeded",
+    ]);
+    expect((await c.get(`/v1/stores/${storeId}`)).body.status).toBe("active");
   });
 
   it("records a declined authorization and refuses reused or foreign states", async () => {

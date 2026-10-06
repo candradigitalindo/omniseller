@@ -49,6 +49,8 @@ pnpm test:int                  # integrasi: basis data dan Redis sungguhan
 TEST_PG_ADMIN_URL=postgres://postgres@127.0.0.1:5433/postgres TEST_REDIS_URL=redis://127.0.0.1:6379 pnpm test:int
 ```
 
+Paket di `backend/packages` (shared, connector) dipakai backend lewat hasil build-nya (`dist`). Setelah mengubah kode paket, jalankan `pnpm build:packages` (sudah termasuk dalam `pnpm test:int`) sebelum menjalankan satu berkas uji integrasi dengan `vitest run --project integration`. Tanpa itu, tes memakai kode paket yang lama.
+
 ## Web app
 
 Butuh backend yang berjalan (`pnpm dev` di `backend/`, api di port 3000). Semua perintah dari folder `frontend/`; rinciannya di `frontend/README.md`.

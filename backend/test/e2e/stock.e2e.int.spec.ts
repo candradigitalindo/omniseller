@@ -518,7 +518,19 @@ describe("stock push to Shopee (FR-STK-03, FR-WHS-04, 05, FR-MIG-05)", () => {
           .stock_list[0]!.seller_stock.map((s) => s.stock),
       ),
     ).toBe(3);
-    expect((await c.get(`/v1/stock-allocation-rules?storeId=${storeId}`)).body.items).toHaveLength(2);
+    const listed = (await c.get(`/v1/stock-allocation-rules?storeId=${storeId}`)).body.items as {
+      id: string;
+      variant: { sku: string } | null;
+    }[];
+    // a rule for one variant names it; a store-wide rule has none
+    expect(listed.map((r) => [r.id, r.variant?.sku ?? null])).toEqual(
+      expect.arrayContaining([
+        [half.body.id, null],
+        [fixed.body.id, "KAOS-L"],
+      ]),
+    );
+    expect(listed).toHaveLength(2);
+    expect(fixed.body.variant).toMatchObject({ sku: "KAOS-L" });
     const etag = (await c.get(`/v1/stock-allocation-rules/${fixed.body.id}`)).headers.etag as string;
     expect(
       (await c.patch(`/v1/stock-allocation-rules/${fixed.body.id}`, { value: 2 }).set("If-Match", etag)).status,

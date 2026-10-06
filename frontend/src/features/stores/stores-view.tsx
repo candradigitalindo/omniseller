@@ -3,7 +3,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "cn";
-import { AlertTriangle, ArrowRight, Plug, RefreshCw, Store as StoreIcon } from "lucide-react";
+import { AlertTriangle, ArrowRight, Plug, RefreshCw, Settings2, Store as StoreIcon } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -32,7 +33,7 @@ import { useCan, useTimeZone } from "@/lib/session";
 import { type MarketplaceChannel, needsReconnect, STORE_TONE, type Store, sortStores } from "./store-meta";
 
 /** Sends the browser to the marketplace's consent page; it comes back to /integrasi/callback/{channel}. */
-function useStartAuthorization() {
+export function useStartAuthorization() {
   return useMutation({
     mutationFn: (body: { channel: MarketplaceChannel; storeId?: string }) =>
       unwrap(api.POST("/v1/store-authorizations", { body })),
@@ -155,16 +156,25 @@ function StoreCard({ store: s, manage }: { store: Store; manage: boolean }) {
         )}
       </div>
 
-      {manage && !manual && needsReconnect(s.status) && (s.channel === "shopee" || s.channel === "tiktokshop") ? (
-        <Button
-          className="justify-self-start"
-          variant={s.status === "reauth_required" ? "default" : "secondary"}
-          loading={start.isPending}
-          onClick={() => start.mutate({ channel: s.channel as MarketplaceChannel, storeId: s.id })}
-        >
-          <RefreshCw aria-hidden />
-          {t("reconnect")}
-        </Button>
+      {manage ? (
+        <div className="mt-auto flex flex-wrap gap-2">
+          {!manual && needsReconnect(s.status) && (s.channel === "shopee" || s.channel === "tiktokshop") ? (
+            <Button
+              variant={s.status === "reauth_required" ? "default" : "secondary"}
+              loading={start.isPending}
+              onClick={() => start.mutate({ channel: s.channel as MarketplaceChannel, storeId: s.id })}
+            >
+              <RefreshCw aria-hidden />
+              {t("reconnect")}
+            </Button>
+          ) : null}
+          <Button asChild variant="secondary">
+            <Link href={`/integrasi/${s.id}`} aria-label={t("manageNamed", { name: s.name })}>
+              <Settings2 aria-hidden />
+              {t("manage")}
+            </Link>
+          </Button>
+        </div>
       ) : null}
     </article>
   );

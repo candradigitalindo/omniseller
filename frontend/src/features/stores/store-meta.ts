@@ -22,6 +22,11 @@ export const STORE_TONE: Record<StoreStatus, Tone> = {
   disconnected: "neutral",
 };
 
+/** A connection the api works through (backend `USABLE`): reading orders, pushing stock. */
+export function usableStore(status: StoreStatus): boolean {
+  return status === "active" || status === "token_expiring";
+}
+
 /** Statuses whose card offers "Hubungkan ulang". */
 export function needsReconnect(status: StoreStatus): boolean {
   return status === "reauth_required" || status === "token_expiring";

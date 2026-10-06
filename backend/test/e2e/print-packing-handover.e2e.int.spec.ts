@@ -783,7 +783,8 @@ describe("courier handover (FR-SHP-05)", () => {
     // the buyer cancels one parcel after its scan: completing refuses until it comes out
     const cancelled = orders.find((o) => o.order_sn === p2.sn)!;
     cancelled.order_status = "CANCELLED";
-    cancelled.update_time = nowSec();
+    // strictly newer than what the marketplace last said, even within the same second
+    cancelled.update_time = Math.max(nowSec(), cancelled.update_time + 1);
     await pushOrder(tenantId, shopId, cancelled);
     const refused = await handoverMember.post(`/v1/handovers/${hid}/complete`, { receivedBy: "Andi" });
     expect(refused.status).toBe(409);
@@ -833,7 +834,7 @@ describe("courier handover (FR-SHP-05)", () => {
     ]);
     const picked = orders.find((o) => o.order_sn === p1.sn)!;
     picked.order_status = "SHIPPED";
-    picked.update_time = nowSec();
+    picked.update_time = Math.max(nowSec(), picked.update_time + 1);
     await pushOrder(tenantId, shopId, picked);
     expect((await orderBy(c, p1.sn)).status).toBe("shipped");
     expect((await c.get(`/v1/orders/${p1.id}/shipments`)).body.items[0].status).toBe("in_transit");

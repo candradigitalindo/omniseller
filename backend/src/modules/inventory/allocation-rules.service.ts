@@ -26,6 +26,9 @@ export interface RuleInput {
 
 export type RulePatch = Partial<Pick<RuleInput, "mode" | "value" | "buffer" | "priority" | "active">>;
 
+/** A rule with the SKU and name of its variant, so a list can say which product it holds back. */
+export type RuleWithVariant = RuleRow & { variant: { sku: string; productName: string; variantName: string } | null };
+
 function checkValue(mode: RuleMode, value: number): void {
   if (mode === "percent" && value > 100) throw ruleInvalid("value", "Persentase paling besar 100.");
 }
@@ -44,14 +47,17 @@ export class AllocationRulesService {
     @Inject(OUTBOX) private readonly outbox: Outbox,
   ) {}
 
-  async list(ctx: RequestContext, storeId?: string): Promise<RuleRow[]> {
+  async list(ctx: RequestContext, storeId?: string): Promise<RuleWithVariant[]> {
     return withTenantTx(this.db, ctx, async (tx) => {
       const visible = (await this.stores.listIn(tx, ctx)).map((s) => s.id);
-      return this.repo.rules(tx, storeId ? visible.filter((id) => id === storeId) : visible);
+      return this.withVariants(
+        tx,
+        await this.repo.rules(tx, storeId ? visible.filter((id) => id === storeId) : visible),
+      );
     });
   }
 
-  async create(ctx: RequestContext, input: RuleInput): Promise<RuleRow> {
+  async create(ctx: RequestContext, input: RuleInput): Promise<RuleWithVariant> {
     const id = newId();
     await this.unique(() =>
       withTenantTx(this.db, ctx, async (tx) => {
@@ -86,11 +92,11 @@ export class AllocationRulesService {
     return this.get(ctx, id);
   }
 
-  async get(ctx: RequestContext, id: string): Promise<RuleRow> {
-    return withTenantTx(this.db, ctx, (tx) => this.load(tx, ctx, id));
+  async get(ctx: RequestContext, id: string): Promise<RuleWithVariant> {
+    return withTenantTx(this.db, ctx, async (tx) => (await this.withVariants(tx, [await this.load(tx, ctx, id)]))[0]!);
   }
 
-  async update(ctx: RequestContext, id: string, patch: RulePatch, ifMatch?: number): Promise<RuleRow> {
+  async update(ctx: RequestContext, id: string, patch: RulePatch, ifMatch?: number): Promise<RuleWithVariant> {
     await withTenantTx(this.db, ctx, async (tx) => {
       const rule = await this.load(tx, ctx, id, true);
       if (ifMatch !== undefined && rule.rowVersion !== ifMatch) {
@@ -120,6 +126,16 @@ export class AllocationRulesService {
       if (isManualChannel(target.store.channel)) throw storeIsManual();
       if (!target.usable || target.store.syncMode !== "live") throw storeNotLive();
       await this.outbox.enqueue(tx, ctx, stockResyncRequested, { storeId, force: true }, storeId);
+    });
+  }
+
+  private async withVariants(tx: Tx, rows: RuleRow[]): Promise<RuleWithVariant[]> {
+    const variants = await this.repo.variants(tx, [
+      ...new Set(rows.flatMap((r) => (r.variantId ? [r.variantId] : []))),
+    ]);
+    return rows.map((r) => {
+      const v = r.variantId ? variants.get(r.variantId) : undefined;
+      return { ...r, variant: v ? { sku: v.sku, productName: v.productName, variantName: v.variantName } : null };
     });
   }
 

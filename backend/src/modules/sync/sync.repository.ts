@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import type { SyncJobStatus } from "@omniseller/shared";
 import { and, desc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import type { Tx } from "../../db/client";
 import { syncJob, webhookInbox } from "../../db/schema";
@@ -20,11 +21,23 @@ export class SyncRepository {
       .where(eq(syncJob.id, id));
   }
 
-  async listSyncJobs(tx: Tx, storeId: string, before: string | undefined, limit: number): Promise<SyncJobRow[]> {
+  async listSyncJobs(
+    tx: Tx,
+    storeId: string,
+    before: string | undefined,
+    limit: number,
+    status?: SyncJobStatus,
+  ): Promise<SyncJobRow[]> {
     return tx
       .select()
       .from(syncJob)
-      .where(and(eq(syncJob.storeId, storeId), before ? lt(syncJob.id, before) : undefined))
+      .where(
+        and(
+          eq(syncJob.storeId, storeId),
+          before ? lt(syncJob.id, before) : undefined,
+          status ? eq(syncJob.status, status) : undefined,
+        ),
+      )
       .orderBy(desc(syncJob.id))
       .limit(limit + 1);
   }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Permission } from "@/lib/session";
+import type { StoreStatus } from "../stores/store-meta";
 import {
   addressLines,
   canCancel,
@@ -140,7 +141,7 @@ describe("addressLines", () => {
 
 describe("reading a store's orders again", () => {
   it("offers marketplace stores whose connection works", () => {
-    const stores = [
+    const stores: { id: string; channel: string; status: StoreStatus }[] = [
       { id: "a", channel: "shopee", status: "active" },
       { id: "b", channel: "tiktokshop", status: "token_expiring" },
       { id: "c", channel: "shopee", status: "reauth_required" },

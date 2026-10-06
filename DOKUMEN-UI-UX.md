@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.10 |
+| Versi dokumen | 1.11 |
 | Tanggal | 6 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
@@ -751,6 +751,12 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **Isi**: kartu per toko: ikon kanal, nama, status koneksi (Aktif hijau, Perlu hubungkan ulang merah, Mode uji berdampingan kuning), terakhir sinkron, jumlah listing dan yang belum terhubung, tombol "Kelola"; halaman kelola dengan tab: Koneksi (hubungkan ulang, putus), Gudang marketplace (pemetaan, sama dengan L20), Pengaturan sinkron (mode: uji berdampingan atau aktif penuh; buffer stok; aturan pembagian stok), Log sinkron (tabel dengan filter dan pesan yang dapat dipahami). Wizard hubungkan toko: pilih marketplace (kartu besar dengan logo), penjelasan singkat yang akan terjadi, tombol "Lanjut ke Shopee", kembali dengan progres impor.
 - **Aksi utama**: "Hubungkan toko".
 - **Prompt untuk AI**: "Halaman toko terhubung dengan kartu: logo Shopee, 'Toko Utama', pil hijau 'Aktif', 'Sinkron 2 menit lalu', '430 listing, 18 belum terhubung', tombol 'Kelola'. Kartu lain 'Lazada Store' dengan pil merah 'Perlu hubungkan ulang' dan tombol utama 'Hubungkan ulang'. Wizard hubungkan toko langkah 1: grid enam kartu besar marketplace dengan logo, langkah 2: penjelasan 'Anda akan diarahkan ke Shopee untuk memberi izin. Butuh 1 menit.' dan tombol 'Lanjut ke Shopee', langkah 3: progres impor 'Mengambil 430 listing... 62%'."
+- **Di web app** (`/integrasi/{id}`, izin `settings:store`; tab di URL):
+  - **Koneksi**: terhubung sejak, akhir izin, pesanan dan listing terakhir dibaca, peringatan bila panggilan ke marketplace terus gagal. "Hubungkan ulang" (atau "Hubungkan lagi" untuk toko yang sudah diputus) membuka halaman izin marketplace. "Putuskan toko" menawarkan simpan riwayat atau hapus semua data toko; hapus baru bisa setelah nama toko diketik. Setelah diputus, tautan untuk mencabut izin di Shopee ditampilkan.
+  - **Gudang marketplace**: pemetaan yang sama dengan L20, hanya untuk toko ini.
+  - **Pengaturan sinkron**: nama toko, gudang utama, mode. Pindah ke aktif penuh selalu lewat Migrasi Data, yang memeriksa stok dan bisa dibatalkan 24 jam. Halaman ini menawarkan kembali ke mode uji (dengan konfirmasi) dan "Kirim ulang semua stok". Ada juga alokasi gudang otomatis dan tabel aturan pembagian stok: cakupan, bagian stok, cadangan, prioritas, aktif. Dialog aturan menampilkan contoh "dari 20 stok siap jual, toko ini menampilkan 7" dengan hitungan yang sama dengan api. Setiap simpan membawa `If-Match`.
+  - **Log sinkron**: tabel pekerjaan dengan nama yang dipahami penjual, arah (baca atau kirim), hasil, durasi, alasan dari api, jumlah percobaan, dan rincian panggilan bila diminta. Filter Semua, Gagal, atau Dilewati diminta ke api.
+  - Saluran penjualan manual hanya punya nama dan gudang utama.
 
 #### L41 Tim dan Peran, L42 Printer dan Label, L43 Kurir dan Jam Operasional, L44 Notifikasi, L45 Langganan dan Tagihan
 
@@ -987,3 +993,4 @@ Sebelum layar dinyatakan selesai:
 | 1.8 | 6 Oktober 2026 | Pengaturan di web app: catatan L41, L42, L44; layar L46a Ekspor Data dan item sidebarnya; Printer & Label juga untuk pemegang `shipment:print` | Candra Syahputra |
 | 1.9 | 6 Oktober 2026 | L21 Riwayat Stok di web app: nama jenis ("Pesanan dilepas" menggantikan "Batal"), referensi bertaut ke pesanan, retur, opname, dan transfer, garis siap jual atas mutasi yang dimuat dengan satu langkah per mutasi. L19: menu baris "Lihat riwayat stok" dan "Atur minimum & rak" | Candra Syahputra |
 | 1.10 | 6 Oktober 2026 | L03 dan L04 di web app: filter Toko, Gudang, dan Tag, kolom Gudang, pil tag, "Beri tag" dengan kotak tiga keadaan, "Kelola tag", tarik ulang pesanan per toko, pindah gudang, perbarui pelacakan; tag di L04 diubah di kartu Tag | Candra Syahputra |
+| 1.11 | 6 Oktober 2026 | L40 di web app: tombol "Kelola" per toko dan halaman bertab Koneksi (hubungkan ulang, putuskan dengan pilihan simpan atau hapus data), Gudang marketplace, Pengaturan sinkron (nama, gudang utama, kembali ke mode uji, kirim ulang stok, alokasi otomatis, aturan pembagian stok dengan contoh hitungan), Log sinkron (filter hasil, rincian panggilan); aktif penuh tetap lewat Migrasi Data | Candra Syahputra |

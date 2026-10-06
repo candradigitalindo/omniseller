@@ -378,7 +378,7 @@ function ChannelWarehouses({ warehouses }: { warehouses: Warehouse[] }) {
   );
 }
 
-function StoreWarehouses({
+export function StoreWarehouses({
   storeId,
   name,
   channel,

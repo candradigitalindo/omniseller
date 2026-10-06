@@ -2,6 +2,7 @@ import { CircleDashed, type LucideIcon, PackageCheck, Truck, Undo2, XCircle } fr
 import type { Tone } from "@/components/common/page";
 import type { components } from "@/lib/api/schema";
 import type { Permission } from "@/lib/session";
+import { type StoreStatus, usableStore } from "../stores/store-meta";
 
 export type OrderListItem = components["schemas"]["OrderPageDto_Output"]["items"][number];
 export type OrderDetail = components["schemas"]["OrderDto_Output"];
@@ -171,8 +172,8 @@ export function addressLines(address: Record<string, unknown> | null): {
  * Stores whose orders can be read again from the marketplace: marketplace stores whose connection works. A store
  * waiting for its permission again would only fail in the worker; manual channels have nothing to read.
  */
-export function syncableStores<T extends { channel: string; status: string }>(stores: readonly T[]): T[] {
-  return stores.filter((s) => s.channel !== "manual" && (s.status === "active" || s.status === "token_expiring"));
+export function syncableStores<T extends { channel: string; status: StoreStatus }>(stores: readonly T[]): T[] {
+  return stores.filter((s) => s.channel !== "manual" && usableStore(s.status));
 }
 
 /** Statuses an order may move warehouse from (backend `MOVABLE`): before anyone packed it. */

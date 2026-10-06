@@ -1,4 +1,4 @@
-import { ulidSchema } from "@omniseller/shared";
+import { SYNC_JOB_STATUSES, ulidSchema } from "@omniseller/shared";
 import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 import { pageSchema, paginationQuery } from "../../common/http/pagination";
@@ -17,7 +17,11 @@ export class StoreIdParamDto extends createZodDto(z.object({ id: ulidSchema })) 
 export class ChannelWarehouseParamDto extends createZodDto(
   z.object({ id: ulidSchema, channelWarehouseId: ulidSchema }),
 ) {}
-export class SyncJobsQueryDto extends createZodDto(paginationQuery) {}
+export class SyncJobsQueryDto extends createZodDto(
+  paginationQuery.extend({
+    status: z.enum(SYNC_JOB_STATUSES).optional().describe("hanya job dengan status ini, misalnya failed"),
+  }),
+) {}
 
 // ---- channels ----
 
@@ -255,7 +259,7 @@ const syncJobSchema = z.object({
   id: ulidSchema,
   kind: z.string(),
   direction: z.enum(["pull", "push"]),
-  status: z.enum(["queued", "running", "succeeded", "failed", "skipped"]),
+  status: z.enum(SYNC_JOB_STATUSES),
   startedAt: iso.nullable(),
   finishedAt: iso.nullable(),
   durationMs: z.number().int().nullable(),

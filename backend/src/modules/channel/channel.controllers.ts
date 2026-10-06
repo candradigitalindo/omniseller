@@ -199,7 +199,7 @@ export class StoresController {
   @ZodResponse({ type: SyncJobPageDto })
   async syncJobs(@Ctx() ctx: RequestContext, @Param() params: StoreIdParamDto, @Query() query: SyncJobsQueryDto) {
     await this.stores.get(ctx, params.id);
-    const rows = await this.syncLog.list(ctx, params.id, decodeCursor(query.cursor), query.limit);
+    const rows = await this.syncLog.list(ctx, params.id, decodeCursor(query.cursor), query.limit, query.status);
     const p = page(rows, query.limit);
     return { items: p.items.map(syncJobView), next_cursor: p.next_cursor };
   }

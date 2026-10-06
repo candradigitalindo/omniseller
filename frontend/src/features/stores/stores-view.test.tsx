@@ -120,5 +120,13 @@ describe("StoresView", () => {
     await screen.findByText("Toko Kedua");
     expect(screen.queryByRole("button", { name: "Hubungkan toko" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Hubungkan ulang" })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^Kelola/ })).toBeNull();
+  });
+
+  it("opens each store's page from its card", async () => {
+    mockApi({ "GET /v1/stores": () => ({ items: stores }) });
+    renderApp(<StoresView />);
+    const link = await screen.findByRole("link", { name: `Kelola ${stores[0]!.name}` });
+    expect(link).toHaveAttribute("href", `/integrasi/${stores[0]!.id}`);
   });
 });

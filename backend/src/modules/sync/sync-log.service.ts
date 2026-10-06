@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { CallRecord } from "@omniseller/connector-core";
-import { newId } from "@omniseller/shared";
+import { newId, type SyncJobStatus } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
 import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
@@ -93,8 +93,15 @@ export class SyncLogService {
     return this.repo.deleteStoreSyncJobs(tx, storeId, limit);
   }
 
-  async list(ctx: RequestContext, storeId: string, before: string | undefined, limit: number): Promise<SyncJobRow[]> {
-    return withTenantTx(this.db, ctx, (tx) => this.repo.listSyncJobs(tx, storeId, before, limit));
+  /** A store's log, newest first; `status` keeps one outcome ("failed" when looking for what went wrong). */
+  async list(
+    ctx: RequestContext,
+    storeId: string,
+    before: string | undefined,
+    limit: number,
+    status?: SyncJobStatus,
+  ): Promise<SyncJobRow[]> {
+    return withTenantTx(this.db, ctx, (tx) => this.repo.listSyncJobs(tx, storeId, before, limit, status));
   }
 
   private async finish(

@@ -7,8 +7,9 @@ import {
 import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 import { pageSchema, paginationQuery } from "../../common/http/pagination";
+import type { RuleWithVariant } from "./allocation-rules.service";
 import type { InitialStockLine } from "./initial-stock.service";
-import type { InventoryRow, MovementRow, RuleRow, StockSummary } from "./inventory.repository";
+import type { InventoryRow, MovementRow, StockSummary } from "./inventory.repository";
 import type { AdjustmentResult } from "./inventory.service";
 import type { RestockItem } from "./restock.service";
 import type { MovementDocument } from "./stock-history.service";
@@ -341,12 +342,16 @@ const ruleSchema = z.object({
   buffer: count,
   priority: count,
   active: z.boolean(),
+  variant: z
+    .object({ sku: z.string(), productName: z.string(), variantName: z.string() })
+    .nullable()
+    .describe("varian aturan ini, bila aturan untuk satu varian"),
   createdAt: iso,
   updatedAt: iso,
 });
 export class RuleDto extends createZodDto(ruleSchema) {}
 export class RuleListDto extends createZodDto(z.object({ items: z.array(ruleSchema) })) {}
-export function ruleView(r: RuleRow): z.infer<typeof ruleSchema> {
+export function ruleView(r: RuleWithVariant): z.infer<typeof ruleSchema> {
   return {
     id: r.id,
     storeId: r.storeId,
@@ -357,6 +362,7 @@ export function ruleView(r: RuleRow): z.infer<typeof ruleSchema> {
     buffer: r.buffer,
     priority: r.priority,
     active: r.active,
+    variant: r.variant,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
   };

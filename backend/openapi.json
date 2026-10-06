@@ -2886,6 +2886,22 @@
               "default": 50,
               "type": "integer"
             }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "hanya job dengan status ini, misalnya failed",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "queued",
+                "running",
+                "succeeded",
+                "failed",
+                "skipped"
+              ]
+            }
           }
         ],
         "responses": {
@@ -10696,6 +10712,34 @@
                 "active": {
                   "type": "boolean"
                 },
+                "variant": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "sku": {
+                          "type": "string"
+                        },
+                        "productName": {
+                          "type": "string"
+                        },
+                        "variantName": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "sku",
+                        "productName",
+                        "variantName"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "varian aturan ini, bila aturan untuk satu varian"
+                },
                 "createdAt": {
                   "type": "string",
                   "format": "date-time",
@@ -10717,6 +10761,7 @@
                 "buffer",
                 "priority",
                 "active",
+                "variant",
                 "createdAt",
                 "updatedAt"
               ],
@@ -10856,6 +10901,34 @@
           "active": {
             "type": "boolean"
           },
+          "variant": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "sku": {
+                    "type": "string"
+                  },
+                  "productName": {
+                    "type": "string"
+                  },
+                  "variantName": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "sku",
+                  "productName",
+                  "variantName"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "varian aturan ini, bila aturan untuk satu varian"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -10877,6 +10950,7 @@
           "buffer",
           "priority",
           "active",
+          "variant",
           "createdAt",
           "updatedAt"
         ],

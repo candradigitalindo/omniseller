@@ -220,7 +220,7 @@ export function StockHistoryView() {
                           <TableCell className="text-right">
                             <After movement={m} />
                           </TableCell>
-                          <TableCell className="max-w-72">
+                          <TableCell className="max-w-72 min-w-40 whitespace-normal">
                             <Reference movement={m} />
                           </TableCell>
                           <TableCell className="text-[13px] text-text-700">{who(m)}</TableCell>

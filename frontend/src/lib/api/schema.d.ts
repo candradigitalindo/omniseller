@@ -3361,6 +3361,12 @@ export interface components {
         buffer: number;
         priority: number;
         active: boolean;
+        /** @description varian aturan ini, bila aturan untuk satu varian */
+        variant: {
+          sku: string;
+          productName: string;
+          variantName: string;
+        } | null;
         /** Format: date-time */
         createdAt: string;
         /** Format: date-time */
@@ -3400,6 +3406,12 @@ export interface components {
       buffer: number;
       priority: number;
       active: boolean;
+      /** @description varian aturan ini, bila aturan untuk satu varian */
+      variant: {
+        sku: string;
+        productName: string;
+        variantName: string;
+      } | null;
       /** Format: date-time */
       createdAt: string;
       /** Format: date-time */
@@ -8985,6 +8997,8 @@ export interface operations {
       query?: {
         cursor?: string;
         limit?: number;
+        /** @description hanya job dengan status ini, misalnya failed */
+        status?: "queued" | "running" | "succeeded" | "failed" | "skipped";
       };
       header?: never;
       path: {

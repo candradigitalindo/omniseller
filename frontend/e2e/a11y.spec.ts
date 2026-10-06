@@ -32,7 +32,7 @@ test("the daily pages have no serious accessibility problems", async ({ page, bu
   // a stock card with movements, besides the empty one in the list
   const card = `/stok/riwayat?variant=${shop.variants.black.id}&sku=${encodeURIComponent(shop.variants.black.sku)}`;
   const found: string[] = [];
-  for (const path of [...PAGES, card]) {
+  for (const path of [...PAGES, card, `/integrasi/${shop.storeId}`]) {
     await page.goto(path);
     await page.getByRole("heading", { level: 1 }).first().waitFor();
     await page.waitForLoadState("networkidle");

@@ -420,6 +420,11 @@ export class MockMarketplace {
     this.shopeeRefresh.clear();
   }
 
+  /** Access tokens TikTok Shop no longer knows (reset on its side); refresh tokens still work. */
+  forgetTiktokAccessTokens(): void {
+    this.tiktokAccess.clear();
+  }
+
   signShopeePush(callbackUrl: string, body: string): string {
     return hmac(SHOPEE.partnerKey, `${callbackUrl}|${body}`);
   }

@@ -57,12 +57,13 @@ export interface TiktokEnvelope<T> {
 /**
  * Error code classification. `36009004` is reused for several request-validation failures, so its
  * message decides (documented keyword index): an invalid access token header is an expired or revoked
- * token, everything else is a request bug.
+ * token, everything else is a request bug. The token is named both ways ("access_token must be sent",
+ * "The x-tts-access-token header is invalid"), so `_` and `-` count alike.
  */
 export function classifyTiktokError(code: number, message: string, httpStatus: number): ConnectorErrorKind {
-  const m = message.toLowerCase();
+  const m = message.toLowerCase().replace(/[-_]/g, " ");
   if (code === 105002) return "auth_expired";
-  if (code === 36009004 && m.includes("access_token")) return "auth_expired";
+  if (code === 36009004 && m.includes("access token")) return "auth_expired";
   if (code === 36009002 || httpStatus === 429) return "transient";
   if (code === 36009003 || code === 36009007) return "transient";
   if (httpStatus >= 500) return "transient";

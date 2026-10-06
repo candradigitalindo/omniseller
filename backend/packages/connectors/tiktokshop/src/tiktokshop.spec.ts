@@ -6,7 +6,7 @@ import {
 } from "@omniseller/connector-core";
 import { describe, expect, it } from "vitest";
 import { tiktokListingStatus } from "./catalog.js";
-import { tiktokSign, tiktokSignString } from "./client.js";
+import { classifyTiktokError, tiktokSign, tiktokSignString } from "./client.js";
 import { createTiktokShopConnector } from "./connector.js";
 import { chooseTiktokHandover } from "./fulfillment.js";
 import { parseTiktokWebhook, verifyTiktokWebhook } from "./webhooks.js";
@@ -87,6 +87,29 @@ describe("TikTok Shop request signing (Sign your API request)", () => {
     const query = Object.fromEntries(call.url.searchParams);
     const expected = tiktokSign("app-secret", tiktokSignString({ path: call.url.pathname, query }));
     expect(query.sign).toBe(expected);
+  });
+});
+
+describe("TikTok Shop error codes", () => {
+  it("takes an access token TikTok no longer accepts for one to refresh, however the message names it", () => {
+    expect(classifyTiktokError(105002, "Expired credentials.", 401)).toBe("auth_expired");
+    expect(classifyTiktokError(36009004, "Invalid credentials. The x-tts-access-token header is invalid.", 401)).toBe(
+      "auth_expired",
+    );
+    expect(classifyTiktokError(36009004, "access_token must be sent in x-tts-access-token", 401)).toBe("auth_expired");
+    // the same code for a request mistake is not a token problem
+    expect(classifyTiktokError(36009004, "Invalid credentials. Invalid app_key query parameter.", 401)).toBe(
+      "permanent",
+    );
+  });
+
+  it("retries rate limits and server trouble, and nothing else", () => {
+    expect(classifyTiktokError(36009002, "Too many requests", 200)).toBe("transient");
+    expect(classifyTiktokError(0, "", 429)).toBe("transient");
+    expect(classifyTiktokError(36009003, "Internal error", 200)).toBe("transient");
+    expect(classifyTiktokError(36009007, "Service busy", 200)).toBe("transient");
+    expect(classifyTiktokError(1, "Internal", 503)).toBe("transient");
+    expect(classifyTiktokError(12052700, "Invalid product status", 200)).toBe("permanent");
   });
 });
 
