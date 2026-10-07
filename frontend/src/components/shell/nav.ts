@@ -3,6 +3,7 @@ import {
   BarChart3,
   Bell,
   Boxes,
+  Building2,
   ClipboardCheck,
   Copy,
   Database,
@@ -45,7 +46,8 @@ type NavKey =
   | "printers"
   | "notifications"
   | "migration"
-  | "dataExport";
+  | "dataExport"
+  | "businessProfile";
 type GroupKey = "groupHome" | "groupSales" | "groupCatalog" | "groupStock" | "groupAnalytics" | "groupSettings";
 
 export interface NavItem {
@@ -133,6 +135,13 @@ export const NAV: readonly NavGroup[] = [
       { key: "notifications", href: "/notifikasi", icon: Bell, ready: true },
       { key: "migration", href: "/migrasi", icon: Database, permission: "settings:store", ready: true },
       { key: "dataExport", href: "/ekspor", icon: Download, permission: "data:export", ready: true },
+      {
+        key: "businessProfile",
+        href: "/profil-bisnis",
+        icon: Building2,
+        permission: "settings:billing",
+        ready: true,
+      },
     ],
   },
 ];

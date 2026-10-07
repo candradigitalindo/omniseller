@@ -86,6 +86,15 @@ export class IdentityRepository {
     await tx.insert(tenant).values(row);
   }
 
+  /** The business name and time zone (the business profile, backend doc 8.29). */
+  async updateTenant(tx: Tx, id: string, patch: { name?: string; timezone?: string }): Promise<void> {
+    if (patch.name === undefined && patch.timezone === undefined) return;
+    await tx
+      .update(tenant)
+      .set({ ...patch, updatedAt: new Date(), rowVersion: sql`${tenant.rowVersion} + 1` })
+      .where(eq(tenant.id, id));
+  }
+
   async getTenant(tx: Tx, id: string) {
     const [row] = await tx
       .select({ id: tenant.id, name: tenant.name, slug: tenant.slug, status: tenant.status, timezone: tenant.timezone })

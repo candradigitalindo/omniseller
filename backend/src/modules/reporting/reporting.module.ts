@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { BusinessModule } from "../business/business.module";
 import { CatalogModule } from "../catalog/catalog.module";
 import { ChannelModule } from "../channel/channel.module";
 import { IdentityModule } from "../identity/identity.module";
@@ -13,7 +14,7 @@ import { SalesReportService } from "./sales-report.service";
 
 /** Reports read other modules' data through their services; the module owns only `daily_digest` (backend doc 11). */
 @Module({
-  imports: [OrdersModule, InventoryModule, CatalogModule, ChannelModule, IdentityModule],
+  imports: [OrdersModule, InventoryModule, CatalogModule, ChannelModule, IdentityModule, BusinessModule],
   providers: [DashboardService, SalesReportService],
   exports: [DashboardService, SalesReportService],
 })

@@ -202,6 +202,30 @@ export const AUDIT_ENTITIES: Record<string, EntitySpec> = {
       f("apply_requested_at"),
     ],
   },
+  // the logo and a document's file are files: their ids say only that one was set, replaced, or removed
+  business_profile: {
+    label: [],
+    fields: [
+      f("address"),
+      f("phone"),
+      f("logo_file_id", { field: "logo" }),
+      f("nib"),
+      f("nib_in_process_since"),
+      f("npwp"),
+      f("pkp"),
+    ],
+  },
+  business_document: {
+    label: [{ column: "title" }],
+    fields: [
+      f("kind"),
+      f("title"),
+      f("number"),
+      f("issued_on"),
+      f("valid_until"),
+      f("file_object_id", { field: "file" }),
+    ],
+  },
   stock_transfer: {
     label: [{ column: "number" }],
     fields: [

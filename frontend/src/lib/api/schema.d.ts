@@ -356,6 +356,86 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/business-profile": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["BusinessProfileController_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch: operations["BusinessProfileController_update"];
+    trace?: never;
+  };
+  "/v1/business-profile/logo": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["BusinessProfileController_logo"];
+    put: operations["BusinessProfileController_setLogo"];
+    post?: never;
+    delete: operations["BusinessProfileController_removeLogo"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/business-documents": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["BusinessDocumentsController_add"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/business-documents/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: operations["BusinessDocumentsController_remove"];
+    options?: never;
+    head?: never;
+    patch: operations["BusinessDocumentsController_update"];
+    trace?: never;
+  };
+  "/v1/business-documents/{id}/file": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["BusinessDocumentsController_file"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/warehouses": {
     parameters: {
       query?: never;
@@ -3112,6 +3192,117 @@ export interface components {
         id: string;
         name: string;
       }[];
+    };
+    BusinessProfileDto_Output: {
+      /** @description ETag untuk If-Match; 0 sebelum profil pertama kali disimpan */
+      rowVersion: number;
+      name: string;
+      timezone: string;
+      /** @constant */
+      currency: "IDR";
+      address: {
+        line1?: string;
+        district?: string;
+        city?: string;
+        province?: string;
+        postalCode?: string;
+      };
+      phone: string | null;
+      /** @description logo dibaca di GET /v1/business-profile/logo */
+      hasLogo: boolean;
+      nib: string | null;
+      nibInProcessSince: string | null;
+      /** @enum {string} */
+      nibStatus: "registered" | "in_process" | "missing";
+      nibDeadline: string | null;
+      nibDaysLeft: number | null;
+      npwp: string | null;
+      pkp: boolean;
+      documents: {
+        id: string;
+        /** @enum {string} */
+        kind: "nib" | "npwp" | "sppkp" | "deed" | "business_license" | "other";
+        title: string;
+        number: string | null;
+        issuedOn: string | null;
+        validUntil: string | null;
+        /**
+         * @description expiring: habis dalam 30 hari; berlaku sampai akhir tanggal validUntil
+         * @enum {string}
+         */
+        status: "no_expiry" | "valid" | "expiring" | "expired";
+        daysLeft: number | null;
+        fileName: string;
+        /** Format: date-time */
+        createdAt: string;
+      }[];
+      /** @description tanggal hari ini di zona waktu bisnis, dasar status di atas */
+      today: string;
+    };
+    UpdateBusinessProfileDto: {
+      /** @description nama bisnis, juga nama di aplikasi */
+      name?: string;
+      /**
+       * @description WIB, WITA, atau WIT; menentukan hari di laporan
+       * @enum {string}
+       */
+      timezone?: "Asia/Jakarta" | "Asia/Makassar" | "Asia/Jayapura";
+      address?: {
+        line1?: string;
+        district?: string;
+        city?: string;
+        province?: string;
+        postalCode?: string;
+      };
+      phone?: string | null;
+      /** @description Nomor Induk Berusaha; titik dan spasi boleh diketik */
+      nib?: string | null;
+      /** @description sejak kapan NIB sedang diurus; paling lama 6 bulan (Permendag 19/2026) */
+      nibInProcessSince?: string | null;
+      npwp?: string | null;
+      /** @description terdaftar sebagai Pengusaha Kena Pajak */
+      pkp?: boolean;
+    };
+    SetLogoDto: {
+      /** @description PNG, JPG, atau WebP, base64, paling besar 1 MB */
+      content: string;
+    };
+    AddBusinessDocumentDto: {
+      /** @enum {string} */
+      kind: "nib" | "npwp" | "sppkp" | "deed" | "business_license" | "other";
+      /** @description bawaan: nama jenisnya */
+      title?: string;
+      number?: string | null;
+      issuedOn?: string | null;
+      /** @description kosong: berlaku seterusnya */
+      validUntil?: string | null;
+      fileName: string;
+      /** @description PDF, JPG, atau PNG, base64, paling besar 5 MB */
+      content: string;
+    };
+    BusinessDocumentDto_Output: {
+      id: string;
+      /** @enum {string} */
+      kind: "nib" | "npwp" | "sppkp" | "deed" | "business_license" | "other";
+      title: string;
+      number: string | null;
+      issuedOn: string | null;
+      validUntil: string | null;
+      /**
+       * @description expiring: habis dalam 30 hari; berlaku sampai akhir tanggal validUntil
+       * @enum {string}
+       */
+      status: "no_expiry" | "valid" | "expiring" | "expired";
+      daysLeft: number | null;
+      fileName: string;
+      /** Format: date-time */
+      createdAt: string;
+    };
+    UpdateBusinessDocumentDto: {
+      title?: string;
+      number?: string | null;
+      issuedOn?: string | null;
+      validUntil?: string | null;
     };
     WarehouseListDto_Output: {
       items: {
@@ -6893,7 +7084,9 @@ export interface components {
           | "orders_new"
           | "stock_critical"
           | "stores_reconnect"
-          | "listings_unmapped";
+          | "listings_unmapped"
+          | "legal_nib"
+          | "legal_documents";
         /** @enum {string} */
         severity: "critical" | "warning" | "info";
         count: number;
@@ -7905,6 +8098,209 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["AuditPeopleDto_Output"];
         };
+      };
+    };
+  };
+  BusinessProfileController_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BusinessProfileDto_Output"];
+        };
+      };
+    };
+  };
+  BusinessProfileController_update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateBusinessProfileDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BusinessProfileDto_Output"];
+        };
+      };
+    };
+  };
+  BusinessProfileController_logo: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The logo (local storage). */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Redirect to a signed link valid for 10 minutes (R2). */
+      302: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  BusinessProfileController_setLogo: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SetLogoDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BusinessProfileDto_Output"];
+        };
+      };
+    };
+  };
+  BusinessProfileController_removeLogo: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BusinessProfileDto_Output"];
+        };
+      };
+    };
+  };
+  BusinessDocumentsController_add: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AddBusinessDocumentDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BusinessDocumentDto_Output"];
+        };
+      };
+    };
+  };
+  BusinessDocumentsController_remove: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  BusinessDocumentsController_update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateBusinessDocumentDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BusinessDocumentDto_Output"];
+        };
+      };
+    };
+  };
+  BusinessDocumentsController_file: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The document (local storage). */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Redirect to a signed link valid for 10 minutes (R2). */
+      302: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

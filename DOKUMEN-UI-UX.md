@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.14 |
+| Versi dokumen | 1.15 |
 | Tanggal | 7 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
@@ -515,6 +515,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **Aksi utama**: "Proses pesanan baru" (membuka L03 dengan filter Baru).
 - **Keadaan khusus**: belum ada toko terhubung menampilkan kartu besar "Hubungkan toko pertama Anda" dengan tiga langkah; mode uji berdampingan menampilkan banner kuning.
 - **Mobile**: KPI dua kolom, "Perlu tindakan" sebagai daftar vertikal, grafik disederhanakan menjadi satu seri total dengan sakelar kanal.
+- **Di web app**: "Perlu tindakan" juga tampil di bawah kartu "Hubungkan toko pertama Anda" bila bisnis baru sudah punya tugas, misalnya NIB yang belum diisi. Tugas kritis selalu masuk lima kartu teratas. Setiap tombol "Buka" menyebut tugasnya bagi pembaca layar ("Buka: NIB belum diisi ...").
 - **Prompt untuk AI**: "Halaman beranda dasbor penjual multi-marketplace. Bar atas dengan pencarian, pemilih toko 'Semua toko (5)', lonceng. Baris pertama: judul 'Selamat pagi, Rina' dan pemilih rentang 'Hari ini'. Empat kartu KPI putih: 'Penjualan hari ini Rp 18.450.000, naik 12% vs kemarin', 'Pesanan baru 86', 'Hampir terlambat 7' dengan pil kuning, 'Laba bersih perkiraan Rp 4.120.000'. Di bawahnya baris 'Perlu tindakan' berisi kartu-kartu kecil: '7 pesanan harus dikirim sebelum 15.00' dengan tombol 'Proses', '3 produk stok menipis', '12 chat belum dibalas', 'Toko Shopee Utama perlu dihubungkan ulang' dengan pil merah. Grafik garis tipis penjualan 30 hari dengan empat seri Shopee, Tokopedia & Shop, Lazada, Blibli, legenda di atas, label di ujung garis. Dua kartu bawah: bar mendatar 'Produk terlaris' lima produk, dan daftar 'Status toko' dengan ikon kanal dan pil status. Latar abu muda #F4F6F8, kartu putih, aksen biru laut #1E6B8C."
 
 #### L02 Tugas Hari Ini
@@ -804,6 +805,13 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 #### L47 Profil Bisnis dan Legalitas, L48 Integrasi
 
 - **L47**: formulir profil (nama, alamat, logo), legalitas (NIB, NPWP, status PKP, unggah dokumen dengan tanggal berlaku dan pengingat), zona waktu, mata uang. Prompt: "Formulir dua kolom dengan bagian 'Legalitas usaha': input NIB, NPWP, sakelar 'Terdaftar PKP', area unggah dokumen dengan tanggal berlaku dan pil 'Berlaku sampai 2028'. Banner kuning 'NIB wajib sesuai Permendag 19/2026' dengan tautan bantuan."
+- **Di web app** (`/profil-bisnis`, izin `settings:billing`, Owner secara bawaan; item sidebar Pengaturan):
+  - banner NIB di atas: kuning bila NIB belum diisi, hitung mundur bila sedang diurus ("NIB sedang diurus sejak 20 Apr 2026. Batasnya 20 Okt 2026 (13 hari lagi)"), merah bila batas 6 bulan sudah lewat. Banner hilang begitu NIB tersimpan;
+  - kartu "Profil usaha": nama bisnis (juga nama di menu profil), alamat dengan provinsi dari daftar, telepon, zona waktu WIB, WITA, atau WIT (menentukan hari di laporan dan pengingat), mata uang Rupiah tetap;
+  - kartu "Legalitas usaha": NIB dengan pilihan Sudah punya, Sedang diurus (dengan tanggal mulai diurus), atau Belum punya; NPWP 15 angka tampil dengan titik seperti di kartunya (`12.345.678.9-012.000`), NPWP 16 angka apa adanya; sakelar PKP dengan keterangan batas omzet. Nomor boleh diketik dengan titik atau spasi. Kesalahan disebut di field-nya sebelum dikirim. "Simpan perubahan" aktif hanya bila ada perubahan, dan hanya yang berubah yang dikirim;
+  - kartu Logo: unggah, ganti, dan hapus (PNG, JPG, atau WebP, paling besar 1 MB). Mengganti logo tidak menghapus isian formulir yang belum disimpan;
+  - kartu "Dokumen legalitas": setiap dokumen dengan jenis, nomor, tanggal terbit, nama berkas, dan pil masa berlaku (Berlaku seterusnya, Berlaku sampai, kuning "Habis dalam 9 hari", merah "Habis berlaku 1 Okt 2026"); "Lihat" membuka berkasnya di tab baru, "Ubah" untuk dokumen yang diperpanjang (tanggal berlaku baru memulai pengingat lagi), "Hapus" setelah konfirmasi. Dialog "Unggah dokumen": jenis, nama (wajib untuk Dokumen lain), nomor, tanggal terbit, berlaku sampai atau "Berlaku seterusnya", dan berkas PDF, JPG, atau PNG paling besar 5 MB;
+  - pengingat 30 hari dan 7 hari sebelum habis, lalu setelah lewat, datang di lonceng dan email (selalu dikirim) dan membuka halaman ini. Dasbor L01 menampilkan tugas NIB dan dokumen yang habis. Log Audit L41a punya jenis "Profil dan legalitas usaha"; logo dan berkas tampil sebagai ditambahkan, diganti, atau dihapus.
 - **L48**: kartu integrasi (Accurate, Jurnal, agregator ekspedisi, ekstensi riset, API dan webhook keluar) dengan status dan tombol hubungkan; halaman API key dengan pembuatan kunci, cakupan, dan peringatan sekali tampil. Prompt: "Grid kartu integrasi dengan logo, keterangan satu kalimat, pil 'Terhubung' atau tombol 'Hubungkan'. Halaman API: tabel kunci 'os_live_8f2a...' dengan cakupan dan tombol 'Cabut'."
 
 ### 14.9 Layar umum
@@ -1018,3 +1026,4 @@ Sebelum layar dinyatakan selesai:
 | 1.12 | 6 Oktober 2026 | Di web app: "Pindai untuk cetak" (L07), batalkan manifest terbuka (L08), cetak label barcode varian (L14), aktif dan nonaktif listing di marketplace (L15), hapus pemetaan impor tersimpan (L46) | Candra Syahputra |
 | 1.13 | 7 Oktober 2026 | Layar baru L41a Log Audit (filter jenis, pelaku, dan periode; satu blok per tindakan dengan kalimat dan rincian sebelum dan sesudah; HPP disembunyikan tanpa izin keuangan) dan L41b Akun Saya (profil, ubah kata sandi yang mengeluarkan perangkat lain), dibuka dari menu profil. Sidebar Pengaturan mendapat Log Audit setelah Tim & Peran | Candra Syahputra |
 | 1.14 | 7 Oktober 2026 | Di web app: bar aksi untuk yang dipilih melayang di atas navigasi bawah di ponsel dan menempel di bawah bilah atas di layar lebar (pesanan, listing, draf salinan). L41a: perubahan yang dijalankan worker atas permintaan penjual (aktif atau nonaktif listing, terbitkan draf, jawaban retur, terapkan opname) tercatat atas nama penjual itu | Candra Syahputra |
+| 1.15 | 7 Oktober 2026 | L47 Profil Bisnis & Legalitas di web app: banner NIB (belum diisi, sedang diurus dengan hitung mundur 6 bulan, lewat), profil usaha dengan zona waktu, legalitas (NIB, NPWP dengan titik, PKP), logo, dan dokumen legalitas dengan masa berlaku, perpanjang, dan pengingat di lonceng dan email. L01: "Perlu tindakan" juga untuk bisnis yang belum punya toko, dengan nama tugas pada setiap tombol "Buka" | Candra Syahputra |

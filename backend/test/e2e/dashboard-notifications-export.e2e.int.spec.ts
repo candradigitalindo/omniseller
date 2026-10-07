@@ -458,8 +458,10 @@ describe("home dashboard (FR-RPT-01)", () => {
         [elsewhere.storeId, "healthy"],
       ].sort(),
     );
+    // the Owner keeps the legal papers: a business without an NIB is asked for one (backend doc 8.29)
     expect(d.tasks.map((x: { kind: string; count: number }) => [x.kind, x.count])).toEqual([
       ["stock_critical", 1],
+      ["legal_nib", 1],
       ["orders_new", 3],
     ]);
 
@@ -558,6 +560,8 @@ describe("full data export (FR-MIG-09) and the audit of sensitive actions (FR-US
     expect(ready.sizeBytes).toBeGreaterThan(0);
     expect(Date.parse(ready.expiresAt) - Date.parse(ready.finishedAt)).toBeGreaterThan(6.9 * 86_400_000);
     const files = [
+      "profil_bisnis.csv",
+      "dokumen_legalitas.csv",
       "toko.csv",
       "gudang.csv",
       "produk.csv",

@@ -4,6 +4,8 @@ import { noticeHref } from "./notifications";
 describe("noticeHref", () => {
   it("opens the list a notification is about", () => {
     expect(noticeHref({ kind: "order.new", data: {} })).toBe("/pesanan?status=new");
+    // an NIB deadline or a document running out (backend doc 8.29)
+    expect(noticeHref({ kind: "legal.reminder", data: { type: "nib_deadline" } })).toBe("/profil-bisnis");
     expect(noticeHref({ kind: "order.sla", data: {} })).toBe("/pesanan?due=soon");
     expect(noticeHref({ kind: "store.reauth", data: {} })).toBeNull();
   });

@@ -21,6 +21,7 @@ import {
   WAREHOUSE_POLL_SLOT_MS,
 } from "./channel-scans";
 import { DIGEST_SCAN_MS, scanDailyDigests } from "./digest-scan";
+import { LEGAL_SCAN_MS, scanLegalReminders } from "./legal-scan";
 import {
   FILE_CLEANUP_SLOT_MS,
   SLA_ALERT_SLOT_MS,
@@ -97,6 +98,7 @@ export class SchedulerRunner implements OnApplicationBootstrap, OnApplicationShu
       scanReturnNotices(this.system, this.queues, this.registry),
     );
     this.every(RETURN_DUE_SLOT_MS, "return.due_scan", () => scanReturnDue(this.system, this.queues, this.registry));
+    this.every(LEGAL_SCAN_MS, "business.legal_scan", () => scanLegalReminders(this.system, this.queues, this.registry));
     log.info("scheduler started");
   }
 

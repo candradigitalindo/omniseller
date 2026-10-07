@@ -144,6 +144,14 @@ SELECT ensure_trigger('stock_count', 'audit_trg',
      EXECUTE FUNCTION audit_row()');
 SELECT ensure_trigger('stock_transfer', 'audit_trg',
   'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF status ON stock_transfer FOR EACH ROW EXECUTE FUNCTION audit_row()');
+-- Business profile and legal documents (backend doc 8.29): who changed the NIB, NPWP, PKP status, address,
+-- phone, or logo, and who uploaded, renewed, or removed a document. Reminder bookkeeping stays out.
+SELECT ensure_trigger('business_profile', 'audit_trg',
+  'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF address, phone, logo_file_id, nib, nib_in_process_since, npwp, pkp
+     OR DELETE ON business_profile FOR EACH ROW EXECUTE FUNCTION audit_row()');
+SELECT ensure_trigger('business_document', 'audit_trg',
+  'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF kind, title, number, issued_on, valid_until, file_object_id
+     OR DELETE ON business_document FOR EACH ROW EXECUTE FUNCTION audit_row()');
 SELECT ensure_trigger('data_export', 'audit_download_trg',
   'CREATE TRIGGER audit_download_trg AFTER UPDATE ON data_export FOR EACH ROW
      WHEN (OLD.download_count IS DISTINCT FROM NEW.download_count)

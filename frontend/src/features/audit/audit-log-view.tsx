@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUrlParams } from "@/hooks/use-url-params";
 import { api, unwrap } from "@/lib/api/client";
-import { formatDateTime, formatNumber, formatRupiah } from "@/lib/format";
+import { formatDate, formatDateTime, formatNumber, formatRupiah } from "@/lib/format";
 import { useCan, useTimeZone } from "@/lib/session";
 import {
   AUDIT_KINDS,
@@ -23,8 +23,11 @@ import {
   type AuditGroup,
   type AuditKind,
   auditKindOf,
+  DATE_FIELDS,
   DELTA_FIELDS,
+  FILE_FIELDS,
   fieldName,
+  fileChangeKey,
   GROUP_COLLAPSE_AT,
   GROUP_PREVIEW,
   groupEntries,
@@ -244,6 +247,11 @@ function EntryLine({ entry: e }: { entry: AuditEntry }) {
   };
   const text = (c: AuditChange) => {
     if (c.hidden) return t("hidden");
+    if (FILE_FIELDS.has(c.field)) {
+      if (e.change === "created") return t("fileAdded");
+      if (e.change === "deleted") return t("fileRemoved");
+      return t(fileChangeKey(c.before, c.after));
+    }
     const v = (x: unknown) => valueText(e.entityType, c.field, x);
     if (e.change === "updated") return `${v(c.before)} → ${v(c.after)}`;
     return v(e.change === "deleted" ? c.before : c.after);
@@ -283,6 +291,7 @@ function useValueText() {
     }
     if (typeof value === "string") {
       if (MOMENT_FIELDS.has(field) && !Number.isNaN(Date.parse(value))) return formatDateTime(value, tz);
+      if (DATE_FIELDS.has(field) && /^\d{4}-\d{2}-\d{2}$/.test(value)) return formatDate(value, tz);
       if (field === "channel") return channelLabel(value);
       // coded values are named by the screens that set them; the key comes from data, so it is checked first
       const key = valueKey(entityType, field, value) as never;

@@ -57,6 +57,15 @@ const CONNECTED = entry({
   ],
 });
 
+const PROFILE_CHANGED = entry({
+  entityType: "business_profile",
+  label: null,
+  changes: [
+    { field: "logo", before: "01JFILE0000000000000000001", after: "01JFILE0000000000000000002" },
+    { field: "nibInProcessSince", before: null, after: "2026-05-01" },
+  ],
+});
+
 const logCalls = (calls: ApiCall[]) => calls.filter((c) => c.path === "/v1/audit-logs");
 
 beforeEach(() => setUrl("/log-audit"));
@@ -96,6 +105,18 @@ describe("Log Audit", () => {
 
     expect(within(connected).getByText("Sistem")).toBeInTheDocument();
     expect(within(connected).getByText("Tokopedia & Shop")).toBeInTheDocument();
+  });
+
+  it("says a file was replaced instead of showing its id, and dates without a time", async () => {
+    mockApi({
+      "GET /v1/audit-logs/people": () => PEOPLE,
+      "GET /v1/audit-logs": () => ({ items: [PROFILE_CHANGED], next_cursor: null }),
+    });
+    renderApp(<AuditLogView />);
+    expect(await screen.findByText("Mengubah profil bisnis")).toBeInTheDocument();
+    expect(screen.getByText("diganti")).toBeInTheDocument();
+    expect(screen.getByText("— → 1 Mei 2026")).toBeInTheDocument();
+    expect(screen.queryByText(/01JFILE/)).not.toBeInTheDocument();
   });
 
   it("narrows by kind, person, and period through the address and the api", async () => {

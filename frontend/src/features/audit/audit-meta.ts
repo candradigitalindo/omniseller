@@ -14,6 +14,7 @@ export const AUDIT_KINDS = {
   access: ["user_role", "user_store_scope", "user_warehouse_scope", "role", "role_permission"],
   stores: ["store", "channel_warehouse", "warehouse", "device"],
   data: ["data_export", "migration_job", "store_cutover"],
+  business: ["business_profile", "business_document"],
 } as const satisfies Record<string, readonly string[]>;
 export type AuditKind = keyof typeof AUDIT_KINDS;
 
@@ -117,6 +118,11 @@ export const TITLE_KEYS = [
   "stock_transfer_received",
   "stock_transfer_cancelled",
   "stock_transfer_updated",
+  "business_profile_created",
+  "business_profile_updated",
+  "business_document_created",
+  "business_document_updated",
+  "business_document_deleted",
   "other_created",
   "other_updated",
   "other_deleted",
@@ -196,6 +202,16 @@ export const AUDIT_FIELDS = [
   "fromWarehouse",
   "toWarehouse",
   "receiptNote",
+  "logo",
+  "nib",
+  "nibInProcessSince",
+  "npwp",
+  "pkp",
+  "title",
+  "number",
+  "issuedOn",
+  "validUntil",
+  "file",
 ] as const;
 export type AuditFieldName = (typeof AUDIT_FIELDS)[number];
 
@@ -276,6 +292,7 @@ export const VALUE_LABELS: Record<string, [namespace: string, prefix: string]> =
   "listing_draft.status": ["audit", "draft_"],
   "return_request.kind": ["returns", "kind_"],
   "return_request.responseStatus": ["returns", "response_"],
+  "business_document.kind": ["business", "kind_"],
   "stock_count.status": ["counts", "status_"],
   "stock_count.mode": ["counts", "mode_"],
   "stock_transfer.status": ["transfers", "status_"],
@@ -291,6 +308,16 @@ export function valueKey(entityType: string, field: string, value: unknown): str
 export const MONEY_FIELDS = new Set(["costPrice", "basePrice", "price"]);
 export const DELTA_FIELDS = new Set(["onHandDelta", "damagedDelta", "bufferDelta"]);
 export const MOMENT_FIELDS = new Set(["undoUntil", "revokedAt", "receivedAt", "applyRequestedAt"]);
+/** Calendar dates (YYYY-MM-DD), shown without a time. */
+export const DATE_FIELDS = new Set(["issuedOn", "validUntil", "nibInProcessSince"]);
+/** Files: their ids only say one was added, replaced, or removed. */
+export const FILE_FIELDS = new Set(["logo", "file"]);
+
+/** What happened to a file in a change, under `audit.file*`. */
+export function fileChangeKey(before: unknown, after: unknown): "fileAdded" | "fileReplaced" | "fileRemoved" {
+  if (before == null) return "fileAdded";
+  return after == null ? "fileRemoved" : "fileReplaced";
+}
 
 const ADDRESS_PARTS = ["line1", "district", "city", "province", "postalCode"];
 

@@ -3,6 +3,7 @@ import messages from "../../../messages/id.json";
 import {
   AUDIT_FIELDS,
   AUDIT_KINDS,
+  fileChangeKey,
   groupEntries,
   periodFrom,
   plainValue,
@@ -117,6 +118,12 @@ describe("what an entry says", () => {
         where,
       ).toBe(true);
     }
+  });
+
+  it("says what happened to a file without its id", () => {
+    expect(fileChangeKey(null, "01JFILE0000000000000000001")).toBe("fileAdded");
+    expect(fileChangeKey("01JFILE0000000000000000001", "01JFILE0000000000000000002")).toBe("fileReplaced");
+    expect(fileChangeKey("01JFILE0000000000000000001", null)).toBe("fileRemoved");
   });
 
   it("finds the label of a coded value where the screen that sets it keeps it", () => {

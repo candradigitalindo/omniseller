@@ -785,6 +785,257 @@
         }
       }
     },
+    "/v1/business-profile": {
+      "get": {
+        "operationId": "BusinessProfileController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProfileDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "business"
+        ],
+        "x-isolation": "self"
+      },
+      "patch": {
+        "operationId": "BusinessProfileController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBusinessProfileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProfileDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "business"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/business-profile/logo": {
+      "get": {
+        "operationId": "BusinessProfileController_logo",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The logo (local storage)."
+          },
+          "302": {
+            "description": "Redirect to a signed link valid for 10 minutes (R2)."
+          }
+        },
+        "tags": [
+          "business"
+        ],
+        "x-isolation": "self"
+      },
+      "put": {
+        "operationId": "BusinessProfileController_setLogo",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetLogoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProfileDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "business"
+        ],
+        "x-isolation": "self"
+      },
+      "delete": {
+        "operationId": "BusinessProfileController_removeLogo",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessProfileDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "business"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/business-documents": {
+      "post": {
+        "operationId": "BusinessDocumentsController_add",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddBusinessDocumentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessDocumentDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "business"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/business-documents/{id}": {
+      "patch": {
+        "operationId": "BusinessDocumentsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBusinessDocumentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessDocumentDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "business"
+        ],
+        "x-isolation": {
+          "fixture": "business_document"
+        }
+      },
+      "delete": {
+        "operationId": "BusinessDocumentsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "business"
+        ],
+        "x-isolation": {
+          "fixture": "business_document"
+        }
+      }
+    },
+    "/v1/business-documents/{id}/file": {
+      "get": {
+        "operationId": "BusinessDocumentsController_file",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The document (local storage)."
+          },
+          "302": {
+            "description": "Redirect to a signed link valid for 10 minutes (R2)."
+          }
+        },
+        "tags": [
+          "business"
+        ],
+        "x-isolation": {
+          "fixture": "business_document"
+        }
+      }
+    },
     "/v1/warehouses": {
       "get": {
         "operationId": "WarehousesController_list",
@@ -9572,6 +9823,568 @@
           "items"
         ],
         "additionalProperties": false
+      },
+      "BusinessProfileDto_Output": {
+        "type": "object",
+        "properties": {
+          "rowVersion": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "ETag untuk If-Match; 0 sebelum profil pertama kali disimpan"
+          },
+          "name": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string",
+            "const": "IDR"
+          },
+          "address": {
+            "type": "object",
+            "properties": {
+              "line1": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "district": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "city": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "province": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "postalCode": {
+                "type": "string",
+                "pattern": "^[0-9]{5}$"
+              }
+            },
+            "additionalProperties": false
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hasLogo": {
+            "type": "boolean",
+            "description": "logo dibaca di GET /v1/business-profile/logo"
+          },
+          "nib": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nibInProcessSince": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nibStatus": {
+            "type": "string",
+            "enum": [
+              "registered",
+              "in_process",
+              "missing"
+            ]
+          },
+          "nibDeadline": {
+            "anyOf": [
+              {
+                "description": "hari terakhir NIB boleh dalam proses",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nibDaysLeft": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "npwp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pkp": {
+            "type": "boolean"
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "nib",
+                    "npwp",
+                    "sppkp",
+                    "deed",
+                    "business_license",
+                    "other"
+                  ]
+                },
+                "title": {
+                  "type": "string"
+                },
+                "number": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "issuedOn": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "validUntil": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "no_expiry",
+                    "valid",
+                    "expiring",
+                    "expired"
+                  ],
+                  "description": "expiring: habis dalam 30 hari; berlaku sampai akhir tanggal validUntil"
+                },
+                "daysLeft": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "fileName": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "title",
+                "number",
+                "issuedOn",
+                "validUntil",
+                "status",
+                "daysLeft",
+                "fileName",
+                "createdAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "today": {
+            "type": "string",
+            "description": "tanggal hari ini di zona waktu bisnis, dasar status di atas"
+          }
+        },
+        "required": [
+          "rowVersion",
+          "name",
+          "timezone",
+          "currency",
+          "address",
+          "phone",
+          "hasLogo",
+          "nib",
+          "nibInProcessSince",
+          "nibStatus",
+          "nibDeadline",
+          "nibDaysLeft",
+          "npwp",
+          "pkp",
+          "documents",
+          "today"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateBusinessProfileDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "nama bisnis, juga nama di aplikasi",
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80
+          },
+          "timezone": {
+            "description": "WIB, WITA, atau WIT; menentukan hari di laporan",
+            "type": "string",
+            "enum": [
+              "Asia/Jakarta",
+              "Asia/Makassar",
+              "Asia/Jayapura"
+            ]
+          },
+          "address": {
+            "type": "object",
+            "properties": {
+              "line1": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "district": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "city": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "province": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "postalCode": {
+                "type": "string",
+                "pattern": "^[0-9]{5}$"
+              }
+            }
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nib": {
+            "description": "Nomor Induk Berusaha; titik dan spasi boleh diketik",
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nibInProcessSince": {
+            "description": "sejak kapan NIB sedang diurus; paling lama 6 bulan (Permendag 19/2026)",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "npwp": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pkp": {
+            "description": "terdaftar sebagai Pengusaha Kena Pajak",
+            "type": "boolean"
+          }
+        }
+      },
+      "SetLogoDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 7000000,
+            "pattern": "^[A-Za-z0-9+/=\\r\\n]+$",
+            "description": "PNG, JPG, atau WebP, base64, paling besar 1 MB"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      },
+      "AddBusinessDocumentDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "nib",
+              "npwp",
+              "sppkp",
+              "deed",
+              "business_license",
+              "other"
+            ]
+          },
+          "title": {
+            "description": "bawaan: nama jenisnya",
+            "type": "string",
+            "maxLength": 120
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "issuedOn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "validUntil": {
+            "description": "kosong: berlaku seterusnya",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fileName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 7000000,
+            "pattern": "^[A-Za-z0-9+/=\\r\\n]+$",
+            "description": "PDF, JPG, atau PNG, base64, paling besar 5 MB"
+          }
+        },
+        "required": [
+          "kind",
+          "fileName",
+          "content"
+        ]
+      },
+      "BusinessDocumentDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "nib",
+              "npwp",
+              "sppkp",
+              "deed",
+              "business_license",
+              "other"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "issuedOn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "validUntil": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "no_expiry",
+              "valid",
+              "expiring",
+              "expired"
+            ],
+            "description": "expiring: habis dalam 30 hari; berlaku sampai akhir tanggal validUntil"
+          },
+          "daysLeft": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "number",
+          "issuedOn",
+          "validUntil",
+          "status",
+          "daysLeft",
+          "fileName",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateBusinessDocumentDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "issuedOn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "validUntil": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
       },
       "WarehouseListDto_Output": {
         "type": "object",
@@ -28553,7 +29366,9 @@
                     "orders_new",
                     "stock_critical",
                     "stores_reconnect",
-                    "listings_unmapped"
+                    "listings_unmapped",
+                    "legal_nib",
+                    "legal_documents"
                   ]
                 },
                 "severity": {

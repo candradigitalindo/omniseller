@@ -1,10 +1,11 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { RequestContext } from "../../common/context/request-context";
 import { seesCost } from "../../common/cost-visibility";
-import { startOfDate } from "../../common/time-zone";
+import { localDate, startOfDate } from "../../common/time-zone";
 import type { DbHandle } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
+import { BusinessProfileService } from "../business/business-profile.service";
 import { ListingsService } from "../catalog/listings.service";
 import { isManualChannel, StoresService, statusMessage } from "../channel/stores.service";
 import { TenantsService } from "../identity/tenants.service";
@@ -12,6 +13,7 @@ import { InventoryService } from "../inventory/inventory.service";
 import { slaOf } from "../orders/order-plan";
 import { OrdersService } from "../orders/orders.service";
 import {
+  bySeverity,
   changePct,
   type DashboardRange,
   lastDates,
@@ -43,6 +45,7 @@ export class DashboardService {
     @Inject(ListingsService) private readonly listings: ListingsService,
     @Inject(StoresService) private readonly stores: StoresService,
     @Inject(TenantsService) private readonly tenants: TenantsService,
+    @Inject(BusinessProfileService) private readonly business: BusinessProfileService,
   ) {}
 
   async get(ctx: RequestContext, q: { range: DashboardRange; storeId?: string | undefined }) {
@@ -147,15 +150,19 @@ export class DashboardService {
         topProducts,
         criticalStock,
         stores,
-        tasks: tasksFrom({
-          overdue: summary.overdue,
-          dueSoon: summary.dueSoon,
-          problem: summary.statuses.problem ?? 0,
-          newOrders: summary.statuses.new ?? 0,
-          criticalStock: criticalStock?.count ?? null,
-          storesToReconnect: stores.filter((s) => s.health === "problem").length,
-          unmappedListings,
-        }),
+        tasks: bySeverity([
+          ...tasksFrom({
+            overdue: summary.overdue,
+            dueSoon: summary.dueSoon,
+            problem: summary.statuses.problem ?? 0,
+            newOrders: summary.statuses.new ?? 0,
+            criticalStock: criticalStock?.count ?? null,
+            storesToReconnect: stores.filter((s) => s.health === "problem").length,
+            unmappedListings,
+          }),
+          // the NIB and legal papers are the business keeper's (settings:billing, UI L47)
+          ...(can("settings:billing") ? await this.business.legalTasksIn(tx, localDate(timezone, now)) : []),
+        ]),
       };
     });
   }

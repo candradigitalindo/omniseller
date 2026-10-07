@@ -26,6 +26,12 @@ describe("sidebar (DOKUMEN-UI-UX 7.1)", () => {
         .find((g) => g.key === "groupSettings")
         ?.items.map((i) => i.key),
     ).toEqual(["team", "auditLog", "notifications"]);
+    // the business profile and its legal papers are the Owner's (settings:billing)
+    expect(
+      visibleNav(holding("settings:billing"))
+        .find((g) => g.key === "groupSettings")
+        ?.items.map((i) => i.key),
+    ).toEqual(["notifications", "businessProfile"]);
     // copying listings needs catalog:write, which this role does not hold
     expect(owner.find((g) => g.key === "groupCatalog")?.items.map((i) => i.key)).not.toContain("copyListings");
     const warehouse = visibleNav(holding("inventory:read", "inventory:count", "inventory:transfer"));

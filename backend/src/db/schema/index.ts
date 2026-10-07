@@ -1,5 +1,6 @@
 export * from "./audit";
 export * from "./billing";
+export * from "./business";
 export * from "./catalog";
 export * from "./channel";
 export * from "./crm";

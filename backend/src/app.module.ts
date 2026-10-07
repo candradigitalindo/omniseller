@@ -9,6 +9,7 @@ import type { Env } from "./config/env.schema";
 import { InfraModule } from "./infra/infra.module";
 import { AuditHttpModule } from "./modules/audit/audit-http.module";
 import { AuthHttpModule, AuthModule } from "./modules/auth/auth.module";
+import { BusinessHttpModule, BusinessModule } from "./modules/business/business.module";
 import { CatalogHttpModule, CatalogModule, CatalogWorkerModule } from "./modules/catalog/catalog.module";
 import {
   ChannelHttpModule,
@@ -95,6 +96,7 @@ export class AppModule {
             AuthHttpModule,
             IdentityHttpModule,
             AuditHttpModule,
+            BusinessHttpModule,
             InventoryHttpModule,
             ChannelHttpModule,
             CatalogHttpModule,
@@ -154,6 +156,7 @@ export class AppModule {
             MigrationWorkerModule,
             ReportingWorkerModule,
             RetentionWorkerModule,
+            BusinessModule,
           ],
           providers: [WorkerRunner],
         };

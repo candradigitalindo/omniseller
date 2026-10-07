@@ -101,10 +101,28 @@ export function storeHealth(
 }
 
 export interface Task {
-  kind: "orders_due" | "orders_problem" | "orders_new" | "stock_critical" | "stores_reconnect" | "listings_unmapped";
+  kind:
+    | "orders_due"
+    | "orders_problem"
+    | "orders_new"
+    | "stock_critical"
+    | "stores_reconnect"
+    | "listings_unmapped"
+    | "legal_nib"
+    | "legal_documents";
   severity: "critical" | "warning" | "info";
   count: number;
   title: string;
+}
+
+const SEVERITY_RANK = { critical: 0, warning: 1, info: 2 } as const;
+
+/** Most urgent first, keeping the order within one severity (the list shows its first five). */
+export function bySeverity<T extends { severity: keyof typeof SEVERITY_RANK }>(tasks: T[]): T[] {
+  return tasks
+    .map((t, i) => [t, i] as const)
+    .sort((a, b) => SEVERITY_RANK[a[0].severity] - SEVERITY_RANK[b[0].severity] || a[1] - b[1])
+    .map(([t]) => t);
 }
 
 /** "Perlu tindakan": what needs someone now, most urgent first; sections the user may not see are null. */

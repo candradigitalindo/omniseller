@@ -4,7 +4,7 @@ import { newId, SYSTEM_ROLES } from "@omniseller/shared";
 import { type RequestContext, systemContext } from "../../common/context/request-context";
 import { findPgError } from "../../common/errors/problem";
 import { hashPassword } from "../../common/security/password";
-import type { DbHandle } from "../../db/client";
+import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
 import { IdentityRepository } from "./identity.repository";
@@ -55,8 +55,17 @@ export class TenantsService {
 
   /** Name and time zone of the caller's business. */
   async profile(ctx: RequestContext): Promise<{ name: string; timezone: string }> {
-    const t = await withTenantTx(this.db, ctx, (tx) => this.repo.getTenant(tx, ctx.tenantId));
+    return withTenantTx(this.db, ctx, (tx) => this.profileIn(tx, ctx));
+  }
+
+  async profileIn(tx: Tx, ctx: RequestContext): Promise<{ name: string; timezone: string }> {
+    const t = await this.repo.getTenant(tx, ctx.tenantId);
     return { name: t?.name ?? "", timezone: t?.timezone ?? "Asia/Jakarta" };
+  }
+
+  /** Renames the business or moves it to another time zone, in the caller's transaction (L47). */
+  async updateProfileIn(tx: Tx, ctx: RequestContext, patch: { name?: string; timezone?: string }): Promise<void> {
+    await this.repo.updateTenant(tx, ctx.tenantId, patch);
   }
 
   async signup(input: SignupInput): Promise<{ tenantId: string; userId: string }> {

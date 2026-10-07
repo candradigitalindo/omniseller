@@ -42,7 +42,9 @@ export type FilePurpose =
   | "settlement"
   | "tax_document"
   | "evidence"
-  | "other";
+  | "other"
+  | "legal_document"
+  | "logo";
 
 /** tenant_id is NULL for system files. */
 export const fileObject = pgTable("file_object", {

@@ -8,6 +8,7 @@ import type { ExportLookups, ExportSheet } from "../../common/export-sheet";
 import type { DbHandle } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
+import { BusinessProfileService } from "../business/business-profile.service";
 import { ListingsService } from "../catalog/listings.service";
 import { ProductTransferService } from "../catalog/product-transfer.service";
 import { StoresService } from "../channel/stores.service";
@@ -68,11 +69,13 @@ export class ExportRenderService {
     @Inject(ReturnsService) private readonly returns: ReturnsService,
     @Inject(StockCountService) private readonly stockCounts: StockCountService,
     @Inject(StockTransferService) private readonly stockTransfers: StockTransferService,
+    @Inject(BusinessProfileService) private readonly business: BusinessProfileService,
   ) {}
 
   /** Every sheet, in ZIP order: the business's setup, the catalog, stock, then orders. */
   sheets(): ExportSheet[] {
     return [
+      ...this.business.exportSheets(),
       ...this.stores.exportSheets(),
       ...this.warehouses.exportSheets(),
       ...this.products.exportSheets(),

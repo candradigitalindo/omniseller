@@ -65,6 +65,8 @@ const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: s
     shopId: "1",
   }),
   StoresController_update: () => ({ name: "Penyusup" }),
+  BusinessDocumentsController_update: () => ({ title: "Penyusup" }),
+  BusinessDocumentsController_remove: () => ({}),
   StoresController_disconnect: () => ({}),
   StoresController_syncWarehouses: () => ({}),
   StoresController_mapChannelWarehouse: ({ a: ids }) => ({ warehouseId: ids.warehouse! }),
@@ -210,6 +212,14 @@ beforeAll(async () => {
   fixtures.invitation = { id: invite.body.id };
   const audit = await a.c.get("/v1/audit-logs?limit=1");
   fixtures.audit = { id: audit.body.items[0].id };
+  // a legal document of tenant A (a 1-page PDF header is enough for the type check)
+  const legal = await a.c.post("/v1/business-documents", {
+    kind: "nib",
+    fileName: "nib.pdf",
+    content: Buffer.from("%PDF-1.4\n%%EOF\n").toString("base64"),
+  });
+  expect(legal.status, JSON.stringify(legal.body)).toBe(201);
+  fixtures.business_document = { id: legal.body.id };
 
   const warehouses = (await a.c.get("/v1/warehouses")).body.items as { id: string }[];
   fixtures.warehouse = { id: warehouses[0]!.id };
@@ -512,7 +522,8 @@ describe("tenant isolation generated from openapi.json", () => {
     expect(theirs.body.sales).toMatchObject({ orders: 0, revenue: 0 });
     expect(theirs.body.urgentOrders).toEqual([]);
     expect(theirs.body.stores).toEqual([]);
-    expect(theirs.body.tasks).toEqual([]);
+    // only B's own: its missing NIB (backend doc 8.29), never A's orders
+    expect(theirs.body.tasks.map((t: { kind: string }) => t.kind)).toEqual(["legal_nib"]);
     expect((await a.c.get("/v1/reports/sales")).body.summary).toMatchObject({ orders: 1, revenue: 50000 });
     expect((await b.c.get("/v1/tags")).body.items).toEqual([]);
     const theirSales = await b.c.get("/v1/reports/sales");

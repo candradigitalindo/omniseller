@@ -2,9 +2,9 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.26 |
+| Versi dokumen | 1.27 |
 | Tanggal | 7 Oktober 2026 |
-| Status | Keputusan final untuk implementasi; fondasi (bagian 4 sampai 9, 12, 13), identitas, autentikasi, dan audit (8.1, 8.10), koneksi toko Shopee dan Tokopedia & Shop (8.6, 8.11), katalog, listing, dan pemetaan SKU (7.8.3, 8.12), stok, penyesuaian, dan push stok ke marketplace (7.8.4, 8.13, 9.4), pesanan dari Shopee dan Tokopedia & Shop (7.8.6, 7.9, 8.14, 10.6), pengiriman, label, pick list, dan peringatan batas kirim (8.15), dasbor, notifikasi in-app, ekspor data penuh, dan audit aksi sensitif (8.16 sampai 8.18), migrasi dari aplikasi lain dengan mode paralel dan cutover (8.19), laporan penjualan, daftar perlu restock, ringkasan email harian, dan preferensi notifikasi (8.20), banyak gudang fisik, pesanan manual, alokasi gudang otomatis, dan tag pesanan (8.21), pelacakan paket, daftar kemas, dan template label kustom (8.22), putus toko dengan atau tanpa data, peringatan koneksi, riwayat produk, dan barcode (8.23), agen cetak, scan untuk cetak, kemas dengan scan, serah terima kurir dengan manifest, dan visibilitas HPP (8.24), salin listing antar toko sendiri (8.25), retur, refund, permintaan batal pembeli, dan paket kembali (8.26), stok opname dan transfer stok antar gudang (8.27), serta log audit yang terbaca (8.28) sudah diimplementasikan di folder `backend/` |
+| Status | Keputusan final untuk implementasi; fondasi (bagian 4 sampai 9, 12, 13), identitas, autentikasi, dan audit (8.1, 8.10), koneksi toko Shopee dan Tokopedia & Shop (8.6, 8.11), katalog, listing, dan pemetaan SKU (7.8.3, 8.12), stok, penyesuaian, dan push stok ke marketplace (7.8.4, 8.13, 9.4), pesanan dari Shopee dan Tokopedia & Shop (7.8.6, 7.9, 8.14, 10.6), pengiriman, label, pick list, dan peringatan batas kirim (8.15), dasbor, notifikasi in-app, ekspor data penuh, dan audit aksi sensitif (8.16 sampai 8.18), migrasi dari aplikasi lain dengan mode paralel dan cutover (8.19), laporan penjualan, daftar perlu restock, ringkasan email harian, dan preferensi notifikasi (8.20), banyak gudang fisik, pesanan manual, alokasi gudang otomatis, dan tag pesanan (8.21), pelacakan paket, daftar kemas, dan template label kustom (8.22), putus toko dengan atau tanpa data, peringatan koneksi, riwayat produk, dan barcode (8.23), agen cetak, scan untuk cetak, kemas dengan scan, serah terima kurir dengan manifest, dan visibilitas HPP (8.24), salin listing antar toko sendiri (8.25), retur, refund, permintaan batal pembeli, dan paket kembali (8.26), stok opname dan transfer stok antar gudang (8.27), log audit yang terbaca (8.28), serta profil bisnis dan legalitas (8.29) sudah diimplementasikan di folder `backend/` |
 | Pemilik dokumen | Candra Syahputra |
 | Dokumen terkait | DOKUMEN-SPESIFIKASI-APLIKASI.md (PRD) versi 1.11, DOKUMEN-TEKNOLOGI.md versi 1.18; web app di `frontend/README.md` |
 | Audiens | Engineer backend, tech lead, QA, dan **agen AI** yang mengerjakan basis kode |
@@ -608,7 +608,7 @@ erDiagram
 | `timezone` | `text` | NOT NULL DEFAULT `'Asia/Jakarta'` |
 | `status` | `text` | NOT NULL, CHECK IN (`active`, `suspended`, `closing`, `closed`) |
 | `plan_id` | `ulid` | NOT NULL → `plan(id)` RESTRICT |
-| `legal` | `jsonb` | NOT NULL DEFAULT `{}`; bentuk: `{nib, npwp, pkp: bool, documents: []}` |
+| `legal` | `jsonb` | NOT NULL DEFAULT `{}`; tidak dipakai: profil dan dokumen legalitas ada di `business_profile` dan `business_document` (7.8.12, 8.29); dibuang di langkah contract kemudian |
 | `settings` | `jsonb` | NOT NULL DEFAULT `{}` |
 | `created_at`, `updated_at`, `row_version` | | Standar |
 
@@ -1159,7 +1159,7 @@ Semua tabel di skema `research`. `research_source` global. Tidak ada kunci asing
 | `review_insight` | `research_item_id`, `period_start date`, `star_distribution jsonb`, `complaint_themes jsonb`, `praise_themes jsonb`, `sample_size integer` | → `research_item` CASCADE; UNIQUE `(research_item_id, period_start)` |
 | `research_consent` | `user_id`, `text_version text`, `accepted_at` | `user_id → public.user` RESTRICT; UNIQUE `(tenant_id, user_id, text_version)` |
 
-#### 7.8.12 Migrasi, kampanye, notifikasi, billing, platform, berkas, dan audit
+#### 7.8.12 Migrasi, kampanye, notifikasi, profil bisnis, billing, platform, berkas, dan audit
 
 | Tabel | Kolom penting | Batasan dan relasi |
 |---|---|---|
@@ -1171,10 +1171,12 @@ Semua tabel di skema `research`. `research_source` global. Tidak ada kunci asing
 | `campaign_plan` | `campaign_id`, `forecast jsonb`, `buffer_plan jsonb`, `staffing jsonb`, `status CHECK IN ('draft','ready','running','evaluated')`, `evaluation jsonb` | `campaign_id → campaign(id)` RESTRICT; UNIQUE `(tenant_id, campaign_id)` |
 | `courier_cutoff` | `warehouse_id`, `courier_code text`, `cutoff_time time`, `days_of_week smallint[]`, `active boolean` | → `warehouse` CASCADE; UNIQUE `(warehouse_id, courier_code)`; CHECK setiap elemen `days_of_week BETWEEN 0 AND 6` (fungsi) |
 | `operating_hours` | `name`, `schedule jsonb`, `valid_from date`, `valid_to date`, `is_default boolean` | UNIQUE parsial `(tenant_id) WHERE is_default` |
-| `notification` | `user_id` (satu baris per penerima; NULL berarti semua pengguna, belum dipakai), `kind text` (`order.new`, `order.sla`, `stock.critical`, `store.reauth_required`, `store.authorization_expiring`, `sync.stock_push_failed`, `export.ready`, `export.failed`, `migration.validated`, `migration.invalid`, `migration.imported`, `migration.failed`, `store.warehouses_changed`, `store.connection_lost`, `store.connection_restored`; 8.17, 8.23), `severity CHECK IN ('info','warning','critical')`, `title`, `body`, `data jsonb`, `channels_sent jsonb` (`{in_app: true}`, ditambah `email` berisi waktu kirim bila juga dikirim lewat email), `read_at` | `user_id → user` CASCADE; INDEX `(tenant_id, user_id, read_at, id DESC)`; migrasi 0007. Hanya penerimanya yang membaca dan menandai (8.15) |
+| `notification` | `user_id` (satu baris per penerima; NULL berarti semua pengguna, belum dipakai), `kind text` (`order.new`, `order.sla`, `stock.critical`, `store.reauth_required`, `store.authorization_expiring`, `sync.stock_push_failed`, `export.ready`, `export.failed`, `migration.validated`, `migration.invalid`, `migration.imported`, `migration.failed`, `store.warehouses_changed`, `store.connection_lost`, `store.connection_restored`, `legal.reminder`; 8.17, 8.23, 8.29), `severity CHECK IN ('info','warning','critical')`, `title`, `body`, `data jsonb`, `channels_sent jsonb` (`{in_app: true}`, ditambah `email` berisi waktu kirim bila juga dikirim lewat email), `read_at` | `user_id → user` CASCADE; INDEX `(tenant_id, user_id, read_at, id DESC)`; migrasi 0007. Hanya penerimanya yang membaca dan menandai (8.15) |
 | `notification_preference` | `user_id`, `kind text CHECK (kind ~ '^[a-z_]+(\.[a-z_]+)+$')` (sekarang `digest.daily`), `in_app boolean DEFAULT true`, `email boolean DEFAULT false`, `whatsapp boolean DEFAULT false`. Tanpa baris berarti bawaan jenis itu (`PREFERENCE_KINDS`) | `user_id → user` CASCADE; UNIQUE `(tenant_id, user_id, kind)`; migrasi 0010. Hanya pemiliknya yang membaca dan mengubah (8.20) |
 | `daily_digest` | `digest_date date` (tanggal lokal bisnis saat email dikirim), `recipients integer CHECK (>= 0)` | UNIQUE `(tenant_id, digest_date)`: klaim satu putaran ringkasan harian per bisnis dan tanggal, sehingga job yang diulang tidak mengirim dua kali; migrasi 0010 (8.20) |
 | `idempotency_record` | `scope text` (`order.manual`), `key text CHECK (panjang 8 sampai 100)`, `request_hash text` (SHA-256 body yang sudah divalidasi; body sendiri tidak disimpan), `resource_id ulid`, `created_by` | UNIQUE `(tenant_id, scope, key)`; `created_by → user` SET NULL; migrasi 0011. Ditulis `claimIdempotencyKey` (`common/idempotency.ts`) di transaksi yang membuat rekamannya (10.2) |
+| `business_profile` | `address jsonb` (`{line1, district, city, province, postalCode}`), `phone CHECK (~ '^\+?[0-9]{8,15}$')`, `logo_file_id`, `nib CHECK (13 angka)`, `nib_in_process_since date`, `nib_reminded_stage CHECK IN ('30d','7d','passed')`, `npwp CHECK (15 atau 16 angka)`, `pkp boolean DEFAULT false` | UNIQUE `(tenant_id)`: satu per bisnis, dibuat saat pertama disimpan; CHECK NIB atau tanggal mulai diurus, tidak keduanya; `logo_file_id → file_object` SET NULL (`logo_file_id`); diaudit tanpa tahap pengingat; migrasi 0019 (8.29) |
+| `business_document` | `kind CHECK IN ('nib','npwp','sppkp','deed','business_license','other')`, `title` (1 sampai 120 karakter), `number` NULL, `issued_on date`, `valid_until date` (NULL: berlaku seterusnya), `file_object_id`, `file_name`, `reminded_stage CHECK IN ('30d','7d','expired')`, `created_by` | `file_object_id → file_object` RESTRICT; CHECK `valid_until >= issued_on`; INDEX `(tenant_id, id DESC)` dan `(valid_until) WHERE valid_until IS NOT NULL AND reminded_stage IS DISTINCT FROM 'expired'` (pemindai pengingat lintas tenant, jadi tanpa `tenant_id` di depan); diaudit tanpa tahap pengingat; migrasi 0019 (8.29) |
 | `plan` (global) | `code text UNIQUE`, `name`, `limits jsonb` (toko, gudang, pesanan per bulan, pengguna, tautan riset, token AI), `features text[]`, `price_monthly bigint`, `active boolean` | |
 | `subscription` | `plan_id`, `status CHECK IN ('trialing','active','past_due','cancelled','expired')`, `current_period_start`, `current_period_end`, `xendit_customer_id text`, `xendit_plan_id text`, `cancel_at` | `plan_id → plan(id)` RESTRICT; UNIQUE parsial `(tenant_id) WHERE status IN ('trialing','active','past_due')` |
 | `invoice` | `subscription_id`, `xendit_invoice_id text`, `amount bigint`, `status CHECK IN ('pending','paid','expired','void')`, `due_at`, `paid_at`, `pdf_file_id` | → `subscription` RESTRICT; UNIQUE parsial `(xendit_invoice_id) WHERE xendit_invoice_id IS NOT NULL` |
@@ -1185,7 +1187,7 @@ Semua tabel di skema `research`. `research_source` global. Tidak ada kunci asing
 | `ai_call_log` (partisi bulanan, tanpa `updated_at` dan `row_version`) | `route`, `model`, `prompt_version`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cost_micro_usd bigint`, `stop_reason text`, `latency_ms integer`, `reference_type`, `reference_id` | INDEX `(tenant_id, route, id DESC)` |
 | `ai_budget` | `period text`, `token_limit bigint`, `tokens_used bigint` | UNIQUE `(tenant_id, period)` |
 | `data_export` | `status` (7.9), `status_changed_at`, `file_object_id`, `size_bytes bigint CHECK (>= 0)`, `result jsonb` (`{files: [{name, rows}]}`), `error text`, `requested_by`, `finished_at`, `expires_at`, `download_count integer NOT NULL DEFAULT 0 CHECK (>= 0)`, `last_downloaded_at` | `file_object_id → file_object` SET NULL (`file_object_id`), `requested_by → user` SET NULL (`requested_by`); INDEX `(tenant_id, id DESC)`; UNIQUE parsial `(tenant_id) WHERE status IN ('queued','running')` (satu ekspor berjalan per bisnis); audit saat dibuat dan setiap `download_count` berubah; migrasi 0008 (8.18) |
-| `file_object` | `tenant_id` NULL untuk berkas sistem, `bucket text`, `object_key text`, `mime text`, `size_bytes bigint`, `sha256 text`, `purpose CHECK IN ('product_image','label','pick_list','export','import','settlement','tax_document','evidence','other')`, `expires_at`, `created_by` | UNIQUE `(bucket, object_key)`; CHECK `size_bytes > 0` |
+| `file_object` | `tenant_id` NULL untuk berkas sistem, `bucket text`, `object_key text`, `mime text`, `size_bytes bigint`, `sha256 text`, `purpose CHECK IN ('product_image','label','pick_list','export','import','settlement','tax_document','evidence','other','legal_document','logo')` (dua terakhir sejak migrasi 0019), `expires_at`, `created_by` | UNIQUE `(bucket, object_key)`; CHECK `size_bytes > 0` |
 | `audit_log` (partisi bulanan, hanya tambah, tanpa `updated_at` dan `row_version`) | `actor_type CHECK IN ('user','system','api_key','device')`, `actor_id text`, `request_id text`, `action text`, `entity_type text`, `entity_id ulid`, `before jsonb`, `after jsonb`, `ip inet` | INDEX `(tenant_id, entity_type, entity_id, id DESC)`, `(tenant_id, id DESC)`, dan `(tenant_id, actor_id, id DESC) WHERE actor_id IS NOT NULL` (0018); trigger `audit_log_immutable`; id dari `gen_ulid()` (7.7); hanya ditulis trigger `audit_row` |
 
 ### 7.9 Mesin status
@@ -1573,7 +1575,7 @@ Implementasi: modul `reporting` (`DashboardService`; keputusan murni di `dashboa
 - **Pesanan**: jumlah per status (semua status, nol ikut), terlambat, jatuh tempo dalam 6 jam, COD yang belum cair, dan 5 pesanan paling mendesak beserta SLA.
 - **Stok kritis** (`inventory:read`): stok yang sudah ditetapkan (`stock_set_at`) dengan `available <= 0` atau `<= min_stock`, varian aktif; jumlah (`count(*) OVER ()`) dan 5 teratas.
 - **Toko**: kesehatan setiap toko yang tidak diputus (`storeHealth`): `problem` bila harus dihubungkan ulang; `attention` bila izin segera berakhir, impor 90 hari masih berjalan, pesanan terakhir tersinkron lebih dari 30 menit lalu, ada gudang marketplace yang belum dipetakan, atau mode baca saja; selain itu `healthy`.
-- **Perlu tindakan** (`tasksFrom`): pesanan jatuh tempo (kritis bila ada yang terlambat), toko yang harus dihubungkan ulang, pesanan bermasalah, stok kritis, pesanan baru, listing yang belum terpetakan (`catalog:read`), urut dari yang paling mendesak.
+- **Perlu tindakan** (`tasksFrom`): pesanan jatuh tempo (kritis bila ada yang terlambat), toko yang harus dihubungkan ulang, pesanan bermasalah, stok kritis, pesanan baru, listing yang belum terpetakan (`catalog:read`), serta NIB dan dokumen legalitas (`settings:billing`, 8.29); urut dari yang paling mendesak (`bySeverity`: kritis, peringatan, info, dengan urutan asal di tingkat yang sama).
 
 Bagian yang izinnya tidak dimiliki pengguna bernilai `null`. `storeId` di luar cakupan pemanggil memberi 404. Belum di-cache; DOKUMEN-TEKNOLOGI 7.2 menyiapkan cache 30 detik per pengguna bila beban menuntut. Diukur dengan proses sungguhan: 26 ms.
 
@@ -1597,6 +1599,7 @@ Notifikasi ditulis di transaksi modul yang memutuskan, lewat `NotificationInboxS
 | `return.due_soon` | Pengajuan menunggu keputusan dengan tenggat marketplace dalam 12 jam, sekali per tenggat (FR-RET-07) | `return:respond` | Scheduler `return.due_scan` (15 menit), job `return.due_alert` (`ReturnAlertsService.alertDue`) |
 | `stock_count.review` | Stok opname selesai dihitung dan menunggu persetujuan (8.27) | `inventory:adjust`, cakupan gudang | `StockCountService.submit` (api) |
 | `stock_transfer.sent` | Transfer stok dikirim ke gudang tujuan; penerimaannya perlu dicatat (8.27) | `inventory:transfer`, cakupan gudang tujuan | `StockTransferService.send` (api) |
+| `legal.reminder` | Batas 6 bulan NIB dalam proses atau dokumen legalitas yang akan habis berlaku: 30 hari dan 7 hari sebelumnya, lalu setelah lewat, sekali per tahap (8.29) | `settings:billing`, juga lewat email | Scheduler `business.legal_scan` (setiap jam), job `business.legal_alert` (`BusinessProfileService.alertLegal`) |
 
 Aturannya:
 
@@ -1617,6 +1620,8 @@ Implementasi: modul `exports` (`ExportsService` di api, `ExportRenderService` di
 
 | Berkas | Pemilik sheet | Isi |
 |---|---|---|
+| `profil_bisnis.csv` | `business` (`BusinessProfileService`) | Alamat, telepon, NIB atau NIB dalam proses, NPWP, PKP (8.29) |
+| `dokumen_legalitas.csv` | `business` | Jenis, judul, nomor, tanggal terbit, berlaku sampai, dan nama berkas dokumen legalitas; berkasnya tidak ikut |
 | `toko.csv` | `channel` (`StoresService`) | Toko, termasuk yang sudah diputus |
 | `gudang.csv` | `inventory` (`WarehousesService`) | Gudang, termasuk yang sudah dihapus, dengan alamat, kontak, dan telepon per kolom |
 | `produk.csv` | `catalog` (`ProductTransferService`) | Kolom templat impor produk (8.12), jadi bisa diimpor ulang |
@@ -2385,6 +2390,45 @@ Sebelumnya, misalnya, listing yang dinonaktifkan penjual tercatat "Sistem: Statu
 
 Belum termasuk: ekspor bulanan ke R2 (`audit.export_monthly`) dan pencarian teks.
 
+### 8.29 Profil bisnis dan legalitas
+
+Implementasi:
+- modul `business`:
+  - `business-plan.ts` (murni, uji unit): status NIB (`registered`, `in_process`, `missing`), batas 6 bulan NIB dalam proses (`nibDeadline`; hari terakhir bulan bila bulannya lebih pendek, misalnya 31 Agustus menjadi 28 atau 29 Februari), status dokumen, tahap pengingat yang jatuh tempo, dan tugas dasbor;
+  - `BusinessProfileService` dengan `BusinessRepository`; `BusinessHttpModule` memasang controller di api, `BusinessModule` dipakai worker, dasbor, dan ekspor;
+- nama bisnis dan zona waktu tetap di `tenant` dan diubah lewat `TenantsService.updateProfileIn` di transaksi profil. Kolom `tenant.legal` tidak pernah dipakai dan dibiarkan untuk langkah contract kemudian;
+- berkas lewat `FilesService` dengan tujuan baru `legal_document` dan `logo`. Jenis berkas dibaca dari isinya (`common/file-type.ts`, `sniffFileType`), bukan dari nama atau MIME kiriman klien;
+- `common/http/send-download.ts` (`sendDownload`): satu cara mengirim berkas, yaitu redirect ke tautan R2 10 menit atau berkasnya (penyimpanan lokal); dipakai juga `GET /v1/files/{id}/download`;
+- migrasi `0019_business_profile.sql`.
+
+PRD: 6.13 dan 12 (Permendag 19/2026); layar L47 Profil Bisnis & Legalitas (DOKUMEN-UI-UX).
+
+**Profil.** Satu baris `business_profile` per bisnis, dibuat saat pertama kali disimpan; sebelum itu `GET` memberi profil kosong dengan `rowVersion` 0. Isinya alamat (`line1`, `district`, `city`, `province` dengan ejaan baku seperti gudang, `postalCode` 5 angka), telepon, logo, NIB 13 angka atau tanggal NIB mulai diurus, NPWP 15 atau 16 angka, dan PKP. Penjual boleh berjualan sambil mengurus NIB paling lama 6 bulan (Permendag 19/2026), jadi NIB dan tanggal mulai diurus tidak boleh terisi bersamaan (CHECK, dan 422 di api).
+
+- `GET /v1/business-profile` mengembalikan `ETag`. Respons membawa `nibStatus`, `nibDeadline`, `nibDaysLeft`, dokumen dengan `status` dan `daysLeft`, dan `today`: tanggal hari ini di zona waktu bisnis, dasar semua hitungan hari.
+- `PATCH /v1/business-profile` menerima `If-Match` seperti endpoint lain (8.8), dengan `"0"` sebelum disimpan pertama kali. Hanya field yang dikirim yang berubah. Nomor boleh diketik dengan titik, strip, garis miring, atau spasi; yang disimpan hanya angkanya. Mengisi NIB mengakhiri proses. Tanggal mulai diurus tidak boleh setelah hari ini. Mengganti nama atau zona waktu (WIB, WITA, WIT) juga menaikkan versi profil, sehingga satu ETag mencakup semuanya. Tanggal mulai diurus yang baru memulai pengingat NIB lagi.
+- `GET`, `PUT`, `DELETE /v1/business-profile/logo`: PNG, JPG, atau WebP base64 paling besar 1 MB. Logo lama kedaluwarsa dan dihapus pembersih berkas per jam (`files.cleanup_scan`). `GET` tanpa logo memberi 404 `business_profile.no_logo`.
+
+**Dokumen.** `business_document`: jenis (`nib`, `npwp`, `sppkp`, `deed`, `business_license`, `other`), judul (bawaan nama jenisnya), nomor, tanggal terbit, berlaku sampai (kosong berarti berlaku seterusnya), dan berkasnya. Statusnya `no_expiry`, `valid`, `expiring` (habis dalam 30 hari), atau `expired`; dokumen berlaku sampai akhir tanggal `valid_until`.
+
+- `POST /v1/business-documents` (201): PDF, JPG, atau PNG base64 paling besar 5 MB; berkas lain ditolak 422 pada `content`. Berkas disimpan dulu, lalu barisnya ditulis.
+- `PATCH /v1/business-documents/{id}`: judul, nomor, dan tanggal. Tanggal berlaku yang baru (dokumen diperpanjang) memulai pengingatnya lagi. Tanggal berlaku sebelum tanggal terbit memberi 422 `business_document.dates`.
+- `DELETE /v1/business-documents/{id}` (204): barisnya dihapus dan berkasnya kedaluwarsa.
+- `GET /v1/business-documents/{id}/file`: berkasnya (`inline`, dengan nama berkas aslinya), atau redirect ke tautan R2 10 menit.
+
+Semua endpoint ini `settings:billing` (Owner secara bawaan): NIB, NPWP, dan PKP adalah pernyataan bisnis, dan Admin tidak memegangnya. Dokumen di luar bisnis pemanggil memberi 404 (uji isolasi `business_document`).
+
+**Pengingat.** Scheduler `business.legal_scan` (setiap jam, `scheduler/legal-scan.ts`) memilih bisnis yang tahap pengingatnya mungkin sudah tiba menurut tanggal UTC (kelonggaran satu hari), lalu meng-enqueue `business.legal_alert` (antrean `notify`) per bisnis dan jam. Job memutuskan dengan tanggal bisnis sendiri dan mengklaim tahapnya di baris yang sama: 30 hari sebelum, 7 hari sebelum, dan sekali setelah lewat (`expired` untuk dokumen, `passed` untuk NIB). Tahap yang terlewati tidak dikirim satu per satu; hanya tahap terbaru yang dikirim, jadi dokumen yang diunggah 5 hari sebelum habis langsung mendapat pengingat 7 hari. Setiap pengingat dikirim ke semua pemegang `settings:billing`, di aplikasi dan lewat email (`legal.reminder`; di preferensi tampil terkunci, "Selalu dikirim"). Pemindaian setiap jam karena tengah malam setiap zona Indonesia jatuh pada jam UTC yang berbeda.
+
+**Dasbor, ekspor, dan audit.**
+- "Perlu tindakan" (8.16), hanya untuk `settings:billing`: `legal_nib` untuk NIB yang belum diisi (peringatan), batas proses tinggal 30 hari atau kurang (peringatan), atau sudah lewat (kritis); `legal_documents` untuk dokumen yang habis dalam 30 hari (peringatan) atau sudah habis (kritis). Tugas diurutkan menurut tingkat dengan urutan stabil (`bySeverity`), jadi tugas kritis dari mana pun selalu masuk lima teratas.
+- Ekspor data (8.18) menambah `profil_bisnis.csv` dan `dokumen_legalitas.csv`; berkas dokumennya tidak ikut.
+- Trigger audit memantau kolom yang dinyatakan penjual: profil (alamat, telepon, logo, NIB, tanggal mulai diurus, NPWP, PKP) dan dokumen (jenis, judul, nomor, tanggal, berkas). Tahap pengingat tidak diaudit. Di log audit (8.28), logo dan berkas tampil sebagai ditambahkan, diganti, atau dihapus, bukan sebagai id berkas.
+
+**Respons api tidak pernah disimpan atau dijawab 304.** Express memeriksa setiap respons GET: bila `If-None-Match` permintaan sama dengan `ETag` respons, ia menjawab 304 tanpa isi. `ETag` di api adalah versi baris untuk `If-Match`, bukan penanda cache. Browser yang menyimpan profil bisnis dengan ETag `"3"` mengirim `If-None-Match: "3"` saat membacanya lagi. Dokumen yang ditambahkan sejak itu adalah baris sendiri dan tidak menaikkan versi profil, jadi jawabannya 304 dan daftar dokumen di layar tetap yang lama. Sekarang `configureApiApp` (`common/http/api-app.ts`) mematikan ETag bawaan Express, membuang `If-None-Match`, dan memberi `Cache-Control: no-store` pada setiap respons api, karena isinya data bisnis dan pembelinya. Masalah ini ditemukan lewat smoke. Uji integrasi memastikan GET dengan `If-None-Match` tetap 200 dengan `no-store`, dan uji mutasi memastikan uji itu gagal tanpa perbaikan ini.
+
+Belum termasuk: memeriksa NIB atau NPWP ke OSS atau DJP, dan menaruh NPWP atau logo di dokumen yang dicetak.
+
 ---
 
 ## 9. Pekerjaan Latar dan Penjadwalan
@@ -2448,6 +2492,7 @@ BullMQ menolak job dengan `jobId` yang masih ada di antrean **atau yang sudah se
 | `store.connection_check` | Per slot | `store.connection_check\|<tenant_id>\|k<slot 5 menit>` |
 | `notification.email` | Sekali per notifikasi | `notification.email\|<notification_id>` |
 | `files.cleanup_expired` | Per slot | `files.cleanup_expired\|<tenant_id>\|f<slot 1 jam>` |
+| `business.legal_alert` | Per slot | `business.legal_alert\|<tenant_id>\|h<slot 1 jam>`; tahap yang diklaim menjaga setiap pengingat tetap sekali (8.29) |
 | `stock.push` | Per batch kejadian | `stock.push\|<tenant_id>\|<24 hex SHA-256 dari pasangan dan skor debounce batch>` (9.4) |
 | `stock.mark_dirty` | Sekali per event | `stock.mark_dirty\|<tenant_id>\|<outbox_event_id>` |
 | `stock.listing_mapped`, `stock.listing_unmapped` | Per kejadian | `stock.listing_mapped\|<listing_id>\|<outbox_event_id>` |
@@ -2538,6 +2583,7 @@ Diukur dengan proses sungguhan (api, worker, scheduler) terhadap Shopee tiruan: 
 | `return.due_scan` | Setiap 15 menit | `system` untuk memilih, `worker` per tenant | Job `return.due_alert` untuk tenant dengan pengajuan terbuka yang tenggatnya dalam 12 jam dan belum diperingatkan (FR-RET-07, 8.26) |
 | `digest.scan` | Setiap 15 menit | `system` untuk memilih, `worker` per tenant | Job `digest.daily` untuk bisnis aktif berumur lebih dari sehari yang waktu lokalnya sudah lewat 07.00 dan belum punya `daily_digest` untuk tanggal lokalnya (FR-NTF-02, 8.20; `scheduler/digest-scan.ts`) |
 | `files.cleanup_scan` | Setiap jam | `system` untuk memilih, `worker` per tenant | Job `files.cleanup_expired` untuk tenant dengan label, dokumen, atau ekspor kedaluwarsa (8.15, 8.18) |
+| `business.legal_scan` | Setiap jam | `system` untuk memilih, `worker` per tenant | Job `business.legal_alert` untuk bisnis dengan dokumen legalitas atau batas proses NIB yang tahap pengingatnya mungkin sudah tiba: 30 hari, 7 hari, atau lewat (8.29; `scheduler/legal-scan.ts`) |
 | `shipment.tracking_scan` | Setiap 30 menit | `system` untuk memilih, `worker` per tenant | Job `shipment.tracking_pull` per 50 pesanan yang paketnya perlu dibaca lagi: dalam perjalanan dan lebih dari 3 jam tidak dibaca, atau baru terkirim (FR-SHP-07, 8.22; `scheduler/tracking-scan.ts`) |
 | `store.connection_scan` | Setiap 5 menit | `system` untuk memilih, `worker` per tenant | Job `store.connection_check` untuk tenant dengan toko yang koneksinya terputus lebih dari 15 menit dan belum diumumkan, atau yang sudah pulih (FR-INT-08, 8.23; `scheduler/channel-scans.ts`) |
 | `partition.maintain` | Saat scheduler mulai dan setiap 6 jam | `system` | `maintain_partitions(now())`; pelepasan partisi kedaluwarsa menyusul bersama job arsip |
@@ -2585,6 +2631,7 @@ Semua jadwal memakai zona `Asia/Jakarta` secara eksplisit di definisi cron. Loop
 | `If-Match` | Masuk | Penguncian optimistik (8.8); versi basi berarti 409 `row.stale` |
 | `X-Request-Id` | Keduanya | Diteruskan dan dikembalikan |
 | `ETag` | Keluar | `row_version` |
+| `Cache-Control: no-store` | Keluar | Setiap respons api. Tidak ada GET bersyarat: `If-None-Match` dibuang dan ETag bawaan Express dimatikan, karena `ETag` di sini versi baris untuk `If-Match`, bukan penanda cache (8.29) |
 | `X-RateLimit-Remaining`, `Retry-After` | Keluar | Batas laju |
 
 ### 10.3 Kontrak respons
@@ -2622,7 +2669,7 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `data:export` | `/v1/exports*`: ekspor seluruh data bisnis (8.18). Hanya Owner secara bawaan; peran bawaan Owner selalu memegang semua izin, termasuk yang ditambahkan kemudian (seed) |
 | `audit:read` | `GET /v1/audit-logs`, `GET /v1/audit-logs/people` |
 | `chat:read`, `chat:write`, `chat:assign` | Chat |
-| `settings:store`, `settings:warehouse`, `settings:user`, `settings:billing` | Pengaturan; `settings:store` juga saluran pesanan manual, `settings:warehouse` menambah, mengubah, dan menghapus gudang (8.21) serta memasang, mengubah, dan mencabut agen cetak (8.24) |
+| `settings:store`, `settings:warehouse`, `settings:user`, `settings:billing` | Pengaturan; `settings:store` juga saluran pesanan manual, `settings:warehouse` menambah, mengubah, dan menghapus gudang (8.21) serta memasang, mengubah, dan mencabut agen cetak (8.24); `settings:billing` juga profil bisnis dan legalitas, tugas legalitas di dasbor, dan pengingatnya (8.29) |
 | `research:read`, `research:write` | Riset |
 | `admin:internal` | UI admin internal OmniSeller (bukan tenant) |
 
@@ -2640,6 +2687,9 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `GET/POST /v1/invitations`, `POST /v1/invitations/{id}/resend`, `DELETE /v1/invitations/{id}` | `settings:user` | Satu undangan terbuka per email; kirim ulang membatalkan tautan lama |
 | `GET /v1/audit-logs` | `audit:read` | Filter `entity_type` (beberapa dipisah koma), `entity_id`, `actor_id`, `from`, `to`; entri dengan nama pelaku, label, dan perubahan yang terbaca (8.28) |
 | `GET /v1/audit-logs/people` | `audit:read` | Pengguna bisnis untuk filter pelaku (8.28) |
+| `GET /v1/business-profile`, `PATCH /v1/business-profile` | `settings:billing` | 8.29. Nama dan zona waktu bisnis, alamat, telepon, NIB atau NIB dalam proses (paling lama 6 bulan), NPWP, PKP, dan dokumen dengan status berlakunya; `ETag`, `PATCH` dengan `If-Match` (`"0"` sebelum pertama disimpan) |
+| `GET /v1/business-profile/logo`, `PUT /v1/business-profile/logo`, `DELETE /v1/business-profile/logo` | `settings:billing` | Logo PNG, JPG, atau WebP paling besar 1 MB (base64); `GET` memberi berkasnya atau redirect R2 10 menit |
+| `POST /v1/business-documents`, `PATCH /v1/business-documents/{id}`, `DELETE /v1/business-documents/{id}`, `GET /v1/business-documents/{id}/file` | `settings:billing` | Dokumen legalitas: unggah PDF, JPG, atau PNG paling besar 5 MB (201); ubah judul, nomor, dan tanggal (tanggal berlaku baru memulai pengingat lagi); hapus (204); berkasnya |
 | `GET /v1/warehouses`, `GET /v1/warehouses/{id}` | `inventory:read` | Gudang OmniSeller dalam cakupan gudang pengguna; satu gudang dengan `ETag` |
 | `POST /v1/warehouses`, `PATCH /v1/warehouses/{id}`, `POST /v1/warehouses/{id}/default`, `DELETE /v1/warehouses/{id}` | `settings:warehouse` | 8.21. Tambah (201), ubah dengan `If-Match`, jadikan gudang utama, hapus lunak bila tidak dipakai (409 dengan alasan) |
 | `GET /v1/channels` | `settings:store` | Marketplace yang didukung, nama tampilannya, dan apakah sudah dikonfigurasi |
@@ -2760,6 +2810,7 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `migration` | `migration_job`, `migration_row_error`, `migration_preset`, `store_cutover`. Produk lewat `ProductTransferService.importRecordsIn`, stok awal lewat `InventoryService.importInitialIn`, perbandingan stok lewat `StockComparisonService`, mode toko lewat `StoresService.setSyncModeIn`, pesanan lewat `OrdersService.statusCountsIn` (8.19) | `migration.validate_requested`, `migration.import_requested` | | `migration.validate`, `migration.import` (antrean `import`) |
 | `campaign` | `campaign`, `campaign_plan`, `courier_cutoff`, `operating_hours` | `campaign.started`, `campaign.ended` | | `campaign.tick`, `campaign.evaluate` |
 | `notification` | `notification`, `notification_preference`. `NotificationInboxService` (`notifyIn`, `notifyScopedIn`; api dan worker) menulis notifikasi in-app di transaksi modul yang memutuskan (8.17); `NotificationPreferencesService` (`list`, `set`, `emailChoicesIn`) menyimpan pilihan pengguna (8.20); `EmailSender` (`smtp`, `log`, `memory`) dan templat email hanya di worker | `notification.email_requested` | Tidak langsung: job modul pemilik keputusan (`order.new_notice`, `order.sla_alert`, `inventory.stock_alert`, `store.reauth_notice`, `store.expiry_notice`, `store.connection_check`, `export.render`) | `notification.email` (notifikasi yang juga dikirim lewat email, 8.23); menyusul `notify.send` |
+| `business` | `business_profile`, `business_document` (8.29). Nama dan zona waktu bisnis lewat `TenantsService` (`profileIn`, `updateProfileIn`), berkas lewat `FilesService`, pengingat lewat `NotificationInboxService.notifyScopedIn`; `legalTasksIn` untuk dasbor dan `exportSheets` untuk ekspor | | | `business.legal_alert` (antrean `notify`); di scheduler: `business.legal_scan` |
 | `billing` | `plan`, `subscription`, `invoice`, `usage_counter` | `subscription.changed`, `usage.limit_reached` | `order.created` (meter) | `billing.usage_close`, `billing.xendit_webhook` |
 | `reporting` | `daily_digest`. `DashboardService` (8.16) dan `SalesReportService` (8.20) tidak menulis apa pun: angkanya dibaca lewat service modul pemilik dan view yang diekspornya. `DigestService` (worker) mengklaim `daily_digest` dan mengirim email lewat `EmailSender` | `digest.email_requested` | `digest.email_requested` | `digest.daily`, `digest.email` (antrean `notify`); menyusul `report.scheduled_email` |
 | `exports` | `data_export`. `ExportsService` (api) dan `ExportRenderService` (worker) membaca data lewat `exportSheets()` setiap modul pemilik dan menyimpan ZIP lewat `FilesService` (8.18) | `export.requested` | `export.requested` | `export.render` (antrean `export`) |
@@ -3158,3 +3209,4 @@ Berkas `.env.example` adalah versi yang berlaku. Kunci dikelompokkan per peran p
 | 1.24 | 6 Oktober 2026 | Log sinkron (`GET /v1/stores/{id}/sync-jobs`) menerima filter `status`, sehingga layar Kelola Toko dapat menampilkan semua kegagalan, bukan hanya yang ada di halaman termuat. Aturan alokasi stok (8.13) membawa `variant` (SKU dan nama) untuk aturan satu varian. Perbaikan connector TikTok Shop: `36009004` dengan pesan "The x-tts-access-token header is invalid" kini `auth_expired` (refresh lalu ulang sekali), bukan `permanent`. Kata kunci token dicocokkan dengan `_` atau `-`. Sebelumnya token yang tidak lagi dikenal TikTok membuat pembacaan gagal terus tanpa refresh, toko tetap tampil aktif, dan push stok tercatat berhasil dengan listing ditolak. Ditemukan saat smoke log sinkron. Endpoint 10.6 | Candra Syahputra |
 | 1.25 | 7 Oktober 2026 | Log audit yang terbaca (8.28): `GET /v1/audit-logs` memberi nama pelaku, label yang diubah, dan perubahan per field dengan nama API serta rujukan yang sudah dinamai, dan menerima filter beberapa jenis, pelaku, dan waktu. `GET /v1/audit-logs/people` baru. HPP disembunyikan dari pembaca tanpa `finance:read`; sebelumnya baris mentah membawanya. Baris tanpa perubahan yang dikenali dilewati. Migrasi 0018 menambah indeks per bisnis dan per pelaku. Uji unit mencocokkan trigger audit dengan tampilan setelah persetujuan opname sempat terbuang | Candra Syahputra |
 | 1.26 | 7 Oktober 2026 | Job yang menjalankan permintaan seorang penjual (`actsForRequester`: aktif atau nonaktif listing, terbitkan draf salinan, kirim jawaban retur, terapkan opname, hapus data toko yang diputus) berjalan atas nama peminta, sehingga log audit menyebut penjual itu, bukan Sistem. Outbox menyimpan `requestedBy` di payload job (8.5, 9.1, 8.28) | Candra Syahputra |
+| 1.27 | 7 Oktober 2026 | Profil bisnis dan legalitas (8.29 baru, PRD 6.13 dan 12, layar L47): `business_profile` (alamat, telepon, logo, NIB atau NIB dalam proses paling lama 6 bulan, NPWP, PKP) dan `business_document` (jenis, nomor, tanggal terbit, berlaku sampai, berkas) di migrasi 0019; nama dan zona waktu bisnis tetap di `tenant` dan diubah lewat profil dengan satu `If-Match`. Pengingat 30 hari, 7 hari, dan setelah lewat, sekali per tahap, untuk dokumen dan batas proses NIB (`business.legal_scan` setiap jam, job `business.legal_alert`, `legal.reminder` di aplikasi dan email untuk `settings:billing`). Tugas `legal_nib` dan `legal_documents` di dasbor, diurutkan menurut tingkat secara stabil; dua sheet ekspor baru; audit profil dan dokumen. Semua respons api kini `Cache-Control: no-store` tanpa GET bersyarat (10.2): sebelumnya Express menjawab 304 untuk `If-None-Match` yang sama dengan versi profil, sehingga dokumen yang baru ditambahkan tidak tampil. `tenant.legal` dinyatakan tidak dipakai |

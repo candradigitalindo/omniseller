@@ -6,6 +6,7 @@ import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 import type { RequestContext } from "../../common/context/request-context";
 import { Ctx, Isolation, RequirePermission } from "../../common/http/decorators";
+import { sendDownload } from "../../common/http/send-download";
 import { FilesService } from "./files.service";
 
 export class FileIdParamDto extends createZodDto(z.object({ id: ulidSchema })) {}
@@ -26,14 +27,6 @@ export class FilesController {
   @ApiOkResponse({ description: "The file (local storage)." })
   @ApiFoundResponse({ description: "Redirect to a signed link valid for 10 minutes (R2)." })
   async download(@Ctx() ctx: RequestContext, @Param() p: FileIdParamDto, @Res() res: Response): Promise<void> {
-    const target = await this.files.download(ctx, p.id, ["label", "pick_list"]);
-    res.setHeader("cache-control", "private, no-store");
-    if ("url" in target) {
-      res.redirect(302, target.url);
-      return;
-    }
-    res.setHeader("content-type", target.mime);
-    res.setHeader("content-disposition", `${target.disposition}; filename="${target.filename}"`);
-    res.send(Buffer.from(target.bytes));
+    sendDownload(res, await this.files.download(ctx, p.id, ["label", "pick_list"]));
   }
 }

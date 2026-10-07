@@ -35,6 +35,8 @@ const TASK_HREF: Partial<Record<Task["kind"], string>> = {
   orders_new: "/pesanan?status=new",
   listings_unmapped: "/listing",
   stores_reconnect: "/integrasi",
+  legal_nib: "/profil-bisnis",
+  legal_documents: "/profil-bisnis",
 };
 
 const SEVERITY_TONE: Record<Task["severity"], Tone> = { critical: "danger", warning: "warning", info: "info" };
@@ -140,31 +142,35 @@ function DashboardBody({
   const hasOrders = Object.values(data.orders.statuses).some((n) => n > 0);
   const canManageStores = can("settings:store");
   if (data.stores.length === 0 && !hasOrders) {
+    // a new business may already have something to do (an NIB to fill in, backend doc 8.29)
     return (
-      <Card>
-        <EmptyState
-          icon={Plug}
-          title={t("noStoreTitle")}
-          body={t("noStoreBody")}
-          action={
-            <div className="grid justify-items-center gap-4">
-              <ol className="grid list-decimal gap-1 pl-5 text-left text-sm text-text-700">
-                <li>{t("noStoreStep1")}</li>
-                <li>{t("noStoreStep2")}</li>
-                <li>{t("noStoreStep3")}</li>
-              </ol>
-              {canManageStores ? (
-                <Button asChild>
-                  <Link href="/integrasi">
-                    <Plug aria-hidden />
-                    {t("connectStore")}
-                  </Link>
-                </Button>
-              ) : null}
-            </div>
-          }
-        />
-      </Card>
+      <div className="grid gap-4">
+        <Card>
+          <EmptyState
+            icon={Plug}
+            title={t("noStoreTitle")}
+            body={t("noStoreBody")}
+            action={
+              <div className="grid justify-items-center gap-4">
+                <ol className="grid list-decimal gap-1 pl-5 text-left text-sm text-text-700">
+                  <li>{t("noStoreStep1")}</li>
+                  <li>{t("noStoreStep2")}</li>
+                  <li>{t("noStoreStep3")}</li>
+                </ol>
+                {canManageStores ? (
+                  <Button asChild>
+                    <Link href="/integrasi">
+                      <Plug aria-hidden />
+                      {t("connectStore")}
+                    </Link>
+                  </Button>
+                ) : null}
+              </div>
+            }
+          />
+        </Card>
+        <TaskList tasks={tasks} data={data} />
+      </div>
     );
   }
 
@@ -210,37 +216,7 @@ function DashboardBody({
         ) : null}
       </section>
 
-      {tasks.length > 0 ? (
-        <section aria-labelledby="tasks-title" className="grid gap-2">
-          <h2 id="tasks-title" className="text-lg font-semibold text-text-900">
-            {t("tasks")}
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {tasks.map((task) => {
-              const href =
-                task.kind === "stock_critical"
-                  ? criticalStockHref(data.criticalStock?.items ?? [])
-                  : TASK_HREF[task.kind];
-              return (
-                <Card key={task.kind} size="sm">
-                  <CardContent className="flex items-center gap-3">
-                    <StatusPill tone={SEVERITY_TONE[task.severity]}>{formatNumber(task.count)}</StatusPill>
-                    <span className="min-w-0 flex-1 text-sm text-text-900">{task.title}</span>
-                    {href ? (
-                      <Button asChild variant="secondary" size="sm">
-                        <Link href={href}>
-                          {t("open")}
-                          <ArrowRight aria-hidden />
-                        </Link>
-                      </Button>
-                    ) : null}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
+      <TaskList tasks={tasks} data={data} />
 
       {data.salesChart ? (
         <Card>
@@ -327,5 +303,41 @@ function DashboardBody({
         </Card>
       </div>
     </div>
+  );
+}
+
+/** "Perlu tindakan": the five most urgent tasks, each with a way to it when its screen exists. */
+function TaskList({ tasks, data }: { tasks: Task[]; data: Dashboard }) {
+  const t = useTranslations("dashboard");
+  if (tasks.length === 0) return null;
+  return (
+    <section aria-labelledby="tasks-title" className="grid gap-2">
+      <h2 id="tasks-title" className="text-lg font-semibold text-text-900">
+        {t("tasks")}
+      </h2>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {tasks.map((task) => {
+          const href =
+            task.kind === "stock_critical" ? criticalStockHref(data.criticalStock?.items ?? []) : TASK_HREF[task.kind];
+          return (
+            <Card key={task.kind} size="sm">
+              <CardContent className="flex items-center gap-3">
+                <StatusPill tone={SEVERITY_TONE[task.severity]}>{formatNumber(task.count)}</StatusPill>
+                <span className="min-w-0 flex-1 text-sm text-text-900">{task.title}</span>
+                {href ? (
+                  <Button asChild variant="secondary" size="sm">
+                    {/* every task has an "Buka": its name says which one (screen readers list links alone) */}
+                    <Link href={href} aria-label={t("openTask", { title: task.title })}>
+                      {t("open")}
+                      <ArrowRight aria-hidden />
+                    </Link>
+                  </Button>
+                ) : null}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </section>
   );
 }

@@ -30,6 +30,12 @@ export const PREFERENCE_KINDS: readonly PreferenceKind[] = [
     emailByDefault: (p) => p.has("settings:store"),
     locked: true,
   },
+  {
+    kind: "legal.reminder",
+    label: "Batas proses NIB dan dokumen legalitas yang akan habis berlaku (dalam aplikasi dan email)",
+    emailByDefault: (p) => p.has("settings:billing"),
+    locked: true,
+  },
 ];
 
 const kindOf = (kind: string) => {
