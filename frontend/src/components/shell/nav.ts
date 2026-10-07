@@ -5,6 +5,7 @@ import {
   Boxes,
   Building2,
   ClipboardCheck,
+  Clock,
   Copy,
   Database,
   Download,
@@ -44,6 +45,7 @@ type NavKey =
   | "team"
   | "auditLog"
   | "printers"
+  | "courierHours"
   | "notifications"
   | "migration"
   | "dataExport"
@@ -132,6 +134,7 @@ export const NAV: readonly NavGroup[] = [
         permission: ["settings:warehouse", "shipment:print"],
         ready: true,
       },
+      { key: "courierHours", href: "/kurir-jam", icon: Clock, permission: "settings:warehouse", ready: true },
       { key: "notifications", href: "/notifikasi", icon: Bell, ready: true },
       { key: "migration", href: "/migrasi", icon: Database, permission: "settings:store", ready: true },
       { key: "dataExport", href: "/ekspor", icon: Download, permission: "data:export", ready: true },

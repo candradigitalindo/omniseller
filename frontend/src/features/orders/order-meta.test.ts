@@ -4,7 +4,9 @@ import type { StoreStatus } from "../stores/store-meta";
 import {
   addressLines,
   canCancel,
+  missedPickup,
   type OrderDetail,
+  pickupAhead,
   primaryActionOf,
   stepOf,
   syncableStores,
@@ -150,5 +152,40 @@ describe("reading a store's orders again", () => {
       { id: "f", channel: "manual", status: "active" },
     ];
     expect(syncableStores(stores).map((s) => s.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("the deadline an order is worked to", () => {
+  const base = { shipByAt: null, sla: null, internalShipByAt: null, internalSla: null };
+  it("is the courier's pickup when it comes first and has not passed", () => {
+    const pickup = {
+      internalShipByAt: "2026-10-07T08:00:00.000Z",
+      internalSla: { state: "warning" as const, remainingMs: 3_600_000 },
+    };
+    expect(pickupAhead({ ...base, ...pickup })).toEqual({
+      at: "2026-10-07T08:00:00.000Z",
+      state: "warning",
+      remainingMs: 3_600_000,
+    });
+    // the marketplace's deadline comes first
+    expect(
+      pickupAhead({
+        ...base,
+        ...pickup,
+        shipByAt: "2026-10-07T07:00:00.000Z",
+        sla: { state: "warning", remainingMs: 1 },
+      }),
+    ).toBeNull();
+    expect(pickupAhead(base)).toBeNull();
+  });
+
+  it("notes a pickup the order missed", () => {
+    const missed = {
+      internalShipByAt: "2026-10-06T08:00:00.000Z",
+      internalSla: { state: "missed" as const, remainingMs: -1 },
+    };
+    expect(pickupAhead({ ...base, ...missed })).toBeNull();
+    expect(missedPickup({ ...base, ...missed })).toBe("2026-10-06T08:00:00.000Z");
+    expect(missedPickup(base)).toBeNull();
   });
 });

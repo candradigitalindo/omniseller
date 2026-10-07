@@ -53,6 +53,7 @@ import type { components } from "@/lib/api/schema";
 import { formatDateTime, formatNumber, formatRupiah } from "@/lib/format";
 import { useCan, useTimeZone } from "@/lib/session";
 import { ArrangeDialog } from "./arrange-dialog";
+import { DeadlinePill } from "./deadline-pill";
 import {
   ARRANGEABLE,
   addressLines,
@@ -694,6 +695,15 @@ function ShippingCard({
             )}
           </dd>
         </div>
+        {o.internalShipByAt ? (
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-text-500">{t("pickupDeadline")}</dt>
+            <dd className="flex flex-wrap items-center justify-end gap-1.5 text-text-900">
+              {formatDateTime(o.internalShipByAt, tz)}
+              <DeadlinePill order={{ ...o, sla: null, shipByAt: null }} />
+            </dd>
+          </div>
+        ) : null}
         {o.shipByAt ? (
           <div className="flex items-center justify-between gap-3">
             <dt className="text-text-500">{t("shipBy")}</dt>

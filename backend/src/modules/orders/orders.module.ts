@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { CampaignModule } from "../campaign/campaign.module";
 import { CatalogModule, CatalogWorkerModule } from "../catalog/catalog.module";
 import { ChannelModule } from "../channel/channel.module";
 import { IdentityModule } from "../identity/identity.module";
@@ -7,6 +8,7 @@ import { NotificationInboxModule } from "../notification/notification.module";
 import { SyncModule } from "../sync/sync.module";
 import { ManualOrdersService } from "./manual-orders.service";
 import { OrderAlertsService } from "./order-alerts.service";
+import { OrderDeadlinesService } from "./order-deadlines.service";
 import { OrderIntakeService } from "./order-intake.service";
 import { OrderSyncService } from "./order-sync.service";
 import { OrdersController, TagsController } from "./orders.controllers";
@@ -15,11 +17,18 @@ import { OrdersService } from "./orders.service";
 import { TagsRepository } from "./tags.repository";
 import { TagsService } from "./tags.service";
 
-const SERVICES = [OrdersRepository, TagsRepository, OrderIntakeService, OrdersService, ManualOrdersService];
+const SERVICES = [
+  OrdersRepository,
+  TagsRepository,
+  OrderDeadlinesService,
+  OrderIntakeService,
+  OrdersService,
+  ManualOrdersService,
+];
 
 /** Orders (api and worker): the queue, one order, seller actions, and marketplace intake. */
 @Module({
-  imports: [InventoryModule, CatalogModule, ChannelModule, IdentityModule],
+  imports: [InventoryModule, CatalogModule, ChannelModule, IdentityModule, CampaignModule],
   providers: SERVICES,
   exports: SERVICES,
 })

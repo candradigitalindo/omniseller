@@ -10,6 +10,7 @@ import { InfraModule } from "./infra/infra.module";
 import { AuditHttpModule } from "./modules/audit/audit-http.module";
 import { AuthHttpModule, AuthModule } from "./modules/auth/auth.module";
 import { BusinessHttpModule, BusinessModule } from "./modules/business/business.module";
+import { CampaignHttpModule, CampaignModule } from "./modules/campaign/campaign.module";
 import { CatalogHttpModule, CatalogModule, CatalogWorkerModule } from "./modules/catalog/catalog.module";
 import {
   ChannelHttpModule,
@@ -97,6 +98,7 @@ export class AppModule {
             IdentityHttpModule,
             AuditHttpModule,
             BusinessHttpModule,
+            CampaignHttpModule,
             InventoryHttpModule,
             ChannelHttpModule,
             CatalogHttpModule,
@@ -157,6 +159,7 @@ export class AppModule {
             ReportingWorkerModule,
             RetentionWorkerModule,
             BusinessModule,
+            CampaignModule,
           ],
           providers: [WorkerRunner],
         };

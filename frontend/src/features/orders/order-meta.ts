@@ -187,3 +187,22 @@ export const TRACKED: ReadonlySet<OrderStatus> = new Set([
   "return_in_progress",
   "returned",
 ]);
+
+type DeadlineFields = Pick<OrderListItem, "shipByAt" | "sla" | "internalShipByAt" | "internalSla">;
+
+/**
+ * The courier pickup an order is worked to (backend doc 8.31): its cut-off when one is still ahead and it
+ * comes before the marketplace's deadline. Null when the marketplace's deadline is the one to show, or
+ * the cut-off has passed (`missedPickup`).
+ */
+export function pickupAhead(o: DeadlineFields): { at: string; state: "ok" | "warning"; remainingMs: number } | null {
+  const i = o.internalSla;
+  if (!i || !o.internalShipByAt || i.state === "missed") return null;
+  if (o.shipByAt && Date.parse(o.shipByAt) <= Date.parse(o.internalShipByAt)) return null;
+  return { at: o.internalShipByAt, state: i.state, remainingMs: i.remainingMs };
+}
+
+/** The courier pickup the order did not make, if any: it still has to ship by the marketplace's deadline. */
+export function missedPickup(o: DeadlineFields): string | null {
+  return o.internalSla?.state === "missed" && o.internalShipByAt ? o.internalShipByAt : null;
+}

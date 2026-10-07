@@ -52,6 +52,8 @@ export interface OrderListFilter {
   cod?: boolean | undefined;
   /** Still to ship with a ship-by deadline before this moment ("Hampir terlambat"). */
   dueBefore?: Date | undefined;
+  /** Still to ship with an internal deadline (courier cut-off, backend doc 8.31) before this moment. */
+  internalBefore?: Date | undefined;
   /** Orders carrying this tag (FR-ORD-04). */
   tagId?: string | undefined;
   /**
@@ -352,6 +354,36 @@ export class OrdersRepository {
       .limit(20);
   }
 
+  // ---- internal deadlines (backend doc 8.31) ----
+
+  /** What an internal deadline is computed from. */
+  async deadlineInputs(tx: Tx, ids: string[]) {
+    if (ids.length === 0) return [];
+    return tx
+      .select({
+        id: order.id,
+        status: order.status,
+        warehouseId: order.warehouseId,
+        shippingProvider: order.shippingProvider,
+        paidAt: order.paidAt,
+        orderedAt: order.orderedAt,
+        internalShipByAt: order.internalShipByAt,
+      })
+      .from(order)
+      .where(inArray(order.id, ids));
+  }
+
+  /** Orders to ship, by id, a page at a time. */
+  async toShipIds(tx: Tx, afterId: string | undefined, limit: number): Promise<string[]> {
+    const rows = await tx
+      .select({ id: order.id })
+      .from(order)
+      .where(and(inArray(order.status, [...TO_SHIP_STATUSES]), afterId ? gt(order.id, afterId) : undefined))
+      .orderBy(asc(order.id))
+      .limit(limit);
+    return rows.map((r) => r.id);
+  }
+
   // ---- lists ----
 
   private where(f: OrderListFilter): SQL | undefined {
@@ -368,6 +400,13 @@ export class OrdersRepository {
       f.cod !== undefined ? eq(o.isCod, f.cod) : undefined,
       f.dueBefore
         ? and(inArray(o.status, [...TO_SHIP_STATUSES]), isNotNull(o.shipByAt), lt(o.shipByAt, f.dueBefore))
+        : undefined,
+      f.internalBefore
+        ? and(
+            inArray(o.status, [...TO_SHIP_STATUSES]),
+            isNotNull(o.internalShipByAt),
+            lt(o.internalShipByAt, f.internalBefore),
+          )
         : undefined,
       f.problem
         ? sql`EXISTS (SELECT 1 FROM order_problem p WHERE p.order_id = ${sql.raw('"order"."id"')}
@@ -400,17 +439,23 @@ export class OrdersRepository {
     limit: number,
   ): Promise<OrderRow[]> {
     if (sort === "ship_by") {
+      // the deadline that comes first: the courier's cut-off or the marketplace's (backend doc 8.31)
+      const deadline = sql`LEAST(${o.internalShipByAt}, ${o.shipByAt})`;
       const c = after as ShipByCursor | undefined;
       const keyset = c
         ? c.t === null
-          ? and(isNull(o.shipByAt), gt(o.id, c.id))
-          : or(gt(o.shipByAt, new Date(c.t)), isNull(o.shipByAt), and(eq(o.shipByAt, new Date(c.t)), gt(o.id, c.id)))
+          ? and(sql`${deadline} IS NULL`, gt(o.id, c.id))
+          : or(
+              sql`${deadline} > ${new Date(c.t)}`,
+              sql`${deadline} IS NULL`,
+              and(sql`${deadline} = ${new Date(c.t)}`, gt(o.id, c.id)),
+            )
         : undefined;
       return tx
         .select()
         .from(o)
         .where(and(this.where(f), keyset))
-        .orderBy(sql`${o.shipByAt} ASC NULLS LAST`, asc(o.id))
+        .orderBy(sql`${deadline} ASC NULLS LAST`, asc(o.id))
         .limit(limit + 1);
     }
     return tx
@@ -437,6 +482,39 @@ export class OrdersRepository {
       .from(o)
       .where(this.where({ ...f, statuses: undefined, dueBefore: before }));
     return r?.n ?? 0;
+  }
+
+  /** Couriers of recent orders, most used first: what cut-offs can be set for (UI L43). */
+  async recentCouriers(tx: Tx, f: OrderListFilter, since: Date): Promise<{ courier: string; orders: number }[]> {
+    const name = sql<string>`btrim(${o.shippingProvider})`;
+    return tx
+      .select({ courier: name, orders: sql<number>`count(*)::int` })
+      .from(o)
+      .where(and(this.where(f), isNotNull(o.shippingProvider), sql`${name} <> ''`, gte(o.orderedAt, since)))
+      .groupBy(name)
+      .orderBy(sql`count(*) DESC`, name)
+      .limit(30);
+  }
+
+  /**
+   * Orders to ship whose courier cut-off falls before `before` (the end of the business's day): how many,
+   * how many missed it already, and the next cut-off still ahead (backend doc 8.31).
+   */
+  async cutoffSummary(
+    tx: Tx,
+    f: OrderListFilter,
+    before: Date,
+    now: Date,
+  ): Promise<{ count: number; missed: number; next: Date | null }> {
+    const [r] = await tx
+      .select({
+        count: sql<number>`count(*)::int`,
+        missed: sql<number>`(count(*) FILTER (WHERE ${o.internalShipByAt} <= ${now}))::int`,
+        next: sql<string | null>`min(${o.internalShipByAt}) FILTER (WHERE ${o.internalShipByAt} > ${now})`,
+      })
+      .from(o)
+      .where(this.where({ ...f, statuses: undefined, internalBefore: before }));
+    return { count: r?.count ?? 0, missed: r?.missed ?? 0, next: r?.next ? new Date(r.next) : null };
   }
 
   // ---- sales (dashboard, FR-RPT-01) ----

@@ -27,6 +27,8 @@ function listItem(over: Partial<OrderListItem>): OrderListItem {
     trackingNumber: null,
     shipByAt: "2026-10-04T08:00:00.000Z",
     sla: { state: "warning", remainingMs: 2 * 3_600_000 },
+    internalShipByAt: null,
+    internalSla: null,
     warehouseId: null,
     problems: [],
     cancelRequested: false,
@@ -124,6 +126,42 @@ describe("OrdersView", () => {
     expect(currentUrl()).toBe("/pesanan?status=new&cod=true");
     await user.click(screen.getByRole("tab", { name: /Bermasalah/ }));
     expect(currentUrl()).toBe("/pesanan?status=problem&cod=true");
+  });
+
+  it("counts down to the courier's pickup when it comes first, and asks for today's pickups", async () => {
+    const soon = new Date(Date.now() + 90 * 60_000).toISOString();
+    const pickup = listItem({
+      shipByAt: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+      sla: { state: "ok", remainingMs: 2 * 86_400_000 },
+      internalShipByAt: soon,
+      internalSla: { state: "warning", remainingMs: 90 * 60_000 },
+    });
+    const missed = listItem({
+      id: "01JORDER000000000000000003",
+      externalOrderId: "2609300AB3",
+      internalShipByAt: "2026-10-01T08:00:00.000Z",
+      internalSla: { state: "missed", remainingMs: -1 },
+    });
+    const calls = mockApi({
+      "GET /v1/orders/summary": () => ({
+        statuses: { new: 2 },
+        overdue: 0,
+        dueSoon: 0,
+        codOutstanding: { orders: 0, total: 0 },
+      }),
+      "GET /v1/orders": () => ({ items: [pickup, missed], next_cursor: null }),
+    });
+    const user = userEvent.setup();
+    renderApp(<OrdersView />);
+    expect((await screen.findAllByText(/^Pickup \d{2}\.\d{2} · 1 jam 30 menit lagi$/)).length).toBeGreaterThan(0);
+    // a missed pickup is noted beside the marketplace's deadline, which still stands
+    expect(screen.getAllByText("Lewat pickup 1 Okt 15.00").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("2 jam lagi").length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole("button", { name: "Pickup hari ini" }));
+    expect(currentUrl()).toBe("/pesanan?status=new&due=cutoff");
+    await waitFor(() => expect(calls.some((c) => c.path === "/v1/orders" && c.query.due === "cutoff")).toBe(true));
+    expect(calls.findLast((c) => c.path === "/v1/orders")?.query).toMatchObject({ due: "cutoff", sort: "ship_by" });
   });
 
   it("hides actions the user may not take", async () => {

@@ -4,8 +4,9 @@ import { z } from "zod";
 import type { RequestContext } from "../../common/context/request-context";
 import { MAX_LIMIT, pageSchema } from "../../common/http/pagination";
 import { type OrderProblemCode, PAYMENT_METHODS } from "../../db/schema";
+import { internalSlaOf } from "../campaign/cutoff-plan";
 import { channelDisplayName } from "../channel/stores.service";
-import { slaOf } from "./order-plan";
+import { slaOf, TO_SHIP_STATUSES } from "./order-plan";
 import type { OrderEventRow, OrderItemRow, OrderProblemRow } from "./orders.repository";
 import { type ActionResult, type OrderView, orderStatusLabel } from "./orders.service";
 import type { OrderTagRef, TagRow } from "./tags.repository";
@@ -44,9 +45,28 @@ export class OrderQueryDto extends createZodDto(
     warehouseId: ulidSchema.optional(),
     problem: z.enum(PROBLEM_CODES).optional(),
     cod: z.enum(["true", "false"]).optional(),
-    due: z.enum(["overdue", "soon"]).optional().describe("overdue: lewat batas kirim; soon: batas kirim dalam 6 jam"),
+    due: z
+      .enum(["overdue", "soon", "cutoff"])
+      .optional()
+      .describe(
+        "overdue: lewat batas kirim; soon: batas kirim dalam 6 jam; cutoff: harus dikirim sebelum cut-off kurir hari ini (termasuk yang sudah lewat)",
+      ),
     tagId: ulidSchema.optional().describe("pesanan yang memakai tag ini (FR-ORD-04)"),
     sort: z.enum(["newest", "ship_by"]).default("newest"),
+  }),
+) {}
+
+export class CourierQueryDto extends createZodDto(z.object({ warehouseId: ulidSchema.optional() })) {}
+
+export class CourierListDto extends createZodDto(
+  z.object({
+    items: z.array(
+      z.object({
+        courier: z.string().describe("nama kurir seperti dikirim marketplace"),
+        orders: z.number().int().describe("pesanan 90 hari terakhir"),
+      }),
+    ),
+    next_cursor: z.null(),
   }),
 ) {}
 
@@ -243,6 +263,13 @@ const listItemSchema = z.object({
     .object({ state: z.enum(["ok", "warning", "overdue"]), remainingMs: z.number().int() })
     .nullable()
     .describe("ok: hijau; warning: kuning (6 jam atau kurang); overdue: merah"),
+  internalShipByAt: iso
+    .nullable()
+    .describe("batas internal: cut-off kurir pertama yang masih terkejar saat pesanan masuk (backend doc 8.31)"),
+  internalSla: z
+    .object({ state: z.enum(["ok", "warning", "missed"]), remainingMs: z.number().int() })
+    .nullable()
+    .describe("ok: hijau; warning: kuning (2 jam atau kurang ke cut-off); missed: cut-off sudah lewat"),
   warehouseId: ulidSchema.nullable(),
   problems: z.array(problemSchema),
   cancelRequested: z.boolean(),
@@ -363,6 +390,7 @@ function firstItem(items: OrderItemRow[]): z.infer<typeof firstItemSchema> | nul
 export function orderListView(v: OrderView, now = new Date()): z.infer<typeof listItemSchema> {
   const o = v.order;
   const sla = slaOf(o.shipByAt, o.status, now);
+  const internal = internalSlaOf(o.internalShipByAt, TO_SHIP_STATUSES.has(o.status), now);
   return {
     id: o.id,
     externalOrderId: o.externalOrderId,
@@ -383,6 +411,8 @@ export function orderListView(v: OrderView, now = new Date()): z.infer<typeof li
     trackingNumber: o.trackingNumber,
     shipByAt: o.shipByAt?.toISOString() ?? null,
     sla: sla ? { state: sla.state, remainingMs: Math.round(sla.remainingMs) } : null,
+    internalShipByAt: o.internalShipByAt?.toISOString() ?? null,
+    internalSla: internal ? { state: internal.state, remainingMs: Math.round(internal.remainingMs) } : null,
     warehouseId: o.warehouseId,
     problems: v.problems.filter((p) => !p.resolvedAt).map(problemView),
     cancelRequested: o.cancelRequested,

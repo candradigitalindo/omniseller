@@ -612,6 +612,134 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/courier-cutoffs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["CourierCutoffsController_list"];
+    put?: never;
+    post: operations["CourierCutoffsController_add"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/courier-cutoffs/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: operations["CourierCutoffsController_remove"];
+    options?: never;
+    head?: never;
+    patch: operations["CourierCutoffsController_update"];
+    trace?: never;
+  };
+  "/v1/courier-holidays": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["CourierHolidaysController_list"];
+    put?: never;
+    post: operations["CourierHolidaysController_add"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/courier-holidays/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: operations["CourierHolidaysController_remove"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/operating-hours": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["OperatingHoursController_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/operating-hours/week": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: operations["OperatingHoursController_setWeek"];
+    post?: never;
+    delete: operations["OperatingHoursController_removeWeek"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/operating-hours/periods": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["OperatingHoursController_addPeriod"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/operating-hours/periods/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: operations["OperatingHoursController_removePeriod"];
+    options?: never;
+    head?: never;
+    patch: operations["OperatingHoursController_updatePeriod"];
+    trace?: never;
+  };
   "/v1/warehouses": {
     parameters: {
       query?: never;
@@ -1740,6 +1868,22 @@ export interface paths {
       cookie?: never;
     };
     get: operations["OrdersController_summary"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/orders/couriers": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["OrdersController_couriers"];
     put?: never;
     post?: never;
     delete?: never;
@@ -3551,6 +3695,143 @@ export interface components {
       number?: string | null;
       issuedOn?: string | null;
       validUntil?: string | null;
+    };
+    CutoffListDto_Output: {
+      items: {
+        id: string;
+        warehouseId: string;
+        courier: string;
+        /** @description JJ:MM, jam pickup atau drop-off terakhir */
+        cutoffTime: string;
+        days: number[];
+        active: boolean;
+        rowVersion: number;
+      }[];
+      next_cursor: null;
+    };
+    AddCutoffDto: {
+      warehouseId: string;
+      /** @description nama kurir seperti di marketplace, misalnya J&T Express */
+      courier: string;
+      cutoffTime: string;
+      /** @description hari kurir datang: 0 = Minggu sampai 6 = Sabtu */
+      days: number[];
+      active?: boolean;
+    };
+    CutoffDto_Output: {
+      id: string;
+      warehouseId: string;
+      courier: string;
+      /** @description JJ:MM, jam pickup atau drop-off terakhir */
+      cutoffTime: string;
+      days: number[];
+      active: boolean;
+      rowVersion: number;
+    };
+    UpdateCutoffDto: {
+      /** @description nama kurir seperti di marketplace, misalnya J&T Express */
+      courier?: string;
+      cutoffTime?: string;
+      /** @description hari kurir datang: 0 = Minggu sampai 6 = Sabtu */
+      days?: number[];
+      active?: boolean;
+    };
+    HolidayListDto_Output: {
+      items: {
+        id: string;
+        date: string;
+        courier: string | null;
+        note: string | null;
+      }[];
+      next_cursor: null;
+    };
+    AddHolidayDto: {
+      /** Format: date */
+      date: string;
+      /** @description kosong: semua kurir */
+      courier?: string | null;
+      note?: string | null;
+    };
+    HolidayDto_Output: {
+      id: string;
+      date: string;
+      courier: string | null;
+      note: string | null;
+    };
+    HoursDto_Output: {
+      /** @description minggu biasa; null bila belum diatur (tidak membatasi) */
+      week: {
+        id: string;
+        /** @description tujuh hari dari Minggu */
+        schedule: ({
+          open: string;
+          close: string;
+        } | null)[];
+        rowVersion: number;
+      } | null;
+      /** @description periode khusus yang menggantikan minggu biasa pada tanggalnya */
+      periods: {
+        id: string;
+        name: string;
+        from: string;
+        to: string;
+        /** @description tujuh hari dari Minggu */
+        schedule: ({
+          open: string;
+          close: string;
+        } | null)[];
+      }[];
+    };
+    SetWeekDto: {
+      /** @description tujuh hari dari Minggu */
+      schedule: ({
+        open: string;
+        close: string;
+      } | null)[];
+    };
+    WeekDto_Output: {
+      id: string;
+      /** @description tujuh hari dari Minggu */
+      schedule: ({
+        open: string;
+        close: string;
+      } | null)[];
+      rowVersion: number;
+    };
+    AddPeriodDto: {
+      name: string;
+      /** Format: date */
+      from: string;
+      /** Format: date */
+      to: string;
+      /** @description tujuh hari dari Minggu */
+      schedule: ({
+        open: string;
+        close: string;
+      } | null)[];
+    };
+    PeriodDto_Output: {
+      id: string;
+      name: string;
+      from: string;
+      to: string;
+      /** @description tujuh hari dari Minggu */
+      schedule: ({
+        open: string;
+        close: string;
+      } | null)[];
+    };
+    UpdatePeriodDto: {
+      name?: string;
+      /** Format: date */
+      from?: string;
+      /** Format: date */
+      to?: string;
+      /** @description tujuh hari dari Minggu */
+      schedule?: ({
+        open: string;
+        close: string;
+      } | null)[];
     };
     WarehouseListDto_Output: {
       items: {
@@ -5527,6 +5808,14 @@ export interface components {
           state: "ok" | "warning" | "overdue";
           remainingMs: number;
         } | null;
+        /** @description batas internal: cut-off kurir pertama yang masih terkejar saat pesanan masuk (backend doc 8.31) */
+        internalShipByAt: string | null;
+        /** @description ok: hijau; warning: kuning (2 jam atau kurang ke cut-off); missed: cut-off sudah lewat */
+        internalSla: {
+          /** @enum {string} */
+          state: "ok" | "warning" | "missed";
+          remainingMs: number;
+        } | null;
         warehouseId: string | null;
         problems: {
           id: string;
@@ -5571,6 +5860,15 @@ export interface components {
         orders: number;
         total: number;
       };
+    };
+    CourierListDto_Output: {
+      items: {
+        /** @description nama kurir seperti dikirim marketplace */
+        courier: string;
+        /** @description pesanan 90 hari terakhir */
+        orders: number;
+      }[];
+      next_cursor: null;
     };
     OrderIdsDto: {
       orderIds: string[];
@@ -5684,6 +5982,14 @@ export interface components {
       sla: {
         /** @enum {string} */
         state: "ok" | "warning" | "overdue";
+        remainingMs: number;
+      } | null;
+      /** @description batas internal: cut-off kurir pertama yang masih terkejar saat pesanan masuk (backend doc 8.31) */
+      internalShipByAt: string | null;
+      /** @description ok: hijau; warning: kuning (2 jam atau kurang ke cut-off); missed: cut-off sudah lewat */
+      internalSla: {
+        /** @enum {string} */
+        state: "ok" | "warning" | "missed";
         remainingMs: number;
       } | null;
       warehouseId: string | null;
@@ -7327,6 +7633,7 @@ export interface components {
       tasks: {
         /** @enum {string} */
         kind:
+          | "orders_cutoff"
           | "orders_due"
           | "orders_problem"
           | "orders_new"
@@ -8780,6 +9087,282 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+    };
+  };
+  CourierCutoffsController_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CutoffListDto_Output"];
+        };
+      };
+    };
+  };
+  CourierCutoffsController_add: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AddCutoffDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CutoffDto_Output"];
+        };
+      };
+    };
+  };
+  CourierCutoffsController_remove: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  CourierCutoffsController_update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateCutoffDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CutoffDto_Output"];
+        };
+      };
+    };
+  };
+  CourierHolidaysController_list: {
+    parameters: {
+      query?: {
+        /** @description bawaan: 30 hari lalu */
+        from?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HolidayListDto_Output"];
+        };
+      };
+    };
+  };
+  CourierHolidaysController_add: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AddHolidayDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HolidayDto_Output"];
+        };
+      };
+    };
+  };
+  CourierHolidaysController_remove: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  OperatingHoursController_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HoursDto_Output"];
+        };
+      };
+    };
+  };
+  OperatingHoursController_setWeek: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SetWeekDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WeekDto_Output"];
+        };
+      };
+    };
+  };
+  OperatingHoursController_removeWeek: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  OperatingHoursController_addPeriod: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AddPeriodDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PeriodDto_Output"];
+        };
+      };
+    };
+  };
+  OperatingHoursController_removePeriod: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  OperatingHoursController_updatePeriod: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdatePeriodDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PeriodDto_Output"];
+        };
       };
     };
   };
@@ -10807,8 +11390,8 @@ export interface operations {
           | "high_value"
           | "fulfillment_conflict";
         cod?: "true" | "false";
-        /** @description overdue: lewat batas kirim; soon: batas kirim dalam 6 jam */
-        due?: "overdue" | "soon";
+        /** @description overdue: lewat batas kirim; soon: batas kirim dalam 6 jam; cutoff: harus dikirim sebelum cut-off kurir hari ini (termasuk yang sudah lewat) */
+        due?: "overdue" | "soon" | "cutoff";
         /** @description pesanan yang memakai tag ini (FR-ORD-04) */
         tagId?: string;
         sort?: "newest" | "ship_by";
@@ -10847,6 +11430,27 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["OrderSummaryDto_Output"];
+        };
+      };
+    };
+  };
+  OrdersController_couriers: {
+    parameters: {
+      query?: {
+        warehouseId?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CourierListDto_Output"];
         };
       };
     };

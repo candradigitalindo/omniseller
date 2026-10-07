@@ -151,6 +151,16 @@ SELECT ensure_trigger('user', 'audit_trg',
      WHEN ((OLD.status, OLD.totp_enabled) IS DISTINCT FROM (NEW.status, NEW.totp_enabled))
      EXECUTE FUNCTION audit_row(''user'', ''password_hash'', ''totp_secret_enc'', ''totp_backup_codes'',
        ''totp_last_step'', ''failed_login_count'', ''locked_until'', ''last_login_at'')');
+-- Courier cut-offs, courier holidays, and operating hours (backend doc 8.31): who changed when parcels
+-- must be ready.
+SELECT ensure_trigger('courier_cutoff', 'audit_trg',
+  'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF courier, cutoff_time, days_of_week, active
+     OR DELETE ON courier_cutoff FOR EACH ROW EXECUTE FUNCTION audit_row()');
+SELECT ensure_trigger('courier_holiday', 'audit_trg',
+  'CREATE TRIGGER audit_trg AFTER INSERT OR DELETE ON courier_holiday FOR EACH ROW EXECUTE FUNCTION audit_row()');
+SELECT ensure_trigger('operating_hours', 'audit_trg',
+  'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF name, schedule, valid_from, valid_to
+     OR DELETE ON operating_hours FOR EACH ROW EXECUTE FUNCTION audit_row()');
 -- Business profile and legal documents (backend doc 8.29): who changed the NIB, NPWP, PKP status, address,
 -- phone, or logo, and who uploaded, renewed, or removed a document. Reminder bookkeeping stays out.
 SELECT ensure_trigger('business_profile', 'audit_trg',

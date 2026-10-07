@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ChannelIcon } from "@/components/common/channel";
 import { FilterChip } from "@/components/common/filter-chip";
-import { EmptyState, ErrorState, PageHeader, SlaPill, StatusPill } from "@/components/common/page";
+import { EmptyState, ErrorState, PageHeader, StatusPill } from "@/components/common/page";
 import { SelectionBar } from "@/components/common/selection-bar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -33,6 +33,7 @@ import { errorMessage } from "@/lib/api/errors";
 import { formatNumber, formatRupiah } from "@/lib/format";
 import { useCan } from "@/lib/session";
 import { ArrangeDialog } from "./arrange-dialog";
+import { DeadlinePill } from "./deadline-pill";
 import { OrderDetailSheet } from "./order-detail";
 import { ORDER_TABS, type OrderListItem, STATUS_PILL, syncableStores, tabCount, tabOf } from "./order-meta";
 import { TagDot, TagPicker, TagPills, TagsDialog, useTags } from "./tags";
@@ -51,7 +52,7 @@ function useOrderFilters() {
   return {
     tab,
     q: params.get("q") ?? "",
-    due: due === "soon" || due === "overdue" ? (due as "soon" | "overdue") : null,
+    due: due === "soon" || due === "overdue" || due === "cutoff" ? (due as "soon" | "overdue" | "cutoff") : null,
     cod: params.get("cod") === "true",
     storeId: params.get("store"),
     warehouseId: params.get("warehouse"),
@@ -323,6 +324,9 @@ export function OrdersView() {
           <FilterChip active={f.due === "soon"} onClick={() => set({ due: f.due === "soon" ? null : "soon" })}>
             {t("dueSoon")}
           </FilterChip>
+          <FilterChip active={f.due === "cutoff"} onClick={() => set({ due: f.due === "cutoff" ? null : "cutoff" })}>
+            {t("dueCutoff")}
+          </FilterChip>
           <FilterChip active={f.cod} onClick={() => set({ cod: f.cod ? null : "true" })}>
             {t("codOnly")}
           </FilterChip>
@@ -483,7 +487,7 @@ export function OrdersView() {
                         </TableCell>
                       ) : null}
                       <TableCell>
-                        {o.sla ? <SlaPill sla={o.sla} /> : <span className="text-text-500">—</span>}
+                        <DeadlinePill order={o} empty={<span className="text-text-500">—</span>} />
                       </TableCell>
                       <TableCell>
                         <StatusPill tone={STATUS_PILL[o.status].tone} icon={STATUS_PILL[o.status].icon}>
@@ -526,7 +530,7 @@ export function OrdersView() {
                       </span>
                       <span className="flex items-center justify-between gap-2">
                         <span className="tabular text-sm font-semibold text-text-900">{formatRupiah(o.total)}</span>
-                        {o.sla ? <SlaPill sla={o.sla} /> : null}
+                        <DeadlinePill order={o} />
                       </span>
                       <span className="flex items-center gap-1.5 text-[13px] text-text-500">
                         {o.store ? <ChannelIcon channel={o.store.channel} /> : null}

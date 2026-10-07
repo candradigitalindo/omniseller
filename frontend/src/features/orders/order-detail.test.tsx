@@ -28,6 +28,8 @@ function order(over: Partial<OrderDetail> = {}): OrderDetail {
     trackingNumber: null,
     shipByAt: null,
     sla: null,
+    internalShipByAt: null,
+    internalSla: null,
     warehouseId: null,
     problems: [],
     cancelRequested: false,

@@ -67,6 +67,7 @@ export class DashboardService {
 
     return withTenantTx(this.db, ctx, async (tx) => {
       const summary = await this.orders.summaryIn(tx, ctx, filter);
+      const cutoff = await this.orders.cutoffTodayIn(tx, ctx, filter);
       const urgent = await this.orders.urgentIn(tx, ctx, filter, URGENT_ORDERS);
 
       let sales = null;
@@ -152,6 +153,11 @@ export class DashboardService {
         stores,
         tasks: bySeverity([
           ...tasksFrom({
+            cutoff: {
+              count: cutoff.count,
+              missed: cutoff.missed,
+              nextTime: cutoff.next ? localTime(timezone, cutoff.next) : null,
+            },
             overdue: summary.overdue,
             dueSoon: summary.dueSoon,
             problem: summary.statuses.problem ?? 0,
@@ -166,4 +172,9 @@ export class DashboardService {
       };
     });
   }
+}
+
+/** "15.00": a time of day in the business's time zone, as the dashboard writes it. */
+function localTime(timeZone: string, at: Date): string {
+  return new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone }).format(at);
 }

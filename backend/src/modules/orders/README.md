@@ -14,12 +14,13 @@ Pesanan dari semua toko dalam satu antrean (PRD 6.4: FR-ORD-01 sampai 10, 12, 13
   - stok lewat `InventoryService.orderMovementsIn`, `stockIn`, `allocateIn`, dan `variantsIn`;
   - listing lewat `ListingsService`;
   - toko, gudang marketplace, dan saluran manual lewat `StoresService`;
-  - zona waktu bisnis lewat `TenantsService`.
+  - zona waktu bisnis lewat `TenantsService`;
+  - kalender kurir (cut-off, libur, jam operasional) lewat `CourierCalendarService.calendarIn` (modul campaign, backend doc 8.31).
 - Nomor pesanan manual diambil dari `document_sequence` (`nextDocumentNumber`), dan Idempotency-Key dicatat di `idempotency_record` (`claimIdempotencyKey`).
 
 ## Service publik
 - `OrdersService` (api):
-  - `list` (filter `tagId`), `summary`, `get` (dengan `warehouseFixed`), `accept`, `pack`;
+  - `list` (filter `tagId`; `cutoffToday` untuk `due=cutoff`; `sort=ship_by` menurut batas yang lebih dulu, marketplace atau cut-off kurir), `summary`, `get` (dengan `warehouseFixed`), `accept`, `pack`, `recentCouriers` (kurir pesanan 90 hari terakhir, untuk formulir cut-off L43), `cutoffTodayIn` (pesanan yang harus dikirim sebelum cut-off hari ini, untuk dasbor);
   - `cancelReasons` dan `requestCancel` (pesanan manual: alasan OmniSeller, dibatalkan seketika);
   - `setNote`, `resolveProblem`, `requestSync`, `changeWarehouse`.
 
@@ -30,6 +31,7 @@ Pesanan dari semua toko dalam satu antrean (PRD 6.4: FR-ORD-01 sampai 10, 12, 13
 - `OrdersService` untuk pindai, kemas, dan serah terima (backend doc 8.24, di transaksi pemanggil): `byCodeIn` (pesanan dari nomor pesanan atau resi, persis atau huruf besar, dalam cakupan), `visibleManyIn`, `packRefusalIn` dan `packIn` (aturan "Tandai dikemas" untuk satu pesanan yang dikunci; penolakan 409 dengan kode yang sama), `lockIn` (mengunci pesanan urut id, tanpa cek cakupan), `manualAwaitingIn` (pesanan manual satu gudang yang dikemas dan menunggu kurir).
 - `OrdersService` untuk modul lain: `requireVisible` (semua id harus terlihat pemanggil, atau 404), `readIn`, `idsByExternalIn`, `refsIn` (nomor pesanan dan toko), `ordersOfItemsIn` (pesanan per baris pesanan dalam cakupan, kartu stok 8.13), `tagsIn` (nama tag per pesanan, untuk label dan daftar kemas, 8.22), `visibleIn` (satu pesanan dalam cakupan, di transaksi pemanggil), `openInWarehouseIn` (pesanan yang belum dikirim dari satu gudang, untuk penghapusan gudang), `statusCountsIn` (pesanan satu toko per status sejak suatu waktu, mode paralel 8.19); untuk dasbor (backend doc 8.16, di transaksi dan cakupan pemanggil): `summaryIn`, `urgentIn`, `salesIn`, `salesByDayIn`, `topProductsIn`, `grossProfitIn`; untuk laporan penjualan dan email harian (8.20, filter `SalesFilter` toko dan marketplace): `salesBucketsIn` (per hari, minggu, atau bulan di zona waktu bisnis), `salesByIn` (per marketplace, toko, atau provinsi pembeli), `salesByHourIn`, `itemSalesIn` (per varian atau kategori), `unitsSoldIn`, `cancellationsIn` (dibayar lalu dibatalkan), `shippedIn` (menurut `shipped_at`); untuk perlu restock: `unitsByStockIn` (unit terjual pesanan penjual per varian dan gudang); untuk ekspor data (8.18): `exportSheets` (`pesanan.csv`, `item_pesanan.csv`).
 - Untuk toko yang diputus (FR-INT-07, backend doc 8.23): `OrdersService.releaseDisconnectedStore` (job `order.store_disconnected`), `storeOrderIdsIn` dan `deleteOrdersIn` (modul retention: stok yang masih ditahan dilepas, lalu pesanan dihapus beserta baris, riwayat, masalah, referensi, dan tagnya), `OrderIntakeService.releaseForDisconnectIn`.
+- `OrderDeadlinesService` (api dan worker, backend doc 8.31): `refreshIn(tx, ctx, orderIds)` menghitung `order.internal_ship_by_at` dari kalender kurir untuk pesanan yang masih harus dikirim (dipanggil `settleIn`), `refreshAll(ctx)` untuk job `order.internal_deadlines` (500 pesanan per transaksi). Kalender dibaca sekali per transaksi.
 - Hanya worker: `OrderSyncService` (`ingest`, `refresh`, `pull`, `cancel`, `attachListing`, `recheckStock`); marketplace selalu lewat `MarketplaceGateway`. `OrderAlertsService`: `alertDue` (peringatan batas kirim, FR-SHP-10) dan `notifyNewOrders` (ringkasan pesanan baru, FR-NTF-01).
 
 ## Aturan
@@ -61,6 +63,7 @@ Pesanan dari semua toko dalam satu antrean (PRD 6.4: FR-ORD-01 sampai 10, 12, 13
 | `order.listing_mapped` | `order.ingest` | `listing.mapped` |
 | `order.stock_recheck` | `order.ingest` | `inventory.changed` |
 | `order.sla_alert` | `notify` | jadwal `order.sla_scan` (5 menit, per tenant dengan pesanan jatuh tempo) |
+| `order.internal_deadlines` | `order.ingest` | `courier_calendar.changed` (modul campaign): semua pesanan yang masih harus dikirim dihitung ulang batas internalnya |
 | `order.new_notice` | `notify` | jadwal `order.new_scan` (5 menit, per tenant dengan pesanan bertanda `notify_new`) |
 | `order.store_disconnected` | `order.ingest` | `store.disconnected` (200 pesanan per transaksi) |
 
@@ -88,6 +91,7 @@ Pesanan dari semua toko dalam satu antrean (PRD 6.4: FR-ORD-01 sampai 10, 12, 13
 - Shopee dan TikTok Shop tidak punya API "terima pesanan": "Terima" adalah langkah internal. Mengatur pengiriman, label, dan resi ada di modul fulfillment; resi ditulis ke pesanan lewat `setShippingIn`.
 - Notifikasi pesanan baru (backend doc 8.17): `order.notify_new` diisi saat pesanan penjual pertama kali perlu diproses (masuk `new` setelah impor 90 hari tokonya selesai, atau `unpaid` menjadi `new`); setiap 5 menit satu ringkasan per pengguna dengan `order:accept`, per toko di cakupannya. Toko baca saja tidak diumumkan.
 - Penjualan di dasbor: pesanan yang bukan `unpaid` dan bukan `cancelled`, menurut `ordered_at`.
+- Batas internal (`internal_ship_by_at`): cut-off kurir pertama yang masih terkejar sejak `paid_at` (atau `ordered_at`), hanya untuk pesanan yang masih harus dikirim; pesanan yang keluar antrean menyimpan batas terakhirnya. `internalSla` di respons: `warning` 2 jam atau kurang ke cut-off, `missed` setelah lewat. Peringatan batas kirim tetap memakai batas marketplace.
 - Peringatan batas kirim: sekali per tingkat (`order.sla_alert_level`: `warning` pada 6 jam, `overdue` setelah lewat) untuk pesanan penjual yang masih harus dikirim, ke pengguna dengan `shipment:arrange` sesuai cakupannya; toko baca saja tidak diperingatkan.
 - Menjawab permintaan batal pembeli (Shopee `handle_buyer_cancellation`, TikTok Shop Approve/Reject Cancellation) menyusul.
 - Alokasi otomatis untuk pesanan marketplace dihitung sekali saat pesanan masuk. Alamat pengirim di label marketplace tetap alamat toko di marketplace.

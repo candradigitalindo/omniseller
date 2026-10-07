@@ -114,6 +114,7 @@ const dashboardSchema = z.object({
   tasks: z.array(
     z.object({
       kind: z.enum([
+        "orders_cutoff",
         "orders_due",
         "orders_problem",
         "orders_new",

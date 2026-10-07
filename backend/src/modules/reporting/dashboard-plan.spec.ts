@@ -138,6 +138,33 @@ describe("tasks (Perlu tindakan)", () => {
     expect(tasks[0]!.title).toBe("4 pesanan harus segera dikirim (1 sudah terlambat)");
   });
 
+  it("asks for the orders that must make today's courier pickup first", () => {
+    const base = {
+      overdue: 0,
+      dueSoon: 0,
+      problem: 0,
+      newOrders: 0,
+      criticalStock: null,
+      storesToReconnect: 0,
+      unmappedListings: null,
+    };
+    const ahead = tasksFrom({ ...base, cutoff: { count: 7, missed: 0, nextTime: "15.00" } });
+    expect(ahead).toEqual([
+      { kind: "orders_cutoff", severity: "warning", count: 7, title: "7 pesanan harus dikirim sebelum pickup 15.00" },
+    ]);
+    const late = tasksFrom({ ...base, dueSoon: 2, cutoff: { count: 7, missed: 3, nextTime: "17.00" } });
+    expect(late.map((t) => [t.kind, t.severity])).toEqual([
+      ["orders_cutoff", "critical"],
+      ["orders_due", "warning"],
+    ]);
+    expect(late[0]!.title).toBe("7 pesanan harus dikirim sebelum pickup 17.00 (3 sudah lewat cut-off)");
+    expect(tasksFrom({ ...base, cutoff: { count: 2, missed: 2, nextTime: null } })[0]!.title).toBe(
+      "2 pesanan lewat cut-off kurir hari ini",
+    );
+    expect(tasksFrom({ ...base, cutoff: { count: 0, missed: 0, nextTime: null } })).toEqual([]);
+    expect(tasksFrom({ ...base, cutoff: null })).toEqual([]);
+  });
+
   it("warns about orders due within 6 hours and skips sections the user may not see", () => {
     const tasks = tasksFrom({ ...none, dueSoon: 2, criticalStock: null, unmappedListings: null });
     expect(tasks).toEqual([

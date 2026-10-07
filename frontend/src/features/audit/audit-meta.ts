@@ -12,7 +12,7 @@ export const AUDIT_KINDS = {
   stock: ["stock_movement", "stock_count", "stock_transfer", "stock_allocation_rule"],
   orders: ["order_event", "return_request", "handover"],
   access: ["user", "user_role", "user_store_scope", "user_warehouse_scope", "role", "role_permission"],
-  stores: ["store", "channel_warehouse", "warehouse", "device"],
+  stores: ["store", "channel_warehouse", "warehouse", "device", "courier_cutoff", "courier_holiday", "operating_hours"],
   data: ["data_export", "migration_job", "store_cutover"],
   business: ["business_profile", "business_document"],
 } as const satisfies Record<string, readonly string[]>;
@@ -123,6 +123,14 @@ export const TITLE_KEYS = [
   "stock_transfer_received",
   "stock_transfer_cancelled",
   "stock_transfer_updated",
+  "courier_cutoff_created",
+  "courier_cutoff_updated",
+  "courier_cutoff_deleted",
+  "courier_holiday_created",
+  "courier_holiday_deleted",
+  "operating_hours_created",
+  "operating_hours_updated",
+  "operating_hours_deleted",
   "business_profile_created",
   "business_profile_updated",
   "business_document_created",
@@ -218,6 +226,13 @@ export const AUDIT_FIELDS = [
   "validUntil",
   "file",
   "twoFactorEnabled",
+  "courier",
+  "cutoffTime",
+  "daysOfWeek",
+  "holidayDate",
+  "schedule",
+  "validFrom",
+  "validTo",
 ] as const;
 export type AuditFieldName = (typeof AUDIT_FIELDS)[number];
 
@@ -322,7 +337,14 @@ export const MONEY_FIELDS = new Set(["costPrice", "basePrice", "price"]);
 export const DELTA_FIELDS = new Set(["onHandDelta", "damagedDelta", "bufferDelta"]);
 export const MOMENT_FIELDS = new Set(["undoUntil", "revokedAt", "receivedAt", "applyRequestedAt"]);
 /** Calendar dates (YYYY-MM-DD), shown without a time. */
-export const DATE_FIELDS = new Set(["issuedOn", "validUntil", "nibInProcessSince"]);
+export const DATE_FIELDS = new Set([
+  "issuedOn",
+  "validUntil",
+  "nibInProcessSince",
+  "holidayDate",
+  "validFrom",
+  "validTo",
+]);
 /** Files: their ids only say one was added, replaced, or removed. */
 export const FILE_FIELDS = new Set(["logo", "file"]);
 
@@ -330,6 +352,31 @@ export const FILE_FIELDS = new Set(["logo", "file"]);
 export function fileChangeKey(before: unknown, after: unknown): "fileAdded" | "fileReplaced" | "fileRemoved" {
   if (before == null) return "fileAdded";
   return after == null ? "fileRemoved" : "fileReplaced";
+}
+
+const DAY_SHORT = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+const MONDAY_FIRST = [1, 2, 3, 4, 5, 6, 0];
+
+/** A courier's days (0 = Sunday) as "Sen, Sel, Rab": the log lists them, Monday first. */
+export function daysValue(value: unknown): string | null {
+  if (!Array.isArray(value) || !value.every((d) => typeof d === "number" && d >= 0 && d <= 6)) return null;
+  return MONDAY_FIRST.filter((d) => value.includes(d))
+    .map((d) => DAY_SHORT[d])
+    .join(", ");
+}
+
+/** A week of hours as "Sen 08.00–17.00, Min tutup": seven days from Sunday, null when closed. */
+export function weekValue(value: unknown, closed: string): string | null {
+  if (!Array.isArray(value) || value.length !== 7) return null;
+  const parts: string[] = [];
+  for (const d of MONDAY_FIRST) {
+    const h = value[d] as { open?: unknown; close?: unknown } | null;
+    if (h === null) parts.push(`${DAY_SHORT[d]} ${closed}`);
+    else if (typeof h?.open === "string" && typeof h.close === "string") {
+      parts.push(`${DAY_SHORT[d]} ${h.open.replace(":", ".")}–${h.close.replace(":", ".")}`);
+    } else return null;
+  }
+  return parts.join(", ");
 }
 
 const ADDRESS_PARTS = ["line1", "district", "city", "province", "postalCode"];

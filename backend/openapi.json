@@ -1348,6 +1348,392 @@
         }
       }
     },
+    "/v1/courier-cutoffs": {
+      "get": {
+        "operationId": "CourierCutoffsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CutoffListDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "courier-cutoffs"
+        ],
+        "x-isolation": {
+          "fixture": "courier_cutoff"
+        }
+      },
+      "post": {
+        "operationId": "CourierCutoffsController_add",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddCutoffDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CutoffDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "courier-cutoffs"
+        ],
+        "x-isolation": {
+          "fixture": "warehouse"
+        }
+      }
+    },
+    "/v1/courier-cutoffs/{id}": {
+      "patch": {
+        "operationId": "CourierCutoffsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCutoffDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CutoffDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "courier-cutoffs"
+        ],
+        "x-isolation": {
+          "fixture": "courier_cutoff"
+        }
+      },
+      "delete": {
+        "operationId": "CourierCutoffsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "courier-cutoffs"
+        ],
+        "x-isolation": {
+          "fixture": "courier_cutoff"
+        }
+      }
+    },
+    "/v1/courier-holidays": {
+      "get": {
+        "operationId": "CourierHolidaysController_list",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "bawaan: 30 hari lalu",
+            "schema": {
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolidayListDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "courier-cutoffs"
+        ],
+        "x-isolation": {
+          "fixture": "courier_holiday"
+        }
+      },
+      "post": {
+        "operationId": "CourierHolidaysController_add",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddHolidayDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HolidayDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "courier-cutoffs"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/courier-holidays/{id}": {
+      "delete": {
+        "operationId": "CourierHolidaysController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "courier-cutoffs"
+        ],
+        "x-isolation": {
+          "fixture": "courier_holiday"
+        }
+      }
+    },
+    "/v1/operating-hours": {
+      "get": {
+        "operationId": "OperatingHoursController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoursDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "courier-cutoffs"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/operating-hours/week": {
+      "put": {
+        "operationId": "OperatingHoursController_setWeek",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetWeekDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeekDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "courier-cutoffs"
+        ],
+        "x-isolation": "self"
+      },
+      "delete": {
+        "operationId": "OperatingHoursController_removeWeek",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "courier-cutoffs"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/operating-hours/periods": {
+      "post": {
+        "operationId": "OperatingHoursController_addPeriod",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddPeriodDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "courier-cutoffs"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/operating-hours/periods/{id}": {
+      "patch": {
+        "operationId": "OperatingHoursController_updatePeriod",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePeriodDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "courier-cutoffs"
+        ],
+        "x-isolation": {
+          "fixture": "operating_hours"
+        }
+      },
+      "delete": {
+        "operationId": "OperatingHoursController_removePeriod",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "courier-cutoffs"
+        ],
+        "x-isolation": {
+          "fixture": "operating_hours"
+        }
+      }
+    },
     "/v1/warehouses": {
       "get": {
         "operationId": "WarehousesController_list",
@@ -5199,12 +5585,13 @@
             "name": "due",
             "required": false,
             "in": "query",
-            "description": "overdue: lewat batas kirim; soon: batas kirim dalam 6 jam",
+            "description": "overdue: lewat batas kirim; soon: batas kirim dalam 6 jam; cutoff: harus dikirim sebelum cut-off kurir hari ini (termasuk yang sudah lewat)",
             "schema": {
               "type": "string",
               "enum": [
                 "overdue",
-                "soon"
+                "soon",
+                "cutoff"
               ]
             }
           },
@@ -5282,6 +5669,38 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OrderSummaryDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "orders"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/orders/couriers": {
+      "get": {
+        "operationId": "OrdersController_couriers",
+        "parameters": [
+          {
+            "name": "warehouseId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CourierListDto_Output"
                 }
               }
             }
@@ -10940,6 +11359,695 @@
                 "type": "null"
               }
             ]
+          }
+        }
+      },
+      "CutoffListDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "warehouseId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "courier": {
+                  "type": "string"
+                },
+                "cutoffTime": {
+                  "type": "string",
+                  "description": "JJ:MM, jam pickup atau drop-off terakhir"
+                },
+                "days": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "active": {
+                  "type": "boolean"
+                },
+                "rowVersion": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "id",
+                "warehouseId",
+                "courier",
+                "cutoffTime",
+                "days",
+                "active",
+                "rowVersion"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "next_cursor": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "AddCutoffDto": {
+        "type": "object",
+        "properties": {
+          "warehouseId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "courier": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60,
+            "description": "nama kurir seperti di marketplace, misalnya J&T Express"
+          },
+          "cutoffTime": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "days": {
+            "minItems": 1,
+            "maxItems": 7,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 6
+            },
+            "description": "hari kurir datang: 0 = Minggu sampai 6 = Sabtu"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "warehouseId",
+          "courier",
+          "cutoffTime",
+          "days"
+        ]
+      },
+      "CutoffDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "warehouseId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "courier": {
+            "type": "string"
+          },
+          "cutoffTime": {
+            "type": "string",
+            "description": "JJ:MM, jam pickup atau drop-off terakhir"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "rowVersion": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "id",
+          "warehouseId",
+          "courier",
+          "cutoffTime",
+          "days",
+          "active",
+          "rowVersion"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateCutoffDto": {
+        "type": "object",
+        "properties": {
+          "courier": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60,
+            "description": "nama kurir seperti di marketplace, misalnya J&T Express"
+          },
+          "cutoffTime": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "days": {
+            "minItems": 1,
+            "maxItems": 7,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 6
+            },
+            "description": "hari kurir datang: 0 = Minggu sampai 6 = Sabtu"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "HolidayListDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "date": {
+                  "type": "string"
+                },
+                "courier": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "note": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "date",
+                "courier",
+                "note"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "next_cursor": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "AddHolidayDto": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "courier": {
+            "description": "kosong: semua kurir",
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60,
+                "description": "nama kurir seperti di marketplace, misalnya J&T Express"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "date"
+        ]
+      },
+      "HolidayDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "date": {
+            "type": "string"
+          },
+          "courier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "courier",
+          "note"
+        ],
+        "additionalProperties": false
+      },
+      "HoursDto_Output": {
+        "type": "object",
+        "properties": {
+          "week": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  "schedule": {
+                    "minItems": 7,
+                    "maxItems": 7,
+                    "type": "array",
+                    "items": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "open": {
+                              "type": "string",
+                              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                            },
+                            "close": {
+                              "type": "string",
+                              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                            }
+                          },
+                          "required": [
+                            "open",
+                            "close"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null berarti tutup"
+                    },
+                    "description": "tujuh hari dari Minggu"
+                  },
+                  "rowVersion": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "id",
+                  "schedule",
+                  "rowVersion"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "minggu biasa; null bila belum diatur (tidak membatasi)"
+          },
+          "periods": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "from": {
+                  "type": "string"
+                },
+                "to": {
+                  "type": "string"
+                },
+                "schedule": {
+                  "minItems": 7,
+                  "maxItems": 7,
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "open": {
+                            "type": "string",
+                            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                          },
+                          "close": {
+                            "type": "string",
+                            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                          }
+                        },
+                        "required": [
+                          "open",
+                          "close"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "null berarti tutup"
+                  },
+                  "description": "tujuh hari dari Minggu"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "from",
+                "to",
+                "schedule"
+              ],
+              "additionalProperties": false
+            },
+            "description": "periode khusus yang menggantikan minggu biasa pada tanggalnya"
+          }
+        },
+        "required": [
+          "week",
+          "periods"
+        ],
+        "additionalProperties": false
+      },
+      "SetWeekDto": {
+        "type": "object",
+        "properties": {
+          "schedule": {
+            "minItems": 7,
+            "maxItems": 7,
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "open": {
+                      "type": "string",
+                      "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                    },
+                    "close": {
+                      "type": "string",
+                      "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                    }
+                  },
+                  "required": [
+                    "open",
+                    "close"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "null berarti tutup"
+            },
+            "description": "tujuh hari dari Minggu"
+          }
+        },
+        "required": [
+          "schedule"
+        ]
+      },
+      "WeekDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "schedule": {
+            "type": "array",
+            "minItems": 7,
+            "maxItems": 7,
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "open": {
+                      "type": "string",
+                      "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                    },
+                    "close": {
+                      "type": "string",
+                      "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                    }
+                  },
+                  "required": [
+                    "open",
+                    "close"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "null berarti tutup"
+            },
+            "description": "tujuh hari dari Minggu"
+          },
+          "rowVersion": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "id",
+          "schedule",
+          "rowVersion"
+        ],
+        "additionalProperties": false
+      },
+      "AddPeriodDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "from": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "schedule": {
+            "minItems": 7,
+            "maxItems": 7,
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "open": {
+                      "type": "string",
+                      "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                    },
+                    "close": {
+                      "type": "string",
+                      "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                    }
+                  },
+                  "required": [
+                    "open",
+                    "close"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "null berarti tutup"
+            },
+            "description": "tujuh hari dari Minggu"
+          }
+        },
+        "required": [
+          "name",
+          "from",
+          "to",
+          "schedule"
+        ]
+      },
+      "PeriodDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "schedule": {
+            "type": "array",
+            "minItems": 7,
+            "maxItems": 7,
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "open": {
+                      "type": "string",
+                      "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                    },
+                    "close": {
+                      "type": "string",
+                      "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                    }
+                  },
+                  "required": [
+                    "open",
+                    "close"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "null berarti tutup"
+            },
+            "description": "tujuh hari dari Minggu"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "from",
+          "to",
+          "schedule"
+        ],
+        "additionalProperties": false
+      },
+      "UpdatePeriodDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "from": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+          },
+          "schedule": {
+            "minItems": 7,
+            "maxItems": 7,
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "open": {
+                      "type": "string",
+                      "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                    },
+                    "close": {
+                      "type": "string",
+                      "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                    }
+                  },
+                  "required": [
+                    "open",
+                    "close"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "null berarti tutup"
+            },
+            "description": "tujuh hari dari Minggu"
           }
         }
       },
@@ -21067,6 +22175,50 @@
                   ],
                   "description": "ok: hijau; warning: kuning (6 jam atau kurang); overdue: merah"
                 },
+                "internalShipByAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "batas internal: cut-off kurir pertama yang masih terkejar saat pesanan masuk (backend doc 8.31)"
+                },
+                "internalSla": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "state": {
+                          "type": "string",
+                          "enum": [
+                            "ok",
+                            "warning",
+                            "missed"
+                          ]
+                        },
+                        "remainingMs": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "remainingMs"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "ok: hijau; warning: kuning (2 jam atau kurang ke cut-off); missed: cut-off sudah lewat"
+                },
                 "warehouseId": {
                   "anyOf": [
                     {
@@ -21199,6 +22351,8 @@
                 "trackingNumber",
                 "shipByAt",
                 "sla",
+                "internalShipByAt",
+                "internalSla",
                 "warehouseId",
                 "problems",
                 "cancelRequested",
@@ -21279,6 +22433,42 @@
           "overdue",
           "dueSoon",
           "codOutstanding"
+        ],
+        "additionalProperties": false
+      },
+      "CourierListDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "courier": {
+                  "type": "string",
+                  "description": "nama kurir seperti dikirim marketplace"
+                },
+                "orders": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "pesanan 90 hari terakhir"
+                }
+              },
+              "required": [
+                "courier",
+                "orders"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "next_cursor": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
         ],
         "additionalProperties": false
       },
@@ -21733,6 +22923,50 @@
               }
             ],
             "description": "ok: hijau; warning: kuning (6 jam atau kurang); overdue: merah"
+          },
+          "internalShipByAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "batas internal: cut-off kurir pertama yang masih terkejar saat pesanan masuk (backend doc 8.31)"
+          },
+          "internalSla": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "ok",
+                      "warning",
+                      "missed"
+                    ]
+                  },
+                  "remainingMs": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "state",
+                  "remainingMs"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ok: hijau; warning: kuning (2 jam atau kurang ke cut-off); missed: cut-off sudah lewat"
           },
           "warehouseId": {
             "anyOf": [
@@ -22271,6 +23505,8 @@
           "trackingNumber",
           "shipByAt",
           "sla",
+          "internalShipByAt",
+          "internalSla",
           "warehouseId",
           "problems",
           "cancelRequested",
@@ -29918,6 +31154,7 @@
                 "kind": {
                   "type": "string",
                   "enum": [
+                    "orders_cutoff",
                     "orders_due",
                     "orders_problem",
                     "orders_new",

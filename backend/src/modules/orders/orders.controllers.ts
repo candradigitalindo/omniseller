@@ -30,6 +30,8 @@ import {
   CancelOrderDto,
   CancelReasonsDto,
   ChangeWarehouseDto,
+  CourierListDto,
+  CourierQueryDto,
   CreateManualOrderDto,
   CreateTagDto,
   OrderDto,
@@ -62,6 +64,12 @@ import { SLA_WARNING_MS } from "./order-plan";
 import type { ShipByCursor } from "./orders.repository";
 import { OrdersService } from "./orders.service";
 import { TagsService } from "./tags.service";
+
+/** The deadline the queue sorts by: the courier's cut-off or the marketplace's, whichever comes first. */
+function deadlineOf(o: { shipByAt: Date | null; internalShipByAt: Date | null }): Date | null {
+  if (!o.shipByAt || !o.internalShipByAt) return o.shipByAt ?? o.internalShipByAt;
+  return o.internalShipByAt < o.shipByAt ? o.internalShipByAt : o.shipByAt;
+}
 
 function decodeShipBy(cursor: string | undefined): ShipByCursor | undefined {
   if (!cursor) return undefined;
@@ -101,6 +109,7 @@ export class OrdersController {
         problem: q.problem,
         cod: q.cod === undefined ? undefined : q.cod === "true",
         dueBefore: q.due === "overdue" ? new Date(now) : q.due === "soon" ? new Date(now + SLA_WARNING_MS) : undefined,
+        cutoffToday: q.due === "cutoff",
         tagId: q.tagId,
       },
       q.sort,
@@ -111,7 +120,7 @@ export class OrdersController {
     const next =
       page.more && last
         ? q.sort === "ship_by"
-          ? Buffer.from(JSON.stringify({ t: last.shipByAt?.getTime() ?? null, id: last.id })).toString("base64url")
+          ? Buffer.from(JSON.stringify({ t: deadlineOf(last)?.getTime() ?? null, id: last.id })).toString("base64url")
           : encodeCursor(last.id)
         : null;
     return { items: page.items.map((v) => orderListView(v)), next_cursor: next };
@@ -127,6 +136,15 @@ export class OrdersController {
   }
 
   /** FR-ORD-08 "Terima": new to ready to pack, per order. */
+  /** Couriers of recent orders, for the cut-off form (UI L43, backend doc 8.31). */
+  @Get("couriers")
+  @RequirePermission("order:read")
+  @Isolation("self")
+  @ZodResponse({ type: CourierListDto })
+  async couriers(@Ctx() ctx: RequestContext, @Query() q: CourierQueryDto) {
+    return { items: await this.orders.recentCouriers(ctx, q.warehouseId), next_cursor: null };
+  }
+
   @Post("accept")
   @HttpCode(200)
   @RequirePermission("order:accept")

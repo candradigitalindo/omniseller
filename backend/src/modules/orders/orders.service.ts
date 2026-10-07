@@ -4,13 +4,16 @@ import { newId, type OrderStatus } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
 import { ConflictError } from "../../common/errors/domain-errors";
 import { EXPORT_PAGE_SIZE, type ExportSheet, keysetPages } from "../../common/export-sheet";
+import { localDate, startOfDate } from "../../common/time-zone";
 import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
+import { addDays } from "../campaign/cutoff-plan";
 import { storeIsManual, storeNotFound } from "../channel/channel.errors";
 import { CONNECTORS, type ConnectorRegistry } from "../channel/connector-registry";
 import { channelDisplayName, isManualChannel, StoresService } from "../channel/stores.service";
+import { TenantsService } from "../identity/tenants.service";
 import { InventoryService } from "../inventory/inventory.service";
 import { OrderIntakeService } from "./order-intake.service";
 import { MANUAL_CANCEL_REASONS, MOVABLE, SLA_WARNING_MS, warehouseFixed } from "./order-plan";
@@ -106,6 +109,7 @@ export class OrdersService {
     @Inject(OUTBOX) private readonly outbox: Outbox,
     @Inject(TagsRepository) private readonly tags: TagsRepository,
     @Inject(InventoryService) private readonly inventory: InventoryService,
+    @Inject(TenantsService) private readonly tenants: TenantsService,
   ) {}
 
   private scope(ctx: RequestContext): Pick<OrderListFilter, "storeScope" | "warehouseScope"> {
@@ -255,15 +259,47 @@ export class OrdersService {
 
   async list(
     ctx: RequestContext,
-    filter: Omit<OrderListFilter, "storeScope" | "warehouseScope">,
+    filter: Omit<OrderListFilter, "storeScope" | "warehouseScope"> & { cutoffToday?: boolean },
     sort: OrderSort,
     after: string | ShipByCursor | undefined,
     limit: number,
   ): Promise<{ items: OrderView[]; more: boolean }> {
     return withTenantTx(this.db, ctx, async (tx) => {
-      const rows = await this.repo.list(tx, { ...filter, ...(await this.workScope(tx, ctx)) }, sort, after, limit);
+      const { cutoffToday, ...rest } = filter;
+      const f: OrderListFilter = {
+        ...rest,
+        ...(cutoffToday ? { internalBefore: await this.endOfTodayIn(tx, ctx) } : {}),
+        ...(await this.workScope(tx, ctx)),
+      };
+      const rows = await this.repo.list(tx, f, sort, after, limit);
       return { items: await this.views(tx, ctx, rows.slice(0, limit)), more: rows.length > limit };
     });
+  }
+
+  /**
+   * Orders to ship whose courier cut-off is today or earlier (backend doc 8.31), for the dashboard: how
+   * many, how many missed it, and the next cut-off still ahead today.
+   */
+  async cutoffTodayIn(tx: Tx, ctx: RequestContext, filter: Pick<OrderListFilter, "storeId" | "warehouseId"> = {}) {
+    const f = { ...filter, ...(await this.workScope(tx, ctx)) };
+    return this.repo.cutoffSummary(tx, f, await this.endOfTodayIn(tx, ctx), new Date());
+  }
+
+  /** Couriers of the last 90 days' orders, at one warehouse or all the caller may see (UI L43). */
+  async recentCouriers(ctx: RequestContext, warehouseId?: string) {
+    return withTenantTx(this.db, ctx, async (tx) =>
+      this.repo.recentCouriers(
+        tx,
+        { warehouseId, ...(await this.workScope(tx, ctx)) },
+        new Date(Date.now() - 90 * 86_400_000),
+      ),
+    );
+  }
+
+  /** The start of tomorrow in the business's time zone. */
+  private async endOfTodayIn(tx: Tx, ctx: RequestContext): Promise<Date> {
+    const { timezone } = await this.tenants.profileIn(tx, ctx);
+    return startOfDate(timezone, addDays(localDate(timezone, new Date()), 1));
   }
 
   /** Tab counters and the numbers of the order dashboard (FR-ORD-07, 15). */

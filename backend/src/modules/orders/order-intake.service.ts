@@ -11,6 +11,7 @@ import { ListingsService } from "../catalog/listings.service";
 import type { ChannelWarehouseRow } from "../channel/channel.repository";
 import { type StockTarget, StoresService } from "../channel/stores.service";
 import { InventoryService, type OrderStockMove } from "../inventory/inventory.service";
+import { OrderDeadlinesService } from "./order-deadlines.service";
 import {
   detectProblems,
   HIGH_VALUE_RUPIAH,
@@ -82,6 +83,7 @@ export class OrderIntakeService {
     @Inject(ListingsService) private readonly listings: ListingsService,
     @Inject(OUTBOX) private readonly outbox: Outbox,
     @Inject(StoresService) private readonly stores: StoresService,
+    @Inject(OrderDeadlinesService) private readonly deadlines: OrderDeadlinesService,
   ) {}
 
   /** Warehouse of a line (FR-WHS-06): the marketplace's warehouse, else the shop's only seller warehouse. */
@@ -704,7 +706,10 @@ export class OrderIntakeService {
       current = { ...current, problemCount: openCount };
     }
     const step = problemStep(current.status, openCount);
-    return step ? this.stepIn(tx, ctx, current, [step], { type: "system", id: null }) : current;
+    const settled = step ? await this.stepIn(tx, ctx, current, [step], { type: "system", id: null }) : current;
+    // the courier cut-off it has to make (backend doc 8.31): its warehouse, courier, or payment may be new
+    const deadlines = await this.deadlines.refreshIn(tx, ctx, [o.id]);
+    return deadlines.has(o.id) ? { ...settled, internalShipByAt: deadlines.get(o.id) ?? null } : settled;
   }
 
   /**

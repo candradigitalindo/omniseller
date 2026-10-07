@@ -3,6 +3,7 @@ import messages from "../../../messages/id.json";
 import {
   AUDIT_FIELDS,
   AUDIT_KINDS,
+  daysValue,
   fileChangeKey,
   groupEntries,
   periodFrom,
@@ -12,6 +13,7 @@ import {
   titleKey,
   VALUE_LABELS,
   valueKey,
+  weekValue,
 } from "./audit-meta";
 import { entry } from "./fixtures";
 
@@ -109,6 +111,18 @@ describe("what an entry says", () => {
     expect(titleKey(entry({ entityType: "user", changes: status("invited", "invited") }))).toBe("user_updated");
     expect(valueKey("user", "status", "disabled")).toBe("team.userStatus_disabled");
     expect(AUDIT_KINDS.access).toContain("user");
+  });
+
+  it("reads courier days and weekly hours as days", () => {
+    expect(daysValue([0, 1, 2, 3, 4, 5, 6])).toBe("Sen, Sel, Rab, Kam, Jum, Sab, Min");
+    expect(daysValue([6, 1])).toBe("Sen, Sab");
+    expect(daysValue(["Sen"])).toBeNull();
+    const week = [null, ...Array.from({ length: 6 }, () => ({ open: "08:00", close: "17:00" }))];
+    expect(weekValue(week, "tutup")).toBe(
+      "Sen 08.00–17.00, Sel 08.00–17.00, Rab 08.00–17.00, Kam 08.00–17.00, Jum 08.00–17.00, Sab 08.00–17.00, Min tutup",
+    );
+    expect(weekValue([1, 2, 3], "tutup")).toBeNull();
+    expect(AUDIT_KINDS.stores).toContain("courier_cutoff");
   });
 
   it("says plainly what happened to a table it has no words for", () => {

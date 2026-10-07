@@ -119,6 +119,41 @@ describe("Log Audit", () => {
     expect(screen.queryByText(/01JFILE/)).not.toBeInTheDocument();
   });
 
+  it("reads courier cut-offs and holidays as times, days, and dates", async () => {
+    mockApi({
+      "GET /v1/audit-logs/people": () => PEOPLE,
+      "GET /v1/audit-logs": () => ({
+        items: [
+          entry({
+            entityType: "courier_cutoff",
+            change: "created",
+            action: "insert",
+            label: "SiCepat",
+            changes: [
+              { field: "cutoffTime", before: null, after: "16:00:00" },
+              { field: "daysOfWeek", before: null, after: [1, 2, 3, 4, 5] },
+            ],
+          }),
+          entry({
+            entityType: "courier_holiday",
+            change: "created",
+            action: "insert",
+            requestId: "req-holiday",
+            label: "2026-12-25",
+            changes: [{ field: "note", before: null, after: "Natal" }],
+          }),
+        ],
+        next_cursor: null,
+      }),
+    });
+    renderApp(<AuditLogView />);
+    expect(await screen.findByText("Menambah cut-off kurir")).toBeInTheDocument();
+    expect(screen.getByText("16.00")).toBeInTheDocument();
+    expect(screen.getByText("Sen, Sel, Rab, Kam, Jum")).toBeInTheDocument();
+    expect(screen.getByText("25 Des 2026")).toBeInTheDocument();
+    expect(screen.queryByText("2026-12-25")).not.toBeInTheDocument();
+  });
+
   it("narrows by kind, person, and period through the address and the api", async () => {
     const calls = mockApi({
       "GET /v1/audit-logs/people": () => PEOPLE,

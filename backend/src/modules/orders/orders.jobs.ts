@@ -2,11 +2,13 @@ import { ulidSchema } from "@omniseller/shared";
 import { z } from "zod";
 import { defineJob } from "../../jobs/define";
 import { jobKey } from "../../jobs/job-id";
+import { courierCalendarChanged } from "../campaign/campaign.events";
 import { listingMapped } from "../catalog/catalog.events";
 import { storeConnected, storeDisconnected } from "../channel/channel.events";
 import { inventoryChanged } from "../inventory/inventory.events";
 import type { WebhookConsumers } from "../sync/webhook-consumer";
 import { OrderAlertsService } from "./order-alerts.service";
+import { OrderDeadlinesService } from "./order-deadlines.service";
 import { OrderSyncService } from "./order-sync.service";
 import { orderCancelRequested, orderPullRequested } from "./orders.events";
 import { OrdersService } from "./orders.service";
@@ -120,6 +122,19 @@ export const orderStoreDisconnectedJob = defineJob({
   },
 });
 
+/** The courier calendar changed (backend doc 8.31): every order to ship gets its internal deadline again. */
+export const orderInternalDeadlinesJob = defineJob({
+  queue: "order.ingest",
+  name: "order.internal_deadlines",
+  schema: z.object({}),
+  triggeredBy: [courierCalendarChanged],
+  options: { attempts: 3, backoff: { type: "exponential", delay: 5_000 } },
+  jobId: (p, meta) => jobKey("order.internal_deadlines", p.tenantId, meta.eventId ?? "direct"),
+  handler: async (_p, run) => {
+    await run.deps.resolve(OrderDeadlinesService).refreshAll(run.ctx);
+  },
+});
+
 export const ORDER_JOBS = [
   orderPullJob,
   orderCancelJob,
@@ -128,6 +143,7 @@ export const ORDER_JOBS = [
   orderSlaAlertJob,
   orderNewNoticeJob,
   orderStoreDisconnectedJob,
+  orderInternalDeadlinesJob,
 ];
 
 /** Order notifications: the order is read again from the marketplace (FR-ORD-01). */

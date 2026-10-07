@@ -69,6 +69,17 @@ const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: s
   StoresController_update: () => ({ name: "Penyusup" }),
   BusinessDocumentsController_update: () => ({ title: "Penyusup" }),
   BusinessDocumentsController_remove: () => ({}),
+  CourierCutoffsController_add: ({ a: ids }) => ({
+    warehouseId: ids.warehouse!,
+    courier: "J&T Express",
+    cutoffTime: "15:00",
+    days: [1],
+  }),
+  CourierCutoffsController_update: () => ({ active: false }),
+  CourierCutoffsController_remove: () => ({}),
+  CourierHolidaysController_remove: () => ({}),
+  OperatingHoursController_updatePeriod: () => ({ name: "Penyusup" }),
+  OperatingHoursController_removePeriod: () => ({}),
   StoresController_disconnect: () => ({}),
   StoresController_syncWarehouses: () => ({}),
   StoresController_mapChannelWarehouse: ({ a: ids }) => ({ warehouseId: ids.warehouse! }),
@@ -225,6 +236,26 @@ beforeAll(async () => {
 
   const warehouses = (await a.c.get("/v1/warehouses")).body.items as { id: string }[];
   fixtures.warehouse = { id: warehouses[0]!.id };
+  // when tenant A's parcels must be ready (backend doc 8.31)
+  const cutoff = await a.c.post("/v1/courier-cutoffs", {
+    warehouseId: fixtures.warehouse.id,
+    courier: "J&T Express",
+    cutoffTime: "15:00",
+    days: [1, 2, 3, 4, 5],
+  });
+  expect(cutoff.status, JSON.stringify(cutoff.body)).toBe(201);
+  fixtures.courier_cutoff = { id: cutoff.body.id };
+  const holiday = await a.c.post("/v1/courier-holidays", { date: "2026-12-25", courier: null, note: "Natal" });
+  expect(holiday.status, JSON.stringify(holiday.body)).toBe(201);
+  fixtures.courier_holiday = { id: holiday.body.id };
+  const period = await a.c.post("/v1/operating-hours/periods", {
+    name: "Ramadan",
+    from: "2027-02-08",
+    to: "2027-03-08",
+    schedule: [null, ...Array.from({ length: 6 }, () => ({ open: "08:00", close: "13:00" }))],
+  });
+  expect(period.status, JSON.stringify(period.body)).toBe(201);
+  fixtures.operating_hours = { id: period.body.id };
   // A connected store and one of its marketplace warehouses, as the worker would have written them.
   const tenantId = a.me.tenant.id;
   await withTenantTx(h.worker, userCtx(tenantId), async (tx) => {

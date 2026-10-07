@@ -30,6 +30,7 @@ type Task = Dashboard["tasks"][number];
 
 /** Where each "Perlu tindakan" task leads; tasks of screens still to come have no button yet. */
 const TASK_HREF: Partial<Record<Task["kind"], string>> = {
+  orders_cutoff: "/pesanan?due=cutoff",
   orders_due: "/pesanan?due=soon",
   orders_problem: "/pesanan?status=problem",
   orders_new: "/pesanan?status=new",

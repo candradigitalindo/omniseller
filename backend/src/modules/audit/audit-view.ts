@@ -207,6 +207,19 @@ export const AUDIT_ENTITIES: Record<string, EntitySpec> = {
       f("apply_requested_at"),
     ],
   },
+  // when parcels must be ready (backend doc 8.31)
+  courier_cutoff: {
+    label: [{ column: "courier" }],
+    fields: [r("warehouse_id", "warehouse"), f("courier"), f("cutoff_time"), f("days_of_week"), f("active")],
+  },
+  courier_holiday: {
+    label: [{ column: "courier" }, { column: "holiday_date" }],
+    fields: [f("holiday_date"), f("courier"), f("note")],
+  },
+  operating_hours: {
+    label: [{ column: "name" }],
+    fields: [f("name"), f("schedule"), f("valid_from"), f("valid_to")],
+  },
   // the logo and a document's file are files: their ids say only that one was set, replaced, or removed
   business_profile: {
     label: [],

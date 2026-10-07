@@ -70,6 +70,12 @@ describe("sidebar (DOKUMEN-UI-UX 7.1)", () => {
         .find((g) => g.key === "groupSettings")
         ?.items.map((i) => i.key),
     ).toEqual(["team", "printers", "notifications", "dataExport"]);
+    // courier cut-offs and operating hours belong to whoever manages the warehouses
+    expect(
+      visibleNav(holding("settings:warehouse"))
+        .find((g) => g.key === "groupSettings")
+        ?.items.map((i) => i.key),
+    ).toEqual(["printers", "courierHours", "notifications"]);
   });
 
   it("marks the home only on itself and other items on their whole subtree", () => {

@@ -102,6 +102,7 @@ export function storeHealth(
 
 export interface Task {
   kind:
+    | "orders_cutoff"
     | "orders_due"
     | "orders_problem"
     | "orders_new"
@@ -127,6 +128,8 @@ export function bySeverity<T extends { severity: keyof typeof SEVERITY_RANK }>(t
 
 /** "Perlu tindakan": what needs someone now, most urgent first; sections the user may not see are null. */
 export function tasksFrom(c: {
+  /** Orders to ship whose courier cut-off is today or earlier (backend doc 8.31); null without cut-offs. */
+  cutoff?: { count: number; missed: number; nextTime: string | null } | null;
   overdue: number;
   dueSoon: number;
   problem: number;
@@ -136,6 +139,19 @@ export function tasksFrom(c: {
   unmappedListings: number | null;
 }): Task[] {
   const tasks: Task[] = [];
+  if (c.cutoff && c.cutoff.count > 0) {
+    const { count, missed, nextTime } = c.cutoff;
+    tasks.push({
+      kind: "orders_cutoff",
+      severity: missed > 0 ? "critical" : "warning",
+      count,
+      title: nextTime
+        ? missed > 0
+          ? `${count} pesanan harus dikirim sebelum pickup ${nextTime} (${missed} sudah lewat cut-off)`
+          : `${count} pesanan harus dikirim sebelum pickup ${nextTime}`
+        : `${count} pesanan lewat cut-off kurir hari ini`,
+    });
+  }
   if (c.dueSoon > 0) {
     tasks.push({
       kind: "orders_due",

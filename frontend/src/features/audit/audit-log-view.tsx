@@ -25,6 +25,7 @@ import {
   auditKindOf,
   DATE_FIELDS,
   DELTA_FIELDS,
+  daysValue,
   FILE_FIELDS,
   fieldName,
   fileChangeKey,
@@ -40,6 +41,7 @@ import {
   shownChanges,
   titleKey,
   valueKey,
+  weekValue,
 } from "./audit-meta";
 
 const PAGE = 50;
@@ -238,6 +240,7 @@ function GroupItem({ group }: { group: AuditGroup }) {
 
 function EntryLine({ entry: e }: { entry: AuditEntry }) {
   const t = useTranslations("audit");
+  const tz = useTimeZone();
   const valueText = useValueText();
   const title = t(`title_${titleKey(e)}`);
   const changes = shownChanges(e);
@@ -260,7 +263,13 @@ function EntryLine({ entry: e }: { entry: AuditEntry }) {
     <li className="grid gap-1">
       <p className="text-sm text-text-900">
         {title}
-        {e.label ? <span className="font-semibold"> {e.label}</span> : null}
+        {e.label ? (
+          <span className="font-semibold">
+            {" "}
+            {/* a courier holiday is named by its date */}
+            {/^\d{4}-\d{2}-\d{2}$/.test(e.label) ? formatDate(e.label, tz) : e.label}
+          </span>
+        ) : null}
       </p>
       {changes.length > 0 ? (
         <dl className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-text-700">
@@ -284,6 +293,10 @@ function useValueText() {
   return (entityType: string, field: string, value: unknown): string => {
     if (value === null || value === undefined || value === "") return "—";
     if (typeof value === "boolean") return value ? t("yes") : t("no");
+    // courier days and weekly hours (backend doc 8.31) read as days, not numbers
+    if (field === "daysOfWeek") return daysValue(value) ?? plainValue(value);
+    if (field === "cutoffTime" && typeof value === "string") return value.slice(0, 5).replace(":", ".");
+    if (field === "schedule") return weekValue(value, t("closedDay")) ?? plainValue(value);
     if (typeof value === "number") {
       if (MONEY_FIELDS.has(field)) return formatRupiah(value);
       if (DELTA_FIELDS.has(field) && value > 0) return `+${formatNumber(value)}`;
