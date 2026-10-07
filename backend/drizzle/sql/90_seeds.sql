@@ -1,16 +1,24 @@
 -- Repeatable, idempotent seeds for global reference tables (backend doc 12.2).
 -- Removing a row from these lists does not delete it: removals are versioned migrations.
 
+-- Plans (PRD 14 "Model paket", 15.1; backend doc 8.32). Limits and prices are changed here and reach
+-- every business on the next db:migrate; the price in force for a period is copied to its invoice.
+-- Prices in rupiah per month: Growth from UI doc L45; Business is a placeholder until pilot pricing
+-- (PRD 14: "Harga ditentukan setelah validasi dengan pedagang pilot").
 INSERT INTO plan (id, code, name, limits, features, price_monthly) VALUES
   (gen_ulid(), 'starter', 'Starter',
    '{"stores": 2, "warehouses": 1, "orders_per_month": 1000, "users": 2}', '{}', 0),
   (gen_ulid(), 'growth', 'Growth',
    '{"stores": 10, "warehouses": 2, "orders_per_month": 10000, "users": 10}',
-   '{auto_process, promo_auto_renew, boost, customer_receivable, staff_report, custom_roles, chat}', 0),
+   '{auto_process, promo_auto_renew, boost, customer_receivable, staff_report, custom_roles, chat}', 899000),
   (gen_ulid(), 'business', 'Business',
    '{"stores": null, "warehouses": null, "orders_per_month": 100000, "users": null}',
-   '{auto_process, promo_auto_renew, boost, customer_receivable, staff_report, custom_roles, chat, accounting, public_api, distribution}', 0)
-ON CONFLICT (code) DO NOTHING;
+   '{auto_process, promo_auto_renew, boost, customer_receivable, staff_report, custom_roles, chat, accounting, public_api, distribution}', 2499000)
+ON CONFLICT (code) DO UPDATE
+  SET name = EXCLUDED.name, limits = EXCLUDED.limits, features = EXCLUDED.features,
+      price_monthly = EXCLUDED.price_monthly, updated_at = now(), row_version = plan.row_version + 1
+  WHERE (plan.name, plan.limits, plan.features, plan.price_monthly)
+        IS DISTINCT FROM (EXCLUDED.name, EXCLUDED.limits, EXCLUDED.features, EXCLUDED.price_monthly);
 
 -- Must equal PERMISSIONS in packages/shared/src/permissions.ts (checked by the schema test).
 INSERT INTO permission (id, code, module, description)
@@ -317,4 +325,25 @@ SELECT gen_ulid(), t.f, t.t, 'any'
     ('running', 'skipped'),
     ('failed', 'queued')
   ) AS t(f, t)
+ON CONFLICT (from_status, to_status) DO NOTHING;
+
+-- Subscriptions (backend doc 8.32): a trial is paid (active), lapses (expired), is given up (cancelled), or
+-- ends with the month after it still to pay (past_due); a paid plan falls past due when its period ends
+-- unpaid and comes back once paid.
+INSERT INTO subscription_status_transition (id, from_status, to_status, via)
+SELECT gen_ulid(), t.f, t.t, 'any' FROM (VALUES
+  ('trialing', 'active'), ('trialing', 'expired'), ('trialing', 'cancelled'), ('trialing', 'past_due'),
+  ('active', 'past_due'), ('active', 'expired'), ('active', 'cancelled'),
+  ('past_due', 'active'), ('past_due', 'expired'), ('past_due', 'cancelled')
+) AS t(f, t)
+ON CONFLICT (from_status, to_status) DO NOTHING;
+
+-- Invoices: money that arrives is always recorded, even for an invoice withdrawn or expired a moment
+-- before (a virtual account payment in flight); pending is reached again when a failed one is retried.
+INSERT INTO invoice_status_transition (id, from_status, to_status, via)
+SELECT gen_ulid(), t.f, t.t, 'any' FROM (VALUES
+  ('pending', 'paid'), ('pending', 'expired'), ('pending', 'failed'), ('pending', 'void'),
+  ('failed', 'pending'), ('failed', 'void'),
+  ('expired', 'paid'), ('void', 'paid')
+) AS t(f, t)
 ON CONFLICT (from_status, to_status) DO NOTHING;

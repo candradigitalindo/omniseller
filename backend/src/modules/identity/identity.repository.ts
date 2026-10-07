@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { and, desc, eq, inArray, isNull, lt, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, lt, ne, sql } from "drizzle-orm";
 import type { DbHandle, Tx } from "../../db/client";
 import {
   invitation,
@@ -83,8 +83,21 @@ export class IdentityRepository {
     return row.id;
   }
 
+  /** Every plan, cheapest first (PRD 14 "Model paket"; backend doc 8.32). */
+  async listPlans(tx: Tx) {
+    return tx.select().from(plan).orderBy(plan.priceMonthly, plan.code);
+  }
+
   async insertTenant(tx: Tx, row: typeof tenant.$inferInsert): Promise<void> {
     await tx.insert(tenant).values(row);
+  }
+
+  /** The plan in force (`tenant.plan_id`), set by billing: trial, payment, lapse (backend doc 8.32). */
+  async setTenantPlan(tx: Tx, id: string, planId: string): Promise<void> {
+    await tx
+      .update(tenant)
+      .set({ planId, updatedAt: new Date(), rowVersion: sql`${tenant.rowVersion} + 1` })
+      .where(and(eq(tenant.id, id), ne(tenant.planId, planId)));
   }
 
   /** The business name and time zone (the business profile, backend doc 8.29). */
@@ -98,7 +111,15 @@ export class IdentityRepository {
 
   async getTenant(tx: Tx, id: string) {
     const [row] = await tx
-      .select({ id: tenant.id, name: tenant.name, slug: tenant.slug, status: tenant.status, timezone: tenant.timezone })
+      .select({
+        id: tenant.id,
+        name: tenant.name,
+        slug: tenant.slug,
+        status: tenant.status,
+        timezone: tenant.timezone,
+        planId: tenant.planId,
+        createdAt: tenant.createdAt,
+      })
       .from(tenant)
       .where(eq(tenant.id, id));
     return row;
@@ -317,6 +338,27 @@ export class IdentityRepository {
   /** Every user of the tenant, disabled ones included. */
   async userNames(tx: Tx): Promise<{ id: string; name: string }[]> {
     return tx.select({ id: user.id, name: user.name }).from(user);
+  }
+
+  /** Seats in use against the plan (backend doc 8.32): users not disabled, plus invitations still open. */
+  async countSeats(tx: Tx): Promise<number> {
+    const [u] = await tx.select({ n: sql<number>`count(*)::int` }).from(user).where(ne(user.status, "disabled"));
+    const [i] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(invitation)
+      .where(and(isNull(invitation.acceptedAt), isNull(invitation.revokedAt), gt(invitation.expiresAt, new Date())));
+    return (u?.n ?? 0) + (i?.n ?? 0);
+  }
+
+  /** Who a subscription invoice is addressed to: the longest-standing active holder of settings:billing. */
+  async billingContact(tx: Tx): Promise<{ email: string; name: string } | undefined> {
+    const [row] = await tx
+      .select({ email: user.email, name: user.name })
+      .from(user)
+      .where(and(eq(user.status, "active"), sql`'settings:billing' = ANY(${permissionsOfUser})`))
+      .orderBy(user.id)
+      .limit(1);
+    return row;
   }
 
   /** Active users holding a permission, with their store and warehouse scopes (recipients of alerts). */

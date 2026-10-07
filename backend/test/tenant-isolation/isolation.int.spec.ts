@@ -69,6 +69,7 @@ const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: s
   StoresController_update: () => ({ name: "Penyusup" }),
   BusinessDocumentsController_update: () => ({ title: "Penyusup" }),
   BusinessDocumentsController_remove: () => ({}),
+  BillingController_voidInvoice: () => ({}),
   CourierCutoffsController_add: ({ a: ids }) => ({
     warehouseId: ids.warehouse!,
     courier: "J&T Express",
@@ -361,6 +362,17 @@ beforeAll(async () => {
                                  '{"checks":[],"oldAppRevoked":true,"stock":{"match":0,"differ":0,"unset":0}}'::jsonb,
                                  now() + interval '1 day')`);
     fixtures.store_cutover = { id: cutoverId };
+    // tenant A's trial and an invoice waiting to be paid (backend doc 8.32)
+    const growth = await tx.execute<{ id: string }>(sql`SELECT id FROM plan WHERE code = 'growth'`);
+    const subscriptionId = newId();
+    await tx.execute(sql`INSERT INTO subscription (id, tenant_id, plan_id, status, current_period_start, current_period_end)
+                         VALUES (${subscriptionId}, ${tenantId}, ${growth.rows[0]!.id}, 'trialing', now(), now() + interval '14 days')`);
+    const invoiceId = newId();
+    await tx.execute(sql`INSERT INTO invoice (id, tenant_id, subscription_id, plan_id, number, kind, amount, period_start, period_end,
+                                              due_at, invoice_expires_at)
+                         VALUES (${invoiceId}, ${tenantId}, ${subscriptionId}, ${growth.rows[0]!.id}, 'INV-2610-0001', 'upgrade', 899000,
+                                 now(), now() + interval '1 month', now() + interval '1 day', now() + interval '1 day')`);
+    fixtures.invoice = { id: invoiceId };
   });
   // a print agent with a job waiting for its document, and a courier manifest with one parcel (8.24)
   const agent = await a.c.post("/v1/print-agents", { name: "Agen A" });

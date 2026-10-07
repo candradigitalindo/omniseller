@@ -9,6 +9,12 @@ import type { Env } from "./config/env.schema";
 import { InfraModule } from "./infra/infra.module";
 import { AuditHttpModule } from "./modules/audit/audit-http.module";
 import { AuthHttpModule, AuthModule } from "./modules/auth/auth.module";
+import {
+  BillingHttpModule,
+  BillingModule,
+  BillingWebhookModule,
+  BillingWorkerModule,
+} from "./modules/billing/billing.module";
 import { BusinessHttpModule, BusinessModule } from "./modules/business/business.module";
 import { CampaignHttpModule, CampaignModule } from "./modules/campaign/campaign.module";
 import { CatalogHttpModule, CatalogModule, CatalogWorkerModule } from "./modules/catalog/catalog.module";
@@ -98,6 +104,7 @@ export class AppModule {
             IdentityHttpModule,
             AuditHttpModule,
             BusinessHttpModule,
+            BillingHttpModule,
             CampaignHttpModule,
             InventoryHttpModule,
             ChannelHttpModule,
@@ -123,6 +130,8 @@ export class AppModule {
             ...imports,
             { module: HttpModule, controllers: [HealthController] },
             ConnectorsModule.forEnv(env, fetchImpl),
+            // before the marketplaces' POST /webhooks/{channel}: Express matches routes in this order
+            BillingWebhookModule,
             WebhookHttpModule,
           ],
           providers: HTTP_PROVIDERS,
@@ -160,6 +169,8 @@ export class AppModule {
             RetentionWorkerModule,
             BusinessModule,
             CampaignModule,
+            BillingModule,
+            BillingWorkerModule,
           ],
           providers: [WorkerRunner],
         };

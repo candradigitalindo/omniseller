@@ -10,6 +10,7 @@ import { DB_SYSTEM, JOB_REGISTRY, QUEUES, STOCK_DIRTY } from "../infra/tokens";
 import type { QueueRegistry } from "../jobs/queues";
 import type { JobRegistry } from "../jobs/registry";
 import type { StockDirtySet } from "../jobs/stock-dirty";
+import { BILLING_SCAN_MS, scanBillingRenewals } from "./billing-scan";
 import {
   CONNECTION_SCAN_MS,
   ORDER_POLL_SLOT_MS,
@@ -99,6 +100,9 @@ export class SchedulerRunner implements OnApplicationBootstrap, OnApplicationShu
     );
     this.every(RETURN_DUE_SLOT_MS, "return.due_scan", () => scanReturnDue(this.system, this.queues, this.registry));
     this.every(LEGAL_SCAN_MS, "business.legal_scan", () => scanLegalReminders(this.system, this.queues, this.registry));
+    this.every(BILLING_SCAN_MS, "billing.renewal_scan", () =>
+      scanBillingRenewals(this.system, this.queues, this.registry),
+    );
     log.info("scheduler started");
   }
 

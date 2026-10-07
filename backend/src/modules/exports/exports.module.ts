@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { BillingModule } from "../billing/billing.module";
 import { BusinessModule } from "../business/business.module";
 import { CampaignModule } from "../campaign/campaign.module";
 import { CatalogModule } from "../catalog/catalog.module";
@@ -35,6 +36,7 @@ export class ExportsModule {}
     ReturnsModule,
     BusinessModule,
     CampaignModule,
+    BillingModule,
   ],
   providers: [ExportsRepository, ExportRenderService],
   exports: [ExportRenderService],

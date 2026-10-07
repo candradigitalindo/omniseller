@@ -2,12 +2,14 @@ import { Inject, Injectable } from "@nestjs/common";
 import { newId } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
 import { ConflictError } from "../../common/errors/domain-errors";
+import { limitReached, planLimitReached } from "../../common/plan-limits";
 import { provinceOf } from "../../common/region";
 import type { DbHandle } from "../../db/client";
 import type { WarehouseAddress } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
 import { StoresService } from "../channel/stores.service";
+import { TenantsService } from "../identity/tenants.service";
 import { OrdersService } from "../orders/orders.service";
 import {
   warehouseCodeTaken,
@@ -60,12 +62,18 @@ export class WarehouseAdminService {
     @Inject(StoresService) private readonly stores: StoresService,
     @Inject(OrdersService) private readonly orders: OrdersService,
     @Inject(StockOpsRepository) private readonly stockOps: StockOpsRepository,
+    @Inject(TenantsService) private readonly tenants: TenantsService,
   ) {}
 
   async create(ctx: RequestContext, input: WarehouseInput & { isDefault?: boolean }): Promise<WarehouseView> {
     return this.codeChecked(() =>
       withTenantTx(this.db, ctx, async (tx) => {
         if (await this.warehouses.codeTakenIn(tx, input.code)) throw warehouseCodeTaken();
+        // active warehouses count against the plan (backend doc 8.32); deleted ones no longer do
+        const plan = await this.tenants.planIn(tx, ctx);
+        if (limitReached(plan.limits, "warehouses", (await this.warehouses.activeIn(tx)).length)) {
+          throw planLimitReached(plan.name, "warehouses", plan.limits.warehouses!);
+        }
         if (input.isDefault) await this.warehouses.clearDefaultIn(tx);
         const id = newId();
         await this.warehouses.insertIn(tx, {

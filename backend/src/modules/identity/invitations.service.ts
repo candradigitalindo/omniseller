@@ -3,6 +3,7 @@ import { logger } from "@omniseller/logging";
 import { newId } from "@omniseller/shared";
 import { type RequestContext, systemContext } from "../../common/context/request-context";
 import { decodeCursor, page } from "../../common/http/pagination";
+import { limitReached, planLimitReached } from "../../common/plan-limits";
 import { hashPassword } from "../../common/security/password";
 import { hashToken, newSecretToken } from "../../common/security/tokens";
 import { ENV } from "../../config/config.module";
@@ -22,6 +23,7 @@ import {
 } from "./identity.errors";
 import { invitationSendRequested } from "./identity.events";
 import { IdentityRepository, PreTenantLookup } from "./identity.repository";
+import { TenantsService } from "./tenants.service";
 
 /** Invitation links are valid for 72 hours (technology doc 5.3). */
 export const INVITATION_TTL_HOURS = 72;
@@ -65,6 +67,7 @@ export class InvitationsService {
     @Inject(DB_TENANT) private readonly db: DbHandle,
     @Inject(IdentityRepository) private readonly repo: IdentityRepository,
     @Inject(PreTenantLookup) private readonly lookup: PreTenantLookup,
+    @Inject(TenantsService) private readonly tenants: TenantsService,
     @Inject(OUTBOX) private readonly outbox: Outbox,
     @Inject(ENV) private readonly env: { PUBLIC_WEB_URL?: string },
     @Optional() @Inject(EMAIL_SENDER) private readonly email?: EmailSender,
@@ -78,6 +81,11 @@ export class InvitationsService {
       if (targetRole.permissions.some((p) => !ctx.permissions.has(p))) throw privilegeEscalation();
       if (await this.repo.userIdByEmail(tx, email)) throw emailTaken();
       if (await this.repo.openInvitationByEmail(tx, email)) throw invitationAlreadyOpen();
+      // a seat is taken when invited, so the plan's users quota counts open invitations (backend doc 8.32)
+      const plan = await this.tenants.planIn(tx, ctx);
+      if (limitReached(plan.limits, "users", await this.repo.countSeats(tx))) {
+        throw planLimitReached(plan.name, "users", plan.limits.users!);
+      }
       const id = newId();
       await this.repo.insertInvitation(tx, {
         id,

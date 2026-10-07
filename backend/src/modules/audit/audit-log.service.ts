@@ -9,6 +9,7 @@ import { ProductsService } from "../catalog/products.service";
 import { StoresService } from "../channel/stores.service";
 import { DevicesService } from "../identity/devices.service";
 import { RolesService } from "../identity/roles.service";
+import { TenantsService } from "../identity/tenants.service";
 import { UsersService } from "../identity/users.service";
 import { WarehousesService } from "../inventory/warehouses.service";
 import { OrdersService } from "../orders/orders.service";
@@ -47,6 +48,7 @@ export class AuditLogService {
     @Inject(WarehousesService) private readonly warehouses: WarehousesService,
     @Inject(ProductsService) private readonly products: ProductsService,
     @Inject(OrdersService) private readonly orders: OrdersService,
+    @Inject(TenantsService) private readonly tenants: TenantsService,
   ) {}
 
   /**
@@ -119,6 +121,7 @@ export class AuditLogService {
       channelWarehouse: needs("channelWarehouse") ? await this.stores.channelWarehouseNamesIn(tx) : empty,
       variant: needs("variant") ? await this.products.variantSkusIn(tx, ids("variant")) : empty,
       order: needs("order") ? await this.orders.numbersIn(tx, ids("order")) : empty,
+      plan: needs("plan") ? await this.tenants.planNamesIn(tx) : empty,
     };
     const devices = actorTypes.has("device") ? await this.devices.namesIn(tx) : empty;
     return {

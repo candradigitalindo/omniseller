@@ -109,6 +109,19 @@ const twoFactor = {
   TOTP_ISSUER: z.string().min(1).max(40).default("OmniSeller"),
 };
 
+/**
+ * Subscriptions paid through Xendit (technology doc ADR-020, backend doc 8.32). The api knows only whether
+ * a paid plan may be chosen; the worker holds the secret key and creates invoices; the webhook process
+ * checks callbacks against the account's Callback Verification Token. Plain http to Xendit only in local
+ * and test (the fake Xendit of the tests).
+ */
+const billingApi = { BILLING_PAYMENTS: z.enum(["xendit", "off"]).default("off") };
+const xenditWorker = {
+  XENDIT_SECRET_KEY: z.string().min(10).optional(),
+  XENDIT_API_BASE_URL: z.url().default("https://api.xendit.co"),
+};
+const xenditWebhook = { XENDIT_WEBHOOK_TOKEN: z.string().min(10).optional() };
+
 type Refinable = { NODE_ENV: string } & Record<string, unknown>;
 
 const fileStorageRules = [
@@ -146,6 +159,7 @@ const apiEnv = base
     ...tiktokLink,
     ...fileStorage,
     ...twoFactor,
+    ...billingApi,
   })
   .refine(fileStorageRules[0].check, { path: [fileStorageRules[0].path], message: fileStorageRules[0].message })
   .refine(fileStorageRules[1].check, { path: [fileStorageRules[1].path], message: fileStorageRules[1].message });
@@ -159,6 +173,7 @@ const webhookEnv = base
     SHOPEE_PARTNER_ID: shopeeLink.SHOPEE_PARTNER_ID,
     ...shopeeSecret,
     ...tiktokSecret,
+    ...xenditWebhook,
   })
   .refine((e) => bothOrNeither(e, "SHOPEE_PARTNER_ID", "SHOPEE_PARTNER_KEY"), {
     path: ["SHOPEE_PARTNER_KEY"],
@@ -196,7 +211,16 @@ const workerEnv = base
     ...listingCopy,
     ...tokenKeys,
     ...fileStorage,
+    ...xenditWorker,
   })
+  .refine(
+    (e: Refinable) =>
+      !String(e.XENDIT_API_BASE_URL).startsWith("http:") || e.NODE_ENV === "local" || e.NODE_ENV === "test",
+    {
+      path: ["XENDIT_API_BASE_URL"],
+      message: "must be https outside local and test",
+    },
+  )
   .refine((e) => bothOrNeither(e, "SHOPEE_PARTNER_ID", "SHOPEE_PARTNER_KEY"), {
     path: ["SHOPEE_PARTNER_KEY"],
     message: "SHOPEE_PARTNER_ID and SHOPEE_PARTNER_KEY are set together",

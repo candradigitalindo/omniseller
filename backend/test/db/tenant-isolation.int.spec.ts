@@ -165,6 +165,8 @@ describe("role privileges (invariants I2, I12, backend doc 7.5)", () => {
   it("SECURITY DEFINER lookups are not executable by roles that do not need them", async () => {
     const worker = await h.raw("worker");
     await expect(worker.query("SELECT * FROM auth_login_candidates('a@b.c')")).rejects.toMatchObject({ code: "42501" });
+    // Xendit's callbacks arrive at the webhook process (api role); the worker is handed the tenant
+    await expect(worker.query("SELECT * FROM billing_resolve_invoice('x')")).rejects.toMatchObject({ code: "42501" });
     const api = await h.raw("api");
     await expect(api.query("SELECT maintain_partitions(now())")).rejects.toMatchObject({ code: "42501" });
   });

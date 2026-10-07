@@ -7,6 +7,7 @@ import type { OrderProblemCode, order, orderItem } from "../../db/schema";
 import { withStatusSource } from "../../db/tenant-tx";
 import { OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
+import { UsageMeterService } from "../billing/usage-meter.service";
 import { ListingsService } from "../catalog/listings.service";
 import type { ChannelWarehouseRow } from "../channel/channel.repository";
 import { type StockTarget, StoresService } from "../channel/stores.service";
@@ -84,6 +85,7 @@ export class OrderIntakeService {
     @Inject(OUTBOX) private readonly outbox: Outbox,
     @Inject(StoresService) private readonly stores: StoresService,
     @Inject(OrderDeadlinesService) private readonly deadlines: OrderDeadlinesService,
+    @Inject(UsageMeterService) private readonly usage: UsageMeterService,
   ) {}
 
   /** Warehouse of a line (FR-WHS-06): the marketplace's warehouse, else the shop's only seller warehouse. */
@@ -381,6 +383,8 @@ export class OrderIntakeService {
         rawPayloadRef: meta.rawRef ?? null,
         ...fields,
       });
+      // every order counts towards the month's quota (backend doc 8.32); none is refused for it
+      await this.usage.countIn(tx, ctx, "orders", snap.createdAt);
       await this.repo.insertRef(tx, {
         id: newId(),
         tenantId: ctx.tenantId,
@@ -518,6 +522,7 @@ export class OrderIntakeService {
   ): Promise<OrderRow> {
     const o = input.order;
     await this.repo.insertOrder(tx, o);
+    await this.usage.countIn(tx, ctx, "orders", o.orderedAt ?? new Date());
     await this.repo.insertRef(tx, {
       id: newId(),
       tenantId: ctx.tenantId,

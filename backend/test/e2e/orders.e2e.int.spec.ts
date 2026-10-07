@@ -267,6 +267,8 @@ describe("orders from Shopee (FR-ORD-01, 02, 05, 06, 14, FR-STK-03)", () => {
 
     const all = (await c.get(`/v1/orders?storeId=${storeId}`)).body.items;
     expect(all).toHaveLength(1);
+    // it counts once towards the month's order quota, however often the webhook came (backend doc 8.32)
+    expect((await c.get("/v1/billing/subscription")).body.usage.orders.value).toBe(1);
     const order = await orderBy(c, o.order_sn);
     expect(order).toMatchObject({
       status: "new",

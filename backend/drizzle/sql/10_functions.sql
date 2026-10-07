@@ -346,6 +346,14 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
     FROM password_reset_token r WHERE r.token_hash = p_token_hash
 $$;
 
+-- Xendit's invoice callback (backend doc 8.32): our invoice id is the invoice's external_id at Xendit.
+-- The webhook process finds the tenant here and enqueues; the job applies it inside the tenant.
+CREATE OR REPLACE FUNCTION billing_resolve_invoice(p_external_id text)
+RETURNS TABLE (tenant_id text, invoice_id text)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  SELECT i.tenant_id, i.id FROM invoice i WHERE i.id = p_external_id
+$$;
+
 ------------------------------------------------------------------------------------------------
 -- Partitions (backend doc 7.6). Monthly range partitions on id; bounds are ULID lower bounds of
 -- the first millisecond of each UTC month. Creating a partition requires owning the parent,

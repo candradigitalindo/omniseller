@@ -15,3 +15,10 @@ export const passwordResetRequested = defineEvent({
   aggregate: "user",
   schema: z.object({ userId: ulidSchema }),
 });
+
+/** A business was created: billing starts its 14-day trial of Growth (backend doc 8.32). */
+export const tenantCreated = defineEvent({
+  type: "tenant.created",
+  aggregate: "tenant",
+  schema: z.object({}),
+});

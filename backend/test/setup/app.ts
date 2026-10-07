@@ -17,6 +17,7 @@ import { jobContext } from "../../src/jobs/job-context";
 import { JOB_DEFINITIONS, JobRegistry } from "../../src/jobs/registry";
 import type { StockDirtySet } from "../../src/jobs/stock-dirty";
 import { AuthModule } from "../../src/modules/auth/auth.module";
+import { BillingModule, BillingWorkerModule } from "../../src/modules/billing/billing.module";
 import { CatalogModule, CatalogWorkerModule } from "../../src/modules/catalog/catalog.module";
 import { ChannelModule, ChannelWorkerModule, ConnectorsModule } from "../../src/modules/channel/channel.module";
 import { ExportsWorkerModule } from "../../src/modules/exports/exports.module";
@@ -42,6 +43,7 @@ import { configureWebhookApp } from "../../src/webhook/webhook-app";
 import { testFilesDir } from "./files-dir";
 import type { TestInfra } from "./global-setup";
 import { type MockMarketplace, SHOPEE, TIKTOK } from "./mock-marketplace";
+import { type MockXendit, XENDIT_TEST_KEY, XENDIT_TEST_TOKEN } from "./mock-xendit";
 
 export const WEB_URL = "http://localhost:3100";
 export const WEBHOOK_URL = "https://hooks.omniseller.test";
@@ -91,7 +93,7 @@ function marketplaceEnv(mock: MockMarketplace | undefined, role: "api" | "webhoo
 /** The api process as a Nest app (backend doc 8.1 pipeline, guards, filters), for supertest. */
 export async function startApi(
   infra: TestInfra,
-  opts: { marketplace?: MockMarketplace } = {},
+  opts: { marketplace?: MockMarketplace; xendit?: MockXendit | boolean } = {},
 ): Promise<INestApplication> {
   const env = parseEnv({
     APP_ROLE: "api",
@@ -103,6 +105,8 @@ export async function startApi(
     FILE_STORAGE: "local",
     FILE_STORAGE_LOCAL_DIR: testFilesDir(infra.keyPrefix),
     TOTP_ENCRYPTION_KEY: TEST_TOTP_KEY,
+    // paid plans can be chosen (the api itself never calls Xendit)
+    ...(opts.xendit ? { BILLING_PAYMENTS: "xendit" } : {}),
     ...marketplaceEnv(opts.marketplace, "api"),
   });
   const moduleRef = await Test.createTestingModule({
@@ -119,7 +123,11 @@ export async function startApi(
  * tenant's outbox rows point to, directly and in order (backend doc 13.3: no sleeps; relay and
  * handlers are called explicitly).
  */
-export async function startWorker(infra: TestInfra, system: DbHandle, opts: { marketplace?: MockMarketplace } = {}) {
+export async function startWorker(
+  infra: TestInfra,
+  system: DbHandle,
+  opts: { marketplace?: MockMarketplace; xendit?: MockXendit } = {},
+) {
   const env = parseEnv({
     APP_ROLE: "worker",
     NODE_ENV: "test",
@@ -133,6 +141,7 @@ export async function startWorker(infra: TestInfra, system: DbHandle, opts: { ma
     TOKEN_LOCAL_MASTER_KEY: TEST_TOKEN_KEY,
     FILE_STORAGE: "local",
     FILE_STORAGE_LOCAL_DIR: testFilesDir(infra.keyPrefix),
+    ...(opts.xendit ? { XENDIT_SECRET_KEY: XENDIT_TEST_KEY, XENDIT_API_BASE_URL: opts.xendit.url } : {}),
     ...marketplaceEnv(opts.marketplace, "worker"),
   });
   if (env.APP_ROLE !== "worker") throw new Error("unreachable");
@@ -166,6 +175,8 @@ export async function startWorker(infra: TestInfra, system: DbHandle, opts: { ma
       MigrationWorkerModule,
       ReportingWorkerModule,
       RetentionWorkerModule,
+      BillingModule,
+      BillingWorkerModule,
     ],
   }).compile();
   const ctx = await moduleRef.init();
@@ -258,7 +269,7 @@ export async function startWorker(infra: TestInfra, system: DbHandle, opts: { ma
 }
 
 /** The webhook process: raw bodies, signature checks, inbox, enqueue (technology doc 8.3). */
-export async function startWebhook(infra: TestInfra, opts: { marketplace?: MockMarketplace } = {}) {
+export async function startWebhook(infra: TestInfra, opts: { marketplace?: MockMarketplace; xendit?: boolean } = {}) {
   const env = parseEnv({
     APP_ROLE: "webhook",
     NODE_ENV: "test",
@@ -266,6 +277,7 @@ export async function startWebhook(infra: TestInfra, opts: { marketplace?: MockM
     REDIS_QUEUE_URL: infra.redisUrl,
     REDIS_CACHE_URL: infra.redisUrl,
     PUBLIC_WEBHOOK_URL: WEBHOOK_URL,
+    ...(opts.xendit ? { XENDIT_WEBHOOK_TOKEN: XENDIT_TEST_TOKEN } : {}),
     ...marketplaceEnv(opts.marketplace, "webhook"),
   });
   const moduleRef = await Test.createTestingModule({

@@ -612,6 +612,70 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/billing/subscription": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["BillingController_subscription"];
+    put?: never;
+    post: operations["BillingController_changePlan"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/billing/invoices": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["BillingController_invoices"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/billing/invoices/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["BillingController_invoice"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/billing/invoices/{id}/void": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["BillingController_voidInvoice"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/courier-cutoffs": {
     parameters: {
       query?: never;
@@ -3695,6 +3759,256 @@ export interface components {
       number?: string | null;
       issuedOn?: string | null;
       validUntil?: string | null;
+    };
+    BillingStateDto_Output: {
+      /** @description paket yang berlaku sekarang */
+      plan: {
+        code: string;
+        name: string;
+        /** @description rupiah per bulan; 0 untuk paket gratis */
+        priceMonthly: number;
+        limits: {
+          stores: number | null;
+          warehouses: number | null;
+          ordersPerMonth: number | null;
+          users: number | null;
+        };
+        features: string[];
+      };
+      /** @enum {string} */
+      status: "trialing" | "active" | "past_due" | "expired" | "cancelled";
+      /** Format: date-time */
+      currentPeriodStart: string;
+      /** @description null untuk paket gratis */
+      currentPeriodEnd: string | null;
+      /** @description paket yang berlaku saat periode ini berakhir; null: paket yang sama diperpanjang */
+      nextPlan: {
+        code: string;
+        name: string;
+        /** @description rupiah per bulan; 0 untuk paket gratis */
+        priceMonthly: number;
+        limits: {
+          stores: number | null;
+          warehouses: number | null;
+          ordersPerMonth: number | null;
+          users: number | null;
+        };
+        features: string[];
+      } | null;
+      /** @description paket berhenti bila belum dibayar: akhir uji coba, atau akhir masa tenggang */
+      lapsesAt: string | null;
+      /** @description Xendit siap di lingkungan ini, jadi paket berbayar bisa dipilih */
+      paymentsAvailable: boolean;
+      usage: {
+        orders: {
+          value: number;
+          /** @description kuota paket; null tidak dibatasi */
+          limit: number | null;
+          /** @description bulan zona waktu bisnis, YYYY-MM */
+          period: string;
+        };
+        stores: {
+          value: number;
+          /** @description kuota paket; null tidak dibatasi */
+          limit: number | null;
+        };
+        warehouses: {
+          value: number;
+          /** @description kuota paket; null tidak dibatasi */
+          limit: number | null;
+        };
+        users: {
+          value: number;
+          /** @description kuota paket; null tidak dibatasi */
+          limit: number | null;
+        };
+      };
+      /** @description paket yang ditawarkan, dari yang termurah */
+      plans: {
+        code: string;
+        name: string;
+        /** @description rupiah per bulan; 0 untuk paket gratis */
+        priceMonthly: number;
+        limits: {
+          stores: number | null;
+          warehouses: number | null;
+          ordersPerMonth: number | null;
+          users: number | null;
+        };
+        features: string[];
+      }[];
+      /** @description tagihan yang menunggu dibayar, bila ada */
+      pendingInvoice: {
+        id: string;
+        number: string;
+        /**
+         * @description renewal: periode setelah yang berjalan; upgrade: naik paket sejak dibayar
+         * @enum {string}
+         */
+        kind: "renewal" | "upgrade";
+        planCode: string;
+        planName: string;
+        /** @enum {string} */
+        status: "pending" | "paid" | "expired" | "failed" | "void";
+        /** @description yang dibayar: harga paket dikurangi creditAmount */
+        amount: number;
+        /** @description sisa periode berbayar yang dipotongkan saat naik paket */
+        creditAmount: number;
+        /** Format: date-time */
+        periodStart: string;
+        /** Format: date-time */
+        periodEnd: string;
+        /** Format: date-time */
+        dueAt: string;
+        paidAt: string | null;
+        paidAmount: number | null;
+        paymentMethod: string | null;
+        paymentChannel: string | null;
+        /** @description halaman pembayaran Xendit; null selagi worker menyiapkannya */
+        invoiceUrl: string | null;
+        invoiceExpiresAt: string | null;
+        error: string | null;
+        /** Format: date-time */
+        createdAt: string;
+      } | null;
+      /** @description periode berikutnya yang sudah dibayar; mulai berlaku saat periode ini berakhir */
+      prepaidInvoice: {
+        id: string;
+        number: string;
+        /**
+         * @description renewal: periode setelah yang berjalan; upgrade: naik paket sejak dibayar
+         * @enum {string}
+         */
+        kind: "renewal" | "upgrade";
+        planCode: string;
+        planName: string;
+        /** @enum {string} */
+        status: "pending" | "paid" | "expired" | "failed" | "void";
+        /** @description yang dibayar: harga paket dikurangi creditAmount */
+        amount: number;
+        /** @description sisa periode berbayar yang dipotongkan saat naik paket */
+        creditAmount: number;
+        /** Format: date-time */
+        periodStart: string;
+        /** Format: date-time */
+        periodEnd: string;
+        /** Format: date-time */
+        dueAt: string;
+        paidAt: string | null;
+        paidAmount: number | null;
+        paymentMethod: string | null;
+        paymentChannel: string | null;
+        /** @description halaman pembayaran Xendit; null selagi worker menyiapkannya */
+        invoiceUrl: string | null;
+        invoiceExpiresAt: string | null;
+        error: string | null;
+        /** Format: date-time */
+        createdAt: string;
+      } | null;
+      invoices: {
+        id: string;
+        number: string;
+        /**
+         * @description renewal: periode setelah yang berjalan; upgrade: naik paket sejak dibayar
+         * @enum {string}
+         */
+        kind: "renewal" | "upgrade";
+        planCode: string;
+        planName: string;
+        /** @enum {string} */
+        status: "pending" | "paid" | "expired" | "failed" | "void";
+        /** @description yang dibayar: harga paket dikurangi creditAmount */
+        amount: number;
+        /** @description sisa periode berbayar yang dipotongkan saat naik paket */
+        creditAmount: number;
+        /** Format: date-time */
+        periodStart: string;
+        /** Format: date-time */
+        periodEnd: string;
+        /** Format: date-time */
+        dueAt: string;
+        paidAt: string | null;
+        paidAmount: number | null;
+        paymentMethod: string | null;
+        paymentChannel: string | null;
+        /** @description halaman pembayaran Xendit; null selagi worker menyiapkannya */
+        invoiceUrl: string | null;
+        invoiceExpiresAt: string | null;
+        error: string | null;
+        /** Format: date-time */
+        createdAt: string;
+      }[];
+    };
+    ChangePlanDto: {
+      planCode: string;
+    };
+    InvoiceListDto_Output: {
+      items: {
+        id: string;
+        number: string;
+        /**
+         * @description renewal: periode setelah yang berjalan; upgrade: naik paket sejak dibayar
+         * @enum {string}
+         */
+        kind: "renewal" | "upgrade";
+        planCode: string;
+        planName: string;
+        /** @enum {string} */
+        status: "pending" | "paid" | "expired" | "failed" | "void";
+        /** @description yang dibayar: harga paket dikurangi creditAmount */
+        amount: number;
+        /** @description sisa periode berbayar yang dipotongkan saat naik paket */
+        creditAmount: number;
+        /** Format: date-time */
+        periodStart: string;
+        /** Format: date-time */
+        periodEnd: string;
+        /** Format: date-time */
+        dueAt: string;
+        paidAt: string | null;
+        paidAmount: number | null;
+        paymentMethod: string | null;
+        paymentChannel: string | null;
+        /** @description halaman pembayaran Xendit; null selagi worker menyiapkannya */
+        invoiceUrl: string | null;
+        invoiceExpiresAt: string | null;
+        error: string | null;
+        /** Format: date-time */
+        createdAt: string;
+      }[];
+      next_cursor: null;
+    };
+    InvoiceDto_Output: {
+      id: string;
+      number: string;
+      /**
+       * @description renewal: periode setelah yang berjalan; upgrade: naik paket sejak dibayar
+       * @enum {string}
+       */
+      kind: "renewal" | "upgrade";
+      planCode: string;
+      planName: string;
+      /** @enum {string} */
+      status: "pending" | "paid" | "expired" | "failed" | "void";
+      /** @description yang dibayar: harga paket dikurangi creditAmount */
+      amount: number;
+      /** @description sisa periode berbayar yang dipotongkan saat naik paket */
+      creditAmount: number;
+      /** Format: date-time */
+      periodStart: string;
+      /** Format: date-time */
+      periodEnd: string;
+      /** Format: date-time */
+      dueAt: string;
+      paidAt: string | null;
+      paidAmount: number | null;
+      paymentMethod: string | null;
+      paymentChannel: string | null;
+      invoiceUrl: string | null;
+      invoiceExpiresAt: string | null;
+      error: string | null;
+      /** Format: date-time */
+      createdAt: string;
     };
     CutoffListDto_Output: {
       items: {
@@ -7641,7 +7955,8 @@ export interface components {
           | "stores_reconnect"
           | "listings_unmapped"
           | "legal_nib"
-          | "legal_documents";
+          | "legal_documents"
+          | "billing_due";
         /** @enum {string} */
         severity: "critical" | "warning" | "info";
         count: number;
@@ -9087,6 +9402,109 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+    };
+  };
+  BillingController_subscription: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BillingStateDto_Output"];
+        };
+      };
+    };
+  };
+  BillingController_changePlan: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ChangePlanDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BillingStateDto_Output"];
+        };
+      };
+    };
+  };
+  BillingController_invoices: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InvoiceListDto_Output"];
+        };
+      };
+    };
+  };
+  BillingController_invoice: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InvoiceDto_Output"];
+        };
+      };
+    };
+  };
+  BillingController_voidInvoice: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InvoiceDto_Output"];
+        };
       };
     };
   };

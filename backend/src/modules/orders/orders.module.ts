@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { BillingModule } from "../billing/billing.module";
 import { CampaignModule } from "../campaign/campaign.module";
 import { CatalogModule, CatalogWorkerModule } from "../catalog/catalog.module";
 import { ChannelModule } from "../channel/channel.module";
@@ -26,9 +27,9 @@ const SERVICES = [
   ManualOrdersService,
 ];
 
-/** Orders (api and worker): the queue, one order, seller actions, and marketplace intake. */
+/** Orders (api and worker): the queue, one order, seller actions, and marketplace intake (metered by billing). */
 @Module({
-  imports: [InventoryModule, CatalogModule, ChannelModule, IdentityModule, CampaignModule],
+  imports: [InventoryModule, CatalogModule, ChannelModule, IdentityModule, CampaignModule, BillingModule],
   providers: SERVICES,
   exports: SERVICES,
 })

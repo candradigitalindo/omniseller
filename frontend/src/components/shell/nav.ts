@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   Clock,
   Copy,
+  CreditCard,
   Database,
   Download,
   History,
@@ -49,7 +50,8 @@ type NavKey =
   | "notifications"
   | "migration"
   | "dataExport"
-  | "businessProfile";
+  | "businessProfile"
+  | "subscription";
 type GroupKey = "groupHome" | "groupSales" | "groupCatalog" | "groupStock" | "groupAnalytics" | "groupSettings";
 
 export interface NavItem {
@@ -136,6 +138,7 @@ export const NAV: readonly NavGroup[] = [
       },
       { key: "courierHours", href: "/kurir-jam", icon: Clock, permission: "settings:warehouse", ready: true },
       { key: "notifications", href: "/notifikasi", icon: Bell, ready: true },
+      { key: "subscription", href: "/langganan", icon: CreditCard, permission: "settings:billing", ready: true },
       { key: "migration", href: "/migrasi", icon: Database, permission: "settings:store", ready: true },
       { key: "dataExport", href: "/ekspor", icon: Download, permission: "data:export", ready: true },
       {

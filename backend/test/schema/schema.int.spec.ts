@@ -2,6 +2,7 @@ import {
   DATA_EXPORT_STATUSES,
   DOCUMENT_JOB_STATUSES,
   HANDOVER_STATUSES,
+  INVOICE_STATUSES,
   LISTING_COPY_STATUSES,
   LISTING_DRAFT_STATUSES,
   MIGRATION_JOB_STATUSES,
@@ -13,6 +14,7 @@ import {
   STOCK_COUNT_STATUSES,
   STOCK_TRANSFER_STATUSES,
   STORE_CUTOVER_STATUSES,
+  SUBSCRIPTION_STATUSES,
   SYNC_JOB_STATUSES,
 } from "@omniseller/shared";
 import { getTableConfig, type PgTable } from "drizzle-orm/pg-core";
@@ -223,6 +225,8 @@ describe("schema conventions", () => {
     expect(await check("return_request")).toEqual([...RETURN_REQUEST_STATUSES].sort());
     expect(await check("stock_count")).toEqual([...STOCK_COUNT_STATUSES].sort());
     expect(await check("stock_transfer")).toEqual([...STOCK_TRANSFER_STATUSES].sort());
+    expect(await check("subscription")).toEqual([...SUBSCRIPTION_STATUSES].sort());
+    expect(await check("invoice")).toEqual([...INVOICE_STATUSES].sort());
   });
 
   it("every transition uses known statuses", async () => {
@@ -241,6 +245,8 @@ describe("schema conventions", () => {
       ["return_request_status_transition", RETURN_REQUEST_STATUSES],
       ["stock_count_status_transition", STOCK_COUNT_STATUSES],
       ["stock_transfer_status_transition", STOCK_TRANSFER_STATUSES],
+      ["subscription_status_transition", SUBSCRIPTION_STATUSES],
+      ["invoice_status_transition", INVOICE_STATUSES],
     ] as const) {
       const rows = await q<{ from_status: string; to_status: string }>(`SELECT from_status, to_status FROM ${table}`);
       expect(rows.length).toBeGreaterThan(0);
@@ -264,6 +270,7 @@ describe("schema conventions", () => {
       "data_export",
       "document_job",
       "handover",
+      "invoice",
       "listing_copy",
       "listing_draft",
       "migration_job",
@@ -274,6 +281,7 @@ describe("schema conventions", () => {
       "stock_count",
       "stock_transfer",
       "store_cutover",
+      "subscription",
       "sync_job",
     ]);
     for (const r of rows) expect(r.def).toContain(`enforce_status_transition('${r.tbl}')`);

@@ -562,6 +562,8 @@ describe("full data export (FR-MIG-09) and the audit of sensitive actions (FR-US
     const files = [
       "profil_bisnis.csv",
       "dokumen_legalitas.csv",
+      "langganan.csv",
+      "tagihan.csv",
       "toko.csv",
       "gudang.csv",
       "cutoff_kurir.csv",

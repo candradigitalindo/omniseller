@@ -1,3 +1,4 @@
+import { BILLING_JOBS } from "../modules/billing/billing.jobs";
 import { BUSINESS_JOBS } from "../modules/business/business.jobs";
 import { CATALOG_JOBS } from "../modules/catalog/catalog.jobs";
 import { CHANNEL_JOBS } from "../modules/channel/channel.jobs";
@@ -72,6 +73,7 @@ export const JOB_DEFINITIONS: readonly JobDef[] = [
   ...REPORTING_JOBS,
   ...RETENTION_JOBS,
   ...BUSINESS_JOBS,
+  ...BILLING_JOBS,
   ...FILES_JOBS,
   ...SYNC_JOBS,
 ];

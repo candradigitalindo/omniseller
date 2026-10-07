@@ -14,7 +14,7 @@ export const AUDIT_KINDS = {
   access: ["user", "user_role", "user_store_scope", "user_warehouse_scope", "role", "role_permission"],
   stores: ["store", "channel_warehouse", "warehouse", "device", "courier_cutoff", "courier_holiday", "operating_hours"],
   data: ["data_export", "migration_job", "store_cutover"],
-  business: ["business_profile", "business_document"],
+  business: ["business_profile", "business_document", "subscription", "invoice"],
 } as const satisfies Record<string, readonly string[]>;
 export type AuditKind = keyof typeof AUDIT_KINDS;
 
@@ -136,6 +136,18 @@ export const TITLE_KEYS = [
   "business_document_created",
   "business_document_updated",
   "business_document_deleted",
+  "subscription_created",
+  "subscription_activated",
+  "subscription_ended",
+  "subscription_leaving",
+  "subscription_staying",
+  "subscription_updated",
+  "invoice_created",
+  "invoice_paid",
+  "invoice_void",
+  "invoice_expired",
+  "invoice_failed",
+  "invoice_updated",
   "other_created",
   "other_updated",
   "other_deleted",
@@ -233,6 +245,20 @@ export const AUDIT_FIELDS = [
   "schedule",
   "validFrom",
   "validTo",
+  "plan",
+  "currentPeriodStart",
+  "currentPeriodEnd",
+  "nextPlan",
+  "endedAt",
+  "amount",
+  "creditAmount",
+  "periodStart",
+  "periodEnd",
+  "dueAt",
+  "paidAt",
+  "paidAmount",
+  "paymentMethod",
+  "paymentChannel",
 ] as const;
 export type AuditFieldName = (typeof AUDIT_FIELDS)[number];
 
@@ -291,6 +317,18 @@ function stepKey(e: AuditEntry): string {
         if (becomes(e, "status", s)) return `stock_transfer_${s}`;
       }
       return base;
+    case "subscription":
+      if (becomes(e, "status", "active")) return "subscription_activated";
+      if (becomes(e, "status", "expired") || becomes(e, "status", "cancelled")) return "subscription_ended";
+      // a move down chosen for the end of the paid period, or called off
+      if (find(e, "nextPlan"))
+        return find(e, "nextPlan")?.after != null ? "subscription_leaving" : "subscription_staying";
+      return base;
+    case "invoice":
+      for (const s of ["paid", "void", "expired", "failed"]) {
+        if (becomes(e, "status", s)) return `invoice_${s}`;
+      }
+      return base;
     default:
       return base;
   }
@@ -324,6 +362,9 @@ export const VALUE_LABELS: Record<string, [namespace: string, prefix: string]> =
   "stock_count.status": ["counts", "status_"],
   "stock_count.mode": ["counts", "mode_"],
   "stock_transfer.status": ["transfers", "status_"],
+  "subscription.status": ["billing", "status_"],
+  "invoice.status": ["billing", "invoiceStatus_"],
+  "invoice.paymentMethod": ["billing", "method_"],
 };
 
 /** The message key naming a coded value, if the log knows one. */
@@ -333,9 +374,21 @@ export function valueKey(entityType: string, field: string, value: unknown): str
 }
 
 /** Fields shown as Rupiah, as a signed quantity, or as a moment in the business's time zone. */
-export const MONEY_FIELDS = new Set(["costPrice", "basePrice", "price"]);
+export const MONEY_FIELDS = new Set(["costPrice", "basePrice", "price", "amount", "paidAmount", "creditAmount"]);
 export const DELTA_FIELDS = new Set(["onHandDelta", "damagedDelta", "bufferDelta"]);
-export const MOMENT_FIELDS = new Set(["undoUntil", "revokedAt", "receivedAt", "applyRequestedAt"]);
+export const MOMENT_FIELDS = new Set([
+  "undoUntil",
+  "revokedAt",
+  "receivedAt",
+  "applyRequestedAt",
+  "currentPeriodStart",
+  "currentPeriodEnd",
+  "endedAt",
+  "periodStart",
+  "periodEnd",
+  "dueAt",
+  "paidAt",
+]);
 /** Calendar dates (YYYY-MM-DD), shown without a time. */
 export const DATE_FIELDS = new Set([
   "issuedOn",

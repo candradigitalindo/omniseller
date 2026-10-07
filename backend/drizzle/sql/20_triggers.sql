@@ -46,6 +46,10 @@ SELECT ensure_trigger('stock_count', 'status_transition_trg',
   'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON stock_count FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''stock_count'')');
 SELECT ensure_trigger('stock_transfer', 'status_transition_trg',
   'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON stock_transfer FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''stock_transfer'')');
+SELECT ensure_trigger('subscription', 'status_transition_trg',
+  'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON subscription FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''subscription'')');
+SELECT ensure_trigger('invoice', 'status_transition_trg',
+  'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON invoice FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''invoice'')');
 
 -- Inventory guard
 SELECT ensure_trigger('inventory', 'inventory_guard_trg',
@@ -169,6 +173,14 @@ SELECT ensure_trigger('business_profile', 'audit_trg',
 SELECT ensure_trigger('business_document', 'audit_trg',
   'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF kind, title, number, issued_on, valid_until, file_object_id
      OR DELETE ON business_document FOR EACH ROW EXECUTE FUNCTION audit_row()');
+-- Subscriptions and invoices (backend doc 8.32): which plan was in force when, who chose a plan or a
+-- downgrade, and how each invoice ended. Reminder bookkeeping and Xendit's page URL stay out.
+SELECT ensure_trigger('subscription', 'audit_trg',
+  'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF status, plan_id, next_plan_id, current_period_end ON subscription
+     FOR EACH ROW EXECUTE FUNCTION audit_row(''subscription'', ''reminded_stage'')');
+SELECT ensure_trigger('invoice', 'audit_trg',
+  'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF status ON invoice FOR EACH ROW
+     EXECUTE FUNCTION audit_row(''invoice'', ''invoice_url'', ''external_invoice_id'', ''error'')');
 SELECT ensure_trigger('data_export', 'audit_download_trg',
   'CREATE TRIGGER audit_download_trg AFTER UPDATE ON data_export FOR EACH ROW
      WHEN (OLD.download_count IS DISTINCT FROM NEW.download_count)

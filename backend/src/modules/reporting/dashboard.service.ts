@@ -5,6 +5,7 @@ import { localDate, startOfDate } from "../../common/time-zone";
 import type { DbHandle } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
+import { BillingService } from "../billing/billing.service";
 import { BusinessProfileService } from "../business/business-profile.service";
 import { ListingsService } from "../catalog/listings.service";
 import { isManualChannel, StoresService, statusMessage } from "../channel/stores.service";
@@ -46,6 +47,7 @@ export class DashboardService {
     @Inject(StoresService) private readonly stores: StoresService,
     @Inject(TenantsService) private readonly tenants: TenantsService,
     @Inject(BusinessProfileService) private readonly business: BusinessProfileService,
+    @Inject(BillingService) private readonly billing: BillingService,
   ) {}
 
   async get(ctx: RequestContext, q: { range: DashboardRange; storeId?: string | undefined }) {
@@ -168,6 +170,8 @@ export class DashboardService {
           }),
           // the NIB and legal papers are the business keeper's (settings:billing, UI L47)
           ...(can("settings:billing") ? await this.business.legalTasksIn(tx, localDate(timezone, now)) : []),
+          // and so is the subscription: a trial about to end, an invoice due, a plan past due (L45)
+          ...(can("settings:billing") ? [await this.billing.taskIn(tx, ctx, now)].flatMap((t) => (t ? [t] : [])) : []),
         ]),
       };
     });

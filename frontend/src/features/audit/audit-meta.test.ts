@@ -125,6 +125,32 @@ describe("what an entry says", () => {
     expect(AUDIT_KINDS.stores).toContain("courier_cutoff");
   });
 
+  it("names what happened to a subscription and its invoices (backend doc 8.32)", () => {
+    const sub = (changes: { field: string; before: unknown; after: unknown }[]) =>
+      titleKey(entry({ entityType: "subscription", changes }));
+    expect(sub(status("trialing", "active"))).toBe("subscription_activated");
+    expect(sub(status("past_due", "active"))).toBe("subscription_activated");
+    expect(sub(status("active", "expired"))).toBe("subscription_ended");
+    expect(sub(status("trialing", "cancelled"))).toBe("subscription_ended");
+    expect(sub([{ field: "nextPlan", before: null, after: "Starter" }])).toBe("subscription_leaving");
+    expect(sub([{ field: "nextPlan", before: "Growth", after: "Starter" }])).toBe("subscription_leaving");
+    expect(sub([{ field: "nextPlan", before: "Growth", after: null }])).toBe("subscription_staying");
+    expect(sub([{ field: "currentPeriodEnd", before: "2026-10-12", after: "2026-11-12" }])).toBe(
+      "subscription_updated",
+    );
+    expect(titleKey(entry({ entityType: "subscription", change: "created" }))).toBe("subscription_created");
+    const inv = (after: string) => titleKey(entry({ entityType: "invoice", changes: status("pending", after) }));
+    expect(inv("paid")).toBe("invoice_paid");
+    expect(inv("void")).toBe("invoice_void");
+    expect(inv("expired")).toBe("invoice_expired");
+    expect(inv("failed")).toBe("invoice_failed");
+    expect(titleKey(entry({ entityType: "invoice", changes: status("failed", "pending") }))).toBe("invoice_updated");
+    expect(valueKey("invoice", "status", "paid")).toBe("billing.invoiceStatus_paid");
+    expect(valueKey("invoice", "paymentMethod", "BANK_TRANSFER")).toBe("billing.method_BANK_TRANSFER");
+    expect(valueKey("subscription", "status", "past_due")).toBe("billing.status_past_due");
+    expect(AUDIT_KINDS.business).toEqual(expect.arrayContaining(["subscription", "invoice"]));
+  });
+
   it("says plainly what happened to a table it has no words for", () => {
     expect(titleKey(entry({ entityType: "future_table", change: "updated" }))).toBe("other_updated");
     expect(titleKey(entry({ entityType: "role_permission", change: "updated" }))).toBe("other_updated");

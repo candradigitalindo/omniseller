@@ -8,16 +8,18 @@ Tenant (bisnis), pengguna, peran bawaan, cakupan toko dan gudang, serta undangan
 - `permission` (global, seed).
 
 ## Service publik
-- `TenantsService.signup(input)`: tenant baru beserta Owner; slug `<nama>-<4 hex>`.
+- `TenantsService.signup(input)`: tenant baru beserta Owner; slug `<nama>-<4 hex>`. Bisnis baru mulai di paket Growth dan menulis event `tenant.created`, sehingga modul `billing` mencatat uji cobanya (backend doc 8.32).
+- Paket (backend doc 8.32): `TenantsService.planIn(tx, ctx)` (paket yang berlaku, `tenant.plan_id`), `listPlansIn`, `planNamesIn` (log audit dan ekspor), dan `setPlanIn` (hanya untuk modul `billing`). `plan` adalah tabel global yang diisi seed.
 - `UsersService.loadPrincipal(tenantId, userId)`: identitas, izin, dan cakupan; dipakai `AuthGuard` di setiap permintaan.
 - `UsersService.list | get | update | setRoles | setScopes | changeOwnPassword(ctx, ...)`. Error: `user.not_found`, `user.cannot_disable_self`, `role.last_owner`, `role.privilege_escalation`, `row.stale`.
 - `UsersService.recordLoginSuccess | recordLoginFailure | resetPassword`: hanya untuk modul auth. `recordLoginFailure` juga dipakai untuk kode salah di langkah kedua login dan memberi `lockedUntil` bila akun baru terkunci.
 - Verifikasi dua langkah (backend doc 8.30): kolom 2FA tabel `user` ditulis lewat `UsersService.twoFactorIn | setTwoFactorIn | useBackupCodeIn` di transaksi pemanggil (modul auth yang memutuskan), dan `rolesIn` untuk anjuran Owner dan Admin. `UsersService.revokeSessions(ctx, id, keep?)` mengeluarkan anggota dari semua perangkat; `resetTwoFactor(ctx, id)` mematikan 2FA anggota lalu mengeluarkannya. Error: `user.two_factor_reset_self`, `user.two_factor_reset_forbidden`, `two_factor.not_enabled`.
 - `UsersService.recipientsIn(tx, permission)`: pengguna aktif dengan izin itu beserta cakupan toko dan gudangnya; penerima notifikasi (`notifyScopedIn`, backend doc 8.17).
 - `UsersService.namesIn(tx)`: nama semua pengguna, termasuk yang dinonaktifkan (kolom pelaku di ekspor data).
+- `UsersService.countSeatsIn(tx)`: pengguna yang tidak dinonaktifkan ditambah undangan terbuka, terhadap kuota pengguna paket; `billingContactIn(tx)`: pengguna aktif tertua yang memegang `settings:billing`, penerima tagihan Xendit.
 - `TenantsService.timezone(ctx)`, `TenantsService.profile(ctx)`: zona waktu bisnis (arti "hari ini" di dasbor) dan nama bisnis.
 - `RolesService.list | permissions(ctx)`.
-- `InvitationsService.invite | resend | revoke | list(ctx, ...)`, `inspect(token)`, `accept(token, input)`, `send(ctx, invitationId)` (job). Error: `user.email_taken`, `invitation.already_open`, `invitation.not_found`, `invitation.invalid`.
+- `InvitationsService.invite | resend | revoke | list(ctx, ...)`, `inspect(token)`, `accept(token, input)`, `send(ctx, invitationId)` (job). Error: `user.email_taken`, `invitation.already_open`, `invitation.not_found`, `invitation.invalid`, `billing.limit_reached` (undangan baru melebihi kuota pengguna paket: undangan terbuka ikut dihitung).
 - `PreTenantLookup`: pembungkus fungsi `SECURITY DEFINER` (`auth_login_candidates`, `auth_resolve_invitation`, `auth_resolve_password_reset`, `auth_resolve_device`), satu-satunya bacaan di luar `withTenantTx` (backend doc 7.5).
 - `DevicesService` (backend doc 8.24): `createIn` (token 256 bit sekali tampil, hanya hash yang disimpan), `getIn`, `activeIn`, `updateIn`, `revokeIn`, `reportIn` (versi dan printer laporan agen), dan `authenticate(token)` untuk `AuthGuard` dan `RealtimeGateway`: token tidak dikenal atau dicabut memberi null, `last_seen_at` ditulis paling sering 30 detik sekali. `isOnline`: melapor dalam 2 menit terakhir. Aturan agen cetak (gudang, antrean, cabut) ada di `fulfillment` (`PrintAgentsService`).
 
@@ -30,7 +32,7 @@ Tenant (bisnis), pengguna, peran bawaan, cakupan toko dan gudang, serta undangan
 - Satu undangan terbuka per email per tenant. Token undangan dibuat job pengirim (bukan request), berlaku 72 jam; kirim ulang menerbitkan token baru dan membatalkan tautan lama.
 
 ## Event
-- Diterbitkan: `invitation.send_requested`, `password_reset.requested` (skema di `identity.events.ts`).
+- Diterbitkan: `invitation.send_requested`, `password_reset.requested`, `tenant.created` (skema di `identity.events.ts`).
 - Dikonsumsi: tidak ada.
 
 ## Endpoint

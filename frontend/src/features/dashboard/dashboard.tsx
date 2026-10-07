@@ -38,6 +38,7 @@ const TASK_HREF: Partial<Record<Task["kind"], string>> = {
   stores_reconnect: "/integrasi",
   legal_nib: "/profil-bisnis",
   legal_documents: "/profil-bisnis",
+  billing_due: "/langganan",
 };
 
 const SEVERITY_TONE: Record<Task["severity"], Tone> = { critical: "danger", warning: "warning", info: "info" };

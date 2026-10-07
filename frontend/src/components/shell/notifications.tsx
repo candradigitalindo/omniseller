@@ -39,6 +39,8 @@ export function noticeHref(notice: Pick<Notice, "kind" | "data">): string | null
       return returnNoticeHref(notice.kind, notice.data);
     case "legal.reminder":
       return "/profil-bisnis";
+    case "billing.reminder":
+      return "/langganan";
     default:
       return null;
   }

@@ -54,6 +54,16 @@ export class UsersService {
     return new Map((await this.repo.userNames(tx)).map((u) => [u.id, u.name]));
   }
 
+  /** Seats in use against the plan: users not disabled plus open invitations (backend doc 8.32). */
+  countSeatsIn(tx: Tx): Promise<number> {
+    return this.repo.countSeats(tx);
+  }
+
+  /** Who a subscription invoice is addressed to (backend doc 8.32). */
+  billingContactIn(tx: Tx): Promise<{ email: string; name: string } | undefined> {
+    return this.repo.billingContact(tx);
+  }
+
   async list(ctx: RequestContext, cursor: string | undefined, limit: number) {
     const rows = await withTenantTx(this.db, ctx, (tx) => this.repo.listUserViews(tx, decodeCursor(cursor), limit));
     return page(rows, limit);

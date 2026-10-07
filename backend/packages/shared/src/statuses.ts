@@ -103,6 +103,14 @@ export type StockCountStatus = (typeof STOCK_COUNT_STATUSES)[number];
 export const STOCK_TRANSFER_STATUSES = ["draft", "sent", "received", "cancelled"] as const;
 export type StockTransferStatus = (typeof STOCK_TRANSFER_STATUSES)[number];
 
+/** A tenure of a plan (PRD 15.1, backend doc 8.32): trialing or paid, late, then ended by lapse or choice. */
+export const SUBSCRIPTION_STATUSES = ["trialing", "active", "past_due", "expired", "cancelled"] as const;
+export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
+
+/** A subscription invoice paid through Xendit (backend doc 8.32); void: withdrawn before payment. */
+export const INVOICE_STATUSES = ["pending", "paid", "expired", "failed", "void"] as const;
+export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
+
 /** A store's switch from parallel mode to OmniSeller (FR-MIG-06); undone within 24 hours. */
 export const STORE_CUTOVER_STATUSES = ["done", "undone"] as const;
 export type StoreCutoverStatus = (typeof STORE_CUTOVER_STATUSES)[number];

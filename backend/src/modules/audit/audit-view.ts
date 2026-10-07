@@ -15,7 +15,8 @@ export type AuditRef =
   | "warehouse"
   | "channelWarehouse"
   | "variant"
-  | "order";
+  | "order"
+  | "plan";
 
 export type AuditChange = "created" | "updated" | "deleted" | "restored";
 
@@ -252,6 +253,35 @@ export const AUDIT_ENTITIES: Record<string, EntitySpec> = {
       f("status"),
       f("note"),
       f("receipt_note"),
+    ],
+  },
+  // the subscription and its invoices (backend doc 8.32): which plan was in force when, and how it was paid
+  subscription: {
+    label: [{ ref: "plan", column: "plan_id" }],
+    fields: [
+      r("plan_id", "plan"),
+      f("status"),
+      f("current_period_start"),
+      f("current_period_end"),
+      r("next_plan_id", "plan"),
+      f("ended_at"),
+    ],
+  },
+  invoice: {
+    label: [{ column: "number" }],
+    fields: [
+      f("number"),
+      r("plan_id", "plan"),
+      f("status"),
+      f("amount"),
+      f("credit_amount", { omitZero: true }),
+      f("period_start"),
+      f("period_end"),
+      f("due_at"),
+      f("paid_at"),
+      f("paid_amount"),
+      f("payment_method"),
+      f("payment_channel"),
     ],
   },
 };

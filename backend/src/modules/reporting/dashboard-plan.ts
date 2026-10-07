@@ -110,7 +110,8 @@ export interface Task {
     | "stores_reconnect"
     | "listings_unmapped"
     | "legal_nib"
-    | "legal_documents";
+    | "legal_documents"
+    | "billing_due";
   severity: "critical" | "warning" | "info";
   count: number;
   title: string;

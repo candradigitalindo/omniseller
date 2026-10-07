@@ -5,9 +5,27 @@ import { type RequestContext, systemContext } from "../../common/context/request
 import { findPgError } from "../../common/errors/problem";
 import { hashPassword } from "../../common/security/password";
 import type { DbHandle, Tx } from "../../db/client";
+import type { PlanLimits } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
-import { DB_TENANT } from "../../infra/tokens";
+import { DB_TENANT, OUTBOX } from "../../infra/tokens";
+import type { Outbox } from "../../outbox/outbox";
+import { tenantCreated } from "./identity.events";
 import { IdentityRepository } from "./identity.repository";
+
+/** A plan as the seeds define it (PRD 14; backend doc 8.32). */
+export interface PlanView {
+  id: string;
+  code: string;
+  name: string;
+  limits: PlanLimits;
+  features: string[];
+  /** Rupiah per month; 0 for the free plan. */
+  priceMonthly: number;
+  active: boolean;
+}
+
+/** The plan a new business starts on: its 14-day trial (PRD 15.1); billing records the trial itself. */
+export const SIGNUP_PLAN = "growth";
 
 const ROLE_DESCRIPTIONS: Record<string, string> = {
   Owner: "Semua akses, termasuk tagihan dan pengelolaan tim",
@@ -46,6 +64,7 @@ export class TenantsService {
   constructor(
     @Inject(DB_TENANT) private readonly db: DbHandle,
     @Inject(IdentityRepository) private readonly repo: IdentityRepository,
+    @Inject(OUTBOX) private readonly outbox: Outbox,
   ) {}
 
   /** The business's time zone (Asia/Jakarta unless set): what "today" means in reports. */
@@ -53,14 +72,47 @@ export class TenantsService {
     return (await this.profile(ctx)).timezone;
   }
 
-  /** Name and time zone of the caller's business. */
-  async profile(ctx: RequestContext): Promise<{ name: string; timezone: string }> {
+  /** Name, time zone, and age of the caller's business. */
+  async profile(ctx: RequestContext): Promise<{ name: string; timezone: string; createdAt: Date }> {
     return withTenantTx(this.db, ctx, (tx) => this.profileIn(tx, ctx));
   }
 
-  async profileIn(tx: Tx, ctx: RequestContext): Promise<{ name: string; timezone: string }> {
+  async profileIn(tx: Tx, ctx: RequestContext): Promise<{ name: string; timezone: string; createdAt: Date }> {
     const t = await this.repo.getTenant(tx, ctx.tenantId);
-    return { name: t?.name ?? "", timezone: t?.timezone ?? "Asia/Jakarta" };
+    return { name: t?.name ?? "", timezone: t?.timezone ?? "Asia/Jakarta", createdAt: t?.createdAt ?? new Date(0) };
+  }
+
+  // ---- plans (backend doc 8.32): billing decides, `tenant.plan_id` records the plan in force ----
+
+  /** The plan in force for the caller's business. */
+  async planIn(tx: Tx, ctx: RequestContext): Promise<PlanView> {
+    const t = await this.repo.getTenant(tx, ctx.tenantId);
+    const plan = (await this.listPlansIn(tx)).find((p) => p.id === t?.planId);
+    if (!plan) throw new Error(`tenant ${ctx.tenantId} has no plan`);
+    return plan;
+  }
+
+  /** Every plan, cheapest first; `active` false for plans no longer offered. */
+  async listPlansIn(tx: Tx): Promise<PlanView[]> {
+    return (await this.repo.listPlans(tx)).map((p) => ({
+      id: p.id,
+      code: p.code,
+      name: p.name,
+      limits: p.limits,
+      features: p.features,
+      priceMonthly: p.priceMonthly,
+      active: p.active,
+    }));
+  }
+
+  /** Plan names by id, for the audit log and the export. */
+  async planNamesIn(tx: Tx): Promise<Map<string, string>> {
+    return new Map((await this.repo.listPlans(tx)).map((p) => [p.id, p.name]));
+  }
+
+  /** Moves the business to the plan in force (trial, payment, lapse); billing's call only. */
+  async setPlanIn(tx: Tx, ctx: RequestContext, planId: string): Promise<void> {
+    await this.repo.setTenantPlan(tx, ctx.tenantId, planId);
   }
 
   /** Renames the business or moves it to another time zone, in the caller's transaction (L47). */
@@ -85,12 +137,13 @@ export class TenantsService {
   private async createTenant(input: SignupInput, slug: string, passwordHash: string) {
     const tenantId = newId();
     const userId = newId();
-    return withTenantTx(this.db, systemContext(tenantId), async (tx) => {
+    const ctx = systemContext(tenantId);
+    return withTenantTx(this.db, ctx, async (tx) => {
       await this.repo.insertTenant(tx, {
         id: tenantId,
         name: input.businessName,
         slug,
-        planId: await this.repo.planIdByCode(tx, "starter"),
+        planId: await this.repo.planIdByCode(tx, SIGNUP_PLAN),
       });
       const permissionIds = await this.repo.permissionIdsByCode(tx);
       let ownerRoleId = "";
@@ -124,6 +177,8 @@ export class TenantsService {
         address: {},
         isDefault: true,
       });
+      // billing writes the trial row (job billing.trial_start) and counts the days from here
+      await this.outbox.enqueue(tx, ctx, tenantCreated, {}, tenantId);
       return { tenantId, userId };
     });
   }

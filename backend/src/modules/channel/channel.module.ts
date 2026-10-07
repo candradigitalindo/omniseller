@@ -3,6 +3,7 @@ import { AwsKmsKeyProvider, type KeyProvider, LocalKeyProvider } from "../../com
 import { TokenVault } from "../../common/security/token-vault";
 import type { Env, EnvFor } from "../../config/env.schema";
 import { TOKEN_VAULT } from "../../infra/tokens";
+import { IdentityModule } from "../identity/identity.module";
 import { InventoryModule } from "../inventory/inventory-core.module";
 import { NotificationInboxModule } from "../notification/notification.module";
 import { SyncModule } from "../sync/sync.module";
@@ -33,9 +34,9 @@ export class ConnectorsModule {
   }
 }
 
-/** Services shared by api and worker: stores, connection attempts. */
+/** Services shared by api and worker: stores, connection attempts (the plan's store quota comes from identity). */
 @Module({
-  imports: [SyncModule, InventoryModule],
+  imports: [SyncModule, InventoryModule, IdentityModule],
   providers: [ChannelRepository, StoresService, StoreAuthorizationService],
   exports: [ChannelRepository, StoresService, StoreAuthorizationService],
 })

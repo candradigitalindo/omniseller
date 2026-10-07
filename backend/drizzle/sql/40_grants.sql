@@ -34,7 +34,8 @@ BEGIN
                            'print_job_status_transition', 'handover_status_transition',
                            'listing_copy_status_transition', 'listing_draft_status_transition',
                            'return_request_status_transition', 'stock_count_status_transition',
-                           'stock_transfer_status_transition']
+                           'stock_transfer_status_transition', 'subscription_status_transition',
+                           'invoice_status_transition']
   LOOP
     EXECUTE format('REVOKE INSERT, UPDATE, DELETE ON TABLE %I FROM omniseller_api, omniseller_worker, omniseller_system', t);
   END LOOP;
@@ -92,6 +93,7 @@ REVOKE ALL ON FUNCTION auth_resolve_device(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION auth_resolve_api_key(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION auth_resolve_invitation(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION auth_resolve_password_reset(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION billing_resolve_invoice(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION maintain_partitions(timestamptz) FROM PUBLIC;
 
 GRANT EXECUTE ON FUNCTION ensure_inventory(text, text, text, text) TO omniseller_api, omniseller_worker;
@@ -104,4 +106,5 @@ GRANT EXECUTE ON FUNCTION auth_resolve_device(text) TO omniseller_api;
 GRANT EXECUTE ON FUNCTION auth_resolve_api_key(text) TO omniseller_api;
 GRANT EXECUTE ON FUNCTION auth_resolve_invitation(text) TO omniseller_api;
 GRANT EXECUTE ON FUNCTION auth_resolve_password_reset(text) TO omniseller_api;
+GRANT EXECUTE ON FUNCTION billing_resolve_invoice(text) TO omniseller_api;
 GRANT EXECUTE ON FUNCTION maintain_partitions(timestamptz) TO omniseller_system;

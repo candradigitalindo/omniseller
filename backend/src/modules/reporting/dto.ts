@@ -123,6 +123,7 @@ const dashboardSchema = z.object({
         "listings_unmapped",
         "legal_nib",
         "legal_documents",
+        "billing_due",
       ]),
       severity: z.enum(["critical", "warning", "info"]),
       count: z.number().int(),

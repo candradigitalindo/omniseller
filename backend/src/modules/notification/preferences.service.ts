@@ -36,6 +36,13 @@ export const PREFERENCE_KINDS: readonly PreferenceKind[] = [
     emailByDefault: (p) => p.has("settings:billing"),
     locked: true,
   },
+  {
+    kind: "billing.reminder",
+    label:
+      "Langganan dan tagihan: uji coba berakhir, tagihan jatuh tempo, pembayaran, dan kuota pesanan (dalam aplikasi dan email)",
+    emailByDefault: (p) => p.has("settings:billing"),
+    locked: true,
+  },
 ];
 
 const kindOf = (kind: string) => {

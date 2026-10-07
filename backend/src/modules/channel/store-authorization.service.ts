@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { newId } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
 import { ValidationError } from "../../common/errors/domain-errors";
+import { limitReached, planLimitReached } from "../../common/plan-limits";
 import { hashToken, newSecretToken } from "../../common/security/tokens";
 import { ENV } from "../../config/config.module";
 import type { Env } from "../../config/env.schema";
@@ -9,6 +10,7 @@ import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
+import { TenantsService } from "../identity/tenants.service";
 import {
   AUTHORIZATION_FAILURES,
   type AuthorizationFailure,
@@ -21,7 +23,7 @@ import {
 import { storeAuthorizationReceived } from "./channel.events";
 import { ChannelRepository, type StoreAuthorizationRow } from "./channel.repository";
 import { CONNECTORS, type ConnectorRegistry, isSupportedChannel } from "./connector-registry";
-import { publicWebUrl, StoresService } from "./stores.service";
+import { isManualChannel, publicWebUrl, StoresService } from "./stores.service";
 
 /** TikTok Shop codes live 30 minutes and Shopee codes 10; the link itself is kept a little longer. */
 export const AUTHORIZATION_TTL_MINUTES = 30;
@@ -53,6 +55,7 @@ export class StoreAuthorizationService {
     @Inject(OUTBOX) private readonly outbox: Outbox,
     @Inject(CONNECTORS) private readonly connectors: ConnectorRegistry,
     @Inject(StoresService) private readonly stores: StoresService,
+    @Inject(TenantsService) private readonly tenants: TenantsService,
     @Inject(ENV) private readonly env: Env,
   ) {}
 
@@ -78,6 +81,16 @@ export class StoreAuthorizationService {
       }
       // Checked after the store so that another tenant's store id answers 404 whatever is configured.
       const connector = this.connectors.get(channel);
+      if (!input.storeId) {
+        // a new store counts against the plan (backend doc 8.32); reconnecting never does
+        const plan = await this.tenants.planIn(tx, ctx);
+        const connected = (await this.repo.listStores(tx, null)).filter(
+          (s) => !isManualChannel(s.channel) && s.status !== "disconnected",
+        ).length;
+        if (limitReached(plan.limits, "stores", connected)) {
+          throw planLimitReached(plan.name, "stores", plan.limits.stores!);
+        }
+      }
       await this.repo.insertAuthorization(tx, {
         id,
         tenantId: ctx.tenantId,

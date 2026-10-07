@@ -23,3 +23,5 @@ export const listingDraftStatusTransition = pgTable("listing_draft_status_transi
 export const returnRequestStatusTransition = pgTable("return_request_status_transition", transitionColumns());
 export const stockCountStatusTransition = pgTable("stock_count_status_transition", transitionColumns());
 export const stockTransferStatusTransition = pgTable("stock_transfer_status_transition", transitionColumns());
+export const subscriptionStatusTransition = pgTable("subscription_status_transition", transitionColumns());
+export const invoiceStatusTransition = pgTable("invoice_status_transition", transitionColumns());

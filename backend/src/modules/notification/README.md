@@ -29,7 +29,7 @@ Notifikasi untuk pengguna OmniSeller (PRD FR-NTF-01, FR-NTF-02; backend doc 7.8.
 - Isi notifikasi tidak memuat data pribadi pembeli; data cukup id pesanan.
 - Penerima dipilih lewat `notifyScopedIn`: pengguna aktif yang memegang izin, dan masing-masing hanya mendengar item di cakupan toko dan gudangnya. Pengguna yang tidak melihat satu item pun tidak menerima apa-apa.
 - Notifikasi ditulis di transaksi modul yang memutuskan, oleh job modul itu (bukan oleh modul ini).
-- Jenis di preferensi: `digest.daily` (email ringkasan operasional pukul 07.00, bawaan aktif bagi pemegang `report:read`) dan `store.connection_lost` (terkunci, "Selalu dikirim" di L44; tampil hanya bagi pemegang `settings:store`, mengubahnya ditolak 422 `notification_preference.locked`). Jenis lain memberi 404 `notification_preference.unknown_kind`.
+- Jenis di preferensi: `digest.daily` (email ringkasan operasional pukul 07.00, bawaan aktif bagi pemegang `report:read`), `legal.reminder` dan `billing.reminder` (terkunci, hanya bagi pemegang `settings:billing`; backend doc 8.29 dan 8.32), dan `store.connection_lost` (terkunci, "Selalu dikirim" di L44; tampil hanya bagi pemegang `settings:store`, mengubahnya ditolak 422 `notification_preference.locked`). Jenis lain memberi 404 `notification_preference.unknown_kind`.
 
 ## Job
 | Job | Antrean | Pemicu |

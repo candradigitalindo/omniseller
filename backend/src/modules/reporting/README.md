@@ -16,6 +16,7 @@ Dasbor dan laporan penjualan tidak menulis apa pun. Semua angkanya dibaca dalam 
 - `ListingsService.unmappedCountIn`.
 - `StoresService`: `list`, `listIn`, `unmappedWarehousesIn`.
 - `TenantsService`: `timezone`, `profile`.
+- `BusinessProfileService.legalTasksIn` dan `BillingService.taskIn`: tugas legalitas dan langganan (`billing_due`), hanya untuk `settings:billing`.
 - `UsersService`: `recipientsIn`, `loadPrincipal`.
 - `NotificationPreferencesService.emailChoicesIn`.
 
