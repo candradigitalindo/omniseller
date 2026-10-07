@@ -11,7 +11,8 @@ Tenant (bisnis), pengguna, peran bawaan, cakupan toko dan gudang, serta undangan
 - `TenantsService.signup(input)`: tenant baru beserta Owner; slug `<nama>-<4 hex>`.
 - `UsersService.loadPrincipal(tenantId, userId)`: identitas, izin, dan cakupan; dipakai `AuthGuard` di setiap permintaan.
 - `UsersService.list | get | update | setRoles | setScopes | changeOwnPassword(ctx, ...)`. Error: `user.not_found`, `user.cannot_disable_self`, `role.last_owner`, `role.privilege_escalation`, `row.stale`.
-- `UsersService.recordLoginSuccess | recordLoginFailure | resetPassword`: hanya untuk modul auth.
+- `UsersService.recordLoginSuccess | recordLoginFailure | resetPassword`: hanya untuk modul auth. `recordLoginFailure` juga dipakai untuk kode salah di langkah kedua login dan memberi `lockedUntil` bila akun baru terkunci.
+- Verifikasi dua langkah (backend doc 8.30): kolom 2FA tabel `user` ditulis lewat `UsersService.twoFactorIn | setTwoFactorIn | useBackupCodeIn` di transaksi pemanggil (modul auth yang memutuskan), dan `rolesIn` untuk anjuran Owner dan Admin. `UsersService.revokeSessions(ctx, id, keep?)` mengeluarkan anggota dari semua perangkat; `resetTwoFactor(ctx, id)` mematikan 2FA anggota lalu mengeluarkannya. Error: `user.two_factor_reset_self`, `user.two_factor_reset_forbidden`, `two_factor.not_enabled`.
 - `UsersService.recipientsIn(tx, permission)`: pengguna aktif dengan izin itu beserta cakupan toko dan gudangnya; penerima notifikasi (`notifyScopedIn`, backend doc 8.17).
 - `UsersService.namesIn(tx)`: nama semua pengguna, termasuk yang dinonaktifkan (kolom pelaku di ekspor data).
 - `TenantsService.timezone(ctx)`, `TenantsService.profile(ctx)`: zona waktu bisnis (arti "hari ini" di dasbor) dan nama bisnis.
@@ -24,6 +25,7 @@ Tenant (bisnis), pengguna, peran bawaan, cakupan toko dan gudang, serta undangan
 - Pengguna hanya bisa memberi peran (atau mengundang dengan peran) yang seluruh izinnya ia miliki sendiri.
 - Tenant selalu punya minimal satu Owner aktif; pengguna tidak bisa menonaktifkan dirinya sendiri.
 - Menonaktifkan pengguna dan mengganti kata sandi mencabut sesi di Redis.
+- Mematikan 2FA anggota hanya untuk anggota lain yang izinnya tidak lebih luas dari pemanggil. Trigger audit `user` mencatat `status` dan `totp_enabled`, tanpa hash sandi, rahasia, kode cadangan, dan catatan login.
 - Perangkat dicabut, tidak dihapus. Log audit mencatat pasang, ubah, dan cabut tanpa hash token, dan tidak mencatat laporan agen.
 - Satu undangan terbuka per email per tenant. Token undangan dibuat job pengirim (bukan request), berlaku 72 jam; kirim ulang menerbitkan token baru dan membatalkan tautan lama.
 
@@ -39,6 +41,7 @@ Tenant (bisnis), pengguna, peran bawaan, cakupan toko dan gudang, serta undangan
 | GET | `/v1/users`, `/v1/users/{id}` | `settings:user` |
 | PATCH | `/v1/users/{id}` (If-Match opsional) | `settings:user` |
 | PUT | `/v1/users/{id}/roles`, `/v1/users/{id}/scopes` | `settings:user` |
+| POST | `/v1/users/{id}/sessions/revoke`, `/v1/users/{id}/two-factor/reset` | `settings:user` |
 | GET | `/v1/roles`, `/v1/permissions` | `settings:user` |
 | GET, POST | `/v1/invitations` | `settings:user` |
 | POST | `/v1/invitations/{id}/resend` | `settings:user` |

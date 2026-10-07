@@ -54,6 +54,8 @@ const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: s
   UsersController_update: () => ({ name: "Penyusup" }),
   UsersController_setRoles: ({ bViewerRoleId }) => ({ roleIds: [bViewerRoleId] }),
   UsersController_setScopes: () => ({ storeIds: null }),
+  UsersController_revokeSessions: () => ({}),
+  UsersController_resetTwoFactor: () => ({}),
   InvitationsController_create: ({ a: ids }) => ({ email: uniqueEmail("x"), roleId: ids.role! }),
   InvitationsController_resend: () => ({}),
   InvitationsController_revoke: () => ({}),

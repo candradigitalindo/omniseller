@@ -95,6 +95,38 @@
         "x-isolation": "public"
       }
     },
+    "/v1/auth/login/two-factor": {
+      "post": {
+        "operationId": "AuthController_loginTwoFactor",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginTwoFactorDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ],
+        "x-isolation": "public"
+      }
+    },
     "/v1/auth/logout": {
       "post": {
         "operationId": "AuthController_logout",
@@ -222,6 +254,218 @@
           "auth"
         ],
         "x-isolation": "public"
+      }
+    },
+    "/v1/me/two-factor": {
+      "get": {
+        "operationId": "TwoFactorController_status",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TwoFactorStatusDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "me"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/me/two-factor/setup": {
+      "post": {
+        "operationId": "TwoFactorController_setup",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordConfirmDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TwoFactorSetupDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "me"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/me/two-factor/enable": {
+      "post": {
+        "operationId": "TwoFactorController_enable",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnableTwoFactorDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupCodesDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "me"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/me/two-factor/backup-codes": {
+      "post": {
+        "operationId": "TwoFactorController_backupCodes",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordConfirmDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupCodesDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "me"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/me/two-factor/disable": {
+      "post": {
+        "operationId": "TwoFactorController_disable",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DisableTwoFactorDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "me"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/me/sessions": {
+      "get": {
+        "operationId": "SessionsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionListDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "me"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/me/sessions/revoke-others": {
+      "post": {
+        "operationId": "SessionsController_revokeOthers",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokedDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "me"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/me/sessions/{id}": {
+      "delete": {
+        "operationId": "SessionsController_revoke",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{22}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "me"
+        ],
+        "x-isolation": "self"
       }
     },
     "/v1/me": {
@@ -460,6 +704,74 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "x-isolation": {
+          "fixture": "user"
+        }
+      }
+    },
+    "/v1/users/{id}/sessions/revoke": {
+      "post": {
+        "operationId": "UsersController_revokeSessions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokedDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "users"
+        ],
+        "x-isolation": {
+          "fixture": "user"
+        }
+      }
+    },
+    "/v1/users/{id}/two-factor/reset": {
+      "post": {
+        "operationId": "UsersController_resetTwoFactor",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -8773,13 +9085,18 @@
                   "id",
                   "en"
                 ]
+              },
+              "twoFactorEnabled": {
+                "type": "boolean",
+                "description": "verifikasi dua langkah aktif (backend doc 8.30)"
               }
             },
             "required": [
               "id",
               "name",
               "email",
-              "locale"
+              "locale",
+              "twoFactorEnabled"
             ],
             "additionalProperties": false
           },
@@ -8940,6 +9257,29 @@
           "password"
         ]
       },
+      "LoginTwoFactorDto": {
+        "type": "object",
+        "properties": {
+          "challenge": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "description": "dari jawaban 401 auth.two_factor_required"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[0-9]{6}$",
+            "description": "kode 6 angka dari aplikasi autentikator"
+          },
+          "backupCode": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9 -]{10,20}$",
+            "description": "salah satu kode cadangan, sekali pakai"
+          }
+        },
+        "required": [
+          "challenge"
+        ]
+      },
       "PasswordResetRequestDto": {
         "type": "object",
         "properties": {
@@ -9033,6 +9373,213 @@
           "name",
           "password"
         ]
+      },
+      "TwoFactorStatusDto_Output": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "enabledAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "backupCodesLeft": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "kode cadangan yang belum dipakai"
+          },
+          "recommended": {
+            "type": "boolean",
+            "description": "Owner dan Admin dianjurkan memakai verifikasi dua langkah"
+          }
+        },
+        "required": [
+          "enabled",
+          "enabledAt",
+          "backupCodesLeft",
+          "recommended"
+        ],
+        "additionalProperties": false
+      },
+      "PasswordConfirmDto": {
+        "type": "object",
+        "properties": {
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "password"
+        ]
+      },
+      "TwoFactorSetupDto_Output": {
+        "type": "object",
+        "properties": {
+          "secret": {
+            "type": "string",
+            "description": "base32, untuk diketik bila QR tidak bisa dipindai"
+          },
+          "uri": {
+            "type": "string",
+            "description": "otpauth:// yang dibaca aplikasi autentikator"
+          },
+          "qrSvg": {
+            "type": "string",
+            "description": "QR dari uri sebagai SVG"
+          }
+        },
+        "required": [
+          "secret",
+          "uri",
+          "qrSvg"
+        ],
+        "additionalProperties": false
+      },
+      "EnableTwoFactorDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[0-9]{6}$",
+            "description": "kode 6 angka dari aplikasi autentikator"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "BackupCodesDto_Output": {
+        "type": "object",
+        "properties": {
+          "backupCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "hanya tampil sekali; simpan di tempat aman"
+          }
+        },
+        "required": [
+          "backupCodes"
+        ],
+        "additionalProperties": false
+      },
+      "DisableTwoFactorDto": {
+        "type": "object",
+        "properties": {
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[0-9]{6}$",
+            "description": "kode 6 angka dari aplikasi autentikator"
+          },
+          "backupCode": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9 -]{10,20}$",
+            "description": "salah satu kode cadangan, sekali pakai"
+          }
+        },
+        "required": [
+          "password"
+        ]
+      },
+      "SessionListDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "current": {
+                  "type": "boolean",
+                  "description": "sesi permintaan ini"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                  "description": "waktu masuk"
+                },
+                "lastSeenAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                  "description": "terakhir dipakai, diperbarui paling sering sekali per jam"
+                },
+                "ip": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "browser": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "os": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "current",
+                "createdAt",
+                "lastSeenAt",
+                "ip",
+                "browser",
+                "os"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "next_cursor": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "RevokedDto_Output": {
+        "type": "object",
+        "properties": {
+          "revoked": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "revoked"
+        ],
+        "additionalProperties": false
       },
       "ChangePasswordDto": {
         "type": "object",
@@ -9139,6 +9686,10 @@
                     }
                   ]
                 },
+                "twoFactorEnabled": {
+                  "type": "boolean",
+                  "description": "verifikasi dua langkah aktif"
+                },
                 "createdAt": {
                   "type": "string",
                   "format": "date-time",
@@ -9154,6 +9705,7 @@
                 "storeIds",
                 "warehouseIds",
                 "lastLoginAt",
+                "twoFactorEnabled",
                 "createdAt"
               ],
               "additionalProperties": false
@@ -9257,6 +9809,10 @@
               }
             ]
           },
+          "twoFactorEnabled": {
+            "type": "boolean",
+            "description": "verifikasi dua langkah aktif"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -9272,6 +9828,7 @@
           "storeIds",
           "warehouseIds",
           "lastLoginAt",
+          "twoFactorEnabled",
           "createdAt"
         ],
         "additionalProperties": false

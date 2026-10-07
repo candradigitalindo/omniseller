@@ -96,6 +96,19 @@ const fileStorage = {
   R2_BUCKET_DOCUMENTS: z.string().min(3).default("omniseller-documents"),
 };
 
+/**
+ * Verification in two steps (technology doc 5.3, backend doc 8.30), api only: each user's TOTP secret is
+ * sealed with TOTP_ENCRYPTION_KEY, and backup codes are HMACs under a key derived from it. Login runs in
+ * the api, which never holds KMS (ADR-029), so this is not a tenant DEK. TOTP_ISSUER is the name
+ * authenticator apps show next to the account.
+ */
+const twoFactor = {
+  TOTP_ENCRYPTION_KEY: z
+    .string({ error: "required: 32 random bytes, base64 (openssl rand -base64 32)" })
+    .refine((v) => base64Key32(v), "must be 32 random bytes, base64 (openssl rand -base64 32)"),
+  TOTP_ISSUER: z.string().min(1).max(40).default("OmniSeller"),
+};
+
 type Refinable = { NODE_ENV: string } & Record<string, unknown>;
 
 const fileStorageRules = [
@@ -132,6 +145,7 @@ const apiEnv = base
     ...shopeeLink,
     ...tiktokLink,
     ...fileStorage,
+    ...twoFactor,
   })
   .refine(fileStorageRules[0].check, { path: [fileStorageRules[0].path], message: fileStorageRules[0].message })
   .refine(fileStorageRules[1].check, { path: [fileStorageRules[1].path], message: fileStorageRules[1].message });

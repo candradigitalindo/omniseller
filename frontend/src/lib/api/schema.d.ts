@@ -68,6 +68,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/auth/login/two-factor": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["AuthController_loginTwoFactor"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/auth/logout": {
     parameters: {
       query?: never;
@@ -143,6 +159,134 @@ export interface paths {
     put?: never;
     post: operations["AuthController_acceptInvitation"];
     delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/me/two-factor": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["TwoFactorController_status"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/me/two-factor/setup": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["TwoFactorController_setup"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/me/two-factor/enable": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["TwoFactorController_enable"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/me/two-factor/backup-codes": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["TwoFactorController_backupCodes"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/me/two-factor/disable": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["TwoFactorController_disable"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/me/sessions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["SessionsController_list"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/me/sessions/revoke-others": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["SessionsController_revokeOthers"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/me/sessions/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: operations["SessionsController_revoke"];
     options?: never;
     head?: never;
     patch?: never;
@@ -238,6 +382,38 @@ export interface paths {
     get?: never;
     put: operations["UsersController_setScopes"];
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/users/{id}/sessions/revoke": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["UsersController_revokeSessions"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/users/{id}/two-factor/reset": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["UsersController_resetTwoFactor"];
     delete?: never;
     options?: never;
     head?: never;
@@ -2950,6 +3126,8 @@ export interface components {
         email: string;
         /** @enum {string} */
         locale: "id" | "en";
+        /** @description verifikasi dua langkah aktif (backend doc 8.30) */
+        twoFactorEnabled: boolean;
       };
       tenant: {
         id: string;
@@ -3010,6 +3188,14 @@ export interface components {
       password: string;
       tenant?: string;
     };
+    LoginTwoFactorDto: {
+      /** @description dari jawaban 401 auth.two_factor_required */
+      challenge: string;
+      /** @description kode 6 angka dari aplikasi autentikator */
+      code?: string;
+      /** @description salah satu kode cadangan, sekali pakai */
+      backupCode?: string;
+    };
     PasswordResetRequestDto: {
       /** Format: email */
       email: string;
@@ -3033,6 +3219,64 @@ export interface components {
       name: string;
       password: string;
     };
+    TwoFactorStatusDto_Output: {
+      enabled: boolean;
+      enabledAt: string | null;
+      /** @description kode cadangan yang belum dipakai */
+      backupCodesLeft: number;
+      /** @description Owner dan Admin dianjurkan memakai verifikasi dua langkah */
+      recommended: boolean;
+    };
+    PasswordConfirmDto: {
+      password: string;
+    };
+    TwoFactorSetupDto_Output: {
+      /** @description base32, untuk diketik bila QR tidak bisa dipindai */
+      secret: string;
+      /** @description otpauth:// yang dibaca aplikasi autentikator */
+      uri: string;
+      /** @description QR dari uri sebagai SVG */
+      qrSvg: string;
+    };
+    EnableTwoFactorDto: {
+      /** @description kode 6 angka dari aplikasi autentikator */
+      code: string;
+    };
+    BackupCodesDto_Output: {
+      /** @description hanya tampil sekali; simpan di tempat aman */
+      backupCodes: string[];
+    };
+    DisableTwoFactorDto: {
+      password: string;
+      /** @description kode 6 angka dari aplikasi autentikator */
+      code?: string;
+      /** @description salah satu kode cadangan, sekali pakai */
+      backupCode?: string;
+    };
+    SessionListDto_Output: {
+      items: {
+        id: string;
+        /** @description sesi permintaan ini */
+        current: boolean;
+        /**
+         * Format: date-time
+         * @description waktu masuk
+         */
+        createdAt: string;
+        /**
+         * Format: date-time
+         * @description terakhir dipakai, diperbarui paling sering sekali per jam
+         */
+        lastSeenAt: string;
+        ip: string | null;
+        browser: string | null;
+        os: string | null;
+      }[];
+      next_cursor: null;
+    };
+    RevokedDto_Output: {
+      revoked: number;
+    };
     ChangePasswordDto: {
       currentPassword: string;
       newPassword: string;
@@ -3051,6 +3295,8 @@ export interface components {
         storeIds: string[] | null;
         warehouseIds: string[] | null;
         lastLoginAt: string | null;
+        /** @description verifikasi dua langkah aktif */
+        twoFactorEnabled: boolean;
         /** Format: date-time */
         createdAt: string;
       }[];
@@ -3069,6 +3315,8 @@ export interface components {
       storeIds: string[] | null;
       warehouseIds: string[] | null;
       lastLoginAt: string | null;
+      /** @description verifikasi dua langkah aktif */
+      twoFactorEnabled: boolean;
       /** Format: date-time */
       createdAt: string;
     };
@@ -7665,6 +7913,29 @@ export interface operations {
       };
     };
   };
+  AuthController_loginTwoFactor: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["LoginTwoFactorDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MeDto_Output"];
+        };
+      };
+    };
+  };
   AuthController_logout: {
     parameters: {
       query?: never;
@@ -7767,6 +8038,172 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["MeDto_Output"];
         };
+      };
+    };
+  };
+  TwoFactorController_status: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TwoFactorStatusDto_Output"];
+        };
+      };
+    };
+  };
+  TwoFactorController_setup: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PasswordConfirmDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TwoFactorSetupDto_Output"];
+        };
+      };
+    };
+  };
+  TwoFactorController_enable: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["EnableTwoFactorDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BackupCodesDto_Output"];
+        };
+      };
+    };
+  };
+  TwoFactorController_backupCodes: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PasswordConfirmDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BackupCodesDto_Output"];
+        };
+      };
+    };
+  };
+  TwoFactorController_disable: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DisableTwoFactorDto"];
+      };
+    };
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  SessionsController_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SessionListDto_Output"];
+        };
+      };
+    };
+  };
+  SessionsController_revokeOthers: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RevokedDto_Output"];
+        };
+      };
+    };
+  };
+  SessionsController_revoke: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };
@@ -7917,6 +8354,48 @@ export interface operations {
         "application/json": components["schemas"]["SetScopesDto"];
       };
     };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserDto_Output"];
+        };
+      };
+    };
+  };
+  UsersController_revokeSessions: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RevokedDto_Output"];
+        };
+      };
+    };
+  };
+  UsersController_resetTwoFactor: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
     responses: {
       200: {
         headers: {

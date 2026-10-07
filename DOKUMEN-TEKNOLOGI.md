@@ -2,8 +2,8 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.19 |
-| Tanggal | 5 Oktober 2026 |
+| Versi dokumen | 1.20 |
+| Tanggal | 7 Oktober 2026 |
 | Status | Keputusan final untuk implementasi |
 | Pemilik dokumen | Candra Syahputra |
 | Dokumen induk | DOKUMEN-SPESIFIKASI-APLIKASI.md versi 1.11 (PRD); rincian backend di DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.19 |
@@ -248,7 +248,7 @@ sequenceDiagram
 | Kata sandi | Argon2id (memori 64 MB, iterasi 3, paralelisme 4) |
 | Sesi web | Token sesi acak 256 bit disimpan di Redis, cookie `HttpOnly; Secure; SameSite=Lax`, masa hidup 30 hari geser, batas 10 sesi per pengguna |
 | Mobile dan ekstensi | Access token opaque 1 jam dan refresh token 90 hari dengan rotasi, disimpan di secure storage perangkat |
-| 2FA | TOTP (`otplib`) wajib untuk Owner dan Admin mulai Fase 2, kode cadangan 10 buah, passkey WebAuthn di Fase 4 |
+| 2FA | TOTP (`otplib` 13: SHA-1, 6 angka, 30 detik) sebagai langkah kedua login, tersedia untuk semua pengguna dan dianjurkan untuk Owner dan Admin; wajib untuk Owner dan Admin mulai Fase 2. Kode cadangan 10 buah, sekali pakai, disimpan sebagai HMAC. Rahasia TOTP disegel dengan `TOTP_ENCRYPTION_KEY` milik api (bukan DEK tenant: api tidak memegang KMS). Kode tidak bisa dipakai ulang, dan kode salah ikut penguncian akun. Passkey WebAuthn di Fase 4 (DOKUMEN-ARSITEKTUR-BACKEND 8.30) |
 | Agen cetak | Token perangkat yang dibuat dari UI, dapat dicabut per perangkat |
 | API publik | API key dengan prefix `os_live_`, hash disimpan, scope per key |
 | RBAC | Izin berbentuk string `modul:aksi` (misalnya `order:ship`), peran adalah kumpulan izin. Guard NestJS memeriksa izin; izin dan cakupan toko dan gudang dimuat ulang dari basis data setiap permintaan, bukan disimpan di sesi (ADR-033) |
@@ -917,7 +917,7 @@ marketplace/
 | `XENDIT_SECRET_KEY`, `XENDIT_WEBHOOK_TOKEN` | api, webhook | |
 | `SES_REGION`, `EMAIL_FROM` | worker | |
 | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID` | worker | |
-| `SESSION_SECRET`, `TOTP_ISSUER` | api | |
+| `TOTP_ENCRYPTION_KEY`, `TOTP_ISSUER` | api | 32 byte acak dari secret manager: menyegel rahasia TOTP dan kunci HMAC kode cadangan; tidak diberikan ke proses lain. `TOTP_ISSUER` adalah nama di aplikasi autentikator. Sesi web adalah token acak di Redis, jadi tidak ada `SESSION_SECRET` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT`, `SENTRY_DSN` | semua | |
 | `RESEARCH_USER_AGENT`, `RESEARCH_MAX_RPS_PER_DOMAIN` | research-collector | |
 
@@ -1046,3 +1046,4 @@ export interface MarketplaceConnector {
 | 1.17 | 4 Oktober 2026 | Hasil implementasi stok opname dan transfer stok: antrean `import` juga menerapkan stok opname yang disetujui (7.1); tidak ada pustaka atau layanan baru | Candra Syahputra |
 | 1.18 | 5 Oktober 2026 | Web app dimulai di `frontend/` (ADR-039, menutup pertanyaan terbuka ADR-032): Next.js 16 dengan React 19, Tailwind CSS 4, shadcn/ui yang disalin ke `frontend/src/components/ui`, TanStack Query, openapi-fetch dengan tipe dari `backend/openapi.json`, react-hook-form dan Zod 4, ECharts 6, next-intl tanpa rute bahasa, Vitest dengan Testing Library. Bagian 9 ditulis ulang sesuai yang dibangun: api di origin yang sama dengan cookie sesi, tanpa SSR data tenant, filter di URL, `Intl` dengan zona waktu bisnis menggantikan Luxon; 1, 4, 20, 21, 26.1, dan 26.2 (`API_ORIGIN`) disesuaikan | Candra Syahputra |
 | 1.19 | 5 Oktober 2026 | CI pertama (`.github/workflows/ci.yml`): backend, web app, dan end-to-end Playwright terhadap stack hasil build dengan PostgreSQL dan Redis sebagai service (17.1); uji end-to-end web dengan axe (20). Pemeriksaan axe menemukan kontras `text-500` di bawah AA pada `canvas` dan `surface-2`, sehingga token itu menjadi `#5F6B78` (DOKUMEN-UI-UX 1.3) | Candra Syahputra |
+| 1.20 | 7 Oktober 2026 | Verifikasi dua langkah diimplementasikan (5.3): otplib 13, kode cadangan sebagai HMAC, rahasia disegel dengan kunci api `TOTP_ENCRYPTION_KEY` (26.2) karena login berjalan di api yang tidak memegang KMS. `SESSION_SECRET` dihapus dari daftar variabel: sesi web tidak memakainya |

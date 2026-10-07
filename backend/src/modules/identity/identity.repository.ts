@@ -34,12 +34,13 @@ export interface UserView {
   storeIds: string[] | null;
   warehouseIds: string[] | null;
   lastLoginAt: Date | null;
+  twoFactorEnabled: boolean;
   createdAt: Date;
   rowVersion: number;
 }
 
 export interface Principal {
-  user: { id: string; name: string; email: string; locale: "id" | "en"; status: string };
+  user: { id: string; name: string; email: string; locale: "id" | "en"; status: string; twoFactorEnabled: boolean };
   tenant: { id: string; name: string; slug: string; timezone: string; status: string };
   permissions: string[];
   roles: { id: string; name: string }[];
@@ -182,6 +183,7 @@ export class IdentityRepository {
         storeIds: storeScopeOfUser,
         warehouseIds: warehouseScopeOfUser,
         lastLoginAt: user.lastLoginAt,
+        twoFactorEnabled: user.totpEnabled,
         createdAt: user.createdAt,
         rowVersion: user.rowVersion,
       })
@@ -215,6 +217,40 @@ export class IdentityRepository {
           ? eq(user.id, id)
           : and(eq(user.id, id), eq(user.rowVersion, expectedRowVersion)),
       )
+      .returning({ id: user.id });
+    return rows.length === 1;
+  }
+
+  /**
+   * A user's two-step verification (backend doc 8.30), with what checking a code needs. `lock` holds the
+   * row until the transaction ends, so two requests cannot both use the same code.
+   */
+  async twoFactor(tx: Tx, id: string, lock = false) {
+    const q = tx
+      .select({
+        id: user.id,
+        email: user.email,
+        status: user.status,
+        passwordHash: user.passwordHash,
+        lockedUntil: user.lockedUntil,
+        totpEnabled: user.totpEnabled,
+        totpEnabledAt: user.totpEnabledAt,
+        totpSecretEnc: user.totpSecretEnc,
+        totpLastStep: user.totpLastStep,
+        backupCodes: user.totpBackupCodes,
+      })
+      .from(user)
+      .where(eq(user.id, id));
+    const [row] = lock ? await q.for("update") : await q;
+    return row;
+  }
+
+  /** Uses up a backup code: true when the user had it. One statement, so a code works once. */
+  async useBackupCode(tx: Tx, id: string, hash: string): Promise<boolean> {
+    const rows = await tx
+      .update(user)
+      .set({ totpBackupCodes: sql`array_remove(${user.totpBackupCodes}, ${hash})` })
+      .where(and(eq(user.id, id), sql`${hash} = ANY(${user.totpBackupCodes})`))
       .returning({ id: user.id });
     return rows.length === 1;
   }
@@ -303,6 +339,7 @@ export class IdentityRepository {
         email: user.email,
         locale: user.locale,
         status: user.status,
+        twoFactorEnabled: user.totpEnabled,
         tenantId: tenant.id,
         tenantName: tenant.name,
         tenantSlug: tenant.slug,
@@ -318,7 +355,14 @@ export class IdentityRepository {
       .where(eq(user.id, userId));
     if (!row) return undefined;
     return {
-      user: { id: row.userId, name: row.name, email: row.email, locale: row.locale, status: row.status },
+      user: {
+        id: row.userId,
+        name: row.name,
+        email: row.email,
+        locale: row.locale,
+        status: row.status,
+        twoFactorEnabled: row.twoFactorEnabled,
+      },
       tenant: {
         id: row.tenantId,
         name: row.tenantName,

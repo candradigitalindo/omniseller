@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.15 |
+| Versi dokumen | 1.16 |
 | Tanggal | 7 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
@@ -769,6 +769,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 #### L41 Tim dan Peran, L42 Printer dan Label, L43 Kurir dan Jam Operasional, L44 Notifikasi, L45 Langganan dan Tagihan
 
 - **L41**: tabel pengguna (avatar, nama, email, peran pil, toko dan gudang yang diizinkan, terakhir aktif, status), tombol "Undang anggota"; halaman peran: matriks izin per modul dengan kotak centang dan penjelasan sederhana per izin. Prompt: "Tabel tim dengan pil peran 'Gudang', kolom cakupan 'Gudang Jakarta saja'. Halaman peran: matriks baris modul (Pesanan, Stok, Harga) dan kolom izin (Lihat, Ubah, Hapus) dengan kotak centang, keterangan 'Peran Gudang tidak bisa melihat harga dan laba'." Di web app peran bawaan tampil sebagai matriks baca-saja per modul (peran kustom menyusul); dialog "Ubah peran" hanya mengaktifkan peran yang seluruh izinnya dimiliki pengguna yang mengubah; cakupan toko dan gudang dipilih dengan sakelar "Semua toko" atau daftar centang, tidak pernah daftar kosong; undangan bisa dikirim ulang (tautan lama tidak berlaku) atau dibatalkan.
+  - **Di web app**: pil "2FA aktif" di samping status anggota yang memakai verifikasi dua langkah. Menu aksi anggota (Owner, `settings:user`) menambah "Keluarkan dari semua perangkat" (untuk ponsel atau laptop yang hilang) dan, bila 2FA anggota aktif, "Matikan verifikasi dua langkah" (untuk anggota yang kehilangan ponsel dan kode cadangannya; ia juga dikeluarkan dari semua perangkat). Keduanya meminta konfirmasi dan tidak ada untuk akun sendiri.
 - **L42**: daftar agen cetak (nama komputer, status terhubung, printer yang terdeteksi, versi), template label (pratinjau thermal dan A4, sakelar tambahkan SKU dan rak, catatan pembeli), tombol "Cetak percobaan". Prompt: "Halaman printer: kartu 'PC Gudang Jakarta, terhubung, printer Zebra GK420' hijau dan 'Laptop Kasir, terputus 2 hari' abu; pratinjau label thermal 100 x 150 di kanan dengan area tambahan SKU dan rak di bawah label resmi." Di web app: "Pasang agen cetak" memberi kode yang tampil sekali dengan tombol salin; tiap agen memilih printer label dan printer dokumen dari printer yang dilaporkannya, bisa diganti nama, dicetak percobaan bila terhubung, dan dicabut; template label berupa lima sakelar (SKU, nama varian, lokasi rak, catatan pembeli, tag) dengan contoh PDF thermal atau A4 yang dimuat ulang setiap kali diubah.
 - **L43**: tabel cut-off per gudang per kurir (jam, hari), jam operasional dengan periode khusus (Ramadan), hari libur. Prompt: "Tabel cut-off: 'Gudang Jakarta, J&T, 15.00, Sen sampai Sab', tombol edit. Kartu 'Jam operasional Ramadan 1 sampai 30 Mar 2027: 08.00 sampai 20.00'."
 - **L44**: matriks jenis notifikasi (pesanan baru, hampir terlambat, stok kritis, toko terputus, dana cair, pajak) versus kanal (Dalam aplikasi, Email, WhatsApp) dengan sakelar; jam tenang. Prompt: "Matriks sakelar notifikasi, kolom ikon aplikasi, email, WhatsApp; baris 'Toko terputus' semua aktif dan terkunci dengan keterangan 'Selalu dikirim'." Di web app kolom Email bisa diatur per jenis dan langsung tersimpan; jenis yang selalu dikirim tampil terkunci dengan keterangan; kolom WhatsApp menyusul.
@@ -783,9 +784,14 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 
 #### L41b Akun Saya
 
-- **Tujuan**: melihat akun yang sedang masuk dan mengganti kata sandi (PRD FR-USR-03). Dibuka dari menu profil ("Akun saya"), tidak ada di sidebar.
+- **Tujuan**: melihat akun yang sedang masuk, mengganti kata sandi (PRD FR-USR-03), verifikasi dua langkah (FR-USR-05), dan perangkat yang sedang masuk (FR-USR-06). Dibuka dari menu profil ("Akun saya"), tidak ada di sidebar.
 - **Isi**: kartu Profil (nama, email, bisnis, peran) dan kartu "Ubah kata sandi": kata sandi saat ini, kata sandi baru dengan pengukur kekuatan seperti di halaman Daftar, ulangi kata sandi baru. Penjelasan: setelah diganti, perangkat lain yang masih masuk dengan akun ini dikeluarkan, perangkat ini tetap masuk. Kata sandi saat ini yang salah ditandai di kolomnya; kata sandi baru harus minimal 10 karakter dan berbeda dari yang sekarang. Nanti di sini juga 2FA (FR-USR-05) dan sesi aktif (FR-USR-06).
 - **Aksi utama**: "Simpan kata sandi baru".
+- **Verifikasi dua langkah** (kartu ketiga): pil "Aktif" atau "Belum aktif", sejak kapan, sisa kode cadangan (peringatan bila tinggal 3 atau kurang), dan anjuran untuk Owner dan Admin bila belum aktif.
+  - "Aktifkan" membuka dialog tiga langkah: kata sandi; kode QR di atas latar putih (terbaca kamera di tema gelap) dengan kunci yang bisa diketik dalam kelompok empat huruf dan enam kotak kode; lalu 10 kode cadangan dengan "Salin semua" dan "Unduh .txt".
+  - Kode cadangan hanya tampil sekali, jadi dialog hanya bisa ditutup lewat "Selesai" setelah "Saya sudah menyimpan kode ini" dicentang. Setelah aktif, perangkat lain dikeluarkan.
+  - "Buat kode cadangan baru" meminta kata sandi. "Matikan" meminta kata sandi dan kode dari aplikasi, atau kode cadangan.
+- **Perangkat yang masuk** (kartu keempat): daftar dengan ikon ponsel atau komputer, "Chrome di macOS", pil "Perangkat ini", IP, waktu masuk, dan terakhir aktif. Ada "Keluarkan" per perangkat lain, dan "Keluar dari semua perangkat lain" dengan konfirmasi.
 - **Prompt untuk AI**: "Halaman Akun saya dua kolom: kiri kartu 'Profil' berisi pasangan label dan nilai (Nama, Email, Bisnis, Peran); kanan kartu 'Ubah kata sandi' dengan teks penjelas abu, tiga input kata sandi, pengukur kekuatan tiga batang di bawah kata sandi baru, tombol utama 'Simpan kata sandi baru'."
 
 #### L46 Migrasi Data
@@ -817,6 +823,11 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 ### 14.9 Layar umum
 
 #### L49 Masuk, Daftar, Verifikasi 2FA, Terima Undangan
+
+- **Di web app**: setelah kata sandi benar, akun dengan verifikasi dua langkah melihat "Verifikasi dua langkah" di kartu yang sama.
+  - Kode masuk lewat enam kotak besar yang sebenarnya satu input, jadi tempel dan isi otomatis kode dari ponsel tetap jalan. Kode dikirim begitu angka keenam masuk.
+  - Kode salah menampilkan pesan di bawah kotak dan mengosongkannya. "Pakai kode cadangan" mengganti kotak dengan satu input kode cadangan, dan setelah masuk muncul toast berisi sisa kode.
+  - Bila waktu lima menit habis, terlalu banyak kode salah, atau akun terkunci, layar kembali ke email dan kata sandi dengan pesan dari api; email tetap terisi.
 
 - Tata letak: kartu tunggal di tengah 420 px pada latar `canvas` dengan logo di atas; formulir sederhana; kesalahan ditulis jelas; tautan "Lupa kata sandi"; halaman 2FA meminta enam digit dengan input besar terpisah dan tombol "Pakai kode cadangan". Daftar: nama bisnis, email, kata sandi dengan indikator kekuatan, persetujuan syarat. Undangan: menampilkan nama bisnis dan peran yang diberikan.
 - **Prompt untuk AI**: "Halaman masuk: kartu putih di tengah latar abu muda, logo OmniSeller, input email dan kata sandi tinggi 48 px, tombol utama lebar penuh 'Masuk', tautan 'Lupa kata sandi'. Halaman 2FA: enam kotak digit besar, teks 'Masukkan kode dari aplikasi autentikator', tautan 'Pakai kode cadangan'."
@@ -1027,3 +1038,4 @@ Sebelum layar dinyatakan selesai:
 | 1.13 | 7 Oktober 2026 | Layar baru L41a Log Audit (filter jenis, pelaku, dan periode; satu blok per tindakan dengan kalimat dan rincian sebelum dan sesudah; HPP disembunyikan tanpa izin keuangan) dan L41b Akun Saya (profil, ubah kata sandi yang mengeluarkan perangkat lain), dibuka dari menu profil. Sidebar Pengaturan mendapat Log Audit setelah Tim & Peran | Candra Syahputra |
 | 1.14 | 7 Oktober 2026 | Di web app: bar aksi untuk yang dipilih melayang di atas navigasi bawah di ponsel dan menempel di bawah bilah atas di layar lebar (pesanan, listing, draf salinan). L41a: perubahan yang dijalankan worker atas permintaan penjual (aktif atau nonaktif listing, terbitkan draf, jawaban retur, terapkan opname) tercatat atas nama penjual itu | Candra Syahputra |
 | 1.15 | 7 Oktober 2026 | L47 Profil Bisnis & Legalitas di web app: banner NIB (belum diisi, sedang diurus dengan hitung mundur 6 bulan, lewat), profil usaha dengan zona waktu, legalitas (NIB, NPWP dengan titik, PKP), logo, dan dokumen legalitas dengan masa berlaku, perpanjang, dan pengingat di lonceng dan email. L01: "Perlu tindakan" juga untuk bisnis yang belum punya toko, dengan nama tugas pada setiap tombol "Buka" | Candra Syahputra |
+| 1.16 | 7 Oktober 2026 | Di web app: L49 langkah verifikasi dua langkah (enam kotak, kode cadangan, kembali ke kata sandi bila habis waktu); L41b kartu Verifikasi dua langkah (QR, kunci yang bisa diketik, kode cadangan sekali tampil, buat baru, matikan) dan Perangkat yang masuk (keluarkan satu atau semua perangkat lain); L41 pil 2FA, keluarkan anggota dari semua perangkat, matikan 2FA anggota | Candra Syahputra |

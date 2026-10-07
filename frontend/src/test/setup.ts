@@ -15,6 +15,8 @@ Element.prototype.scrollIntoView ??= () => {};
 Element.prototype.hasPointerCapture ??= () => false;
 Element.prototype.releasePointerCapture ??= () => {};
 URL.createObjectURL ??= () => "blob:preview";
+// input-otp looks for password manager badges next to the code field
+document.elementFromPoint ??= () => null;
 window.matchMedia ??= (query: string) =>
   ({
     matches: false,

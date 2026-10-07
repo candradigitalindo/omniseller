@@ -20,6 +20,8 @@ async function main(): Promise<void> {
     REDIS_CACHE_URL: "redis://127.0.0.1:1",
     PUBLIC_WEB_URL: "http://localhost:3100",
     FILE_STORAGE: "local",
+    // two-step verification needs a key to start; nothing is sealed here
+    TOTP_ENCRYPTION_KEY: Buffer.alloc(32).toString("base64"),
   });
   const app = await NestFactory.create(AppModule.forEnv(env), { logger: false, abortOnError: false });
   const doc = buildOpenApiDocument(app);

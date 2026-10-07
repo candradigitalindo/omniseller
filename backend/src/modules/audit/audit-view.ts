@@ -98,6 +98,11 @@ export const AUDIT_ENTITIES: Record<string, EntitySpec> = {
     label: [{ ref: "role", column: "role_id" }],
     fields: [r("role_id", "role"), r("permission_id", "permission")],
   },
+  // an account disabled or enabled again, and two-step verification turned on or off (backend doc 8.30)
+  user: {
+    label: [{ column: "name" }],
+    fields: [f("status"), f("totp_enabled", { field: "twoFactorEnabled" })],
+  },
   user_role: { label: [{ ref: "user", column: "user_id" }], fields: [r("user_id", "user"), r("role_id", "role")] },
   user_store_scope: {
     label: [{ ref: "user", column: "user_id" }],

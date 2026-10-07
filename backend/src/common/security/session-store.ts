@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { Redis } from "ioredis";
 import { hashToken, newSecretToken } from "./tokens";
 
@@ -21,6 +22,19 @@ export const SESSION_TTL_SECONDS = 30 * 24 * 3600;
 export const MAX_SESSIONS_PER_USER = 10;
 /** Sliding expiry is refreshed at most this often, to keep reads from becoming writes. */
 const TOUCH_EVERY_MS = 3600 * 1000;
+
+/**
+ * The id a session is shown with in "Perangkat yang masuk" (backend doc 8.30): derived from the token
+ * hash, so neither the token nor its storage key ever leaves the api.
+ */
+export function sessionIdOf(hash: string): string {
+  return createHash("sha256").update(`session:${hash}`).digest("base64url").slice(0, 22);
+}
+
+export interface ListedSession extends Session {
+  id: string;
+  hash: string;
+}
 
 const sessKey = (hash: string) => `sess:${hash}`;
 const userKey = (tenantId: string, userId: string) => `usess:${tenantId}:${userId}`;
@@ -76,6 +90,29 @@ export class SessionStore {
       const s = JSON.parse(raw) as Session;
       await this.redis.zrem(userKey(s.tenantId, s.userId), hash);
     }
+  }
+
+  /** A user's sessions, oldest first. Sessions that expired on their own are dropped from the index. */
+  async list(tenantId: string, userId: string): Promise<ListedSession[]> {
+    const uk = userKey(tenantId, userId);
+    const hashes = await this.redis.zrange(uk, 0, -1);
+    if (hashes.length === 0) return [];
+    const raws = await this.redis.mget(...hashes.map(sessKey));
+    const gone = hashes.filter((_, i) => !raws[i]);
+    if (gone.length > 0) await this.redis.zrem(uk, ...gone);
+    return hashes.flatMap((hash, i) => {
+      const raw = raws[i];
+      return raw ? [{ ...(JSON.parse(raw) as Session), id: sessionIdOf(hash), hash }] : [];
+    });
+  }
+
+  /** Signs one session of the user out by its listed id. False when there is no such session. */
+  async revokeById(tenantId: string, userId: string, id: string): Promise<boolean> {
+    const uk = userKey(tenantId, userId);
+    const hash = (await this.redis.zrange(uk, 0, -1)).find((h) => sessionIdOf(h) === id);
+    if (!hash) return false;
+    const results = await this.redis.multi().del(sessKey(hash)).zrem(uk, hash).exec();
+    return Number(results?.[0]?.[1] ?? 0) > 0;
   }
 
   /** Signs a user out everywhere (disabled account, password change), optionally keeping one session. */

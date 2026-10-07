@@ -3,6 +3,7 @@ import { logger } from "@omniseller/logging";
 import { newId } from "@omniseller/shared";
 import { type RequestContext, systemContext } from "../../common/context/request-context";
 import { RateLimitedError } from "../../common/errors/domain-errors";
+import { CHALLENGE_TTL_SECONDS, type LoginChallenges } from "../../common/security/login-challenges";
 import { hashPassword, needsRehash, verifyAgainstDummy, verifyPassword } from "../../common/security/password";
 import { RATE_RULES, type RateLimiter } from "../../common/security/rate-limiter";
 import type { SessionStore } from "../../common/security/session-store";
@@ -10,14 +11,20 @@ import { hashToken, newSecretToken } from "../../common/security/tokens";
 import { ENV } from "../../config/config.module";
 import type { DbHandle } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
-import { DB_TENANT, OUTBOX, RATE_LIMITER, SESSIONS } from "../../infra/tokens";
+import { DB_TENANT, LOGIN_CHALLENGES, OUTBOX, RATE_LIMITER, SESSIONS } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
 import { passwordResetRequested } from "../identity/identity.events";
 import { IdentityRepository, PreTenantLookup } from "../identity/identity.repository";
 import { UsersService } from "../identity/users.service";
 import { EMAIL_SENDER, type EmailSender } from "../notification/email";
 import { passwordResetEmail } from "../notification/templates";
-import { accountLocked, invalidCredentials, resetTokenInvalid, tenantChoiceRequired } from "./auth.errors";
+import {
+  accountLocked,
+  invalidCredentials,
+  resetTokenInvalid,
+  tenantChoiceRequired,
+  twoFactorRequired,
+} from "./auth.errors";
 import { AuthRepository } from "./auth.repository";
 
 export const RESET_TTL_MINUTES = 60;
@@ -46,6 +53,7 @@ export class AuthService {
     @Inject(PreTenantLookup) private readonly lookup: PreTenantLookup,
     @Inject(UsersService) private readonly users: UsersService,
     @Inject(SESSIONS) private readonly sessions: SessionStore,
+    @Inject(LOGIN_CHALLENGES) private readonly challenges: LoginChallenges,
     @Inject(RATE_LIMITER) private readonly limiter: RateLimiter,
     @Inject(OUTBOX) private readonly outbox: Outbox,
     @Inject(ENV) private readonly env: { PUBLIC_WEB_URL?: string },
@@ -92,15 +100,45 @@ export class AuthService {
     const chosen = usable[0]!;
 
     const rehash = needsRehash(chosen.password_hash) ? await hashPassword(input.password) : undefined;
-    await this.users.recordLoginSuccess(chosen.tenant_id, chosen.user_id, rehash);
-    const { token } = await this.sessions.create({
+    if (chosen.totp_enabled) {
+      // The password is right, but the account keeps counting failures until a code is right too, so
+      // codes cannot be guessed by entering the password again in between (backend doc 8.30).
+      const challenge = await this.challenges.create({
+        tenantId: chosen.tenant_id,
+        userId: chosen.user_id,
+        ip: input.ip,
+        ...(input.userAgent ? { userAgent: input.userAgent.slice(0, 200) } : {}),
+        ...(rehash ? { rehash } : {}),
+      });
+      this.log.info({ tenant_id: chosen.tenant_id, user_id: chosen.user_id }, "login: second step");
+      throw twoFactorRequired(challenge, CHALLENGE_TTL_SECONDS);
+    }
+    return this.finishLogin({
       tenantId: chosen.tenant_id,
       userId: chosen.user_id,
       ip: input.ip,
-      ...(input.userAgent ? { userAgent: input.userAgent.slice(0, 200) } : {}),
+      ...(input.userAgent ? { userAgent: input.userAgent } : {}),
+      ...(rehash ? { rehash } : {}),
     });
-    this.log.info({ tenant_id: chosen.tenant_id, user_id: chosen.user_id }, "login");
-    return { token, tenantId: chosen.tenant_id, userId: chosen.user_id };
+  }
+
+  /** The last step of every login: resets the failure count, saves a stronger hash, opens the session. */
+  async finishLogin(p: {
+    tenantId: string;
+    userId: string;
+    ip: string;
+    userAgent?: string;
+    rehash?: string;
+  }): Promise<{ token: string; tenantId: string; userId: string }> {
+    await this.users.recordLoginSuccess(p.tenantId, p.userId, p.rehash);
+    const { token } = await this.sessions.create({
+      tenantId: p.tenantId,
+      userId: p.userId,
+      ip: p.ip,
+      ...(p.userAgent ? { userAgent: p.userAgent.slice(0, 200) } : {}),
+    });
+    this.log.info({ tenant_id: p.tenantId, user_id: p.userId }, "login");
+    return { token, tenantId: p.tenantId, userId: p.userId };
   }
 
   async startSession(tenantId: string, userId: string, ip: string, userAgent?: string): Promise<string> {

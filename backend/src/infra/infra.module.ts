@@ -8,6 +8,7 @@ import {
   type Provider,
 } from "@nestjs/common";
 import { Redis } from "ioredis";
+import { LoginChallenges } from "../common/security/login-challenges";
 import { RateLimiter } from "../common/security/rate-limiter";
 import { SessionStore } from "../common/security/session-store";
 import type { Env } from "../config/env.schema";
@@ -23,6 +24,7 @@ import {
   DB_TENANT,
   DB_WORKER,
   JOB_REGISTRY,
+  LOGIN_CHALLENGES,
   OUTBOX,
   QUEUES,
   RATE_LIMITER,
@@ -60,6 +62,7 @@ export class InfraModule {
       JOB_REGISTRY,
       OUTBOX,
       SESSIONS,
+      LOGIN_CHALLENGES,
       RATE_LIMITER,
       STOCK_DIRTY,
       REALTIME,
@@ -109,6 +112,7 @@ export class InfraModule {
       { provide: JOB_REGISTRY, useValue: registry },
       { provide: OUTBOX, useValue: new Outbox(registry) },
       { provide: SESSIONS, useValue: new SessionStore(redisCache) },
+      { provide: LOGIN_CHALLENGES, useValue: new LoginChallenges(redisCache) },
       { provide: RATE_LIMITER, useValue: new RateLimiter(redisCache) },
       // Socket.IO's pub/sub runs on the cache Redis (technology doc 7.2); every process can push.
       { provide: REALTIME, useValue: new RedisRealtime(redisCache, realtimeKey(opts.queuePrefix)) },

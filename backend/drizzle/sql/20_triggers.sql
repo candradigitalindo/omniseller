@@ -144,6 +144,13 @@ SELECT ensure_trigger('stock_count', 'audit_trg',
      EXECUTE FUNCTION audit_row()');
 SELECT ensure_trigger('stock_transfer', 'audit_trg',
   'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF status ON stock_transfer FOR EACH ROW EXECUTE FUNCTION audit_row()');
+-- Users (backend doc 8.30): disabling and re-enabling an account, and turning verification in two steps on
+-- or off (by the user, or reset by an Owner). Secrets and login bookkeeping never reach the log.
+SELECT ensure_trigger('user', 'audit_trg',
+  'CREATE TRIGGER audit_trg AFTER UPDATE OF status, totp_enabled ON "user" FOR EACH ROW
+     WHEN ((OLD.status, OLD.totp_enabled) IS DISTINCT FROM (NEW.status, NEW.totp_enabled))
+     EXECUTE FUNCTION audit_row(''user'', ''password_hash'', ''totp_secret_enc'', ''totp_backup_codes'',
+       ''totp_last_step'', ''failed_login_count'', ''locked_until'', ''last_login_at'')');
 -- Business profile and legal documents (backend doc 8.29): who changed the NIB, NPWP, PKP status, address,
 -- phone, or logo, and who uploaded, renewed, or removed a document. Reminder bookkeeping stays out.
 SELECT ensure_trigger('business_profile', 'audit_trg',

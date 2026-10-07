@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 import { Field, fieldProps } from "@/components/common/field";
 import { FormBanner, showServerErrors } from "@/components/common/form";
@@ -16,14 +17,19 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { api, unwrap } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
+import type { components } from "@/lib/api/schema";
 import { meQueryKey } from "@/lib/session";
 import { safeNext } from "./shared";
+import { TwoFactorStep } from "./two-factor-step";
 
 type Tenant = { slug: string; name: string };
+type Me = components["schemas"]["MeDto_Output"];
 
 /**
  * L49 Masuk. An email registered in several businesses gets 409 `auth.tenant_choice_required` with the
- * businesses; the user picks one and the same request goes again with `tenant` (backend doc 8.10).
+ * businesses; the user picks one and the same request goes again with `tenant` (backend doc 8.10). An
+ * account with two-step verification gets 401 `auth.two_factor_required` with a challenge, and the
+ * second step asks for a code (backend doc 8.30).
  */
 export function LoginForm() {
   const t = useTranslations("auth");
@@ -32,6 +38,7 @@ export function LoginForm() {
   const queryClient = useQueryClient();
   const [tenants, setTenants] = useState<Tenant[] | null>(null);
   const [tenant, setTenant] = useState<string>("");
+  const [challenge, setChallenge] = useState<string | null>(null);
 
   const schema = z.object({
     email: z.email(t("emailInvalid")).max(254, t("tooLong")),
@@ -40,14 +47,19 @@ export function LoginForm() {
   type Values = z.infer<typeof schema>;
   const form = useForm<Values>({ resolver: zodResolver(schema), defaultValues: { email: "", password: "" } });
 
+  const signedIn = (me: Me) => {
+    queryClient.setQueryData(meQueryKey, me);
+    router.replace(safeNext(params.get("next")));
+  };
   const login = useMutation({
     mutationFn: (values: Values) =>
       unwrap(api.POST("/v1/auth/login", { body: { ...values, ...(tenant ? { tenant } : {}) } })),
-    onSuccess: (me) => {
-      queryClient.setQueryData(meQueryKey, me);
-      router.replace(safeNext(params.get("next")));
-    },
+    onSuccess: signedIn,
     onError: (error) => {
+      if (error instanceof ApiError && error.code === "auth.two_factor_required") {
+        setChallenge(String(error.problem.challenge ?? ""));
+        return;
+      }
       if (error instanceof ApiError && error.code === "auth.tenant_choice_required") {
         const list = (error.problem.tenants as Tenant[] | undefined) ?? [];
         setTenants(list);
@@ -59,6 +71,28 @@ export function LoginForm() {
   });
 
   const { errors } = form.formState;
+
+  if (challenge) {
+    return (
+      <TwoFactorStep
+        challenge={challenge}
+        onSignedIn={(me, usedBackupCode) => {
+          signedIn(me);
+          // a backup code is gone once used: say how many are left
+          if (usedBackupCode) {
+            void unwrap(api.GET("/v1/me/two-factor"))
+              .then((s) => toast.warning(t("backupUsed", { count: s.backupCodesLeft })))
+              .catch(() => {});
+          }
+        }}
+        onRestart={(message) => {
+          setChallenge(null);
+          form.resetField("password");
+          if (message) form.setError("root", { type: "server", message });
+        }}
+      />
+    );
+  }
 
   return (
     <div className="grid gap-6">

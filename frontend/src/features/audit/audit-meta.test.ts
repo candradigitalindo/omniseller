@@ -100,6 +100,17 @@ describe("what an entry says", () => {
     ).toBe("return_request_received");
   });
 
+  it("says whether an account was disabled, enabled again, or had its two-step verification turned on or off", () => {
+    const twoFactor = (before: boolean, after: boolean) => [{ field: "twoFactorEnabled", before, after }];
+    expect(titleKey(entry({ entityType: "user", changes: twoFactor(false, true) }))).toBe("user_two_factor_on");
+    expect(titleKey(entry({ entityType: "user", changes: twoFactor(true, false) }))).toBe("user_two_factor_off");
+    expect(titleKey(entry({ entityType: "user", changes: status("active", "disabled") }))).toBe("user_disabled");
+    expect(titleKey(entry({ entityType: "user", changes: status("disabled", "active") }))).toBe("user_enabled");
+    expect(titleKey(entry({ entityType: "user", changes: status("invited", "invited") }))).toBe("user_updated");
+    expect(valueKey("user", "status", "disabled")).toBe("team.userStatus_disabled");
+    expect(AUDIT_KINDS.access).toContain("user");
+  });
+
   it("says plainly what happened to a table it has no words for", () => {
     expect(titleKey(entry({ entityType: "future_table", change: "updated" }))).toBe("other_updated");
     expect(titleKey(entry({ entityType: "role_permission", change: "updated" }))).toBe("other_updated");

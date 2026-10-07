@@ -1,4 +1,4 @@
-import { boolean, customType, inet, integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
+import { bigint, boolean, customType, inet, integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
 import { baseColumns, bytea, globalColumns, tstz, ulid } from "../columns";
 
 const citext = customType<{ data: string }>({
@@ -41,6 +41,11 @@ export const user = pgTable("user", {
   status: text("status").$type<"invited" | "active" | "disabled">().notNull().default("invited"),
   totpSecretEnc: bytea("totp_secret_enc"),
   totpEnabled: boolean("totp_enabled").notNull().default(false),
+  /** HMAC of each unused backup code (migration 0020, backend doc 8.30). */
+  totpBackupCodes: text("totp_backup_codes").array().notNull().default([]),
+  /** Last time step a code was accepted for; codes of that step or earlier are refused (replay). */
+  totpLastStep: bigint("totp_last_step", { mode: "number" }),
+  totpEnabledAt: tstz("totp_enabled_at"),
   locale: text("locale").$type<"id" | "en">().notNull().default("id"),
   lastLoginAt: tstz("last_login_at"),
   failedLoginCount: integer("failed_login_count").notNull().default(0),

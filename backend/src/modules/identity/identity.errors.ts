@@ -15,5 +15,17 @@ export const lastOwner = () =>
   new ConflictError("role.last_owner", "Bisnis harus tetap punya minimal satu Owner yang aktif.");
 export const privilegeEscalation = () =>
   new ForbiddenError("role.privilege_escalation", "Anda tidak bisa memberi peran dengan izin yang tidak Anda miliki.");
+export const twoFactorResetSelf = () =>
+  new ConflictError(
+    "user.two_factor_reset_self",
+    "Untuk akun sendiri, matikan verifikasi dua langkah dari halaman Akun saya.",
+  );
+export const twoFactorResetForbidden = () =>
+  new ForbiddenError(
+    "user.two_factor_reset_forbidden",
+    "Anda tidak bisa mematikan verifikasi dua langkah pengguna yang izinnya lebih luas dari Anda.",
+  );
+export const twoFactorNotEnabled = () =>
+  new ConflictError("two_factor.not_enabled", "Verifikasi dua langkah akun ini tidak aktif.");
 export const wrongCurrentPassword = () =>
   new ValidationError([{ path: "currentPassword", message: "Kata sandi saat ini salah." }]);

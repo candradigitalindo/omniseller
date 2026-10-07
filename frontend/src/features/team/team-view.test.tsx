@@ -35,6 +35,7 @@ function api() {
           storeIds: null,
           warehouseIds: null,
           lastLoginAt: "2026-10-06T00:00:00.000Z",
+          twoFactorEnabled: false,
           createdAt: "2026-09-01T00:00:00.000Z",
         },
         {
@@ -46,7 +47,20 @@ function api() {
           storeIds: ["S1"],
           warehouseIds: null,
           lastLoginAt: null,
+          twoFactorEnabled: true,
           createdAt: "2026-09-02T00:00:00.000Z",
+        },
+        {
+          id: "01JUSER0000000000000000003",
+          name: "Sari Dewi",
+          email: "sari.dewi@example.test",
+          status: "active",
+          roles: [{ id: "R-GUDANG", name: "Gudang" }],
+          storeIds: null,
+          warehouseIds: null,
+          lastLoginAt: "2026-10-05T00:00:00.000Z",
+          twoFactorEnabled: false,
+          createdAt: "2026-09-03T00:00:00.000Z",
         },
       ],
       next_cursor: null,
@@ -77,6 +91,8 @@ function api() {
       status: (c.body as { status: string }).status,
     }),
     [`PUT /v1/users/${BUDI}/roles`]: () => ({ id: BUDI }),
+    [`POST /v1/users/${BUDI}/sessions/revoke`]: () => ({ revoked: 2 }),
+    [`POST /v1/users/${BUDI}/two-factor/reset`]: () => ({ id: BUDI, name: "Budi Santoso", twoFactorEnabled: false }),
     [`PUT /v1/users/${BUDI}/scopes`]: () => ({ id: BUDI }),
     "GET /v1/invitations": () => ({
       items: [
@@ -124,6 +140,46 @@ describe("TeamView (L41)", () => {
     expect(screen.getAllByText("(Anda)").length).toBeGreaterThan(0);
     await openActions(user, "Rina Wulandari");
     expect(screen.queryByRole("menuitem", { name: "Nonaktifkan" })).not.toBeInTheDocument();
+  });
+
+  it("signs a member out of every device and turns off a two-step login they lost, after asking", async () => {
+    const calls = api();
+    const user = userEvent.setup();
+    renderApp(<TeamView />);
+    expect((await screen.findAllByText("2FA aktif")).length).toBeGreaterThan(0);
+
+    await openActions(user, "Budi Santoso");
+    await user.click(await screen.findByRole("menuitem", { name: "Keluarkan dari semua perangkat" }));
+    const ask = await screen.findByRole("dialog", { name: "Keluarkan Budi Santoso dari semua perangkat?" });
+    await user.click(within(ask).getByRole("button", { name: "Keluarkan" }));
+    expect(await screen.findByText("Budi Santoso dikeluarkan dari 2 perangkat.")).toBeInTheDocument();
+
+    await openActions(user, "Budi Santoso");
+    await user.click(await screen.findByRole("menuitem", { name: "Matikan verifikasi dua langkah" }));
+    const reset = await screen.findByRole("dialog", { name: "Matikan verifikasi dua langkah Budi Santoso?" });
+    expect(reset).toHaveTextContent("kehilangan ponsel dan kode cadangannya");
+    await user.click(within(reset).getByRole("button", { name: "Matikan" }));
+    expect(await screen.findByText("Verifikasi dua langkah Budi Santoso dimatikan.")).toBeInTheDocument();
+    expect(calls.filter((c) => c.method === "POST").map((c) => c.path)).toEqual([
+      `/v1/users/${BUDI}/sessions/revoke`,
+      `/v1/users/${BUDI}/two-factor/reset`,
+    ]);
+  });
+
+  it("offers neither action for oneself, nor turning off a two-step login that is off", async () => {
+    api();
+    const user = userEvent.setup();
+    renderApp(<TeamView />);
+    await openActions(user, "Rina Wulandari");
+    await screen.findByRole("menuitem", { name: "Ubah peran" });
+    expect(screen.queryByRole("menuitem", { name: "Keluarkan dari semua perangkat" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Matikan verifikasi dua langkah" })).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    // a member without two-step verification can be signed out, but has nothing to turn off
+    await openActions(user, "Sari Dewi");
+    expect(await screen.findByRole("menuitem", { name: "Keluarkan dari semua perangkat" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Matikan verifikasi dua langkah" })).not.toBeInTheDocument();
   });
 
   it("disables another member", async () => {

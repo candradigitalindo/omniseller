@@ -5,6 +5,8 @@ export const DB_SYSTEM = Symbol("DB_SYSTEM"); // omniseller_system pool (schedul
 /** The tenant-scoped pool of this process: DB_API in api/webhook, DB_WORKER elsewhere. Services inject this. */
 export const DB_TENANT = Symbol("DB_TENANT");
 export const SESSIONS = Symbol("SESSIONS");
+/** Second step of a login with two-step verification, in the cache Redis (backend doc 8.30). */
+export const LOGIN_CHALLENGES = Symbol("LOGIN_CHALLENGES");
 export const RATE_LIMITER = Symbol("RATE_LIMITER");
 export const REDIS_QUEUE = Symbol("REDIS_QUEUE");
 export const REDIS_CACHE = Symbol("REDIS_CACHE");

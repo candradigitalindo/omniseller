@@ -133,8 +133,10 @@ jobs:
           cache-dependency-path: |
             backend/pnpm-lock.yaml
             frontend/pnpm-lock.yaml
-      - name: A throwaway key for the local token vault
-        run: echo "TOKEN_LOCAL_MASTER_KEY=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
+      - name: Throwaway keys for the local token vault and two-step verification
+        run: |
+          echo "TOKEN_LOCAL_MASTER_KEY=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
+          echo "TOTP_ENCRYPTION_KEY=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
       - name: Backend build and database
         working-directory: backend
         run: |

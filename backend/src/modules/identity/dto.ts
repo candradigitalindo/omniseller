@@ -52,7 +52,13 @@ export class ChangePasswordDto extends createZodDto(
 const roleRef = z.object({ id: ulidSchema, name: z.string() });
 
 export const meSchema = z.object({
-  user: z.object({ id: ulidSchema, name: z.string(), email: z.string(), locale: z.enum(["id", "en"]) }),
+  user: z.object({
+    id: ulidSchema,
+    name: z.string(),
+    email: z.string(),
+    locale: z.enum(["id", "en"]),
+    twoFactorEnabled: z.boolean().describe("verifikasi dua langkah aktif (backend doc 8.30)"),
+  }),
   tenant: z.object({ id: ulidSchema, name: z.string(), slug: z.string(), timezone: z.string(), status: z.string() }),
   permissions: z
     .array(z.enum(PERMISSION_CODES))
@@ -65,7 +71,13 @@ export class MeDto extends createZodDto(meSchema) {}
 
 export function meView(p: Principal): z.infer<typeof meSchema> {
   return {
-    user: { id: p.user.id, name: p.user.name, email: p.user.email, locale: p.user.locale },
+    user: {
+      id: p.user.id,
+      name: p.user.name,
+      email: p.user.email,
+      locale: p.user.locale,
+      twoFactorEnabled: p.user.twoFactorEnabled,
+    },
     tenant: p.tenant,
     permissions: p.permissions.filter(isPermission),
     roles: p.roles,
@@ -89,6 +101,7 @@ const userSchema = z.object({
   storeIds: z.array(ulidSchema).nullable(),
   warehouseIds: z.array(ulidSchema).nullable(),
   lastLoginAt: iso.nullable(),
+  twoFactorEnabled: z.boolean().describe("verifikasi dua langkah aktif"),
   createdAt: iso,
 });
 export class UserDto extends createZodDto(userSchema) {}
@@ -104,6 +117,7 @@ export function userView(u: UserView): z.infer<typeof userSchema> {
     storeIds: u.storeIds,
     warehouseIds: u.warehouseIds,
     lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
+    twoFactorEnabled: u.twoFactorEnabled,
     createdAt: u.createdAt.toISOString(),
   };
 }
@@ -113,6 +127,9 @@ export class UpdateUserDto extends createZodDto(
     .object({ name: personName.optional(), status: z.enum(["active", "disabled"]).optional() })
     .refine((v) => v.name !== undefined || v.status !== undefined, { message: "Tidak ada perubahan." }),
 ) {}
+
+/** Sessions ended by a sign-out of other devices (backend doc 8.30). */
+export class RevokedDto extends createZodDto(z.object({ revoked: z.number().int() })) {}
 
 export class SetRolesDto extends createZodDto(z.object({ roleIds: z.array(ulidSchema).min(1).max(10) })) {}
 

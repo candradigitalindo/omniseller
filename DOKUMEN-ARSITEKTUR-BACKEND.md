@@ -2,11 +2,11 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.27 |
+| Versi dokumen | 1.28 |
 | Tanggal | 7 Oktober 2026 |
-| Status | Keputusan final untuk implementasi; fondasi (bagian 4 sampai 9, 12, 13), identitas, autentikasi, dan audit (8.1, 8.10), koneksi toko Shopee dan Tokopedia & Shop (8.6, 8.11), katalog, listing, dan pemetaan SKU (7.8.3, 8.12), stok, penyesuaian, dan push stok ke marketplace (7.8.4, 8.13, 9.4), pesanan dari Shopee dan Tokopedia & Shop (7.8.6, 7.9, 8.14, 10.6), pengiriman, label, pick list, dan peringatan batas kirim (8.15), dasbor, notifikasi in-app, ekspor data penuh, dan audit aksi sensitif (8.16 sampai 8.18), migrasi dari aplikasi lain dengan mode paralel dan cutover (8.19), laporan penjualan, daftar perlu restock, ringkasan email harian, dan preferensi notifikasi (8.20), banyak gudang fisik, pesanan manual, alokasi gudang otomatis, dan tag pesanan (8.21), pelacakan paket, daftar kemas, dan template label kustom (8.22), putus toko dengan atau tanpa data, peringatan koneksi, riwayat produk, dan barcode (8.23), agen cetak, scan untuk cetak, kemas dengan scan, serah terima kurir dengan manifest, dan visibilitas HPP (8.24), salin listing antar toko sendiri (8.25), retur, refund, permintaan batal pembeli, dan paket kembali (8.26), stok opname dan transfer stok antar gudang (8.27), log audit yang terbaca (8.28), serta profil bisnis dan legalitas (8.29) sudah diimplementasikan di folder `backend/` |
+| Status | Keputusan final untuk implementasi; fondasi (bagian 4 sampai 9, 12, 13), identitas, autentikasi, dan audit (8.1, 8.10), koneksi toko Shopee dan Tokopedia & Shop (8.6, 8.11), katalog, listing, dan pemetaan SKU (7.8.3, 8.12), stok, penyesuaian, dan push stok ke marketplace (7.8.4, 8.13, 9.4), pesanan dari Shopee dan Tokopedia & Shop (7.8.6, 7.9, 8.14, 10.6), pengiriman, label, pick list, dan peringatan batas kirim (8.15), dasbor, notifikasi in-app, ekspor data penuh, dan audit aksi sensitif (8.16 sampai 8.18), migrasi dari aplikasi lain dengan mode paralel dan cutover (8.19), laporan penjualan, daftar perlu restock, ringkasan email harian, dan preferensi notifikasi (8.20), banyak gudang fisik, pesanan manual, alokasi gudang otomatis, dan tag pesanan (8.21), pelacakan paket, daftar kemas, dan template label kustom (8.22), putus toko dengan atau tanpa data, peringatan koneksi, riwayat produk, dan barcode (8.23), agen cetak, scan untuk cetak, kemas dengan scan, serah terima kurir dengan manifest, dan visibilitas HPP (8.24), salin listing antar toko sendiri (8.25), retur, refund, permintaan batal pembeli, dan paket kembali (8.26), stok opname dan transfer stok antar gudang (8.27), log audit yang terbaca (8.28), profil bisnis dan legalitas (8.29), serta verifikasi dua langkah dan sesi aktif (8.30) sudah diimplementasikan di folder `backend/` |
 | Pemilik dokumen | Candra Syahputra |
-| Dokumen terkait | DOKUMEN-SPESIFIKASI-APLIKASI.md (PRD) versi 1.11, DOKUMEN-TEKNOLOGI.md versi 1.18; web app di `frontend/README.md` |
+| Dokumen terkait | DOKUMEN-SPESIFIKASI-APLIKASI.md (PRD) versi 1.11, DOKUMEN-TEKNOLOGI.md versi 1.20; web app di `frontend/README.md` |
 | Audiens | Engineer backend, tech lead, QA, dan **agen AI** yang mengerjakan basis kode |
 
 > **Untuk agen AI yang membaca dokumen ini.** Bacalah bagian 2 terlebih dahulu. Bagian itu berisi kontrak kerja: invarian yang tidak boleh dilanggar, tempat setiap hal berada, dan urutan langkah untuk setiap jenis perubahan. Semua nama tabel, kolom, modul, antrean, dan perintah di dokumen ini adalah nama yang sebenarnya dipakai di repositori. Jangan menebak nama; cari di dokumen ini atau di kode.
@@ -347,7 +347,7 @@ Skema dibagi per peran, dan setiap peran hanya mendeklarasikan kunci yang dipaka
 
 | Peran | Basis data | Kunci khusus |
 |---|---|---|
-| `api` | `DATABASE_URL` (`omniseller_api`) | `PORT` (bawaan 3000), `PUBLIC_WEB_URL` (satu-satunya origin CORS yang diizinkan, dengan cookie), id publik marketplace untuk membangun tautan otorisasi (`SHOPEE_PARTNER_ID`, `SHOPEE_AUTH_BASE_URL`, `TIKTOKSHOP_SERVICE_ID`, `TIKTOKSHOP_AUTHORIZE_URL`). Tidak pernah menerima kunci KMS token, rahasia marketplace, atau kredensial email |
+| `api` | `DATABASE_URL` (`omniseller_api`) | `PORT` (bawaan 3000), `PUBLIC_WEB_URL` (satu-satunya origin CORS yang diizinkan, dengan cookie), id publik marketplace untuk membangun tautan otorisasi (`SHOPEE_PARTNER_ID`, `SHOPEE_AUTH_BASE_URL`, `TIKTOKSHOP_SERVICE_ID`, `TIKTOKSHOP_AUTHORIZE_URL`); `TOTP_ENCRYPTION_KEY` (wajib, 32 byte acak base64: menyegel rahasia TOTP dan menjadi kunci HMAC kode cadangan, 8.30) dan `TOTP_ISSUER` (bawaan `OmniSeller`). Tidak pernah menerima kunci KMS token, rahasia marketplace, atau kredensial email |
 | `webhook` | `DATABASE_URL` (`omniseller_api`) | `PORT` (bawaan 3001), `PUBLIC_WEBHOOK_URL` (Shopee menandatangani URL lengkapnya), rahasia verifikasi: `SHOPEE_PARTNER_ID` + `SHOPEE_PARTNER_KEY`, `TIKTOKSHOP_APP_KEY` + `TIKTOKSHOP_APP_SECRET` |
 | `worker` | `DATABASE_URL_WORKER` (`omniseller_worker`) | `PUBLIC_WEB_URL` (tautan di email), `EMAIL_TRANSPORT` (`smtp`; `log` hanya boleh di `local`, `memory` hanya di `test`), `SMTP_URL` (wajib bila `smtp`: Mailpit lokal, SMTP Amazon SES di staging dan produksi), `EMAIL_FROM`; `PUBLIC_WEBHOOK_URL`; semua kunci marketplace di atas ditambah base URL API (`SHOPEE_API_BASE_URL`, `TIKTOKSHOP_API_BASE_URL`, `TIKTOKSHOP_AUTH_BASE_URL`); enkripsi token: `TOKEN_KEY_PROVIDER` (`aws_kms`, atau `local` yang hanya boleh di `local` dan `test`), `KMS_KEY_ID_TOKENS` + `AWS_REGION`, atau `TOKEN_LOCAL_MASTER_KEY` (32 byte base64); salin listing (8.25): `SHOPEE_VARIANT_DELAY_MS` (bawaan 5000, jeda Shopee antara `add_item` dan `init_tier_variation`; uji memakai 0) dan `PRODUCT_IMAGE_HOSTS` (host gambar tambahan dipisah koma; http polos hanya di `local` dan `test`). AI menyusul bersama modulnya |
 | `scheduler` | `DATABASE_URL_WORKER` dan `DATABASE_URL_SYSTEM` (`omniseller_system`) | |
@@ -620,8 +620,11 @@ erDiagram
 | `password_hash` | `text` | NOT NULL |
 | `name` | `text` | NOT NULL |
 | `status` | `text` | NOT NULL, CHECK IN (`invited`, `active`, `disabled`) |
-| `totp_secret_enc` | `bytea` | NULL; terenkripsi DEK tenant |
+| `totp_secret_enc` | `bytea` | NULL; disegel dengan kunci TOTP api (AES-256-GCM, terikat tenant dan pengguna), bukan DEK tenant: login berjalan di api yang tidak memegang KMS (8.30). Terisi dengan `totp_enabled` false selama penyiapan belum dikonfirmasi |
 | `totp_enabled` | `boolean` | NOT NULL DEFAULT false |
+| `totp_backup_codes` | `text[]` | NOT NULL DEFAULT `'{}'`, CHECK paling banyak 10; HMAC kode cadangan yang belum dipakai (migrasi 0020) |
+| `totp_last_step` | `bigint` | NULL; langkah waktu kode terakhir yang diterima: kode dari langkah itu atau sebelumnya ditolak |
+| `totp_enabled_at` | `timestamptz` | NULL; CHECK `totp_enabled` hanya dengan rahasia dan waktu ini terisi |
 | `locale` | `text` | NOT NULL DEFAULT `'id'` |
 | `last_login_at` | `timestamptz` | NULL |
 | `failed_login_count` | `integer` | NOT NULL DEFAULT 0 |
@@ -1397,13 +1400,14 @@ Implementasi di `common/security/` dan modul `auth`. Nilai di bawah adalah konst
 | Hal | Keputusan |
 |---|---|
 | Sesi web | Token acak 256 bit di cookie `os_session` (`HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` di luar `local` dan `test`). Redis `redis-cache` menyimpan `sess:<sha256 token>`, bukan token mentah. Masa berlaku 30 hari bergeser (diperpanjang paling sering sekali per jam), maksimal 10 sesi per pengguna (sesi terlama dicabut) |
-| Pencabutan sesi | Semua sesi pengguna dicabut saat dinonaktifkan dan saat sandi diatur ulang. Ganti sandi sendiri mencabut semua sesi lain dan mempertahankan sesi saat ini. Logout mencabut satu sesi |
+| Pencabutan sesi | Semua sesi pengguna dicabut saat dinonaktifkan dan saat sandi diatur ulang. Ganti sandi sendiri dan menyalakan verifikasi dua langkah mencabut semua sesi lain dan mempertahankan sesi saat ini. Logout mencabut satu sesi; pengguna dapat mengeluarkan perangkat lain dan Owner dapat mengeluarkan anggota dari semua perangkat (8.30) |
 | Sandi | Argon2id (m=65536 KiB, t=3, p=4), 10 sampai 128 karakter. Hash lama dengan parameter lebih lemah diperbarui saat login berhasil |
 | Penguncian | 5 kali gagal berturut-turut mengunci akun 15 menit. Akun terkunci ditolak **sebelum** sandi diperiksa, sehingga respons tidak membocorkan benar atau salahnya sandi selama terkunci. Email yang tidak terdaftar tetap menjalankan verifikasi tiruan agar waktu respons sama |
 | Login multi-tenant | Email yang sama di beberapa tenant: bila sandi cocok di lebih dari satu tenant aktif, respons 409 `auth.tenant_choice_required` berisi daftar tenant, lalu klien mengulang dengan `tenant` (slug) |
 | Batas laju (token bucket Lua di Redis) | Login 20 per menit per IP dan 10 per 15 menit per email; daftar 5 per jam per IP; permintaan atur ulang sandi 5 per 15 menit per IP dan 3 per jam per email (batas per email diam: tetap 202); API 600 per menit per tenant. IP dibaca dari `CF-Connecting-IP` |
 | Token undangan dan atur ulang | 256 bit, hanya hash SHA-256 disimpan, dibuat oleh job di worker (bukan oleh request), sehingga token mentah hanya pernah ada di email. Undangan berlaku 72 jam, atur ulang sandi 60 menit, sekali pakai |
 | Permintaan atur ulang sandi | Selalu 202 tanpa membedakan email terdaftar atau tidak |
+| Verifikasi dua langkah | TOTP dan kode cadangan sebagai langkah kedua setelah kata sandi (8.30). Kode salah dihitung ke penguncian yang sama |
 
 ### 8.11 Menghubungkan toko dan menerima webhook
 
@@ -2429,6 +2433,54 @@ Semua endpoint ini `settings:billing` (Owner secara bawaan): NIB, NPWP, dan PKP 
 
 Belum termasuk: memeriksa NIB atau NPWP ke OSS atau DJP, dan menaruh NPWP atau logo di dokumen yang dicetak.
 
+### 8.30 Verifikasi dua langkah dan sesi aktif
+
+Implementasi:
+- `common/security/two-factor.ts`:
+  - TOTP lewat otplib 13 (RFC 6238: SHA-1, 6 angka, langkah 30 detik), dengan toleransi satu langkah sebelum dan sesudah; `afterTimeStep` menolak kode dari langkah yang sudah dipakai;
+  - kode cadangan: 10 kode `xxxxx-xxxxx` dari 31 huruf dan angka tanpa i, l, o, 0, dan 1, masing-masing sekitar 49 bit;
+  - `TwoFactorKeys`: dua kunci turunan HKDF dari `TOTP_ENCRYPTION_KEY`. Yang pertama menyegel rahasia (AES-256-GCM, terikat tenant dan pengguna, jadi rahasia yang disalin ke baris pengguna lain tidak terbuka). Yang kedua menjadi kunci HMAC kode cadangan, terikat pengguna;
+- `common/security/login-challenges.ts` (`LoginChallenges`, Redis cache): tantangan langkah kedua login;
+- `common/http/user-agent.ts`: nama peramban dan sistem dari User-Agent;
+- `SessionStore.list` dan `revokeById`: sesi seorang pengguna dengan id publik turunan hash token (`sessionIdOf`), bukan token atau kunci Redis-nya;
+- modul `auth`:
+  - `TwoFactorService` dan `UserSessionsService` hanya ada di api (`AuthHttpModule`), karena hanya api memegang `TOTP_ENCRYPTION_KEY`; `AuthService` juga dibangun di worker untuk email atur ulang sandi;
+  - `TwoFactorController` (`/v1/me/two-factor`) dan `SessionsController` (`/v1/me/sessions`);
+- modul `identity`: kolom 2FA tetap milik tabel `user` dan ditulis lewat `UsersService` (`twoFactorIn`, `setTwoFactorIn`, `useBackupCodeIn`, `revokeSessions`, `resetTwoFactor`);
+- migrasi `0020_two_factor.sql`.
+
+PRD: FR-USR-05, FR-USR-06; DOKUMEN-TEKNOLOGI 5.3; layar L49, L41, dan L41b (DOKUMEN-UI-UX).
+
+**Kunci rahasia TOTP.** Rahasia TOTP disegel dengan kunci milik api (`TOTP_ENCRYPTION_KEY`, 32 byte acak), bukan DEK tenant seperti rencana awal di 7.8.1. Alasannya, login dan pemeriksaan kode berjalan di api, dan api tidak pernah memegang KMS (ADR-029). Kode cadangan disimpan sebagai HMAC dengan kunci turunan yang sama, jadi isi basis data saja tidak cukup untuk menebak kode. Bila kuncinya diganti, kode semua pengguna yang memakai 2FA tidak cocok lagi; rotasi dengan penyegelan ulang belum ada.
+
+**Menyalakan.** Lewat Akun saya:
+1. `POST /v1/me/two-factor/setup` dengan kata sandi: membuat rahasia baru 160 bit, menyimpannya tersegel dengan `totp_enabled` tetap false, dan mengembalikannya sebagai teks base32, tautan `otpauth://`, dan kode QR SVG (`qrcode`). Mengulang langkah ini mengganti rahasia yang belum dikonfirmasi.
+2. `POST /v1/me/two-factor/enable` dengan kode dari aplikasi: membuktikan aplikasi sudah memindai, lalu menyalakan 2FA, mencatat langkah kode itu, dan mengembalikan 10 kode cadangan (hanya sekali). Semua sesi lain pengguna itu dicabut karena masuk hanya dengan kata sandi; sesi saat ini tetap.
+
+`POST /v1/me/two-factor/backup-codes` (dengan kata sandi) membuat 10 kode cadangan baru dan membatalkan yang lama. `POST /v1/me/two-factor/disable` butuh kata sandi dan kode dari aplikasi atau kode cadangan, sehingga sesi yang tertinggal di komputer bersama tidak cukup untuk mematikannya. Pemeriksaan kata sandi di endpoint ini dibatasi 10 per 15 menit per pengguna (`reauthPerUser`). `GET /v1/me/two-factor` memberi status, sejak kapan aktif, sisa kode cadangan, dan `recommended` untuk Owner dan Admin. Kewajiban 2FA bagi Owner dan Admin menyusul di Fase 2 (DOKUMEN-TEKNOLOGI 5.3).
+
+**Masuk dengan dua langkah.** Bila kata sandi benar dan 2FA menyala, `POST /v1/auth/login` belum membuka sesi. Ia menjawab 401 `auth.two_factor_required` dengan `challenge` (256 bit; Redis hanya menyimpan hash-nya) dan `expires_in` 300. Klien lalu mengirim `POST /v1/auth/login/two-factor` dengan `challenge` dan `code` atau `backupCode`:
+- Kode diperiksa di bawah kunci baris pengguna. Kode dari aplikasi memajukan `totp_last_step`, sehingga kode yang sama, termasuk kode yang dipakai saat menyalakan, tidak bisa dipakai lagi. Kode cadangan dihapus dari daftar dengan satu `UPDATE ... array_remove`, jadi hanya berlaku sekali.
+- Kode salah dihitung sebagai login gagal (5 berturut-turut mengunci akun 15 menit, 8.10) dan sebagai salah satu dari 5 percobaan tantangan. Kata sandi yang benar tidak mengosongkan hitungan itu sebelum langkah kedua lolos, agar kode tidak bisa ditebak dengan memasukkan kata sandi lagi di sela-selanya. Batas laju langkah kedua 20 per menit per IP.
+- Tantangan yang habis (lima menit lewat, lima kode salah, atau sudah dipakai) memberi 401 `auth.two_factor_expired`, dan klien kembali ke langkah kata sandi. Begitu pula bila pengguna dinonaktifkan atau 2FA-nya dimatikan setelah langkah pertama. Akun yang terkunci di antara dua langkah mendapat 403 `auth.locked`.
+- Hanya permintaan yang berhasil mengakhiri tantangan (`DEL`) yang membuka sesi. Hash sandi yang lebih kuat (8.10) dihitung di langkah pertama, dibawa oleh tantangan, dan disimpan setelah langkah kedua lolos.
+
+Atur ulang sandi lewat email tidak mematikan 2FA, jadi email yang dibobol saja tidak cukup untuk masuk.
+
+**Perangkat yang masuk.** `GET /v1/me/sessions` memberi sesi web pengguna: perangkat ini lebih dulu, lalu yang terakhir dipakai. Setiap sesi membawa waktu masuk, waktu terakhir dipakai (diperbarui paling sering sekali per jam, 8.10), IP, serta nama peramban dan sistem dari User-Agent. `DELETE /v1/me/sessions/{id}` mengeluarkan satu perangkat lain. Untuk sesi yang sedang dipakai jawabannya 409 `session.current`, karena keluar dari perangkat ini memakai logout. `POST /v1/me/sessions/revoke-others` mengeluarkan semua perangkat kecuali yang ini.
+
+**Owner atas anggota.** Dua aksi dengan `settings:user`:
+- `POST /v1/users/{id}/sessions/revoke` mengeluarkan anggota dari semua perangkat. Bila dipakai untuk diri sendiri, sesi saat ini tetap.
+- `POST /v1/users/{id}/two-factor/reset` mematikan 2FA anggota yang kehilangan ponsel dan kode cadangannya, lalu mengeluarkannya dari semua perangkat. Aksi ini ditolak untuk akun sendiri (409 `user.two_factor_reset_self`; pakai Akun saya), untuk anggota yang 2FA-nya tidak aktif (409 `two_factor.not_enabled`), dan untuk anggota yang memegang izin yang tidak dimiliki pemanggil (403 `user.two_factor_reset_forbidden`).
+
+Owner tunggal yang kehilangan ponsel dan kode cadangan menghubungi tim OmniSeller; alatnya menyusul bersama UI admin internal.
+
+**Audit.** Trigger baru pada `user` mencatat perubahan `status` dan `totp_enabled`. Hash sandi, rahasia, kode cadangan, dan kolom catatan login tidak ikut tercatat. Menonaktifkan dan mengaktifkan kembali akun sebelumnya tidak diaudit sama sekali. Di log audit (8.28), entrinya berbunyi "Mengaktifkan verifikasi dua langkah akun ...", "Mematikan verifikasi dua langkah akun ...", atau "Menonaktifkan akun ...". Mengeluarkan sesi tidak mengubah basis data, jadi belum tercatat.
+
+**Lingkungan.** `TOTP_ENCRYPTION_KEY` wajib untuk api (proses gagal mulai tanpanya) dan tidak diberikan ke proses lain. `TOTP_ISSUER` (bawaan `OmniSeller`) adalah nama yang tampil di aplikasi autentikator.
+
+Belum termasuk: kewajiban 2FA (Fase 2), passkey (Fase 4), email pemberitahuan saat 2FA dimatikan atau kode cadangan dipakai, dan rotasi `TOTP_ENCRYPTION_KEY`.
+
 ---
 
 ## 9. Pekerjaan Latar dan Penjadwalan
@@ -2669,7 +2721,7 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `data:export` | `/v1/exports*`: ekspor seluruh data bisnis (8.18). Hanya Owner secara bawaan; peran bawaan Owner selalu memegang semua izin, termasuk yang ditambahkan kemudian (seed) |
 | `audit:read` | `GET /v1/audit-logs`, `GET /v1/audit-logs/people` |
 | `chat:read`, `chat:write`, `chat:assign` | Chat |
-| `settings:store`, `settings:warehouse`, `settings:user`, `settings:billing` | Pengaturan; `settings:store` juga saluran pesanan manual, `settings:warehouse` menambah, mengubah, dan menghapus gudang (8.21) serta memasang, mengubah, dan mencabut agen cetak (8.24); `settings:billing` juga profil bisnis dan legalitas, tugas legalitas di dasbor, dan pengingatnya (8.29) |
+| `settings:store`, `settings:warehouse`, `settings:user`, `settings:billing` | Pengaturan; `settings:store` juga saluran pesanan manual, `settings:warehouse` menambah, mengubah, dan menghapus gudang (8.21) serta memasang, mengubah, dan mencabut agen cetak (8.24); `settings:billing` juga profil bisnis dan legalitas, tugas legalitas di dasbor, dan pengingatnya (8.29); `settings:user` juga mengeluarkan anggota dari semua perangkat dan mematikan verifikasi dua langkah anggota (8.30) |
 | `research:read`, `research:write` | Riset |
 | `admin:internal` | UI admin internal OmniSeller (bukan tenant) |
 
@@ -2679,10 +2731,14 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 |---|---|---|
 | `POST /v1/auth/signup` | Publik | Membuat tenant (paket starter, slug unik), enam peran bawaan, Owner, dan gudang `UTAMA`; 201 dengan sesi |
 | `POST /v1/auth/login`, `POST /v1/auth/logout` | Publik; sesi | 8.10. Logout 204 |
+| `POST /v1/auth/login/two-factor` | Publik | 8.30. Langkah kedua dengan `challenge` dari 401 `auth.two_factor_required`, ditambah `code` dari aplikasi atau `backupCode`; 200 dengan sesi |
 | `POST /v1/auth/password-reset`, `POST /v1/auth/password-reset/confirm` | Publik | 202 lalu email; konfirmasi 204 dan mencabut semua sesi |
 | `POST /v1/auth/invitations/inspect`, `POST /v1/auth/invitations/accept` | Publik | Token di body, bukan di URL, agar tidak tercatat di log akses. Terima membuat pengguna dengan peran undangan dan langsung masuk (201) |
-| `GET /v1/me`, `POST /v1/me/password` | Sesi | Profil, tenant, izin (enum kode izin di OpenAPI, sehingga klien bertipe mengenalnya), cakupan; ganti sandi sendiri |
+| `GET /v1/me`, `POST /v1/me/password` | Sesi | Profil (dengan `twoFactorEnabled`), tenant, izin (enum kode izin di OpenAPI, sehingga klien bertipe mengenalnya), cakupan; ganti sandi sendiri |
+| `GET /v1/me/two-factor`, `POST /v1/me/two-factor/setup`, `POST /v1/me/two-factor/enable`, `POST /v1/me/two-factor/backup-codes`, `POST /v1/me/two-factor/disable` | Sesi (milik sendiri) | 8.30. Status; rahasia dan QR setelah kata sandi; nyalakan dengan kode (10 kode cadangan sekali tampil, sesi lain dicabut); kode cadangan baru; matikan dengan kata sandi dan kode (204) |
+| `GET /v1/me/sessions`, `DELETE /v1/me/sessions/{id}`, `POST /v1/me/sessions/revoke-others` | Sesi (milik sendiri) | 8.30. Perangkat yang masuk; keluarkan satu perangkat lain (204; 409 `session.current`); keluarkan semua kecuali perangkat ini |
 | `GET /v1/users`, `GET/PATCH /v1/users/{id}`, `PUT /v1/users/{id}/roles`, `PUT /v1/users/{id}/scopes` | `settings:user` | `GET` satu pengguna mengembalikan `ETag`, `PATCH` menerima `If-Match` (8.8). Ditolak: menonaktifkan diri sendiri, menghapus Owner aktif terakhir, memberi peran yang izinnya tidak dimiliki pemberi (403 `role.privilege_escalation`). Menonaktifkan pengguna mencabut semua sesinya |
+| `POST /v1/users/{id}/sessions/revoke`, `POST /v1/users/{id}/two-factor/reset` | `settings:user` | 8.30. Keluarkan anggota dari semua perangkat (`revoked`); matikan 2FA anggota yang kehilangan ponsel dan kode cadangannya, lalu keluarkan (bukan diri sendiri, bukan anggota dengan izin lebih luas) |
 | `GET /v1/roles`, `GET /v1/permissions` | `settings:user` | |
 | `GET/POST /v1/invitations`, `POST /v1/invitations/{id}/resend`, `DELETE /v1/invitations/{id}` | `settings:user` | Satu undangan terbuka per email; kirim ulang membatalkan tautan lama |
 | `GET /v1/audit-logs` | `audit:read` | Filter `entity_type` (beberapa dipisah koma), `entity_id`, `actor_id`, `from`, `to`; entri dengan nama pelaku, label, dan perubahan yang terbaca (8.28) |
@@ -2790,7 +2846,7 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | Modul | Tabel yang dimiliki (hanya modul ini yang menulis) | Event diterbitkan | Event dikonsumsi | Job utama |
 |---|---|---|---|---|
 | `identity` | `tenant`, `user`, `role`, `permission`, `role_permission`, `user_role`, `user_store_scope`, `user_warehouse_scope`, `invitation`, `api_key`, `device` (lewat `DevicesService`: token perangkat dan `authenticate`, dipakai `AuthGuard` dan `RealtimeGateway`; aturan agen cetak di `fulfillment`); membuat gudang `UTAMA` saat daftar lewat repository-nya sendiri sampai modul `inventory` ada | `invitation.send_requested`; menyusul `tenant.created`, `user.role_changed` | `subscription.changed` (menyusul) | `identity.invite_email` (antrean `notify`) |
-| `auth` | `password_reset_token`, `refresh_token` (menyusul bersama mobile), sesi di Redis | `password_reset.requested` | | `auth.password_reset_email` (antrean `notify`) |
+| `auth` | `password_reset_token`, `refresh_token` (menyusul bersama mobile), sesi dan tantangan login di Redis. `TwoFactorService` dan `UserSessionsService` (api saja) untuk verifikasi dua langkah dan perangkat yang masuk; kolom 2FA `user` lewat `UsersService` (8.30) | `password_reset.requested` | | `auth.password_reset_email` (antrean `notify`) |
 | `channel` | `store`, `store_credential`, `store_authorization`, `channel_warehouse`, `sync_cursor`; `tenant_key` lewat `TokenVault` (dipakai bersama rahasia tenant lain) | `store.authorization_received`, `store.connected`, `store.disconnected`, `store.data_deletion_requested`, `store.reauth_required`, `store.warehouses_sync_requested`, `channel_warehouse.changed`, `channel_warehouse.mapping_changed`, `store.sync_mode_changed` | Notifikasi otorisasi dari webhook; `channel_warehouse.changed` (notifikasi) | `store.authorize`, `store.warehouses_sync`, `store.webhooks_subscribe`, `store.token_refresh`, `store.warehouses_notice`, `store.connection_check` (FR-INT-08). Gangguan koneksi dicatat `MarketplaceGateway` di `store.failing_since` (8.23). Impor awal produk dijalankan `catalog` dari `store.connected`; impor pesanan 90 hari oleh `orders`. Saluran pesanan manual (`channel = 'manual'`, 8.21) dibuat di sini dan dilewati semua pekerjaan marketplace |
 | `catalog` | `product`, `variant`, `product_image`, `bundle_component`, `channel_listing`; mengekspor view `catalog_variant_v`. Membaca toko dan `sync_cursor` lewat `StoresService` (milik `channel`) | `listing.pull_requested`, `listing.status_push_requested`, `listing.mapped`, `listing.unmapped`; menyusul `variant.price_changed`, `variant.cost_changed`, `listing.price_push_requested` | `store.connected`; webhook `listing.changed` | `listing.pull`, `listing.status_push`; menyusul `listing.price_push`. Salin listing ada di modul `listing-copy`. Riwayat produk dibaca lewat `AuditService.entriesIn`, nama pelaku lewat `UsersService` (8.23) |
 | `listing-copy` | `channel_category`, `category_mapping`, `listing_copy`, `listing_draft` (8.25). Listing asal dan tujuan lewat `ListingsService` (`itemListingsIn`, `storeItemIdsIn`, `listedVariantsIn`, `mapCopiedIn`) dan `ListingSyncService.refreshCopiedItem`, toko lewat `StoresService`, stok awal lewat `StockComparisonService.initialStockIn`, marketplace lewat `MarketplaceGateway` | `listing_copy.requested`, `listing_draft.recheck_requested`, `listing_draft.publish_requested`, `channel_category.refresh_requested`, `channel_category.rules_requested`; `listing.mapped` (lewat `ListingsService.mapCopiedIn`) | Event miliknya sendiri | `listing_copy.prepare`, `listing_draft.recheck` (antrean `mp.poll`), `listing_draft.publish` (antrean `mp.outbound`), `channel_category.refresh`, `channel_category.rules` |
@@ -3210,3 +3266,4 @@ Berkas `.env.example` adalah versi yang berlaku. Kunci dikelompokkan per peran p
 | 1.25 | 7 Oktober 2026 | Log audit yang terbaca (8.28): `GET /v1/audit-logs` memberi nama pelaku, label yang diubah, dan perubahan per field dengan nama API serta rujukan yang sudah dinamai, dan menerima filter beberapa jenis, pelaku, dan waktu. `GET /v1/audit-logs/people` baru. HPP disembunyikan dari pembaca tanpa `finance:read`; sebelumnya baris mentah membawanya. Baris tanpa perubahan yang dikenali dilewati. Migrasi 0018 menambah indeks per bisnis dan per pelaku. Uji unit mencocokkan trigger audit dengan tampilan setelah persetujuan opname sempat terbuang | Candra Syahputra |
 | 1.26 | 7 Oktober 2026 | Job yang menjalankan permintaan seorang penjual (`actsForRequester`: aktif atau nonaktif listing, terbitkan draf salinan, kirim jawaban retur, terapkan opname, hapus data toko yang diputus) berjalan atas nama peminta, sehingga log audit menyebut penjual itu, bukan Sistem. Outbox menyimpan `requestedBy` di payload job (8.5, 9.1, 8.28) | Candra Syahputra |
 | 1.27 | 7 Oktober 2026 | Profil bisnis dan legalitas (8.29 baru, PRD 6.13 dan 12, layar L47): `business_profile` (alamat, telepon, logo, NIB atau NIB dalam proses paling lama 6 bulan, NPWP, PKP) dan `business_document` (jenis, nomor, tanggal terbit, berlaku sampai, berkas) di migrasi 0019; nama dan zona waktu bisnis tetap di `tenant` dan diubah lewat profil dengan satu `If-Match`. Pengingat 30 hari, 7 hari, dan setelah lewat, sekali per tahap, untuk dokumen dan batas proses NIB (`business.legal_scan` setiap jam, job `business.legal_alert`, `legal.reminder` di aplikasi dan email untuk `settings:billing`). Tugas `legal_nib` dan `legal_documents` di dasbor, diurutkan menurut tingkat secara stabil; dua sheet ekspor baru; audit profil dan dokumen. Semua respons api kini `Cache-Control: no-store` tanpa GET bersyarat (10.2): sebelumnya Express menjawab 304 untuk `If-None-Match` yang sama dengan versi profil, sehingga dokumen yang baru ditambahkan tidak tampil. `tenant.legal` dinyatakan tidak dipakai |
+| 1.28 | 7 Oktober 2026 | Verifikasi dua langkah dan sesi aktif (8.30 baru, PRD FR-USR-05, 06): TOTP lewat otplib 13 dengan QR, 10 kode cadangan sekali pakai (HMAC), login dua langkah dengan tantangan di Redis (5 menit, 5 kode; kode salah ikut penguncian; kode tidak bisa dipakai ulang), mematikan dengan kata sandi dan kode. Rahasia TOTP disegel dengan `TOTP_ENCRYPTION_KEY` milik api, bukan DEK tenant seperti rencana 7.8.1, karena api tidak memegang KMS. Perangkat yang masuk dengan keluarkan satu atau semua; Owner mengeluarkan anggota dan mematikan 2FA anggota. Trigger audit baru pada `user` (status dan 2FA). Migrasi 0020 |

@@ -13,6 +13,9 @@ import {
   lastOwner,
   privilegeEscalation,
   roleNotFound,
+  twoFactorNotEnabled,
+  twoFactorResetForbidden,
+  twoFactorResetSelf,
   userNotFound,
   wrongCurrentPassword,
 } from "./identity.errors";
@@ -141,6 +144,72 @@ export class UsersService {
     await this.sessions.revokeAll(ctx.tenantId, ctx.actor.id, keepSessionToken);
   }
 
+  /**
+   * Signs a member out of every device (PRD FR-USR-06, backend doc 8.30): a lost phone, a shared
+   * computer. Acting on oneself keeps the session the request came from. Returns how many ended.
+   */
+  async revokeSessions(ctx: RequestContext, id: string, keepSessionToken?: string): Promise<number> {
+    const target = await withTenantTx(this.db, ctx, (tx) => this.repo.getUserView(tx, id));
+    if (!target) throw userNotFound();
+    return this.sessions.revokeAll(ctx.tenantId, id, id === ctx.actor.id ? keepSessionToken : undefined);
+  }
+
+  /**
+   * Turns a member's two-step verification off when they lost both their phone and their backup codes,
+   * and signs them out everywhere; they turn it on again with a new secret. Not for one's own account
+   * (that asks for a code), nor for a member holding permissions the caller lacks.
+   */
+  async resetTwoFactor(ctx: RequestContext, id: string): Promise<UserView> {
+    if (id === ctx.actor.id) throw twoFactorResetSelf();
+    const view = await withTenantTx(this.db, ctx, async (tx) => {
+      const target = await this.repo.twoFactor(tx, id, true);
+      if (!target) throw userNotFound();
+      if (!target.totpEnabled) throw twoFactorNotEnabled();
+      const principal = await this.repo.loadPrincipal(tx, id);
+      if (principal?.permissions.some((p) => !ctx.permissions.has(p))) throw twoFactorResetForbidden();
+      await this.repo.updateUser(tx, id, {
+        totpEnabled: false,
+        totpEnabledAt: null,
+        totpSecretEnc: null,
+        totpLastStep: null,
+        totpBackupCodes: [],
+      });
+      return this.repo.getUserView(tx, id);
+    });
+    await this.sessions.revokeAll(ctx.tenantId, id);
+    return view!;
+  }
+
+  // ---- two-step verification (backend doc 8.30): the auth module decides, the user row lives here ----
+
+  /** The user's two-step state; `lock` holds the row until the caller's transaction ends. */
+  twoFactorIn(tx: Tx, userId: string, lock = false) {
+    return this.repo.twoFactor(tx, userId, lock);
+  }
+
+  async setTwoFactorIn(
+    tx: Tx,
+    userId: string,
+    patch: {
+      totpSecretEnc?: Buffer | null;
+      totpEnabled?: boolean;
+      totpEnabledAt?: Date | null;
+      totpLastStep?: number | null;
+      totpBackupCodes?: string[];
+    },
+  ): Promise<void> {
+    await this.repo.updateUser(tx, userId, patch);
+  }
+
+  useBackupCodeIn(tx: Tx, userId: string, hash: string): Promise<boolean> {
+    return this.repo.useBackupCode(tx, userId, hash);
+  }
+
+  /** The user's roles, for advice that depends on them (Owner and Admin are urged to use two steps). */
+  async rolesIn(tx: Tx, userId: string): Promise<{ id: string; name: string }[]> {
+    return (await this.repo.getUserView(tx, userId))?.roles ?? [];
+  }
+
   // ---- used by the auth module (login and password reset); not exposed over HTTP ----
 
   async recordLoginSuccess(tenantId: string, userId: string, rehash?: string): Promise<void> {
@@ -154,18 +223,21 @@ export class UsersService {
     );
   }
 
-  /** Counts a failed login; locks the account for LOCK_MINUTES after MAX_FAILED_LOGINS in a row. */
-  async recordLoginFailure(tenantId: string, userId: string): Promise<{ locked: boolean }> {
+  /**
+   * Counts a failed login, a wrong password or a wrong code at the second step; locks the account for
+   * LOCK_MINUTES after MAX_FAILED_LOGINS in a row.
+   */
+  async recordLoginFailure(tenantId: string, userId: string): Promise<{ lockedUntil: Date | null }> {
     return withTenantTx(this.db, systemContext(tenantId), async (tx) => {
       const current = await this.repo.lockUser(tx, userId);
-      if (!current) return { locked: false };
+      if (!current) return { lockedUntil: null };
       const failed = current.failedLoginCount + 1;
-      const locked = failed >= MAX_FAILED_LOGINS;
+      const lockedUntil = failed >= MAX_FAILED_LOGINS ? new Date(Date.now() + LOCK_MINUTES * 60_000) : null;
       await this.repo.updateUser(tx, userId, {
-        failedLoginCount: locked ? 0 : failed,
-        ...(locked ? { lockedUntil: new Date(Date.now() + LOCK_MINUTES * 60_000) } : {}),
+        failedLoginCount: lockedUntil ? 0 : failed,
+        ...(lockedUntil ? { lockedUntil } : {}),
       });
-      return { locked };
+      return { lockedUntil };
     });
   }
 

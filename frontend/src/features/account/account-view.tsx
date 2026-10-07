@@ -15,10 +15,13 @@ import { Input } from "@/components/ui/input";
 import { PasswordHint } from "@/features/auth/password-hint";
 import { api, unwrap } from "@/lib/api/client";
 import { useSession } from "@/lib/session";
+import { SessionsCard } from "./sessions-card";
+import { TwoFactorCard } from "./two-factor-card";
 
 /**
- * "Akun saya" (UI L41b), opened from the profile menu: who is signed in, and changing the password
- * (PRD FR-USR-03). The api signs out every other session of the user and keeps this one.
+ * "Akun saya" (UI L41b), opened from the profile menu: who is signed in, changing the password (PRD
+ * FR-USR-03; the api signs out every other session and keeps this one), two-step verification
+ * (FR-USR-05), and the devices signed in (FR-USR-06).
  */
 export function AccountView() {
   const t = useTranslations("account");
@@ -61,6 +64,8 @@ export function AccountView() {
             <ChangePasswordForm email={me.user.email} />
           </CardContent>
         </Card>
+        <TwoFactorCard />
+        <SessionsCard />
       </div>
     </>
   );

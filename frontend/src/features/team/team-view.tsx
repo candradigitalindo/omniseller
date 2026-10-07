@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, MailPlus, MoreHorizontal, UsersRound } from "lucide-react";
+import { Check, MailPlus, MoreHorizontal, ShieldCheck, UsersRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -122,6 +122,7 @@ function Members() {
   const { byId } = useStores();
   const warehouses = useWarehouses();
   const [editing, setEditing] = useState<{ user: User; what: "roles" | "scope" } | null>(null);
+  const [confirming, setConfirming] = useState<{ user: User; what: "signOut" | "reset" } | null>(null);
   const queryClient = useQueryClient();
   const users = useQuery({
     queryKey: ["users"],
@@ -141,6 +142,25 @@ function Members() {
     },
     onError: (e) => toast.error(errorMessage(e)),
   });
+  // a lost phone or laptop: sign the member out everywhere, or turn off a two-step login they cannot pass
+  const signOut = useMutation({
+    mutationFn: (u: User) => unwrap(api.POST("/v1/users/{id}/sessions/revoke", { params: { path: { id: u.id } } })),
+    onSuccess: (r, u) => {
+      setConfirming(null);
+      toast.success(t("signedOut", { name: u.name, count: r.revoked }));
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
+  const resetTwoFactor = useMutation({
+    mutationFn: (u: User) => unwrap(api.POST("/v1/users/{id}/two-factor/reset", { params: { path: { id: u.id } } })),
+    onSuccess: (u) => {
+      setConfirming(null);
+      toast.success(t("resetDone", { name: u.name }));
+      void queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: (e) => toast.error(errorMessage(e)),
+  });
+  const confirm = confirming?.what === "signOut" ? signOut : resetTwoFactor;
   const storeNames = new Map([...byId.values()].map((s) => [s.id, s.name]));
   const warehouseNames = new Map((warehouses.data?.items ?? []).map((w) => [w.id, w.name]));
 
@@ -203,7 +223,14 @@ function Members() {
                   {u.lastLoginAt ? formatRelative(u.lastLoginAt, tz) : t("neverLoggedIn")}
                 </TableCell>
                 <TableCell>
-                  <StatusPill tone={USER_TONE[u.status]}>{t(`userStatus_${u.status}`)}</StatusPill>
+                  <span className="flex flex-wrap gap-1">
+                    <StatusPill tone={USER_TONE[u.status]}>{t(`userStatus_${u.status}`)}</StatusPill>
+                    {u.twoFactorEnabled ? (
+                      <StatusPill tone="success" icon={ShieldCheck}>
+                        {t("twoFactorPill")}
+                      </StatusPill>
+                    ) : null}
+                  </span>
                 </TableCell>
                 <TableCell>
                   <MemberActions
@@ -211,6 +238,7 @@ function Members() {
                     self={u.id === me.user.id}
                     onEdit={(what) => setEditing({ user: u, what })}
                     onStatus={() => status.mutate(u)}
+                    onConfirm={(what) => setConfirming({ user: u, what })}
                   />
                 </TableCell>
               </TableRow>
@@ -231,10 +259,16 @@ function Members() {
                 self={u.id === me.user.id}
                 onEdit={(what) => setEditing({ user: u, what })}
                 onStatus={() => status.mutate(u)}
+                onConfirm={(what) => setConfirming({ user: u, what })}
               />
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               <StatusPill tone={USER_TONE[u.status]}>{t(`userStatus_${u.status}`)}</StatusPill>
+              {u.twoFactorEnabled ? (
+                <StatusPill tone="success" icon={ShieldCheck}>
+                  {t("twoFactorPill")}
+                </StatusPill>
+              ) : null}
               {u.roles.map((r) => (
                 <StatusPill key={r.id} tone="info" icon={UsersRound}>
                   {r.name}
@@ -250,6 +284,34 @@ function Members() {
       </ul>
       {editing?.what === "roles" ? <RolesDialog user={editing.user} onClose={() => setEditing(null)} /> : null}
       {editing?.what === "scope" ? <ScopeDialog user={editing.user} onClose={() => setEditing(null)} /> : null}
+      <Dialog open={confirming !== null} onOpenChange={(v) => !v && setConfirming(null)}>
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>
+              {confirming?.what === "signOut"
+                ? t("signOutTitle", { name: confirming.user.name })
+                : t("resetTitle", { name: confirming?.user.name ?? "" })}
+            </DialogTitle>
+            <DialogDescription>
+              {confirming?.what === "signOut"
+                ? t("signOutBody", { name: confirming.user.name })
+                : t("resetBody", { name: confirming?.user.name ?? "" })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setConfirming(null)}>
+              {t("cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              loading={confirm.isPending}
+              onClick={() => confirming && confirm.mutate(confirming.user)}
+            >
+              {confirming?.what === "signOut" ? t("signOutConfirm") : t("resetConfirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
@@ -259,11 +321,13 @@ function MemberActions({
   self,
   onEdit,
   onStatus,
+  onConfirm,
 }: {
   user: User;
   self: boolean;
   onEdit: (what: "roles" | "scope") => void;
   onStatus: () => void;
+  onConfirm: (what: "signOut" | "reset") => void;
 }) {
   const t = useTranslations("team");
   return (
@@ -273,9 +337,16 @@ function MemberActions({
           <MoreHorizontal aria-hidden />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      {/* wide enough that "Keluarkan dari semua perangkat" stays on one line */}
+      <DropdownMenuContent align="end" className="min-w-64">
         <DropdownMenuItem onSelect={() => onEdit("roles")}>{t("changeRoles")}</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onEdit("scope")}>{t("changeScope")}</DropdownMenuItem>
+        {!self && u.status === "active" ? (
+          <DropdownMenuItem onSelect={() => onConfirm("signOut")}>{t("signOutEverywhere")}</DropdownMenuItem>
+        ) : null}
+        {!self && u.twoFactorEnabled ? (
+          <DropdownMenuItem onSelect={() => onConfirm("reset")}>{t("resetTwoFactor")}</DropdownMenuItem>
+        ) : null}
         {!self && u.status !== "invited" ? (
           <DropdownMenuItem variant={u.status === "disabled" ? "default" : "destructive"} onSelect={onStatus}>
             {u.status === "disabled" ? t("enable") : t("disable")}

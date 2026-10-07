@@ -24,13 +24,16 @@ import { TenantsService } from "../identity/tenants.service";
 import { UsersService } from "../identity/users.service";
 import { authRequired } from "./auth.errors";
 import { AuthService } from "./auth.service";
+import { LoginTwoFactorDto } from "./dto";
 import { clearSessionCookie, setSessionCookie } from "./session-cookie";
+import { TwoFactorService } from "./two-factor.service";
 
 @ApiTags("auth")
 @Controller("v1/auth")
 export class AuthController {
   constructor(
     @Inject(AuthService) private readonly auth: AuthService,
+    @Inject(TwoFactorService) private readonly twoFactor: TwoFactorService,
     @Inject(UsersService) private readonly users: UsersService,
     @Inject(TenantsService) private readonly tenants: TenantsService,
     @Inject(InvitationsService) private readonly invitations: InvitationsService,
@@ -60,6 +63,28 @@ export class AuthController {
       tenant: body.tenant,
       ip: clientIp(req),
       userAgent: req.header("user-agent"),
+    });
+    setSessionCookie(res, token, this.env.NODE_ENV);
+    return this.me(tenantId, userId);
+  }
+
+  /**
+   * The second step of a login with two-step verification (backend doc 8.30): the `challenge` from the
+   * 401 `auth.two_factor_required` answer, with a code from the app or a backup code.
+   */
+  @Post("login/two-factor")
+  @Public()
+  @ZodResponse({ status: 200, type: MeDto })
+  async loginTwoFactor(
+    @Body() body: LoginTwoFactorDto,
+    @Req() req: AuthedRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { token, tenantId, userId } = await this.twoFactor.completeLogin({
+      challenge: body.challenge,
+      code: body.code,
+      backupCode: body.backupCode,
+      ip: clientIp(req),
     });
     setSessionCookie(res, token, this.env.NODE_ENV);
     return this.me(tenantId, userId);

@@ -40,7 +40,13 @@ export const ALL_PERMISSIONS: Permission[] = [
 
 export function testMe(permissions: Permission[] = ALL_PERMISSIONS): Me {
   return {
-    user: { id: "01JUSER0000000000000000000", name: "Rina Wulandari", email: "rina@example.test", locale: "id" },
+    user: {
+      id: "01JUSER0000000000000000000",
+      name: "Rina Wulandari",
+      email: "rina@example.test",
+      locale: "id",
+      twoFactorEnabled: false,
+    },
     tenant: {
       id: "01JTENANT00000000000000000",
       name: "Toko Rina",

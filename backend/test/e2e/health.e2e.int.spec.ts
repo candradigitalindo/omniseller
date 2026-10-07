@@ -4,7 +4,7 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { AppModule } from "../../src/app.module";
 import { parseEnv } from "../../src/config/env.schema";
-import { listenOnLoopback } from "../setup/app";
+import { listenOnLoopback, TEST_TOTP_KEY } from "../setup/app";
 
 describe("api process (backend doc 8.1, 10.1, 10.3)", () => {
   let app: INestApplication;
@@ -19,6 +19,7 @@ describe("api process (backend doc 8.1, 10.1, 10.3)", () => {
       REDIS_CACHE_URL: infra.redisUrl,
       PUBLIC_WEB_URL: "http://localhost:3100",
       FILE_STORAGE: "local",
+      TOTP_ENCRYPTION_KEY: TEST_TOTP_KEY,
     });
     const moduleRef = await Test.createTestingModule({ imports: [AppModule.forEnv(env)] }).compile();
     app = moduleRef.createNestApplication({ logger: false });

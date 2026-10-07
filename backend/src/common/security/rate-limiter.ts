@@ -50,6 +50,10 @@ export const RATE_RULES = {
   signupPerIp: { capacity: 5, refill: 5, windowMs: 3600_000 },
   resetPerIp: { capacity: 5, refill: 5, windowMs: 15 * 60_000 },
   resetPerEmail: { capacity: 3, refill: 3, windowMs: 3600_000 },
+  /** codes at the second step of a login (backend doc 8.30); each challenge also allows only 5 */
+  twoFactorPerIp: { capacity: 20, refill: 20, windowMs: 60_000 },
+  /** asking a signed-in user's password again (two-step settings): a stolen session cannot guess it */
+  reauthPerUser: { capacity: 10, refill: 10, windowMs: 15 * 60_000 },
 } satisfies Record<string, BucketRule>;
 
 export class RateLimiter {

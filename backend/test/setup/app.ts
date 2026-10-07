@@ -47,6 +47,8 @@ export const WEB_URL = "http://localhost:3100";
 export const WEBHOOK_URL = "https://hooks.omniseller.test";
 /** Development-only master key for the local token key provider (test/local only). */
 export const TEST_TOKEN_KEY = Buffer.alloc(32, 42).toString("base64");
+/** The api's key for TOTP secrets and backup codes (backend doc 8.30). */
+export const TEST_TOTP_KEY = Buffer.alloc(32, 43).toString("base64");
 
 /**
  * Listens on 127.0.0.1 before supertest sees the server. Left to supertest, the server binds `::` on a
@@ -100,6 +102,7 @@ export async function startApi(
     PUBLIC_WEB_URL: WEB_URL,
     FILE_STORAGE: "local",
     FILE_STORAGE_LOCAL_DIR: testFilesDir(infra.keyPrefix),
+    TOTP_ENCRYPTION_KEY: TEST_TOTP_KEY,
     ...marketplaceEnv(opts.marketplace, "api"),
   });
   const moduleRef = await Test.createTestingModule({

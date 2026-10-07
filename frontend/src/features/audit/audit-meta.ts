@@ -11,7 +11,7 @@ export const AUDIT_KINDS = {
   catalog: ["product", "variant", "channel_listing", "listing_copy", "listing_draft"],
   stock: ["stock_movement", "stock_count", "stock_transfer", "stock_allocation_rule"],
   orders: ["order_event", "return_request", "handover"],
-  access: ["user_role", "user_store_scope", "user_warehouse_scope", "role", "role_permission"],
+  access: ["user", "user_role", "user_store_scope", "user_warehouse_scope", "role", "role_permission"],
   stores: ["store", "channel_warehouse", "warehouse", "device"],
   data: ["data_export", "migration_job", "store_cutover"],
   business: ["business_profile", "business_document"],
@@ -64,6 +64,11 @@ export const TITLE_KEYS = [
   "role_deleted",
   "role_permission_created",
   "role_permission_deleted",
+  "user_updated",
+  "user_disabled",
+  "user_enabled",
+  "user_two_factor_on",
+  "user_two_factor_off",
   "user_role_created",
   "user_role_deleted",
   "user_store_scope_created",
@@ -212,6 +217,7 @@ export const AUDIT_FIELDS = [
   "issuedOn",
   "validUntil",
   "file",
+  "twoFactorEnabled",
 ] as const;
 export type AuditFieldName = (typeof AUDIT_FIELDS)[number];
 
@@ -239,6 +245,12 @@ function stepKey(e: AuditEntry): string {
     }
     case "store":
       return becomes(e, "status", "disconnected") ? "store_disconnected" : base;
+    case "user":
+      if (find(e, "twoFactorEnabled")) {
+        return becomes(e, "twoFactorEnabled", true) ? "user_two_factor_on" : "user_two_factor_off";
+      }
+      if (becomes(e, "status", "disabled")) return "user_disabled";
+      return becomes(e, "status", "active") ? "user_enabled" : base;
     case "data_export":
       return find(e, "downloadCount") ? "data_export_downloaded" : base;
     case "store_cutover":
@@ -278,6 +290,7 @@ export const VALUE_LABELS: Record<string, [namespace: string, prefix: string]> =
   "variant.status": ["products", "status_"],
   "channel_listing.status": ["listings", "status_"],
   "store.status": ["stores", "status_"],
+  "user.status": ["team", "userStatus_"],
   "store.syncMode": ["audit", "syncMode_"],
   "channel_warehouse.mappingStatus": ["warehouses", "mapping_"],
   "stock_allocation_rule.mode": ["storeRules", "mode_"],

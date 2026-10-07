@@ -16,6 +16,7 @@ import {
   meView,
   PageQueryDto,
   PermissionListDto,
+  RevokedDto,
   RoleListDto,
   SetRolesDto,
   SetScopesDto,
@@ -97,6 +98,22 @@ export class UsersController {
   @ZodResponse({ type: UserDto })
   async setScopes(@Ctx() ctx: RequestContext, @Param() p: IdParamDto, @Body() body: SetScopesDto) {
     return userView(await this.users.setScopes(ctx, p.id, body));
+  }
+
+  /** Signs the member out of every device (backend doc 8.30); acting on oneself keeps this session. */
+  @Post(":id/sessions/revoke")
+  @Isolation({ fixture: "user" })
+  @ZodResponse({ status: 200, type: RevokedDto })
+  async revokeSessions(@Ctx() ctx: RequestContext, @Param() p: IdParamDto, @Req() req: AuthedRequest) {
+    return { revoked: await this.users.revokeSessions(ctx, p.id, req.sessionToken) };
+  }
+
+  /** Turns off a member's two-step verification (lost phone and backup codes) and signs them out. */
+  @Post(":id/two-factor/reset")
+  @Isolation({ fixture: "user" })
+  @ZodResponse({ status: 200, type: UserDto })
+  async resetTwoFactor(@Ctx() ctx: RequestContext, @Param() p: IdParamDto) {
+    return userView(await this.users.resetTwoFactor(ctx, p.id));
   }
 }
 

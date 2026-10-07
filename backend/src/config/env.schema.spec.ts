@@ -10,6 +10,8 @@ const common = {
 };
 /** Cloudflare R2, the default file storage. */
 const r2 = { R2_ACCOUNT_ID: "acc", R2_ACCESS_KEY_ID: "key", R2_SECRET_ACCESS_KEY: "secret" };
+/** The api's key for TOTP secrets (backend doc 8.30). */
+const totp = { TOTP_ENCRYPTION_KEY: Buffer.alloc(32, 9).toString("base64") };
 
 describe("parseEnv", () => {
   it("parses the api role with defaults", () => {
@@ -19,9 +21,11 @@ describe("parseEnv", () => {
       DATABASE_URL: "postgres://a@localhost/db",
       PUBLIC_WEB_URL: "http://localhost:3100",
       ...r2,
+      ...totp,
     });
     expect(env).toMatchObject({
       APP_ROLE: "api",
+      TOTP_ISSUER: "OmniSeller",
       PORT: 3000,
       LOG_LEVEL: "info",
       FILE_STORAGE: "r2",
@@ -117,6 +121,7 @@ describe("parseEnv", () => {
       SHOPEE_PARTNER_KEY: "must-not-appear",
       TIKTOKSHOP_APP_SECRET: "must-not-appear",
       ...r2,
+      ...totp,
     });
     expect(env).toMatchObject({ SHOPEE_PARTNER_ID: 2001887 });
     expect(env).not.toHaveProperty("SHOPEE_PARTNER_KEY");
@@ -129,6 +134,7 @@ describe("parseEnv", () => {
       APP_ROLE: "api",
       DATABASE_URL: "postgres://a@localhost/db",
       PUBLIC_WEB_URL: "http://localhost:3100",
+      ...totp,
     };
     expect(() => parseEnv(api)).toThrow(/R2_ACCESS_KEY_ID/);
     expect(parseEnv({ ...api, FILE_STORAGE: "local" })).toMatchObject({ FILE_STORAGE_LOCAL_DIR: ".local/files" });
@@ -136,6 +142,34 @@ describe("parseEnv", () => {
     // MinIO locally: an endpoint instead of the R2 account
     const minio = { R2_ENDPOINT: "http://127.0.0.1:9000", R2_ACCESS_KEY_ID: "minio", R2_SECRET_ACCESS_KEY: "minio123" };
     expect(parseEnv({ ...api, NODE_ENV: "local", ...minio })).toMatchObject({ FILE_STORAGE: "r2" });
+  });
+
+  it("needs a 32-byte TOTP key for the api, and never gives it to the worker", () => {
+    const api = {
+      ...common,
+      APP_ROLE: "api",
+      DATABASE_URL: "postgres://a@localhost/db",
+      PUBLIC_WEB_URL: "http://localhost:3100",
+      ...r2,
+    };
+    expect(() => parseEnv(api)).toThrow(/TOTP_ENCRYPTION_KEY: required/);
+    expect(() => parseEnv({ ...api, TOTP_ENCRYPTION_KEY: "c2hvcnQ=" })).toThrow(/TOTP_ENCRYPTION_KEY: must be 32/);
+    expect(parseEnv({ ...api, ...totp, TOTP_ISSUER: "OmniSeller Staging" })).toMatchObject({
+      TOTP_ISSUER: "OmniSeller Staging",
+    });
+    const worker = parseEnv({
+      ...common,
+      APP_ROLE: "worker",
+      DATABASE_URL_WORKER: "postgres://w@localhost/db",
+      PUBLIC_WEB_URL: "http://localhost:3100",
+      PUBLIC_WEBHOOK_URL: "https://hooks.omniseller.test",
+      EMAIL_TRANSPORT: "memory",
+      TOKEN_KEY_PROVIDER: "local",
+      TOKEN_LOCAL_MASTER_KEY: Buffer.alloc(32, 7).toString("base64"),
+      FILE_STORAGE: "local",
+      ...totp,
+    });
+    expect(worker).not.toHaveProperty("TOTP_ENCRYPTION_KEY");
   });
 
   it("rejects an unknown role with a readable message", () => {
