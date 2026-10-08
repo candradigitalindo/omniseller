@@ -1,4 +1,22 @@
+import { readFile } from "node:fs/promises";
+import AxeBuilder from "@axe-core/playwright";
+import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
+
+/** An invoice's PDF from the history table, as the browser saves it. */
+async function savePdf(page: Page, number: string): Promise<Buffer> {
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page
+      .getByRole("table", { name: "Riwayat tagihan" })
+      .getByRole("link", { name: `Unduh PDF tagihan ${number}` })
+      .click(),
+  ]);
+  expect(download.suggestedFilename()).toBe(`${number}.pdf`);
+  const bytes = await readFile((await download.path()) ?? "");
+  expect(bytes.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+  return bytes;
+}
 
 test("shows the Growth trial with its quotas, and steps down to Starter at once", async ({ page, business }) => {
   void business;
@@ -34,4 +52,35 @@ test("shows the Growth trial with its quotas, and steps down to Starter at once"
   // the sidebar leads here for the Owner
   await page.goto("/");
   await expect(page.getByRole("link", { name: "Langganan & Tagihan" }).first()).toBeVisible();
+});
+
+test("pays for Growth on Xendit's page and keeps the invoice as PDF, waiting and paid", async ({ page, business }) => {
+  test.skip(
+    !process.env.E2E_FAKE_XENDIT,
+    "needs the fake Xendit behind the backend: pnpm mock:xendit, E2E_FAKE_XENDIT=1",
+  );
+  void business;
+  await page.goto("/langganan");
+  await page.getByRole("button", { name: "Berlangganan Growth" }).click();
+  // the worker asks Xendit for the payment page; the screen polls until it is there
+  const pay = page.getByRole("status", { name: "Tagihan menunggu dibayar" }).getByRole("link", { name: /^Bayar INV-/ });
+  await expect(pay).toBeVisible({ timeout: 30_000 });
+  const number = ((await pay.getAttribute("aria-label")) ?? "").replace(/^Bayar /, "");
+  await expect(page.getByText(/^PDF tagihan memuat nama, alamat, dan NPWP bisnis/)).toBeVisible();
+  await savePdf(page, number);
+
+  // Xendit's page in test mode: pay, and back to OmniSeller
+  await pay.click();
+  await expect(page.getByRole("heading", { name: "Pembayaran (mode uji)" })).toBeVisible();
+  await page.getByRole("button", { name: "Bayar (simulasi)" }).click();
+  await expect(page.getByText(/^Terima kasih\. Paket aktif begitu Xendit mengonfirmasi pembayaran/)).toBeVisible();
+  await expect(page).toHaveURL(/\/langganan$/);
+  // the callback reaches the webhook process and the worker; the page polls while the invoice waits
+  const history = page.getByRole("table", { name: "Riwayat tagihan" });
+  await expect(history.getByText("Lunas")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId("current-plan")).toContainText("Bulan setelahnya sudah dibayar");
+  await savePdf(page, number);
+
+  const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
+  expect(result.violations.filter((v) => v.impact === "serious" || v.impact === "critical")).toEqual([]);
 });

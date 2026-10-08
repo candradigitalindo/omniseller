@@ -22,6 +22,7 @@
     "infra:down": "docker compose -f infra/docker/compose.local.yml down",
     "infra:reset": "docker compose -f infra/docker/compose.local.yml down -v",
     "infra:native": "bash tools/scripts/native-infra.sh",
+    "mock:xendit": "tsx test/setup/mock-xendit.cli.ts",
     "db:bootstrap": "tsx --env-file-if-exists=.env.local src/db/bootstrap.cli.ts",
     "db:migrate": "tsx --env-file-if-exists=.env.local src/db/migrate.cli.ts",
     "test": "pnpm -r --filter \"./packages/**\" run test && vitest run --project unit",

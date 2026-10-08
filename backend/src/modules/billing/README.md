@@ -68,6 +68,9 @@ Langganan, tagihan, kuota paket, dan meteran pesanan (PRD 14 dan 15.1, DOKUMEN-T
 - PDF tagihan digambar di api, seperti contoh template label: satu halaman dalam hitungan milidetik, jadi tidak perlu job, penyimpanan, atau masa berlaku berkas. Satu dokumen "TAGIHAN" untuk semua status; yang lunas diberi status "Lunas" dan berlaku sebagai bukti pembayaran.
 - Belum termasuk: pengembalian dana, pembayaran berulang otomatis, pembatasan fitur per paket, kuota token AI dan tautan riset, kode promo dan referral, PPN, dan Faktur Pajak (e-Faktur lewat Coretax).
 
+## Menguji tanpa akun Xendit
+`pnpm mock:xendit` menjalankan Xendit tiruan (`test/setup/mock-xendit.ts`) di port 57480: Invoice API yang sama dengan kunci `xnd_development_test_key_000000`, dan halaman bayar dengan tombol "Bayar (simulasi)" yang mengirim callback lunas ke `http://127.0.0.1:3001/webhooks/xendit` (token `callback-verification-token-test`; ubah lewat `MOCK_XENDIT_CALLBACK_URL` dan `MOCK_XENDIT_CALLBACK_TOKEN`), lalu kembali ke aplikasi. Isi `.env.local` dengan `BILLING_PAYMENTS=xendit`, `XENDIT_API_BASE_URL=http://127.0.0.1:57480`, kunci, dan token itu, lalu jalankan `pnpm dev`. End-to-end di CI memakai cara yang sama.
+
 ## Menguji dengan akun Xendit mode uji
 Integrasi yang sama berjalan dengan kunci mode uji; uang tidak benar-benar berpindah.
 1. Di dashboard Xendit mode **Test**: Settings > Developers > API keys, buat secret key (diawali `xnd_development_`) dengan izin tulis untuk Invoices. Di Settings > Developers > Webhook settings, salin Callback Verification Token.

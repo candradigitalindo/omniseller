@@ -121,6 +121,14 @@ jobs:
       EMAIL_TRANSPORT: log
       EMAIL_FROM: OmniSeller <noreply@omniseller.local>
       TOKEN_KEY_PROVIDER: local
+      # Paid plans against the fake Xendit (backend/test/setup/mock-xendit.cli.ts): the worker creates invoices
+      # there, and its payment page sends the paid callback to the webhook process, as Xendit's test mode does.
+      # The key and token are the fake's own test values, not secrets.
+      BILLING_PAYMENTS: xendit
+      XENDIT_API_BASE_URL: http://127.0.0.1:57480
+      XENDIT_SECRET_KEY: xnd_development_test_key_000000
+      XENDIT_WEBHOOK_TOKEN: callback-verification-token-test
+      E2E_FAKE_XENDIT: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -144,18 +152,21 @@ jobs:
           pnpm build
           pnpm db:bootstrap
           pnpm db:migrate
-      - name: Start api, worker, and scheduler
+      - name: Start the fake Xendit, api, webhook, worker, and scheduler
         working-directory: backend
         run: |
           mkdir -p "$RUNNER_TEMP/logs"
-          for role in api worker scheduler; do
+          nohup pnpm mock:xendit > "$RUNNER_TEMP/logs/xendit.log" 2>&1 &
+          for role in api webhook worker scheduler; do
             APP_ROLE=$role nohup node --enable-source-maps dist/main.js > "$RUNNER_TEMP/logs/$role.log" 2>&1 &
           done
+          answers() { [ "$(curl -s -o /dev/null -w '%{http_code}' "$1")" = "$2" ]; }
           for i in $(seq 1 60); do
-            [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/v1/me)" = "401" ] && exit 0
+            answers http://127.0.0.1:3000/v1/me 401 && answers http://127.0.0.1:3001/healthz 200 &&
+              answers http://127.0.0.1:57480/web/invoices/none 404 && exit 0
             sleep 1
           done
-          cat "$RUNNER_TEMP/logs/api.log"
+          tail -n 50 "$RUNNER_TEMP"/logs/*.log
           exit 1
       - name: Build and start the web app
         working-directory: frontend

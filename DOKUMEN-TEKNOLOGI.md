@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.22 |
+| Versi dokumen | 1.23 |
 | Tanggal | 8 Oktober 2026 |
 | Status | Keputusan final untuk implementasi |
 | Pemilik dokumen | Candra Syahputra |
@@ -590,7 +590,7 @@ Semua lingkungan didefinisikan dengan **Terraform** (modul per komponen, state d
 
 | Tahap | Isi | Pemicu |
 |---|---|---|
-| Verifikasi | `.github/workflows/ci.yml`. Backend: Biome, `tsc --noEmit`, Vitest unit, uji integrasi (termasuk isolasi tenant) pada service PostgreSQL 17 dan Redis 7.2 dengan role aplikasi, dan `openapi.json` harus sama dengan hasil emit. Web app: Biome, `tsc`, Vitest, tipe API harus sama dengan `backend/openapi.json`, `next build`. End-to-end: backend hasil build (api, worker, scheduler) dan web app hasil build, lalu Playwright di Chromium, termasuk pemeriksaan axe. Semgrep menyusul | Setiap push ke `main` dan pull request |
+| Verifikasi | `.github/workflows/ci.yml`. Backend: Biome, `tsc --noEmit`, Vitest unit, uji integrasi (termasuk isolasi tenant) pada service PostgreSQL 17 dan Redis 7.2 dengan role aplikasi, dan `openapi.json` harus sama dengan hasil emit. Web app: Biome, `tsc`, Vitest, tipe API harus sama dengan `backend/openapi.json`, `next build`. End-to-end: backend hasil build (api, webhook, worker, scheduler) dengan Xendit tiruan (`pnpm mock:xendit`, pembayaran disimulasikan di halaman bayarnya) dan web app hasil build, lalu Playwright di Chromium, termasuk pemeriksaan axe. Semgrep menyusul | Setiap push ke `main` dan pull request |
 | Build | Image Docker multi-stage ARM64, push ke ECR, pemindaian Trivy (gagal bila ada kerentanan kritis) | Merge ke `main` |
 | Deploy staging | Migrasi DB sebagai tugas ECS satu kali, lalu deploy semua layanan, lalu Playwright end-to-end dan uji kontrak connector | Setiap merge ke `main` |
 | Deploy produksi | Tag `v*` dengan persetujuan manual satu orang. Migrasi, lalu CodeDeploy blue/green per layanan: 10% lalu lintas selama 10 menit, alarm (error rate, p95 latensi, DLQ) memicu rollback otomatis, lalu 100% | Tag rilis |
@@ -1052,3 +1052,4 @@ export interface MarketplaceConnector {
 | 1.20 | 7 Oktober 2026 | Verifikasi dua langkah diimplementasikan (5.3): otplib 13, kode cadangan sebagai HMAC, rahasia disegel dengan kunci api `TOTP_ENCRYPTION_KEY` (26.2) karena login berjalan di api yang tidak memegang KMS. `SESSION_SECRET` dihapus dari daftar variabel: sesi web tidak memakainya |
 | 1.21 | 8 Oktober 2026 | Langganan dan tagihan diimplementasikan (backend 8.32): Xendit Invoice API per periode dari worker dengan klien sendiri (ADR-040 baru), antrean `billing` (7.1), variabel `BILLING_PAYMENTS`, `XENDIT_SECRET_KEY`, `XENDIT_API_BASE_URL`, dan `XENDIT_WEBHOOK_TOKEN` per proses (26.2; sebelumnya ditulis untuk api dan webhook). Pembayaran berulang otomatis ditunda | Candra Syahputra |
 | 1.22 | 8 Oktober 2026 | PDF tagihan langganan dengan NPWP (backend 8.32): pdf-lib di api saat diminta (ADR-038 diperluas untuk dokumen satu halaman tanpa data dari luar), font bersama di `common/pdf-text.ts`, variabel api `BILLING_ISSUER_NAME`, `BILLING_ISSUER_ADDRESS`, `BILLING_ISSUER_NPWP`, dan `BILLING_ISSUER_EMAIL` (26.2) | Candra Syahputra |
+| 1.23 | 8 Oktober 2026 | End-to-end di CI juga menjalankan proses webhook dan Xendit tiruan, sehingga alur bayar langganan diuji di browser (bagian verifikasi CI) | Candra Syahputra |
