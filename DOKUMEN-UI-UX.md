@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.19 |
+| Versi dokumen | 1.20 |
 | Tanggal | 8 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
@@ -843,6 +843,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
   - Bila waktu lima menit habis, terlalu banyak kode salah, atau akun terkunci, layar kembali ke email dan kata sandi dengan pesan dari api; email tetap terisi.
 
 - Tata letak: kartu tunggal di tengah 420 px pada latar `canvas` dengan logo di atas; formulir sederhana; kesalahan ditulis jelas; tautan "Lupa kata sandi"; halaman 2FA meminta enam digit dengan input besar terpisah dan tombol "Pakai kode cadangan". Daftar: nama bisnis, email, kata sandi dengan indikator kekuatan, persetujuan syarat. Undangan: menampilkan nama bisnis dan peran yang diberikan.
+- **Persetujuan di Daftar**: "Saya menyetujui syarat layanan dan kebijakan privasi OmniSeller." Bila web app dibangun dengan alamat situs publik (`NEXT_PUBLIC_SITE_URL`), "syarat layanan" dan "kebijakan privasi" adalah tautan ke dokumennya di situs itu, dibuka di tab baru agar isian tidak hilang; tanpa alamat itu keduanya teks biasa.
 - **Prompt untuk AI**: "Halaman masuk: kartu putih di tengah latar abu muda, logo OmniSeller, input email dan kata sandi tinggi 48 px, tombol utama lebar penuh 'Masuk', tautan 'Lupa kata sandi'. Halaman 2FA: enam kotak digit besar, teks 'Masukkan kode dari aplikasi autentikator', tautan 'Pakai kode cadangan'."
 
 #### L50 Onboarding Pertama Kali
@@ -897,6 +898,13 @@ Layar persetujuan sekali: penjelasan risiko dalam bahasa sederhana (marketplace 
 ### 15.6 Persiapan kampanye besar
 
 Tiga minggu sebelum: notifikasi "Rencanakan 11.11" mengarah ke L37. Pengguna melihat prakiraan, menyetujui saran stok cadangan (menjadi draf PO), mengatur cut-off dan staf, mengaktifkan mode kampanye otomatis. Hari H: beranda menampilkan banner ungu "Mode kampanye aktif" dengan angka real-time. Setelahnya: evaluasi di L37.
+
+#### L53 Situs publik (`website/`)
+
+- Di luar web app, untuk calon pelanggan dan pemeriksaan pihak ketiga (pendaftaran Xendit, review partner marketplace): Beranda (manfaat, untuk siapa, fitur yang sudah ada, cara kerja), Harga (tiga paket dengan kuota dan dukungan, uji coba, aturan bayar, tanya jawab), Kontak (email, WhatsApp, data pribadi, layanan pengaduan, pengelola), Syarat Layanan, Kebijakan Privasi, Kebijakan Pengembalian Dana, dan halaman 404.
+- Warna, logo, dan nada bahasa sama dengan web app; huruf sistem; terang dan gelap mengikuti perangkat. Tanpa skrip, cookie, atau font dari luar. Header: logo, menu Fitur, Harga, Kontak, tombol "Masuk" (sembunyi di ponsel) dan "Coba gratis". Kaki: pengelola dengan NIB dan NPWP, tautan produk, kebijakan, dan kontak.
+- Dokumen hukum: judul, tanggal pembaruan, ringkasan berlatar biru muda, daftar isi, bagian bernomor.
+- Isinya dibangun dari `website/site.json`; rincian di `website/README.md`.
 
 ---
 
@@ -1055,3 +1063,4 @@ Sebelum layar dinyatakan selesai:
 | 1.17 | 7 Oktober 2026 | L43 Kurir & Jam Operasional di web app (`/kurir-jam`: cut-off per gudang dan kurir, hari libur kurir, minggu biasa dan periode khusus). L03: kolom batas kirim memakai batas yang lebih dulu dengan pil "Pickup 15.00 · 2 jam lagi" dan catatan "Lewat pickup", chip "Pickup hari ini". L04: baris "Pickup kurir". L01: tugas pickup hari ini. Aksi kartu turun ke bawah keterangan di kartu sempit | Candra Syahputra |
 | 1.18 | 8 Oktober 2026 | L45 Langganan & Tagihan di web app (`/langganan`): paket saat ini dan keadaannya, bar pemakaian terhadap kuota, tagihan yang menunggu dengan halaman bayar Xendit dan potongan naik paket, kartu paket dengan aksi sesuai aturan (naik saat dibayar, turun di akhir periode dengan konfirmasi, dijadwalkan, tetap), riwayat tagihan sebagai tabel atau daftar di ponsel. L01: tugas langganan untuk pemilik. Sidebar Pengaturan mendapat Langganan & Tagihan | Candra Syahputra |
 | 1.19 | 8 Oktober 2026 | L45: unduh PDF setiap tagihan (nama, alamat, dan NPWP bisnis dari L47; yang lunas memuat data saat dibayar) dan petunjuk asal datanya dengan tautan ke Profil bisnis | Candra Syahputra |
+| 1.20 | 8 Oktober 2026 | L53 Situs publik baru (beranda, harga, kontak, tiga kebijakan); L49 persetujuan di Daftar menautkan Syarat Layanan dan Kebijakan Privasi di situs itu | Candra Syahputra |

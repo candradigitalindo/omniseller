@@ -1,0 +1,74 @@
+{
+  "brand": "OmniSeller",
+  "url": "https://omniseller.example",
+  "appUrl": "https://app.omniseller.example",
+  "company": {
+    "legalName": "PT Contoh Niaga Digital",
+    "address": "Jl. Contoh Raya No. 1, Jakarta Selatan 12345",
+    "nib": "1234567890123",
+    "npwp": "01.234.567.8-901.000",
+    "court": "Pengadilan Negeri Jakarta Selatan"
+  },
+  "contact": {
+    "email": "halo@omniseller.example",
+    "privacyEmail": "privasi@omniseller.example",
+    "whatsapp": "6281200000000",
+    "hours": "Senin sampai Jumat, 09.00 sampai 18.00 WIB"
+  },
+  "pricing": {
+    "trialDays": 14,
+    "graceDays": 7,
+    "renewalNoticeDays": 7,
+    "taxNote": "Harga sudah termasuk PPN."
+  },
+  "legal": {
+    "updated": "8 Oktober 2026",
+    "changeNoticeDays": 14,
+    "disputeDays": 30,
+    "refundRequestDays": 30,
+    "refundReviewDays": 3,
+    "refundPayoutDays": 14,
+    "deletionDays": 30
+  },
+  "plans": [
+    {
+      "code": "starter",
+      "name": "Starter",
+      "audience": "Pedagang solo",
+      "priceMonthly": 0,
+      "limits": {
+        "stores": 2,
+        "warehouses": 1,
+        "ordersPerMonth": 1000,
+        "users": 2
+      },
+      "support": "Email, hari kerja 09.00 sampai 18.00 WIB"
+    },
+    {
+      "code": "growth",
+      "name": "Growth",
+      "audience": "Toko menengah",
+      "priceMonthly": 899000,
+      "limits": {
+        "stores": 10,
+        "warehouses": 2,
+        "ordersPerMonth": 10000,
+        "users": 10
+      },
+      "support": "Email dan WhatsApp bisnis, setiap hari 08.00 sampai 21.00 WIB"
+    },
+    {
+      "code": "business",
+      "name": "Business",
+      "audience": "Brand dan distributor",
+      "priceMonthly": 2499000,
+      "limits": {
+        "stores": null,
+        "warehouses": null,
+        "ordersPerMonth": 100000,
+        "users": null
+      },
+      "support": "Email, WhatsApp bisnis, pendamping akun, dan migrasi dikerjakan tim"
+    }
+  ]
+}

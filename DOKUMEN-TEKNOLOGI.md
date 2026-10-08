@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.24 |
+| Versi dokumen | 1.25 |
 | Tanggal | 8 Oktober 2026 |
 | Status | Keputusan final untuk implementasi |
 | Pemilik dokumen | Candra Syahputra |
@@ -78,7 +78,7 @@ Dokumen ini menetapkan teknologi yang dipakai OmniSeller. Setiap lapisan memilik
 | Observabilitas | OpenTelemetry ke Grafana Cloud (metrik, log, trace), Sentry untuk error, Better Stack untuk uptime, status page, dan on-call |
 | Lint dan format | Biome |
 | Pengujian | Vitest, Supertest, Testcontainers, Playwright, Maestro, k6, OWASP ZAP, Semgrep, Trivy |
-| Manajemen paket dan repositori | pnpm 10 workspaces per komponen (`backend/`, `frontend/`, nanti `mobile/`); Turborepo tidak dipakai (ADR-032) |
+| Manajemen paket dan repositori | pnpm 10 workspaces per komponen (`backend/`, `frontend/`, nanti `mobile/`); Turborepo tidak dipakai (ADR-032). Situs publik `website/` tanpa dependensi (ADR-041) |
 
 ---
 
@@ -855,6 +855,7 @@ Fase 2 menambah satu engineer backend (promosi, chat, kesehatan toko) dan satu e
 | ADR-038 | Label dan dokumen tabel (pick list) dibuat dengan pdf-lib dan Noto Sans di worker, bukan Playwright; Playwright ditambahkan saat dokumen bertemplat HTML pertama dibangun | Label marketplace sudah PDF dan cukup digabung; pick list adalah tabel. Tanpa Chromium, image worker lebih kecil, dokumen terbentuk dalam hitungan milidetik, dan uji tidak bergantung pada browser | Tata letak pick list ditulis dalam kode, bukan template; karakter di luar Noto Sans (emoji, aksara CJK) dibuang dari teks dokumen. Dokumen satu halaman tanpa data dari luar (contoh template label, PDF tagihan langganan) digambar api saat diminta, tanpa job dan berkas; font dan penyesuaian teks bersama di `common/pdf-text.ts` |
 | ADR-039 | Web app di `frontend/` sebagai workspace pnpm sendiri yang memakai backend hanya lewat kontrak OpenAPI (`backend/openapi.json`, tipe dari openapi-typescript); api dipanggil di origin yang sama (`/v1/*` lewat ALB, rewrites Next di lokal) dengan cookie sesi; data penjual diambil di browser, tanpa SSR data tenant; komponen shadcn di `frontend/src/components/ui` | Menutup pertanyaan terbuka ADR-032. Kontrak yang diterbitkan adalah OpenAPI, jadi build web tidak bergantung pada perkakas backend dan perubahan kontrak terdeteksi `tsc` setelah `api:types`. Origin yang sama berarti tanpa CORS dan tanpa token di JavaScript. Server Next yang tidak memegang data tenant tidak bisa membocorkannya lewat cache atau log | Skema formulir ditulis ulang di web app (validasi api tetap penentu); enum yang dibutuhkan klien harus dinyatakan di skema respons (misalnya `permissions` di `GET /v1/me`); halaman tidak punya data saat render pertama (kerangka statis dan skeleton); `API_ORIGIN` dibaca saat build |
 | ADR-040 | Langganan ditagih dengan Xendit Invoice API, satu tagihan per periode, dibuat worker 7 hari sebelum periode berakhir; bukan Recurring API atau SDK `xendit-node` | Penjual membayar dengan cara yang biasa dipakainya (virtual account, QRIS, e-wallet) tanpa menyimpan kartu; uji coba, potongan naik paket, turun paket di akhir periode, dan tenggang 7 hari tetap di kode sendiri, sehingga aturan yang sama berlaku apa pun cara bayarnya. Klien `fetch` kecil cukup untuk tiga panggilan dan mudah dipalsukan di uji | Setiap periode perlu dibayar sendiri (pengingat dan tugas dasbor menutupinya); pembayaran otomatis dengan kartu atau e-wallet tersimpan menunggu Recurring API; tagihan yang dibatalkan harus ditutup juga di Xendit (`expire!`), dan uang yang tetap tiba dicatat untuk ditangani dukungan |
+| ADR-041 | Situs publik di `website/` sebagai HTML statis yang dibangun skrip Node tanpa dependensi dari `site.json` (data bisnis) dan modul halaman, di-host di Cloudflare Pages atau layanan statis lain; bukan rute di web app | Situs harus terbit sebelum web app berjalan (pendaftaran Xendit, review partner marketplace) dan tidak butuh backend. Tanpa skrip, cookie, atau font dari luar: tidak ada data pengunjung yang diproses, dan halaman tetap cepat. Data bisnis di satu berkas; `--strict` menolak terbit selama masih ada `[ISI: ...]` | Isi dan tampilan ditulis sendiri, bukan komponen web app; harga ditulis ulang di `site.json` dan uji mencocokkannya dengan seed `plan`; setiap perubahan butuh build dan unggah ulang |
 
 ---
 
@@ -902,6 +903,7 @@ marketplace/
 |---|---|---|
 | `APP_ROLE` | semua | `api`, `webhook`, `worker`, `scheduler`, `research-collector` |
 | `API_ORIGIN` | web (build dan dev) | Alamat api untuk rewrites `/v1/*` di lokal; dibaca saat build. Di produksi ALB yang meneruskan `/v1/*`, jadi tidak dipakai |
+| `NEXT_PUBLIC_SITE_URL` | web (build) | Alamat situs publik (`website/`, ADR-041). Bila diisi, persetujuan di halaman daftar menautkan Syarat Layanan dan Kebijakan Privasi di sana; kosong: dokumennya hanya disebut |
 | `DATABASE_URL` | api, webhook | Melalui RDS Proxy, role `omniseller_api` |
 | `DATABASE_URL_WORKER` | worker, scheduler, research-collector | Melalui RDS Proxy, role `omniseller_worker` |
 | `DATABASE_URL_SYSTEM` | scheduler | Role `omniseller_system`. Relay outbox memakai koneksi langsung (bukan RDS Proxy) untuk `LISTEN` |
@@ -1054,3 +1056,4 @@ export interface MarketplaceConnector {
 | 1.22 | 8 Oktober 2026 | PDF tagihan langganan dengan NPWP (backend 8.32): pdf-lib di api saat diminta (ADR-038 diperluas untuk dokumen satu halaman tanpa data dari luar), font bersama di `common/pdf-text.ts`, variabel api `BILLING_ISSUER_NAME`, `BILLING_ISSUER_ADDRESS`, `BILLING_ISSUER_NPWP`, dan `BILLING_ISSUER_EMAIL` (26.2) | Candra Syahputra |
 | 1.23 | 8 Oktober 2026 | End-to-end di CI juga menjalankan proses webhook dan Xendit tiruan, sehingga alur bayar langganan diuji di browser (bagian verifikasi CI) | Candra Syahputra |
 | 1.24 | 8 Oktober 2026 | Email pembayaran langganan membawa PDF tagihan sebagai lampiran (nodemailer `attachments`); variabel penerbit tagihan kini juga untuk worker (26.2) | Candra Syahputra |
+| 1.25 | 8 Oktober 2026 | Situs publik `website/` (ADR-041 baru): beranda, harga, kontak dan pengaduan, Syarat Layanan, Kebijakan Privasi, dan Kebijakan Pengembalian Dana sebagai HTML statis; variabel web `NEXT_PUBLIC_SITE_URL` (26.2) untuk menautkan dokumen itu dari halaman daftar | Candra Syahputra |

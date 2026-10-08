@@ -15,6 +15,7 @@ Aplikasi manajemen penjualan multi-marketplace. Root repositori hanya berisi dok
 ```
 backend/     NestJS (api, webhook, worker, scheduler), migrasi SQL, paket shared, logging, dan connector marketplace
 frontend/    Next.js: web app penjual
+website/     situs publik statis: beranda, harga, kontak, dan kebijakan (tanpa dependensi)
 mobile/      Expo (menyusul)
 ```
 
@@ -70,3 +71,14 @@ Uji end-to-end (Playwright) berjalan terhadap backend dan web app yang sedang be
 ## CI
 
 `.github/workflows/ci.yml` menjalankan lint, typecheck, unit, dan uji integrasi backend (PostgreSQL dan Redis sebagai service), pemeriksaan web app, dan uji end-to-end terhadap stack yang dibangun di runner. Workflow ini berjalan setelah repositori didorong ke GitHub.
+
+## Situs publik
+
+Halaman publik (beranda, harga, kontak, Syarat Layanan, Kebijakan Privasi, Kebijakan Pengembalian Dana) dibangun dari `website/site.json` menjadi HTML statis yang bisa di-host gratis. Butuh Node.js 22 atau lebih baru, tanpa `pnpm install`. Rinciannya di `website/README.md`.
+
+```bash
+cd website
+node build.mjs --strict        # dist/; gagal selama site.json masih berisi [ISI: ...]
+node serve.mjs                 # pratinjau di http://127.0.0.1:4173
+node --test "test/*.test.mjs"
+```

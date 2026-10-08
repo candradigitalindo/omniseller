@@ -4,7 +4,7 @@ Read first: `DOKUMEN-ARSITEKTUR-BACKEND.md` section 2 (contract), then the secti
 Product requirements: `DOKUMEN-SPESIFIKASI-APLIKASI.md`. Technology decisions and ADRs: `DOKUMEN-TEKNOLOGI.md`.
 
 The repository root holds only documents. Each component lives in its own folder with its own pnpm workspace:
-`backend/` and `frontend/` exist now; `mobile/`, `extension/`, `print-agent/` come later (ADR-032).
+`backend/` and `frontend/` exist now, and `website/`, the static public site (ADR-041, no dependencies: `node build.mjs`, `node --test "test/*.test.mjs"`); `mobile/`, `extension/`, `print-agent/` come later (ADR-032).
 Paths in the backend document are relative to `backend/`, and every `pnpm` command below runs from `backend/` unless a section says otherwise.
 
 ## Non-negotiable invariants (backend)
@@ -159,6 +159,11 @@ NestJS injection always uses explicit `@Inject(TOKEN)`; do not rely on construct
 - Buyer data never goes to `console`, `localStorage`, or URLs.
 - Seller actions on a read-only store's orders and returns are refused (409 `store.read_only`): screens hide them with `useStores().readOnly(storeId)` and say where to act instead.
 - Scans go through `ScanBuffer` (one request per code with its quantity): a request per scanned unit spends the business's 600 requests a minute.
+
+## Public site (`website/`)
+- Read `website/README.md`. Business details live only in `site.json`; `[ISI: ...]` marks what the business must fill in, and `--strict` refuses to build while any is left.
+- Only features the app has today: the site is a promise. Plan prices and quotas in `site.json` must equal the seed in `backend/drizzle/sql/90_seeds.sql` (a test compares them); change both together.
+- No scripts, fonts, or images from other sites; "Tokopedia & Shop", never TikTok; literal `&` in templates is `&amp;`. Tests check all three.
 
 ## Definition of done
 Tests per section 13.3 (integration tests run as the application roles, never as a superuser), migration checklist 12.3, docs updated (module README and the backend doc section you touched), PR checklist 15.11.

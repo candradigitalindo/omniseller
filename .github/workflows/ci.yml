@@ -86,6 +86,24 @@ jobs:
           git diff --exit-code -- src/lib/api/schema.d.ts
       - run: pnpm build
 
+  website:
+    name: Public site
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # the placeholders stay until the business fills them in, so CI builds without --strict
+      - name: Build
+        run: node build.mjs
+      - name: Tests
+        run: node --test "test/*.test.mjs"
+
   e2e:
     name: End-to-end
     needs: [backend, frontend]

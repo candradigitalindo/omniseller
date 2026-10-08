@@ -15,7 +15,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api, unwrap } from "@/lib/api/client";
 import { meQueryKey } from "@/lib/session";
+import { siteUrl } from "@/lib/site";
 import { PasswordHint } from "./password-hint";
+
+/** A document of the public site, opened beside the form; its name alone where there is no site. */
+function legalLink(path: string) {
+  const href = siteUrl(path);
+  return (chunks: React.ReactNode) =>
+    href ? (
+      <a href={href} target="_blank" rel="noopener" className="font-medium text-primary hover:underline">
+        {chunks}
+      </a>
+    ) : (
+      chunks
+    );
+}
 
 /** L49 Daftar: a business, its Owner, and a first warehouse in one step (backend `POST /v1/auth/signup`). */
 export function SignupForm() {
@@ -108,8 +122,8 @@ export function SignupForm() {
                 />
               )}
             />
-            <Label htmlFor="agree" className="leading-snug font-normal text-text-700">
-              {t("agree")}
+            <Label htmlFor="agree" className="block leading-snug font-normal text-text-700">
+              {t.rich("agree", { terms: legalLink("/syarat-layanan/"), privacy: legalLink("/kebijakan-privasi/") })}
             </Label>
           </div>
           {errors.agree ? (

@@ -1,0 +1,13 @@
+{
+  "name": "@omniseller/website",
+  "private": true,
+  "type": "module",
+  "description": "OmniSeller's public site: static pages built from site.json, no dependencies (technology doc ADR-041).",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "node build.mjs",
+    "build:strict": "node build.mjs --strict",
+    "preview": "node build.mjs --site test/filled-site.json && node serve.mjs",
+    "test": "node --test \"test/*.test.mjs\""
+  }
+}

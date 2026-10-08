@@ -51,7 +51,7 @@
     "businessNameHint": "Nama toko atau usaha Anda, bisa diubah nanti.",
     "yourName": "Nama Anda",
     "signup": "Daftar",
-    "agree": "Saya menyetujui syarat layanan dan kebijakan privasi OmniSeller.",
+    "agree": "Saya menyetujui <terms>syarat layanan</terms> dan <privacy>kebijakan privasi</privacy> OmniSeller.",
     "agreeRequired": "Setujui syarat layanan untuk melanjutkan.",
     "haveAccount": "Sudah punya akun?",
     "loginLink": "Masuk",
