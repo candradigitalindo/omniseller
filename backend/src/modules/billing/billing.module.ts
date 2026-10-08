@@ -11,6 +11,7 @@ import { BillingService } from "./billing.service";
 import { BillingOverviewService } from "./billing-overview.service";
 import { BillingWorkerService, XENDIT } from "./billing-worker.service";
 import { InvoicePdfService } from "./invoice-pdf.service";
+import { ReceiptAttachments } from "./receipt-attachments";
 import { UsageMeterService } from "./usage-meter.service";
 import { XenditClient, type XenditEnv } from "./xendit.client";
 import { XenditWebhookController, XenditWebhookService } from "./xendit-webhook.controller";
@@ -35,12 +36,17 @@ export class BillingModule {}
 })
 export class BillingHttpModule {}
 
-/** Worker only: the Xendit client (the secret key is the worker's) and the invoice creation job. */
+/**
+ * Worker only: the Xendit client (the secret key is the worker's), the invoice creation job, and the paid
+ * invoice as PDF with its "payment received" email.
+ */
 @Module({
-  imports: [BillingModule, IdentityModule],
+  imports: [BillingModule, IdentityModule, BusinessModule, NotificationInboxModule],
   providers: [
     { provide: XENDIT, inject: [ENV], useFactory: (env: XenditEnv) => new XenditClient(env) },
     BillingWorkerService,
+    InvoicePdfService,
+    ReceiptAttachments,
   ],
   exports: [BillingWorkerService],
 })

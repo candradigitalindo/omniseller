@@ -145,6 +145,9 @@ export async function startWorker(
     FILE_STORAGE: "local",
     FILE_STORAGE_LOCAL_DIR: testFilesDir(infra.keyPrefix),
     ...(opts.xendit ? { XENDIT_SECRET_KEY: XENDIT_TEST_KEY, XENDIT_API_BASE_URL: opts.xendit.url } : {}),
+    // the issuer of the invoice PDF attached to "payment received" emails, as the api prints it
+    BILLING_ISSUER_NAME: "PT Uji Niaga Digital",
+    BILLING_ISSUER_NPWP: "01.234.567.8-901.000",
     ...marketplaceEnv(opts.marketplace, "worker"),
   });
   if (env.APP_ROLE !== "worker") throw new Error("unreachable");

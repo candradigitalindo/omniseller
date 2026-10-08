@@ -11,7 +11,7 @@ Langganan, tagihan, kuota paket, dan meteran pesanan (PRD 14 dan 15.1, DOKUMEN-T
 ## Modul Nest
 - `BillingModule` (api, worker, orders, reporting, exports): `BillingRepository`, `BillingService`, `UsageMeterService`. Hanya mengimpor `IdentityModule`, `NotificationInboxModule`, dan `BusinessModule` (yang tidak mengimpor billing atau pengimpornya), jadi modul yang mengimpornya tidak membentuk siklus.
 - `BillingHttpModule` (api): `BillingOverviewService`, `InvoicePdfService`, dan `BillingController`; mengimpor channel dan inventory untuk menghitung toko dan gudang.
-- `BillingWorkerModule` (worker): `XenditClient` (token `XENDIT`, dari env worker) dan `BillingWorkerService`.
+- `BillingWorkerModule` (worker): `XenditClient` (token `XENDIT`, dari env worker), `BillingWorkerService`, `InvoicePdfService`, dan `ReceiptAttachments`.
 - `BillingWebhookModule` (proses webhook): `XenditWebhookController` (`POST /webhooks/xendit`, di luar OpenAPI) dan `XenditWebhookService`. Didaftarkan sebelum `WebhookHttpModule`, karena Express mencocokkan rute menurut urutan dan `POST /webhooks/{channel}` akan menangkapnya lebih dulu.
 
 ## Service publik
@@ -22,7 +22,8 @@ Langganan, tagihan, kuota paket, dan meteran pesanan (PRD 14 dan 15.1, DOKUMEN-T
   - `taskIn(tx, ctx)` (dasbor), `invoicesIn`, `invoice`, `exportSheets` (`langganan.csv`, `tagihan.csv`).
 - `UsageMeterService.countIn(tx, ctx, "orders", at)`: dipanggil `OrderIntakeService` di transaksi pesanan; `usageIn` untuk L45.
 - `BillingWorkerService.createXenditInvoice` dan `expireXenditInvoice` (worker).
-- `InvoicePdfService.document | render` (api): isi PDF tagihan dan PDF-nya.
+- `InvoicePdfService.document | render` (api dan worker): isi PDF tagihan dan PDF-nya.
+- `ReceiptAttachments` (worker): didaftarkan ke `EmailAttachments` modul notifikasi; email `billing.reminder` beralasan `paid` atau `late_payment` membawa PDF tagihan `data.invoiceId`.
 - `billing-plan.ts` (murni): `planChoice`, `upgradeCredit`, `upgradeStart`, `subscriptionStep`, `billingTask`, `usageWarning`, `lapsesAt`, `invoiceStatusOf`, nomor tagihan.
 - `invoice-document.ts` (murni): `invoiceDocument` (judul, status, tanggal di zona waktu bisnis, penerbit, yang ditagih, baris paket dan potongan, total, catatan), `issuerParty`, `billToParty`, `paymentMethodText`, `invoiceFileName`; `invoice-pdf.ts`: `renderInvoicePdf` (satu halaman A4 dengan pdf-lib dan `common/pdf-text.ts`).
 - `common/plan-limits.ts`: `limitReached` dan `planLimitReached` untuk modul pemilik tabel (identity, channel, inventory).
@@ -36,7 +37,8 @@ Langganan, tagihan, kuota paket, dan meteran pesanan (PRD 14 dan 15.1, DOKUMEN-T
 - Xendit hanya dipanggil worker, tidak pernah di dalam transaksi. Api tidak memegang kunci Xendit; proses webhook hanya memegang Callback Verification Token.
 - Kuota diperiksa modul pemilik tabel saat menambah (toko marketplace, gudang, pengguna dan undangan terbuka); yang sudah melebihi kuota setelah turun paket tidak dihapus. Pesanan tidak pernah ditolak karena kuota; meteran hanya memberi tahu pada 80% dan 100%.
 - PDF tagihan (`GET /v1/billing/invoices/{id}/pdf`) dibuat api saat diminta, tidak disimpan: satu halaman, tanpa data dari luar. Tagihan yang lunas memuat `bill_to`, salinan profil bisnis yang ditulis `applyCallback` di transaksi yang mencatat pembayaran (juga pembayaran terlambat); tagihan lain, dan yang lunas sebelum salinan ada, memuat profil saat ini. `bill_to` tidak masuk log audit: profil asalnya diaudit sendiri.
-- Penerbit tagihan dari env api `BILLING_ISSUER_*` (nama wajib, bawaan "OmniSeller"; alamat, NPWP, email bila diisi). PDF bukan Faktur Pajak dan tidak memuat PPN.
+- Penerbit tagihan dari env `BILLING_ISSUER_*` di api dan worker (nama wajib, bawaan "OmniSeller"; alamat, NPWP, email bila diisi). PDF bukan Faktur Pajak dan tidak memuat PPN.
+- Email "Pembayaran ... diterima" (juga pembayaran yang datang untuk tagihan yang sudah tidak berlaku) membawa PDF tagihan sebagai lampiran, digambar worker saat email dikirim; tagihan yang hilang (tidak pernah diharapkan) membuat email terkirim tanpa lampiran.
 - Semua endpoint `settings:billing` (Owner secara bawaan).
 
 ## Event

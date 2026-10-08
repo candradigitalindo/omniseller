@@ -2,6 +2,7 @@ import { type DynamicModule, Global, Module } from "@nestjs/common";
 import { IdentityModule } from "../identity/identity.module";
 import { createEmailSender, EMAIL_SENDER } from "./email";
 import { NotificationEmailService } from "./email.service";
+import { EmailAttachments } from "./email-attachments";
 import { NotificationsController } from "./inbox.controller";
 import { InboxRepository } from "./inbox.repository";
 import { NotificationInboxService } from "./inbox.service";
@@ -20,11 +21,14 @@ export class NotificationModule {
   }
 }
 
-/** In-app notifications (api and worker): other modules write them, users read their own. */
+/**
+ * In-app notifications (api and worker): other modules write them, users read their own. `EmailAttachments`
+ * is one per process, so the sources other modules register reach the email job.
+ */
 @Module({
   imports: [IdentityModule],
-  providers: [InboxRepository, NotificationInboxService, NotificationPreferencesService],
-  exports: [InboxRepository, NotificationInboxService, NotificationPreferencesService],
+  providers: [InboxRepository, NotificationInboxService, NotificationPreferencesService, EmailAttachments],
+  exports: [InboxRepository, NotificationInboxService, NotificationPreferencesService, EmailAttachments],
 })
 export class NotificationInboxModule {}
 

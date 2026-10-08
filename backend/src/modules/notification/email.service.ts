@@ -9,6 +9,7 @@ import { DB_TENANT } from "../../infra/tokens";
 import { TenantsService } from "../identity/tenants.service";
 import { UsersService } from "../identity/users.service";
 import { EMAIL_SENDER, type EmailSender } from "./email";
+import { EmailAttachments } from "./email-attachments";
 import { InboxRepository } from "./inbox.repository";
 import { notificationEmail } from "./templates";
 
@@ -27,6 +28,7 @@ export class NotificationEmailService {
     @Inject(UsersService) private readonly users: UsersService,
     @Inject(TenantsService) private readonly tenants: TenantsService,
     @Inject(ENV) private readonly env: Env,
+    @Inject(EmailAttachments) private readonly attachments: EmailAttachments,
     @Optional() @Inject(EMAIL_SENDER) private readonly email?: EmailSender,
   ) {}
 
@@ -38,18 +40,22 @@ export class NotificationEmailService {
     if (principal?.user.status !== "active") return false;
     const tenant = await this.tenants.profile(ctx);
     const web = "PUBLIC_WEB_URL" in this.env ? this.env.PUBLIC_WEB_URL : "";
-    await this.email.send(
-      notificationEmail({
+    // drawn now, before anything is sent: a failure retries the whole email
+    const files = await this.attachments.for(ctx, n);
+    await this.email.send({
+      ...notificationEmail({
         to: principal.user.email,
         name: principal.user.name,
         tenantName: tenant.name,
         title: n.title,
         body: n.body,
         url: `${web}/`,
+        attached: files.map((f) => f.filename),
       }),
-    );
+      ...(files.length ? { attachments: files } : {}),
+    });
     await withTenantTx(this.db, ctx, (tx) => this.repo.markSent(tx, n.id, "email", new Date()));
-    log.info({ notification_id: n.id, kind: n.kind }, "notification emailed");
+    log.info({ notification_id: n.id, kind: n.kind, attachments: files.length }, "notification emailed");
     return true;
   }
 }

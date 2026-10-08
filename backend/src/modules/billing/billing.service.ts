@@ -430,6 +430,7 @@ export class BillingService {
           reason: "late_payment",
           title: `Pembayaran ${inv.number} diterima untuk tagihan yang sudah tidak berlaku`,
           body: "Paket tidak berubah. Hubungi dukungan OmniSeller untuk memakai dana ini atau mengembalikannya.",
+          invoiceId: inv.id,
         });
         this.log.warn({ tenant_id: ctx.tenantId, invoice_id: inv.id }, "payment for an invoice no longer in force");
         return "paid";
@@ -445,6 +446,7 @@ export class BillingService {
           reason: "paid",
           title: `Pembayaran ${inv.number} diterima`,
           body: `Paket ${plan?.name ?? ""} aktif sampai ${date(end)}. Terima kasih.`,
+          invoiceId: inv.id,
         });
         this.log.info({ tenant_id: ctx.tenantId, invoice_id: inv.id }, "upgrade paid");
         return "paid";
@@ -460,6 +462,7 @@ export class BillingService {
         body: early
           ? `Paket ${plan?.name ?? ""} berlanjut ${date(inv.periodStart)} sampai ${date(inv.periodEnd)}. Terima kasih.`
           : `Paket ${plan?.name ?? ""} aktif sampai ${date(inv.periodEnd)}. Terima kasih.`,
+        invoiceId: inv.id,
       });
       this.log.info({ tenant_id: ctx.tenantId, invoice_id: inv.id, early }, "renewal paid");
       return "paid";
@@ -801,10 +804,17 @@ export class BillingService {
     await this.tenants.setPlanIn(tx, ctx, starter.id);
   }
 
+  /** `invoiceId`: money came for that invoice, and its email carries the invoice as PDF (`ReceiptAttachments`). */
   private async notify(
     tx: Tx,
     ctx: RequestContext,
-    n: { severity: "info" | "warning" | "critical"; reason: string; title: string; body: string },
+    n: {
+      severity: "info" | "warning" | "critical";
+      reason: string;
+      title: string;
+      body: string;
+      invoiceId?: string;
+    },
   ): Promise<void> {
     await this.inbox.notifyScopedIn(
       tx,
@@ -816,7 +826,7 @@ export class BillingService {
         severity: n.severity,
         title: n.title,
         body: n.body,
-        data: { reason: n.reason },
+        data: { reason: n.reason, ...(n.invoiceId ? { invoiceId: n.invoiceId } : {}) },
       }),
       { email: true },
     );

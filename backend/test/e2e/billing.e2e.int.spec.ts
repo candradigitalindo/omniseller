@@ -486,7 +486,7 @@ describe("subscriptions and billing (PRD 15.1, backend doc 8.32, UI L45)", () =>
   });
 
   it("prints an invoice as PDF billed to the business and its NPWP, and keeps who a paid one was billed to", async () => {
-    const { c, me, tenantId } = await business();
+    const { c, me, email, tenantId } = await business();
     const address = {
       line1: "Jl. Melati No. 5",
       district: "Coblong",
@@ -538,6 +538,22 @@ describe("subscriptions and billing (PRD 15.1, backend doc 8.32, UI L45)", () =>
     // paid: the copy taken with the payment is what it prints from then on
     await pay(tenantId, inv.id);
     expect(await billToOf(inv.id)).toEqual({ name: "Toko Rina Jaya", address, npwp: "3171234567890123" });
+    // the email saying so carries it as PDF, drawn by the worker with the same issuer
+    await drain(tenantId);
+    const mails = worker.email.sent.filter((m) => m.to === email);
+    const receipt = mails.find((m) => m.subject.startsWith(`Pembayaran ${inv.number} diterima`));
+    expect(receipt?.attachments?.map((a) => [a.filename, a.contentType])).toEqual([
+      [`${inv.number}.pdf`, "application/pdf"],
+    ]);
+    expect(receipt!.text).toContain(`Terlampir: ${inv.number}.pdf.`);
+    expect((await PDFDocument.load(receipt!.attachments![0]!.content)).getTitle()).toBe(`Tagihan ${inv.number}`);
+    expect(mails.filter((m) => m !== receipt && m.attachments?.length)).toEqual([]);
+    const drawn = await worker.ctx.get(InvoicePdfService, { strict: false }).document(ctx, inv.id);
+    expect(drawn).toMatchObject({
+      statusLabel: "Lunas",
+      issuer: { name: "PT Uji Niaga Digital", lines: ["NPWP 01.234.567.8-901.000"] },
+      billTo: { name: "Toko Rina Jaya" },
+    });
     expect(
       (await c.patch("/v1/business-profile", { name: "PT Rina Jaya Abadi", address: {}, npwp: null })).status,
     ).toBe(200);
@@ -953,7 +969,7 @@ describe("subscriptions and billing (PRD 15.1, backend doc 8.32, UI L45)", () =>
   });
 
   it("shows a refused Xendit request, retries outages, closes withdrawn invoices at Xendit, and records late money", async () => {
-    const { c, tenantId } = await business();
+    const { c, email, tenantId } = await business();
     xendit.failNext(400, { error_code: "API_VALIDATION_ERROR", message: "payer_email is invalid" });
     const inv = (await choose(c, "business")).body.pendingInvoice as InvoiceBody;
     expect(inv).toMatchObject({ kind: "upgrade", creditAmount: 0, amount: 2_499_000 });
@@ -992,6 +1008,9 @@ describe("subscriptions and billing (PRD 15.1, backend doc 8.32, UI L45)", () =>
     const late = await notices(c, "late_payment");
     expect(late).toHaveLength(1);
     expect(late[0]!.title).toBe(`Pembayaran ${again.number} diterima untuk tagihan yang sudah tidak berlaku`);
+    // its email carries the invoice as PDF too: proof of the money for whoever handles it
+    await drain(tenantId);
+    expect(worker.email.lastTo(email)?.attachments?.map((a) => a.filename)).toEqual([`${again.number}.pdf`]);
 
     // withdrawn while Xendit was still making the page: the page is closed as soon as it exists
     const racing = (await choose(c, "business")).body.pendingInvoice as InvoiceBody;

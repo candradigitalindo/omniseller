@@ -22,7 +22,8 @@ Notifikasi untuk pengguna OmniSeller (PRD FR-NTF-01, FR-NTF-02; backend doc 7.8.
 - `PREFERENCE_KINDS`: jenis yang bisa dipilih beserta label dan bawaan emailnya.
 - `inScope(recipient, item)`: aturan cakupan toko dan gudang yang sama dengan daftar pesanan.
 - `NotificationEmailService` (hanya worker, job `notification.email`): mengirim satu notifikasi ke penerimanya bila masih aktif dan mencatat `channels_sent.email`, sehingga ulangan job tidak mengirim dua kali.
-- `EmailSender` (`EMAIL_SENDER`, hanya worker): `smtp`, `log` (hanya local), `memory` (hanya test). Templatnya di `templates.ts`, termasuk `dailyDigestEmail`.
+- `EmailSender` (`EMAIL_SENDER`, hanya worker): `smtp`, `log` (hanya local), `memory` (hanya test). Templatnya di `templates.ts`, termasuk `dailyDigestEmail`. Pesan boleh membawa `attachments` (nama, tipe, isi); `log` hanya mencatat nama dan ukurannya (`attachmentSummary`).
+- `EmailAttachments` (diekspor `NotificationInboxModule`): modul lain mendaftarkan sumber lampiran saat modul worker-nya mulai (`register`), dan job `notification.email` menanyai semuanya untuk setiap email (`for`), sebelum mengirim. Modul ini tidak mengimpor pemilik sumbernya. Sumber sekarang: PDF tagihan untuk email pembayaran (billing).
 
 ## Aturan
 - Setiap pengguna hanya membaca dan menandai notifikasinya sendiri; penanda untuk id milik orang lain diabaikan. Preferensi juga hanya milik sendiri.

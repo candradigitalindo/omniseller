@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.23 |
+| Versi dokumen | 1.24 |
 | Tanggal | 8 Oktober 2026 |
 | Status | Keputusan final untuk implementasi |
 | Pemilik dokumen | Candra Syahputra |
@@ -917,7 +917,7 @@ marketplace/
 | `LAZADA_*`, `BLIBLI_*` | webhook, worker | Per marketplace, pola yang sama untuk TikTok Shop, Lazada, Blibli |
 | `ANTHROPIC_API_KEY`, `VOYAGE_API_KEY` | worker | |
 | `BILLING_PAYMENTS` (api), `XENDIT_SECRET_KEY`, `XENDIT_API_BASE_URL` (worker), `XENDIT_WEBHOOK_TOKEN` (webhook) | lihat kolom kiri | `BILLING_PAYMENTS=xendit` membuka paket berbayar (bawaan `off`); kunci rahasia Xendit hanya di worker, yang membuat dan menutup tagihan; Callback Verification Token hanya di proses webhook. URL callback: `${PUBLIC_WEBHOOK_URL}/webhooks/xendit`. Kunci uji Xendit berawalan `xnd_development_` |
-| `BILLING_ISSUER_NAME`, `BILLING_ISSUER_ADDRESS`, `BILLING_ISSUER_NPWP`, `BILLING_ISSUER_EMAIL` | api | Penerbit yang dicetak di PDF tagihan langganan: nama badan usaha (bawaan "OmniSeller"), alamat satu baris, NPWP 15 atau 16 digit (titik dan strip boleh), email untuk pertanyaan tagihan. Yang kosong tidak dicetak |
+| `BILLING_ISSUER_NAME`, `BILLING_ISSUER_ADDRESS`, `BILLING_ISSUER_NPWP`, `BILLING_ISSUER_EMAIL` | api, worker | Penerbit yang dicetak di PDF tagihan langganan (diunduh, dan dilampirkan ke email pembayaran): nama badan usaha (bawaan "OmniSeller"), alamat satu baris, NPWP 15 atau 16 digit (titik dan strip boleh), email untuk pertanyaan tagihan. Yang kosong tidak dicetak |
 | `SES_REGION`, `EMAIL_FROM` | worker | |
 | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID` | worker | |
 | `TOTP_ENCRYPTION_KEY`, `TOTP_ISSUER` | api | 32 byte acak dari secret manager: menyegel rahasia TOTP dan kunci HMAC kode cadangan; tidak diberikan ke proses lain. `TOTP_ISSUER` adalah nama di aplikasi autentikator. Sesi web adalah token acak di Redis, jadi tidak ada `SESSION_SECRET` |
@@ -1053,3 +1053,4 @@ export interface MarketplaceConnector {
 | 1.21 | 8 Oktober 2026 | Langganan dan tagihan diimplementasikan (backend 8.32): Xendit Invoice API per periode dari worker dengan klien sendiri (ADR-040 baru), antrean `billing` (7.1), variabel `BILLING_PAYMENTS`, `XENDIT_SECRET_KEY`, `XENDIT_API_BASE_URL`, dan `XENDIT_WEBHOOK_TOKEN` per proses (26.2; sebelumnya ditulis untuk api dan webhook). Pembayaran berulang otomatis ditunda | Candra Syahputra |
 | 1.22 | 8 Oktober 2026 | PDF tagihan langganan dengan NPWP (backend 8.32): pdf-lib di api saat diminta (ADR-038 diperluas untuk dokumen satu halaman tanpa data dari luar), font bersama di `common/pdf-text.ts`, variabel api `BILLING_ISSUER_NAME`, `BILLING_ISSUER_ADDRESS`, `BILLING_ISSUER_NPWP`, dan `BILLING_ISSUER_EMAIL` (26.2) | Candra Syahputra |
 | 1.23 | 8 Oktober 2026 | End-to-end di CI juga menjalankan proses webhook dan Xendit tiruan, sehingga alur bayar langganan diuji di browser (bagian verifikasi CI) | Candra Syahputra |
+| 1.24 | 8 Oktober 2026 | Email pembayaran langganan membawa PDF tagihan sebagai lampiran (nodemailer `attachments`); variabel penerbit tagihan kini juga untuk worker (26.2) | Candra Syahputra |

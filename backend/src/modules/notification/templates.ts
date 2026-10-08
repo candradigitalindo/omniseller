@@ -47,8 +47,11 @@ export function notificationEmail(input: {
   title: string;
   body: string;
   url: string;
+  /** Names of the files sent with it. */
+  attached?: string[];
 }): EmailMessage {
   const lines = [`Halo ${input.name},`, input.body];
+  if (input.attached?.length) lines.push(`Terlampir: ${input.attached.join(", ")}.`);
   const footer = `Email ini dikirim ke pengguna ${input.tenantName} yang mengelola toko di OmniSeller.`;
   return {
     to: input.to,

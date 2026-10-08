@@ -115,13 +115,14 @@ const twoFactor = {
  * checks callbacks against the account's Callback Verification Token. Plain http to Xendit only in local
  * and test (the fake Xendit of the tests).
  */
-const billingApi = {
-  BILLING_PAYMENTS: z.enum(["xendit", "off"]).default("off"),
-  /**
-   * Who issues the invoices as printed on their PDF (backend doc 8.32): the legal name, its address, its
-   * NPWP (15 or 16 digits, typed with or without dots and dashes), and an address for billing questions.
-   * Only the name is required; parts left empty are left off the document.
-   */
+const billingApi = { BILLING_PAYMENTS: z.enum(["xendit", "off"]).default("off") };
+/**
+ * Who issues the invoices as printed on their PDF (backend doc 8.32): the legal name, its address, its NPWP
+ * (15 or 16 digits, typed with or without dots and dashes), and an address for billing questions. Only the
+ * name is required; parts left empty are left off the document. The api draws the PDF on request and the
+ * worker attaches it to the "payment received" email, so both read them.
+ */
+const billingIssuer = {
   BILLING_ISSUER_NAME: z.string().trim().min(1).max(100).default("OmniSeller"),
   BILLING_ISSUER_ADDRESS: z.string().trim().min(1).max(300).optional(),
   BILLING_ISSUER_NPWP: z
@@ -175,6 +176,7 @@ const apiEnv = base
     ...fileStorage,
     ...twoFactor,
     ...billingApi,
+    ...billingIssuer,
   })
   .refine(fileStorageRules[0].check, { path: [fileStorageRules[0].path], message: fileStorageRules[0].message })
   .refine(fileStorageRules[1].check, { path: [fileStorageRules[1].path], message: fileStorageRules[1].message });
@@ -227,6 +229,7 @@ const workerEnv = base
     ...tokenKeys,
     ...fileStorage,
     ...xenditWorker,
+    ...billingIssuer,
   })
   .refine(
     (e: Refinable) =>
