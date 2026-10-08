@@ -115,7 +115,22 @@ const twoFactor = {
  * checks callbacks against the account's Callback Verification Token. Plain http to Xendit only in local
  * and test (the fake Xendit of the tests).
  */
-const billingApi = { BILLING_PAYMENTS: z.enum(["xendit", "off"]).default("off") };
+const billingApi = {
+  BILLING_PAYMENTS: z.enum(["xendit", "off"]).default("off"),
+  /**
+   * Who issues the invoices as printed on their PDF (backend doc 8.32): the legal name, its address, its
+   * NPWP (15 or 16 digits, typed with or without dots and dashes), and an address for billing questions.
+   * Only the name is required; parts left empty are left off the document.
+   */
+  BILLING_ISSUER_NAME: z.string().trim().min(1).max(100).default("OmniSeller"),
+  BILLING_ISSUER_ADDRESS: z.string().trim().min(1).max(300).optional(),
+  BILLING_ISSUER_NPWP: z
+    .string()
+    .transform((v) => v.replace(/[\s.\-/]/g, ""))
+    .refine((v) => /^[0-9]{15,16}$/.test(v), "must be 15 or 16 digits")
+    .optional(),
+  BILLING_ISSUER_EMAIL: z.email().optional(),
+};
 const xenditWorker = {
   XENDIT_SECRET_KEY: z.string().min(10).optional(),
   XENDIT_API_BASE_URL: z.url().default("https://api.xendit.co"),

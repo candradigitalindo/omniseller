@@ -1,6 +1,8 @@
 import type { INestApplication } from "@nestjs/common";
 import type { NestExpressApplication } from "@nestjs/platform-express";
+import { newId } from "@omniseller/shared";
 import { sql } from "drizzle-orm";
+import { PDFDocument } from "pdf-lib";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { localDate } from "../../src/common/time-zone";
@@ -13,6 +15,7 @@ import {
   billingRenewJob,
   billingTrialStartJob,
 } from "../../src/modules/billing/billing.jobs";
+import { InvoicePdfService } from "../../src/modules/billing/invoice-pdf.service";
 import { ExportRenderService } from "../../src/modules/exports/export-render.service";
 import { scanBillingRenewals } from "../../src/scheduler/billing-scan";
 import {
@@ -223,6 +226,19 @@ async function paidGrowth() {
   return { ...b, firstInvoice: inv };
 }
 
+/** A PDF answer as bytes (supertest buffers only the types it knows). */
+const binary = (r: request.Test) =>
+  r.buffer(true).parse((res, cb) => {
+    const chunks: Buffer[] = [];
+    res.on("data", (d: Buffer) => chunks.push(d));
+    res.on("end", () => cb(null, Buffer.concat(chunks)));
+  });
+
+async function billToOf(invoiceId: string): Promise<unknown> {
+  const r = await h.system.db.execute<{ bill_to: unknown }>(sql`SELECT bill_to FROM invoice WHERE id = ${invoiceId}`);
+  return r.rows[0]!.bill_to;
+}
+
 async function planInForce(tenantId: string): Promise<string> {
   const r = await h.system.db.execute<{ code: string }>(
     sql`SELECT p.code FROM tenant t JOIN plan p ON p.id = t.plan_id WHERE t.id = ${tenantId}`,
@@ -308,6 +324,7 @@ describe("subscriptions and billing (PRD 15.1, backend doc 8.32, UI L45)", () =>
     const admin = await addMember(c, tenantId, "Admin");
     expect((await admin.member.get("/v1/billing/subscription")).status).toBe(403);
     expect((await admin.member.post("/v1/billing/subscription", { planCode: "starter" })).status).toBe(403);
+    expect((await admin.member.get(`/v1/billing/invoices/${newId()}/pdf`)).status).toBe(403);
   });
 
   it("keeps Growth after the trial: paid early through Xendit, the paid month starts when the trial ends", async () => {
@@ -466,6 +483,94 @@ describe("subscriptions and billing (PRD 15.1, backend doc 8.32, UI L45)", () =>
     expect(owner.rows[0]!.status).toBe("active");
     expect(await planInForce(tenantId)).toBe("business");
     expect((await notices(c, "paid"))[0]!.body).toMatch(/^Paket Business aktif sampai /);
+  });
+
+  it("prints an invoice as PDF billed to the business and its NPWP, and keeps who a paid one was billed to", async () => {
+    const { c, me, tenantId } = await business();
+    const address = {
+      line1: "Jl. Melati No. 5",
+      district: "Coblong",
+      city: "Kota Bandung",
+      province: "Jawa Barat",
+      postalCode: "40132",
+    };
+    const saved = await c.patch("/v1/business-profile", {
+      name: "Toko Rina Jaya",
+      address,
+      npwp: "12.345.678.9-012.000",
+    });
+    expect(saved.status, JSON.stringify(saved.body)).toBe(200);
+    const inv = (await choose(c, "growth")).body.pendingInvoice as InvoiceBody;
+    await drain(tenantId);
+    const payUrl = (await invoiceOf(c, inv.id)).invoiceUrl;
+    expect(payUrl).toBeTruthy();
+
+    const res = await binary(c.get(`/v1/billing/invoices/${inv.id}/pdf`));
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toBe("application/pdf");
+    expect(res.headers["content-disposition"]).toBe(`attachment; filename="${inv.number}.pdf"`);
+    expect(res.headers["cache-control"]).toBe("no-store"); // the api's own rule for every answer
+    const pdf = await PDFDocument.load(res.body as Buffer);
+    expect(pdf.getPageCount()).toBe(1);
+    expect(pdf.getTitle()).toBe(`Tagihan ${inv.number}`);
+
+    // what the PDF says, as the api assembles it
+    const pdfs = api.get(InvoicePdfService);
+    const ctx = userCtx(tenantId, me.user.id);
+    const waiting = await pdfs.document(ctx, inv.id);
+    expect(waiting).toMatchObject({
+      number: inv.number,
+      statusLabel: "Menunggu pembayaran",
+      issuer: { name: "PT Uji Niaga Digital", lines: ["NPWP 01.234.567.8-901.000"] },
+      billTo: {
+        name: "Toko Rina Jaya",
+        lines: ["Jl. Melati No. 5", "Coblong, Kota Bandung", "Jawa Barat 40132", "NPWP 12.345.678.9-012.000"],
+      },
+      totals: [{ label: "Total", value: "Rp 899.000", strong: true }],
+    });
+    expect(waiting.lines[0]!.description).toBe("Langganan OmniSeller paket Growth");
+    expect(waiting.notes[0]).toBe(`Bayar di ${payUrl} atau lewat menu Langganan & Tagihan di OmniSeller.`);
+    // while it waits, it follows the profile
+    expect(await billToOf(inv.id)).toBeNull();
+    expect((await c.patch("/v1/business-profile", { npwp: "3171234567890123" })).status).toBe(200);
+    expect((await pdfs.document(ctx, inv.id)).billTo.lines.at(-1)).toBe("NPWP 3171234567890123");
+
+    // paid: the copy taken with the payment is what it prints from then on
+    await pay(tenantId, inv.id);
+    expect(await billToOf(inv.id)).toEqual({ name: "Toko Rina Jaya", address, npwp: "3171234567890123" });
+    expect(
+      (await c.patch("/v1/business-profile", { name: "PT Rina Jaya Abadi", address: {}, npwp: null })).status,
+    ).toBe(200);
+    const paid = await pdfs.document(ctx, inv.id);
+    expect(paid).toMatchObject({
+      statusLabel: "Lunas",
+      billTo: {
+        name: "Toko Rina Jaya",
+        lines: ["Jl. Melati No. 5", "Coblong, Kota Bandung", "Jawa Barat 40132", "NPWP 3171234567890123"],
+      },
+      totals: [
+        { label: "Total", value: "Rp 899.000", strong: true },
+        { label: "Dibayar", value: "Rp 899.000", strong: false },
+      ],
+    });
+    expect(paid.facts.slice(2).map((f) => f.label)).toEqual(["Tanggal bayar", "Metode pembayaran"]);
+    expect(paid.facts.at(-1)!.value).toBe("Transfer bank BCA");
+    expect((await binary(c.get(`/v1/billing/invoices/${inv.id}/pdf`))).status).toBe(200);
+    // the copy stays out of the invoice's audit entries: the profile it came from is audited itself
+    const audit = await h.system.db.execute<{ action: string; after: Record<string, unknown> }>(
+      sql`SELECT action, after FROM audit_log WHERE tenant_id = ${tenantId} AND entity_type = 'invoice'
+           AND entity_id = ${inv.id} ORDER BY id`,
+    );
+    expect(audit.rows.map((r) => [r.action, r.after.status])).toEqual([
+      ["insert", "pending"],
+      ["update", "paid"],
+    ]);
+    expect(audit.rows.filter((r) => "bill_to" in r.after)).toEqual([]);
+    // another business's invoice, or none at all
+    const other = await business();
+    const refused = await other.c.get(`/v1/billing/invoices/${inv.id}/pdf`);
+    expect([refused.status, refused.body.code]).toEqual([404, "invoice.not_found"]);
+    expect((await c.get(`/v1/billing/invoices/${newId()}/pdf`)).status).toBe(404);
   });
 
   it("moves down at the end of the paid month: the cheaper plan is billed a week ahead and takes over", async () => {

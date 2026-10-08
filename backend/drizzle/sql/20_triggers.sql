@@ -174,13 +174,14 @@ SELECT ensure_trigger('business_document', 'audit_trg',
   'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF kind, title, number, issued_on, valid_until, file_object_id
      OR DELETE ON business_document FOR EACH ROW EXECUTE FUNCTION audit_row()');
 -- Subscriptions and invoices (backend doc 8.32): which plan was in force when, who chose a plan or a
--- downgrade, and how each invoice ended. Reminder bookkeeping and Xendit's page URL stay out.
+-- downgrade, and how each invoice ended. Reminder bookkeeping, Xendit's page URL, and the billed-to copy
+-- of the business profile (audited on business_profile; migration 0023) stay out.
 SELECT ensure_trigger('subscription', 'audit_trg',
   'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF status, plan_id, next_plan_id, current_period_end ON subscription
      FOR EACH ROW EXECUTE FUNCTION audit_row(''subscription'', ''reminded_stage'')');
 SELECT ensure_trigger('invoice', 'audit_trg',
   'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF status ON invoice FOR EACH ROW
-     EXECUTE FUNCTION audit_row(''invoice'', ''invoice_url'', ''external_invoice_id'', ''error'')');
+     EXECUTE FUNCTION audit_row(''invoice'', ''invoice_url'', ''external_invoice_id'', ''error'', ''bill_to'')');
 SELECT ensure_trigger('data_export', 'audit_download_trg',
   'CREATE TRIGGER audit_download_trg AFTER UPDATE ON data_export FOR EACH ROW
      WHEN (OLD.download_count IS DISTINCT FROM NEW.download_count)

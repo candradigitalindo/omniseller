@@ -1,12 +1,23 @@
 import type { InvoiceStatus, SubscriptionStatus } from "@omniseller/shared";
 import { boolean, integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
 import { baseColumns, globalColumns, money, qty, tstz, ulid } from "../columns";
+import type { BusinessAddress } from "./business";
 
 export interface PlanLimits {
   stores: number | null;
   warehouses: number | null;
   orders_per_month: number | null;
   users: number | null;
+}
+
+/**
+ * Who a paid invoice was billed to, copied from the business profile when the payment was recorded
+ * (migration 0023): the business's name, its address as the profile holds it, and its NPWP as digits.
+ */
+export interface InvoiceBillTo {
+  name: string;
+  address: BusinessAddress;
+  npwp: string | null;
 }
 
 export const plan = pgTable("plan", {
@@ -68,6 +79,7 @@ export const invoice = pgTable("invoice", {
   invoiceExpiresAt: tstz("invoice_expires_at"),
   error: text("error"),
   requestedBy: ulid("requested_by"),
+  billTo: jsonb("bill_to").$type<InvoiceBillTo>(),
 });
 
 /** What the business used in a month of its own time zone (`orders`), against the plan's quota. */

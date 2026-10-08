@@ -31,6 +31,7 @@ describe("Langganan & Tagihan", () => {
     expect(screen.getByText("Toko marketplace tidak dibatasi")).toBeInTheDocument();
     expect(screen.getAllByText("Fitur inti + 7 fitur lanjutan")).toHaveLength(2);
     expect(screen.getByText("Belum ada tagihan.")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Ubah di Profil bisnis" })).not.toBeInTheDocument();
   });
 
   it("asks for an invoice when a pricier plan is chosen, links to its payment page, and lets it be withdrawn", async () => {
@@ -108,7 +109,18 @@ describe("Langganan & Tagihan", () => {
     expect(within(table).getByText("Dibayar 12 Sep 2026 lewat transfer bank BCA")).toBeInTheDocument();
     expect(within(table).getAllByText("Perpanjangan")).toHaveLength(2);
     // the phone list carries the same
-    expect(within(screen.getByRole("list", { name: "Riwayat tagihan" })).getAllByRole("listitem")).toHaveLength(2);
+    const phoneList = screen.getByRole("list", { name: "Riwayat tagihan" });
+    expect(within(phoneList).getAllByRole("listitem")).toHaveLength(2);
+    // every invoice as PDF, with the business's NPWP from its profile
+    const pdfs = within(table).getAllByRole("link", { name: /^Unduh PDF tagihan / });
+    expect(pdfs.map((a) => a.getAttribute("href"))).toEqual([
+      "/v1/billing/invoices/01JINV00000000000000000002/pdf",
+      "/v1/billing/invoices/01JINV00000000000000000001/pdf",
+    ]);
+    expect(within(table).getByRole("link", { name: "Unduh PDF tagihan INV-2609-0001" })).toHaveAttribute("download");
+    expect(within(phoneList).getAllByRole("link", { name: /^Unduh PDF tagihan / })).toHaveLength(2);
+    expect(screen.getByText(/PDF tagihan memuat nama, alamat, dan NPWP bisnis/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ubah di Profil bisnis" })).toHaveAttribute("href", "/profil-bisnis");
 
     await user.click(screen.getByRole("button", { name: "Turun ke Starter" }));
     const dialog = screen.getByRole("dialog", { name: "Turun ke Starter?" });

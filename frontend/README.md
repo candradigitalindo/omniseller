@@ -80,6 +80,7 @@ CI (`.github/workflows/ci.yml`) menjalankan hal yang sama terhadap stack yang di
 ## Jebakan yang sudah pernah terjadi
 
 - Tombol kartu paket di `/langganan` mengikuti `planAction` (`features/billing/billing-meta.ts`), cermin aturan api `planChoice` (backend `billing-plan.ts`): naik paket berlaku saat dibayar, turun paket di akhir periode yang dibayar, selama periode berikutnya sudah dibayar paket lain terkunci. Ubah keduanya bersama, atau layar menawarkan pilihan yang ditolak api.
+- Berkas dari api (PDF tagihan `/v1/billing/invoices/{id}/pdf`, dokumen legalitas, contoh label) dibuka dengan tautan biasa ke `/v1/...`: cookie sesi ikut terkirim dan api menamai berkasnya lewat `Content-Disposition`. Jangan mengambilnya dengan `api` lalu membuat blob; PDF tagihan memuat NPWP dan alamat bisnis, jadi tidak disimpan di browser selain sebagai unduhan.
 - Halaman pembayaran Xendit mengembalikan penjual ke `/langganan?bayar=sukses` atau `?bayar=gagal`. Parameter itu hanya dibaca sekali (toast) lalu dihapus dari alamat dengan `router.replace`; status paket sendiri datang dari api setelah callback Xendit, jadi halaman memuat ulang `GET /v1/billing/subscription` setiap 5 detik selama ada tagihan yang menunggu, dan tidak pernah menyimpulkan "lunas" dari parameter URL.
 
 - `API_ORIGIN` dibaca saat `next build`: rewrites masuk ke hasil build. Build untuk smoke lokal dengan `API_ORIGIN=... pnpm build`.

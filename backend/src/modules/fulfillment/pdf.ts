@@ -1,8 +1,6 @@
-import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
-import * as fontkit from "@pdf-lib/fontkit";
 import { PDFDocument, type PDFEmbeddedPage, type PDFFont, type PDFPage, rgb } from "pdf-lib";
 import type { Barcode } from "../../common/barcode";
+import { clipText, embedFonts, type PdfFonts, wrapText } from "../../common/pdf-text";
 import {
   A4_PAGE,
   a4Cells,
@@ -21,19 +19,9 @@ export type { LabelStrip };
 
 /**
  * PDF documents of the fulfillment module (technology doc 13, ADR-038), drawn with pdf-lib in the
- * worker: marketplace labels merged onto thermal or A4 pages, and the pick list as a table. Noto Sans
- * is bundled in assets/fonts (SIL Open Font License).
+ * worker: marketplace labels merged onto thermal or A4 pages, and the pick list as a table. PdfFonts and
+ * text fitting come from `common/pdf-text.ts`.
  */
-const FONT_DIR = resolve(__dirname, "../../../assets/fonts");
-
-let fontFiles: { regular: Uint8Array; bold: Uint8Array } | undefined;
-function fonts() {
-  fontFiles ??= {
-    regular: readFileSync(join(FONT_DIR, "NotoSans-Regular.ttf")),
-    bold: readFileSync(join(FONT_DIR, "NotoSans-Bold.ttf")),
-  };
-  return fontFiles;
-}
 
 const GRAY = rgb(0.45, 0.45, 0.45);
 const LIGHT = rgb(0.8, 0.8, 0.8);
@@ -57,26 +45,12 @@ export interface LabelEntry {
   strip?: LabelStrip | null;
 }
 
-interface Fonts {
-  regular: PDFFont;
-  bold: PDFFont;
-  text: (s: string) => string;
-}
-
-async function embedFonts(doc: PDFDocument): Promise<Fonts> {
-  doc.registerFontkit(fontkit);
-  const regular = await doc.embedFont(fonts().regular, { subset: true });
-  const bold = await doc.embedFont(fonts().bold, { subset: true });
-  const supported = new Set(regular.getCharacterSet());
-  return { regular, bold, text: (s: string) => drawable(supported, s) };
-}
-
 /**
  * The custom template's area under a label (FR-SHP-16): order number, units, one line per item
  * (quantity, SKU, variant, rack), the buyer's note, and tags, as many lines as fit. The marketplace
  * label above it is not drawn over.
  */
-function drawStrip(page: PDFPage, box: Box, strip: LabelStrip, f: Fonts): void {
+function drawStrip(page: PDFPage, box: Box, strip: LabelStrip, f: PdfFonts): void {
   const pad = 2 * MM;
   const x = box.x + pad;
   const width = box.width - 2 * pad;
@@ -94,15 +68,15 @@ function drawStrip(page: PDFPage, box: Box, strip: LabelStrip, f: Fonts): void {
     size: 7.5,
     font: f.regular,
   });
-  page.drawText(clip(f.bold, f.text(strip.orderNumber), 8, width - f.regular.widthOfTextAtSize(count, 7.5) - 6), {
+  page.drawText(clipText(f.bold, f.text(strip.orderNumber), 8, width - f.regular.widthOfTextAtSize(count, 7.5) - 6), {
     x,
     y: top - 10,
     size: 8,
     font: f.bold,
   });
   const footer = [
-    strip.note ? clip(f.regular, f.text(`Catatan: ${strip.note}`), 7, width) : null,
-    strip.tags.length ? clip(f.bold, f.text(`Tag: ${strip.tags.join(", ")}`), 7, width) : null,
+    strip.note ? clipText(f.regular, f.text(`Catatan: ${strip.note}`), 7, width) : null,
+    strip.tags.length ? clipText(f.bold, f.text(`Tag: ${strip.tags.join(", ")}`), 7, width) : null,
   ].filter((l): l is string => l !== null);
   const step = 8.5;
   const room = Math.max(1, Math.floor((top - 14 - (box.y + pad + footer.length * step)) / step));
@@ -112,7 +86,7 @@ function drawStrip(page: PDFPage, box: Box, strip: LabelStrip, f: Fonts): void {
     const what = [l.sku, l.variant ? `(${l.variant})` : null].filter(Boolean).join(" ");
     const rack = l.bin ? `Rak ${l.bin}` : "";
     const rackWidth = rack ? f.bold.widthOfTextAtSize(f.text(rack), 7.5) : 0;
-    page.drawText(clip(f.regular, f.text(`${l.qty}x  ${what}`), 7.5, width - rackWidth - 4), {
+    page.drawText(clipText(f.regular, f.text(`${l.qty}x  ${what}`), 7.5, width - rackWidth - 4), {
       x,
       y,
       size: 7.5,
@@ -221,25 +195,6 @@ const jakarta = new Intl.DateTimeFormat("id-ID", {
   minute: "2-digit",
 });
 
-/** Text the font can draw: other characters (emoji, CJK) are dropped, whitespace is one space. */
-function drawable(supported: Set<number>, text: string): string {
-  let out = "";
-  for (const ch of text.replace(/\s+/g, " ")) if (supported.has(ch.codePointAt(0)!)) out += ch;
-  return out.trim();
-}
-
-function clip(font: PDFFont, text: string, size: number, width: number): string {
-  if (font.widthOfTextAtSize(text, size) <= width) return text;
-  let lo = 0;
-  let hi = text.length;
-  while (lo < hi) {
-    const mid = Math.ceil((lo + hi) / 2);
-    if (font.widthOfTextAtSize(`${text.slice(0, mid)}…`, size) <= width) lo = mid;
-    else hi = mid - 1;
-  }
-  return `${text.slice(0, lo).trimEnd()}…`;
-}
-
 /**
  * The pick list (FR-SHP-02): one section per warehouse, starting on its own page, lines sorted by rack
  * with a box to tick, the units to take, and how many orders need them.
@@ -249,14 +204,10 @@ export async function renderPickList(input: {
   sections: PickSection[];
 }): Promise<{ pdf: Uint8Array; pages: number }> {
   const doc = await PDFDocument.create();
-  doc.registerFontkit(fontkit);
   doc.setTitle("Daftar ambil");
   doc.setCreator("OmniSeller");
   doc.setProducer("OmniSeller");
-  const regular = await doc.embedFont(fonts().regular, { subset: true });
-  const bold = await doc.embedFont(fonts().bold, { subset: true });
-  const supported = new Set(regular.getCharacterSet());
-  const text = (s: string) => drawable(supported, s);
+  const { regular, bold, text } = await embedFonts(doc);
 
   const margin = 15 * MM;
   const width = A4_PAGE.width - 2 * margin;
@@ -291,7 +242,13 @@ export async function renderPickList(input: {
     page.drawText("Daftar Ambil", { x: margin, y: y - 16, size: 16, font: bold });
     const units = section.lines.reduce((n, l) => n + l.qty, 0);
     const subtitle = text(`${section.warehouse} · ${section.orders} pesanan · ${units} barang · ${when} WIB`);
-    page.drawText(clip(regular, subtitle, 9.5, width), { x: margin, y: y - 31, size: 9.5, font: regular, color: GRAY });
+    page.drawText(clipText(regular, subtitle, 9.5, width), {
+      x: margin,
+      y: y - 31,
+      size: 9.5,
+      font: regular,
+      color: GRAY,
+    });
     y -= 44;
     tableHeader();
     for (const line of section.lines) {
@@ -304,26 +261,26 @@ export async function renderPickList(input: {
       }
       const top = y;
       page.drawRectangle({ x: xOf(0) + 2, y: top - 13, width: 9, height: 9, borderColor: GRAY, borderWidth: 0.8 });
-      page.drawText(clip(bold, text(line.bin ?? "-"), 9.5, columns[1].width - 8), {
+      page.drawText(clipText(bold, text(line.bin ?? "-"), 9.5, columns[1].width - 8), {
         x: xOf(1) + 4,
         y: top - 12,
         size: 9.5,
         font: bold,
       });
-      page.drawText(clip(regular, text(line.sku), 9, columns[2].width - 8), {
+      page.drawText(clipText(regular, text(line.sku), 9, columns[2].width - 8), {
         x: xOf(2) + 4,
         y: top - 12,
         size: 9,
         font: regular,
       });
-      page.drawText(clip(regular, text(line.name), 9, columns[3].width - 8), {
+      page.drawText(clipText(regular, text(line.name), 9, columns[3].width - 8), {
         x: xOf(3) + 4,
         y: top - 12,
         size: 9,
         font: regular,
       });
       if (variant) {
-        page.drawText(clip(regular, variant, 8, columns[3].width - 8), {
+        page.drawText(clipText(regular, variant, 8, columns[3].width - 8), {
           x: xOf(3) + 4,
           y: top - 22,
           size: 8,
@@ -391,28 +348,6 @@ const day = new Intl.DateTimeFormat("id-ID", {
   year: "numeric",
 });
 
-/** Words laid into lines no wider than `width`; the last allowed line ends with "…" when text remains. */
-function wrap(font: PDFFont, text: string, size: number, width: number, maxLines: number): string[] {
-  const lines: string[] = [];
-  let line = "";
-  const words = text.split(" ").filter(Boolean);
-  for (const [i, word] of words.entries()) {
-    const next = line ? `${line} ${word}` : word;
-    if (font.widthOfTextAtSize(next, size) <= width) {
-      line = next;
-      continue;
-    }
-    if (line) lines.push(line);
-    line = word;
-    if (lines.length === maxLines) {
-      lines[maxLines - 1] = clip(font, `${lines[maxLines - 1]} ${words.slice(i).join(" ")}`, size, width);
-      return lines;
-    }
-  }
-  if (line) lines.push(lines.length === maxLines ? "" : line);
-  return lines.filter(Boolean).map((l) => clip(font, l, size, width));
-}
-
 /**
  * The address label of a manual order (FR-ORD-09, FR-WHS-08), 100 x 150 mm: order number, courier and
  * tracking number, the amount to collect for COD, recipient, the sender as the order's warehouse, and
@@ -420,14 +355,10 @@ function wrap(font: PDFFont, text: string, size: number, width: number, maxLines
  */
 export async function renderManualLabel(label: ManualLabel): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
-  doc.registerFontkit(fontkit);
   doc.setTitle(`Label ${label.number}`);
   doc.setCreator("OmniSeller");
   doc.setProducer("OmniSeller");
-  const regular = await doc.embedFont(fonts().regular, { subset: true });
-  const bold = await doc.embedFont(fonts().bold, { subset: true });
-  const supported = new Set(regular.getCharacterSet());
-  const t = (s: string) => drawable(supported, s);
+  const { regular, bold, text: t } = await embedFonts(doc);
   const page = doc.addPage([THERMAL_PAGE.width, THERMAL_PAGE.height]);
   const m = 3 * MM;
   const width = THERMAL_PAGE.width - 2 * m;
@@ -443,16 +374,17 @@ export async function renderManualLabel(label: ManualLabel): Promise<Uint8Array>
   const number = t(label.number);
   right(number, bold, 11, y - 11);
   const leftWidth = width - bold.widthOfTextAtSize(number, 11) - 8;
-  page.drawText(clip(bold, t(label.business), 10, leftWidth), { x: m, y: y - 11, size: 10, font: bold });
+  page.drawText(clipText(bold, t(label.business), 10, leftWidth), { x: m, y: y - 11, size: 10, font: bold });
   y -= 24;
   right(day.format(label.orderedAt), regular, 8, y, GRAY);
-  if (label.courier) page.drawText(clip(regular, t(label.courier), 9, leftWidth), { x: m, y, size: 9, font: regular });
+  if (label.courier)
+    page.drawText(clipText(regular, t(label.courier), 9, leftWidth), { x: m, y, size: 9, font: regular });
   y -= 8;
   rule();
 
   if (label.trackingNumber) {
     page.drawText("Resi", { x: m, y: y - 8, size: 7.5, font: regular, color: GRAY });
-    page.drawText(clip(bold, t(label.trackingNumber), 15, width), { x: m, y: y - 24, size: 15, font: bold });
+    page.drawText(clipText(bold, t(label.trackingNumber), 15, width), { x: m, y: y - 24, size: 15, font: bold });
     y -= 32;
   }
 
@@ -478,13 +410,13 @@ export async function renderManualLabel(label: ManualLabel): Promise<Uint8Array>
   // recipient
   page.drawText("PENERIMA", { x: m, y: y - 7, size: 7.5, font: bold, color: GRAY });
   y -= 20;
-  page.drawText(clip(bold, t(label.recipient.name), 12, width), { x: m, y, size: 12, font: bold });
+  page.drawText(clipText(bold, t(label.recipient.name), 12, width), { x: m, y, size: 12, font: bold });
   y -= 14;
   if (label.recipient.phone) {
     page.drawText(t(label.recipient.phone), { x: m, y, size: 10, font: regular });
     y -= 13;
   }
-  for (const line of wrap(regular, t(label.recipient.address), 9.5, width, 5)) {
+  for (const line of wrapText(regular, t(label.recipient.address), 9.5, width, 5)) {
     page.drawText(line, { x: m, y, size: 9.5, font: regular });
     y -= 12;
   }
@@ -495,9 +427,9 @@ export async function renderManualLabel(label: ManualLabel): Promise<Uint8Array>
   page.drawText("PENGIRIM", { x: m, y: y - 7, size: 7.5, font: bold, color: GRAY });
   y -= 18;
   const sender = [label.sender.name, label.sender.phone].filter(Boolean).join(" · ");
-  page.drawText(clip(bold, t(sender), 9.5, width), { x: m, y, size: 9.5, font: bold });
+  page.drawText(clipText(bold, t(sender), 9.5, width), { x: m, y, size: 9.5, font: bold });
   y -= 11;
-  for (const line of wrap(regular, t(label.sender.address), 8.5, width, 3)) {
+  for (const line of wrapText(regular, t(label.sender.address), 8.5, width, 3)) {
     page.drawText(line, { x: m, y, size: 8.5, font: regular });
     y -= 10.5;
   }
@@ -512,7 +444,7 @@ export async function renderManualLabel(label: ManualLabel): Promise<Uint8Array>
   const fits = Math.max(1, Math.floor((y - footer) / 10.5));
   const shown = label.items.length > fits ? label.items.slice(0, fits - 1) : label.items;
   for (const i of shown) {
-    page.drawText(clip(regular, t(`${i.qty}x  ${i.sku}  ${i.name}`), 8.5, width), {
+    page.drawText(clipText(regular, t(`${i.qty}x  ${i.sku}  ${i.name}`), 8.5, width), {
       x: m,
       y,
       size: 8.5,
@@ -538,7 +470,7 @@ export async function renderManualLabel(label: ManualLabel): Promise<Uint8Array>
   }
   if (label.note) {
     fy += 10;
-    for (const line of wrap(regular, t(`Catatan: ${label.note}`), 8, width, 2).reverse()) {
+    for (const line of wrapText(regular, t(`Catatan: ${label.note}`), 8, width, 2).reverse()) {
       page.drawText(line, { x: m, y: fy, size: 8, font: regular });
       fy += 10;
     }
@@ -592,7 +524,7 @@ export async function renderPackingList(list: PackingList): Promise<Uint8Array> 
       [list.buyer, list.destination].filter(Boolean).join(" · "),
     ].filter((l) => l.trim() !== "");
     for (const line of meta) {
-      page.drawText(clip(f.regular, f.text(line), 8.5, width), { x: m, y, size: 8.5, font: f.regular });
+      page.drawText(clipText(f.regular, f.text(line), 8.5, width), { x: m, y, size: 8.5, font: f.regular });
       y -= 11;
     }
     y -= 2;
@@ -625,9 +557,14 @@ export async function renderPackingList(list: PackingList): Promise<Uint8Array> 
     const rack = line.bin ? f.text(line.bin) : "-";
     const rackWidth = f.bold.widthOfTextAtSize(rack, 8.5);
     const textWidth = width - 38 - rackWidth - 8;
-    page.drawText(clip(f.regular, f.text(line.sku), 8, textWidth), { x: m + 38, y: y - 9, size: 8, font: f.regular });
+    page.drawText(clipText(f.regular, f.text(line.sku), 8, textWidth), {
+      x: m + 38,
+      y: y - 9,
+      size: 8,
+      font: f.regular,
+    });
     const name = [line.name, line.variant].filter(Boolean).join(" · ");
-    page.drawText(clip(f.regular, f.text(name), 7.5, textWidth), {
+    page.drawText(clipText(f.regular, f.text(name), 7.5, textWidth), {
       x: m + 38,
       y: y - 18,
       size: 7.5,
@@ -644,13 +581,13 @@ export async function renderPackingList(list: PackingList): Promise<Uint8Array> 
   // footer of the last page: the buyer's note, tags, and signatures
   let fy = m + 46;
   if (list.note) {
-    for (const line of wrap(f.regular, f.text(`Catatan pembeli: ${list.note}`), 7.5, width, 3)) {
+    for (const line of wrapText(f.regular, f.text(`Catatan pembeli: ${list.note}`), 7.5, width, 3)) {
       page.drawText(line, { x: m, y: fy, size: 7.5, font: f.regular });
       fy -= 9.5;
     }
   }
   if (list.tags.length) {
-    page.drawText(clip(f.bold, f.text(`Tag: ${list.tags.join(", ")}`), 7.5, width), {
+    page.drawText(clipText(f.bold, f.text(`Tag: ${list.tags.join(", ")}`), 7.5, width), {
       x: m,
       y: m + 18,
       size: 7.5,
@@ -713,15 +650,20 @@ export async function renderBarcodeLabels(
   return { pdf: await doc.save(), pages: doc.getPageCount(), dense };
 }
 
-function drawBarcodeLabel(page: PDFPage, box: Box, label: BarcodeLabel, f: Fonts): boolean {
+function drawBarcodeLabel(page: PDFPage, box: Box, label: BarcodeLabel, f: PdfFonts): boolean {
   const pad = 1.5 * MM;
   const x = box.x + pad;
   const width = box.width - 2 * pad;
   let y = box.y + box.height - pad;
-  page.drawText(clip(f.bold, f.text(label.title), 7.5, width), { x, y: y - 7.5, size: 7.5, font: f.bold });
+  page.drawText(clipText(f.bold, f.text(label.title), 7.5, width), { x, y: y - 7.5, size: 7.5, font: f.bold });
   y -= 7.5 + 1.5;
   if (label.subtitle) {
-    page.drawText(clip(f.regular, f.text(label.subtitle), 6.5, width), { x, y: y - 6.5, size: 6.5, font: f.regular });
+    page.drawText(clipText(f.regular, f.text(label.subtitle), 6.5, width), {
+      x,
+      y: y - 6.5,
+      size: 6.5,
+      font: f.regular,
+    });
     y -= 6.5 + 2;
   }
   const b = label.barcode;
@@ -738,7 +680,7 @@ function drawBarcodeLabel(page: PDFPage, box: Box, label: BarcodeLabel, f: Fonts
       color: BLACK,
     });
   }
-  const text = clip(f.regular, f.text(b.text), textSize, width);
+  const text = clipText(f.regular, f.text(b.text), textSize, width);
   page.drawText(text, {
     x: x + (width - f.regular.widthOfTextAtSize(text, textSize)) / 2,
     y: box.y + pad,
@@ -846,7 +788,7 @@ export async function renderManifest(m: Manifest): Promise<{ pdf: Uint8Array; pa
     `Kurir: ${m.courier} · ${m.parcels.length} paket · ${when.format(m.completedAt)}`,
   ].filter(Boolean);
   for (const line of facts) {
-    page.drawText(clip(f.regular, f.text(line), 9.5, width), { x: margin, y: y - 10, size: 9.5, font: f.regular });
+    page.drawText(clipText(f.regular, f.text(line), 9.5, width), { x: margin, y: y - 10, size: 9.5, font: f.regular });
     y -= 13;
   }
   y -= 6;
@@ -875,7 +817,7 @@ export async function renderManifest(m: Manifest): Promise<{ pdf: Uint8Array; pa
     cells.forEach((value, i) => {
       const c = columns[i]!;
       const font = i === 1 ? f.bold : f.regular;
-      const text = clip(font, f.text(value), 9, c.width - 8);
+      const text = clipText(font, f.text(value), 9, c.width - 8);
       const w = font.widthOfTextAtSize(text, 9);
       page.drawText(text, { x: c.right ? xOf(i) + c.width - w - 4 : xOf(i) + 4, y: y - 12, size: 9, font });
     });
@@ -913,7 +855,7 @@ export async function renderManifest(m: Manifest): Promise<{ pdf: Uint8Array; pa
       thickness: 0.6,
       color: GRAY,
     });
-    const name = b.name ? clip(f.regular, f.text(b.name), 9, boxWidth - 12) : "Nama:";
+    const name = b.name ? clipText(f.regular, f.text(b.name), 9, boxWidth - 12) : "Nama:";
     page.drawText(name, { x: x + 6, y: y - boxHeight + 5, size: 9, font: f.regular, color: b.name ? BLACK : GRAY });
   });
 
@@ -965,7 +907,7 @@ export async function renderTestPage(t: TestPage): Promise<{ pdf: Uint8Array; pa
   let y = height - edge - 8 * MM;
   const line = (text: string, size: number, bold = false) => {
     const font = bold ? f.bold : f.regular;
-    const clipped = clip(font, f.text(text), size, inner);
+    const clipped = clipText(font, f.text(text), size, inner);
     page.drawText(clipped, { x: (width - font.widthOfTextAtSize(clipped, size)) / 2, y, size, font });
     y -= size + 5;
   };

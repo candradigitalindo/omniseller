@@ -11,6 +11,7 @@ import type { InvoiceKind } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
+import { BusinessProfileService } from "../business/business-profile.service";
 import { type PlanView, TenantsService } from "../identity/tenants.service";
 import { NotificationInboxService } from "../notification/inbox.service";
 import {
@@ -130,6 +131,7 @@ export class BillingService {
     @Inject(BillingRepository) private readonly repo: BillingRepository,
     @Inject(TenantsService) private readonly tenants: TenantsService,
     @Inject(NotificationInboxService) private readonly inbox: NotificationInboxService,
+    @Inject(BusinessProfileService) private readonly business: BusinessProfileService,
     @Inject(OUTBOX) private readonly outbox: Outbox,
   ) {}
 
@@ -412,6 +414,8 @@ export class BillingService {
         paymentChannel: p.paymentChannel ?? null,
         externalInvoiceId: inv.externalInvoiceId ?? p.xenditInvoiceId,
         error: null,
+        // the PDF of a paid invoice prints who it was billed to then, whatever the profile says later
+        billTo: await this.business.billToIn(tx, ctx),
       };
       const live = await this.repo.live(tx, true);
       const plan = (await this.tenants.listPlansIn(tx)).find((x) => x.id === inv.planId);

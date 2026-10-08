@@ -107,6 +107,9 @@ export async function startApi(
     TOTP_ENCRYPTION_KEY: TEST_TOTP_KEY,
     // paid plans can be chosen (the api itself never calls Xendit)
     ...(opts.xendit ? { BILLING_PAYMENTS: "xendit" } : {}),
+    // who issues invoices, as their PDF prints it (backend doc 8.32)
+    BILLING_ISSUER_NAME: "PT Uji Niaga Digital",
+    BILLING_ISSUER_NPWP: "01.234.567.8-901.000",
     ...marketplaceEnv(opts.marketplace, "api"),
   });
   const moduleRef = await Test.createTestingModule({

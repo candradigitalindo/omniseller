@@ -8,8 +8,8 @@ Profil bisnis dan legalitasnya (PRD 6.13 dan 12, Permendag 19/2026; layar L47; b
 - Nama bisnis dan zona waktu milik `identity` (`tenant`): dibaca dan diubah lewat `TenantsService.profileIn` dan `updateProfileIn`, di transaksi profil. Berkas lewat `FilesService` (tujuan `logo` dan `legal_document`), notifikasi lewat `NotificationInboxService.notifyScopedIn`.
 
 ## Service publik
-- `BusinessProfileService`: `get`, `update`, `setLogo`, `removeLogo`, `logo`, `addDocument`, `updateDocument`, `removeDocument`, `documentFile` (api); `legalTasksIn` (dasbor, di transaksi pemanggil); `alertLegal` (worker); `exportSheets` (ekspor).
-- `business-plan.ts` (murni): status NIB, batas proses (`nibDeadline`), status dokumen, tahap pengingat yang jatuh tempo, dan tugas dasbor.
+- `BusinessProfileService`: `get`, `update`, `setLogo`, `removeLogo`, `logo`, `addDocument`, `updateDocument`, `removeDocument`, `documentFile` (api); `legalTasksIn` (dasbor, di transaksi pemanggil); `billToIn` (billing: nama, alamat, dan NPWP yang ditagih, disalin ke tagihan saat lunas); `alertLegal` (worker); `exportSheets` (ekspor).
+- `business-plan.ts` (murni): status NIB, batas proses (`nibDeadline`), status dokumen, tahap pengingat yang jatuh tempo, tugas dasbor, serta `formatNpwp` (NPWP 15 digit seperti di kartu, 16 digit apa adanya) dan `addressLines` (alamat untuk dokumen cetak).
 
 ## Aturan
 - Semua endpoint `settings:billing` (Owner secara bawaan).

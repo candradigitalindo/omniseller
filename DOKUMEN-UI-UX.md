@@ -2,8 +2,8 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.18 |
-| Tanggal | 7 Oktober 2026 |
+| Versi dokumen | 1.19 |
+| Tanggal | 8 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
 | Dokumen terkait | DOKUMEN-SPESIFIKASI-APLIKASI.md (PRD) versi 1.10, DOKUMEN-UI-UX-MOBILE.md versi 1.0 (aplikasi mobile), DOKUMEN-TEKNOLOGI.md versi 1.1, DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.0 |
@@ -785,7 +785,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
     - Kartu "Paket saat ini" dengan pil status (Uji coba, Aktif, Belum dibayar) dan satu kalimat keadaannya: sisa hari uji coba, kapan periode diperpanjang, paket berikutnya yang dijadwalkan, periode berikutnya yang sudah dibayar, atau tanggal paket turun ke Starter bila tertunggak. Kartu "Pemakaian" dengan bar pesanan bulan ini, toko marketplace, gudang, dan pengguna terhadap kuota (kuning mulai 80%, merah di atas 100%); kuota yang tidak dibatasi ditulis tanpa bar.
     - Tagihan yang menunggu tampil di atas pilihan paket, dengan "Bayar sekarang" ke halaman pembayaran Xendit dan, untuk naik paket atau bulan setelah uji coba, "Batalkan tagihan". Naik paket dari periode yang sudah dibayar menyebut potongan sisa periodenya. Selama halaman pembayaran disiapkan, tombolnya berbunyi "Menyiapkan pembayaran…" dan layar memuat ulang sendiri.
     - Tiga kartu paket berdampingan (bertumpuk di ponsel), paket yang berlaku berbingkai. Tombolnya mengikuti aturan langganan: "Naik ke Business" (berlaku saat dibayar), "Berlangganan Growth" saat uji coba (bulan setelah uji coba), "Pindah ke Growth" atau "Turun ke Starter" dari periode berbayar (berlaku di akhir periode, dengan konfirmasi yang menyebut tanggal, harga, dan kuota baru), "Turun ke Starter" langsung dari uji coba (konfirmasi), "Berlaku 12 Okt" untuk yang sudah dijadwalkan, dan "Tetap di Business" untuk membatalkannya. Selama periode berikutnya sudah dibayar, paket lain tidak bisa dipilih dan keterangannya menyebut tanggalnya. Tanpa pembayaran di lingkungan itu, paket berbayar nonaktif dengan keterangan.
-    - "Riwayat tagihan": tabel di layar lebar (nomor, paket dengan jenisnya, periode, jumlah dengan potongan, status dengan kapan dan lewat apa dibayar, atau alasan gagal), daftar bertumpuk di ponsel. Unduh PDF tagihan menyusul; halaman Xendit menjadi bukti bayar.
+    - "Riwayat tagihan": tabel di layar lebar (nomor, paket dengan jenisnya, periode, jumlah dengan potongan, status dengan kapan dan lewat apa dibayar, atau alasan gagal), daftar bertumpuk di ponsel. Setiap tagihan punya tombol "PDF" (ikon unduh; untuk pembaca layar "Unduh PDF tagihan INV-2610-0001") yang mengunduh `INV-2610-0001.pdf`: satu halaman A4 berjudul "TAGIHAN" dengan status, penerbit, "Ditagihkan kepada" (nama, alamat, NPWP bisnis), tanggal, periode, baris paket dan potongan, total, dan pembayaran; yang lunas berlaku sebagai bukti pembayaran. Di bawah judul kartu: "PDF tagihan memuat nama, alamat, dan NPWP bisnis; tagihan yang lunas memuat data saat dibayar." dengan tautan "Ubah di Profil bisnis" (L47).
     - Kembali dari halaman pembayaran (`?bayar=sukses` atau `gagal`) memberi satu pesan, lalu alamatnya dibersihkan; status paket tetap datang dari api setelah Xendit mengonfirmasi.
 
 #### L41a Log Audit
@@ -1054,3 +1054,4 @@ Sebelum layar dinyatakan selesai:
 | 1.16 | 7 Oktober 2026 | Di web app: L49 langkah verifikasi dua langkah (enam kotak, kode cadangan, kembali ke kata sandi bila habis waktu); L41b kartu Verifikasi dua langkah (QR, kunci yang bisa diketik, kode cadangan sekali tampil, buat baru, matikan) dan Perangkat yang masuk (keluarkan satu atau semua perangkat lain); L41 pil 2FA, keluarkan anggota dari semua perangkat, matikan 2FA anggota | Candra Syahputra |
 | 1.17 | 7 Oktober 2026 | L43 Kurir & Jam Operasional di web app (`/kurir-jam`: cut-off per gudang dan kurir, hari libur kurir, minggu biasa dan periode khusus). L03: kolom batas kirim memakai batas yang lebih dulu dengan pil "Pickup 15.00 · 2 jam lagi" dan catatan "Lewat pickup", chip "Pickup hari ini". L04: baris "Pickup kurir". L01: tugas pickup hari ini. Aksi kartu turun ke bawah keterangan di kartu sempit | Candra Syahputra |
 | 1.18 | 8 Oktober 2026 | L45 Langganan & Tagihan di web app (`/langganan`): paket saat ini dan keadaannya, bar pemakaian terhadap kuota, tagihan yang menunggu dengan halaman bayar Xendit dan potongan naik paket, kartu paket dengan aksi sesuai aturan (naik saat dibayar, turun di akhir periode dengan konfirmasi, dijadwalkan, tetap), riwayat tagihan sebagai tabel atau daftar di ponsel. L01: tugas langganan untuk pemilik. Sidebar Pengaturan mendapat Langganan & Tagihan | Candra Syahputra |
+| 1.19 | 8 Oktober 2026 | L45: unduh PDF setiap tagihan (nama, alamat, dan NPWP bisnis dari L47; yang lunas memuat data saat dibayar) dan petunjuk asal datanya dengan tautan ke Profil bisnis | Candra Syahputra |

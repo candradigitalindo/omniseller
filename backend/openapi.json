@@ -1458,6 +1458,33 @@
         }
       }
     },
+    "/v1/billing/invoices/{id}/pdf": {
+      "get": {
+        "operationId": "BillingController_invoicePdf",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PDF"
+          }
+        },
+        "tags": [
+          "billing"
+        ],
+        "x-isolation": {
+          "fixture": "invoice"
+        }
+      }
+    },
     "/v1/billing/invoices/{id}/void": {
       "post": {
         "operationId": "BillingController_voidInvoice",

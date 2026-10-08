@@ -1,17 +1,39 @@
 import { describe, expect, it } from "vitest";
 import {
   addMonths,
+  addressLines,
   daysBetween,
   digitsOf,
   documentStatus,
   dueDocumentStage,
   dueNibStage,
+  formatNpwp,
   legalTasks,
   nibDeadline,
   nibStatus,
 } from "./business-plan";
 
 describe("business profile rules (backend doc 8.29)", () => {
+  it("prints the 15-digit NPWP as on the card and the 16-digit one as it is", () => {
+    expect(formatNpwp("012345678901000")).toBe("01.234.567.8-901.000");
+    expect(formatNpwp("01.234.567.8-901.000")).toBe("01.234.567.8-901.000");
+    expect(formatNpwp("3171234567890123")).toBe("3171234567890123");
+  });
+
+  it("prints an address as street, district and city, then province and postal code", () => {
+    expect(
+      addressLines({
+        line1: " Jl. Merdeka No. 10 ",
+        district: "Coblong",
+        city: "Kota Bandung",
+        province: "Jawa Barat",
+        postalCode: "40132",
+      }),
+    ).toEqual(["Jl. Merdeka No. 10", "Coblong, Kota Bandung", "Jawa Barat 40132"]);
+    expect(addressLines({ city: "Kota Medan", postalCode: "20112" })).toEqual(["Kota Medan", "20112"]);
+    expect(addressLines({ line1: "  ", district: "" })).toEqual([]);
+  });
+
   it("reads numbers as people type them", () => {
     expect(digitsOf("12.345.678.9-012.000")).toBe("123456789012000");
     expect(digitsOf("1234 5678 90123")).toBe("1234567890123");

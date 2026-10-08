@@ -660,6 +660,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/billing/invoices/{id}/pdf": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["BillingController_invoicePdf"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/billing/invoices/{id}/void": {
     parameters: {
       query?: never;
@@ -9484,6 +9500,26 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["InvoiceDto_Output"];
         };
+      };
+    };
+  };
+  BillingController_invoicePdf: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description PDF */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

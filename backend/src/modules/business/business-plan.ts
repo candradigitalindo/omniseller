@@ -1,4 +1,4 @@
-import type { DocumentReminderStage, NibReminderStage } from "../../db/schema";
+import type { BusinessAddress, DocumentReminderStage, NibReminderStage } from "../../db/schema";
 
 /**
  * The business profile and its legal documents as rules (PRD 6.13 and 12, Permendag 19/2026; UI L47;
@@ -17,6 +17,23 @@ export const REMINDER_DAYS = { first: 30, second: 7 } as const;
 /** Digits only, as numbers are often typed with dots, dashes, or spaces ("12.345.678.9-012.000"). */
 export function digitsOf(text: string): string {
   return text.replace(/[\s.\-/]/g, "");
+}
+
+/** The old 15-digit NPWP as printed on the card (12.345.678.9-012.000); the 16-digit one as it is. */
+export function formatNpwp(digits: string): string {
+  const d = digitsOf(digits);
+  if (d.length !== 15) return d;
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}.${d.slice(8, 9)}-${d.slice(9, 12)}.${d.slice(12)}`;
+}
+
+/** An address as documents print it: the street, then district and city, then province and postal code. */
+export function addressLines(a: BusinessAddress): string[] {
+  const join = (parts: (string | undefined)[], sep: string) =>
+    parts
+      .map((v) => v?.trim())
+      .filter(Boolean)
+      .join(sep);
+  return [join([a.line1], ""), join([a.district, a.city], ", "), join([a.province, a.postalCode], " ")].filter(Boolean);
 }
 
 export type NibStatus = "registered" | "in_process" | "missing";

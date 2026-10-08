@@ -7,7 +7,13 @@ import { sniffFileType } from "../../common/file-type";
 import { provinceOf } from "../../common/region";
 import { localDate } from "../../common/time-zone";
 import type { DbHandle, Tx } from "../../db/client";
-import type { BusinessAddress, BusinessDocumentKind, DocumentReminderStage, NibReminderStage } from "../../db/schema";
+import type {
+  BusinessAddress,
+  BusinessDocumentKind,
+  DocumentReminderStage,
+  InvoiceBillTo,
+  NibReminderStage,
+} from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
 import type { DownloadTarget } from "../files/files.service";
@@ -151,6 +157,16 @@ export class BusinessProfileService {
       documents: (await this.repo.documents(tx)).map((d) => documentView(d, today)),
       today,
     };
+  }
+
+  /**
+   * Who OmniSeller's invoices to this business are billed to (backend doc 8.32): its name, address, and
+   * NPWP as the profile holds them now. Billing copies it into an invoice when the invoice is paid.
+   */
+  async billToIn(tx: Tx, ctx: RequestContext): Promise<InvoiceBillTo> {
+    const { name } = await this.tenants.profileIn(tx, ctx);
+    const p = await this.repo.profile(tx);
+    return { name, address: p?.address ?? {}, npwp: p?.npwp ?? null };
   }
 
   /** Saves the profile; `ifMatch` is the `rowVersion` read (0 before the first save). */

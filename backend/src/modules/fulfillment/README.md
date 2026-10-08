@@ -96,7 +96,7 @@ Pengiriman pesanan (PRD 6.5: FR-SHP-01, 02, 03, 04, 05, 06, 07, 16, 17; FR-ORD-0
 | GET, POST, DELETE | `/v1/handovers`, `/v1/handovers/couriers`, `/v1/handovers/{id}`, `.../scan`, `.../items/{itemId}`, `.../complete`, `.../cancel`, `.../manifest` | `shipment:handover` |
 
 ## Keputusan khusus modul
-- PDF dibuat dengan pdf-lib dan Noto Sans (`assets/fonts`), tanpa browser (ADR-038 di DOKUMEN-TEKNOLOGI). Menyusul: gelombang ambil (FR-ORD-20), penanganan gagal kirim dan RTO (FR-SHP-13), pelacakan pesanan manual lewat API ekspedisi, dan aplikasi agen cetak itu sendiri (folder `print-agent/`).
+- PDF dibuat dengan pdf-lib dan Noto Sans (`assets/fonts`), tanpa browser (ADR-038 di DOKUMEN-TEKNOLOGI). Font dan penyesuaian teks (`embedFonts`, `clipText`, `wrapText`, `drawable`) ada di `common/pdf-text.ts`, dipakai bersama PDF tagihan (billing). Menyusul: gelombang ambil (FR-ORD-20), penanganan gagal kirim dan RTO (FR-SHP-13), pelacakan pesanan manual lewat API ekspedisi, dan aplikasi agen cetak itu sendiri (folder `print-agent/`).
 - Pesanan dengan beberapa paket tercatat sekali di manifest, dengan resi yang dipindai pertama.
 - Manifest tidak mengubah status pesanan marketplace: "Dikirim" datang dari marketplace saat kurir memindai paket.
 - Pesanan yang diatur di Seller Center diadopsi saat penjual menekan "Atur kirim" atau "Ambil label", atau saat paketnya pertama kali dilacak setelah dikirim.

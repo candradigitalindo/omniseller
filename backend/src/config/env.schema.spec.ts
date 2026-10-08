@@ -33,6 +33,33 @@ describe("parseEnv", () => {
     });
   });
 
+  it("prints OmniSeller as the invoice issuer unless told otherwise, with the NPWP as digits", () => {
+    const api = {
+      ...common,
+      APP_ROLE: "api",
+      DATABASE_URL: "postgres://a@localhost/db",
+      PUBLIC_WEB_URL: "http://localhost:3100",
+      ...r2,
+      ...totp,
+    };
+    const plain = parseEnv({ ...api, BILLING_ISSUER_ADDRESS: "", BILLING_ISSUER_NPWP: "" });
+    expect(plain).toMatchObject({ BILLING_ISSUER_NAME: "OmniSeller" });
+    expect(plain).not.toHaveProperty("BILLING_ISSUER_NPWP");
+    expect(plain).not.toHaveProperty("BILLING_ISSUER_ADDRESS");
+    const named = parseEnv({
+      ...api,
+      BILLING_ISSUER_NAME: "PT Contoh Niaga Digital",
+      BILLING_ISSUER_NPWP: "01.234.567.8-901.000",
+      BILLING_ISSUER_EMAIL: "tagihan@omniseller.id",
+    });
+    expect(named).toMatchObject({
+      BILLING_ISSUER_NAME: "PT Contoh Niaga Digital",
+      BILLING_ISSUER_NPWP: "012345678901000",
+    });
+    expect(() => parseEnv({ ...api, BILLING_ISSUER_NPWP: "12.345" })).toThrow(/BILLING_ISSUER_NPWP: must be 15 or 16/);
+    expect(() => parseEnv({ ...api, BILLING_ISSUER_EMAIL: "tagihan" })).toThrow(/BILLING_ISSUER_EMAIL/);
+  });
+
   it("requires the worker database URL for the worker role", () => {
     expect(() => parseEnv({ ...common, APP_ROLE: "worker", DATABASE_URL: "postgres://a@localhost/db" })).toThrow(
       /DATABASE_URL_WORKER/,

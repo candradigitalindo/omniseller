@@ -2,7 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "cn";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, FileDown } from "lucide-react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
@@ -502,6 +503,19 @@ function invoiceNote(t: T, inv: Invoice, tz: string): string {
   return inv.status === "failed" ? (inv.error ?? "") : "";
 }
 
+/** The invoice as an A4 PDF to keep or pass on, with the business's NPWP (backend doc 8.32). */
+function PdfLink({ invoice, className }: { invoice: Invoice; className?: string }) {
+  const t = useTranslations("billing");
+  return (
+    <Button asChild variant="ghost" size="sm" className={className}>
+      <a href={`/v1/billing/invoices/${invoice.id}/pdf`} download aria-label={t("pdfFor", { number: invoice.number })}>
+        <FileDown aria-hidden />
+        {t("pdf")}
+      </a>
+    </Button>
+  );
+}
+
 function InvoicesCard({ state }: { state: BillingState }) {
   const t = useTranslations("billing");
   const tz = useTimeZone();
@@ -513,6 +527,14 @@ function InvoicesCard({ state }: { state: BillingState }) {
     <Card>
       <CardHeader>
         <CardTitle>{t("invoicesTitle")}</CardTitle>
+        {state.invoices.length > 0 ? (
+          <CardDescription>
+            {t("invoicesHint")}{" "}
+            <Link href="/profil-bisnis" className="font-medium text-primary hover:underline">
+              {t("invoicesHintLink")}
+            </Link>
+          </CardDescription>
+        ) : null}
       </CardHeader>
       <CardContent className="px-0">
         {state.invoices.length === 0 ? (
@@ -528,6 +550,9 @@ function InvoicesCard({ state }: { state: BillingState }) {
                     <TableHead>{t("colPeriod")}</TableHead>
                     <TableHead className="text-right">{t("colAmount")}</TableHead>
                     <TableHead>{t("colStatus")}</TableHead>
+                    <TableHead>
+                      <span className="sr-only">{t("colPdf")}</span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -555,6 +580,9 @@ function InvoicesCard({ state }: { state: BillingState }) {
                           ) : null}
                         </div>
                       </TableCell>
+                      <TableCell className="text-right">
+                        <PdfLink invoice={inv} />
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -581,6 +609,7 @@ function InvoicesCard({ state }: { state: BillingState }) {
                     {invoiceNote(t, inv, tz) ? (
                       <span className="text-xs text-text-500">{invoiceNote(t, inv, tz)}</span>
                     ) : null}
+                    <PdfLink invoice={inv} className="ml-auto" />
                   </div>
                 </li>
               ))}
