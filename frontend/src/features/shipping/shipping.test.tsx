@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { currentUrl, setUrl } from "@/test/navigation";
 import { mockApi, problem, renderApp, testMe } from "@/test/render";
 import type { PackingView } from "./shipping-meta";
@@ -83,9 +83,12 @@ describe("Pengiriman: packing by scan", () => {
     });
   }
 
-  it("packs an order only once every unit is scanned", async () => {
+  it("packs an order only once every unit is scanned, with the time it took", async () => {
     const calls = api();
     const user = userEvent.setup();
+    // the station's clock: the order is scanned at 1 s and packed 95.4 s later
+    let clock = 1_000;
+    const now = vi.spyOn(performance, "now").mockImplementation(() => clock);
     renderApp(<ShippingView />);
 
     await user.type(await screen.findByLabelText("Pindai nomor pesanan atau resi"), "SPXID0001{Enter}");
@@ -103,13 +106,16 @@ describe("Pengiriman: packing by scan", () => {
     await user.click(screen.getByRole("button", { name: "Tambah satu Topi Rajut" }));
     expect(pack).toBeEnabled();
 
+    clock = 96_400;
     await user.click(pack);
     await waitFor(() => expect(calls.some((c) => c.path.endsWith("/complete"))).toBe(true));
+    now.mockRestore();
     expect(calls.find((c) => c.path.endsWith("/complete"))?.body).toEqual({
       scans: [
         { code: "01JVARIANT0000000000000001", qty: 2 },
         { code: "sku:TOPI-01", qty: 1 },
       ],
+      seconds: 95,
     });
     expect(await screen.findByText(/Pesanan 2610050AB1 dikemas/)).toBeInTheDocument();
   });

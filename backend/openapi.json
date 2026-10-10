@@ -8974,6 +8974,105 @@
         }
       }
     },
+    "/v1/reports/staff": {
+      "get": {
+        "operationId": "ReportsController_staffReport",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffReportDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "reporting"
+        ],
+        "x-isolation": {
+          "fixture": "order"
+        }
+      }
+    },
+    "/v1/reports/staff/export": {
+      "get": {
+        "operationId": "ReportsController_staffExport",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "section",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "users",
+              "type": "string",
+              "enum": [
+                "users",
+                "days"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV, pemisah ;",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "reporting"
+        ],
+        "x-isolation": {
+          "fixture": "order"
+        }
+      }
+    },
     "/v1/exports": {
       "post": {
         "operationId": "ExportsController_request",
@@ -25272,6 +25371,12 @@
                     }
                   ]
                 },
+                "actorName": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
                 "payload": {
                   "type": "object",
                   "propertyNames": {
@@ -25292,6 +25397,7 @@
                 "toStatus",
                 "actorType",
                 "actorId",
+                "actorName",
                 "payload",
                 "createdAt"
               ],
@@ -28545,6 +28651,12 @@
               ]
             },
             "description": "kode yang dipindai dan berapa kali; jumlah per baris harus sama persis dengan pesanan"
+          },
+          "seconds": {
+            "description": "detik sejak pesanan dipindai sampai dikemas, diukur stasiun; untuk laporan kinerja tim",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 86400
           },
           "print": {
             "description": "Cetak label dan lanjut: label dikirim ke agen cetak setelah pesanan dikemas",
@@ -33611,6 +33723,387 @@
           "byCategory",
           "byRegion",
           "byHour"
+        ],
+        "additionalProperties": false
+      },
+      "StaffReportDto_Output": {
+        "type": "object",
+        "properties": {
+          "timezone": {
+            "type": "string"
+          },
+          "range": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "string"
+              },
+              "to": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "from",
+              "to"
+            ],
+            "additionalProperties": false
+          },
+          "packTimeLimitSeconds": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "total": {
+            "type": "object",
+            "properties": {
+              "processed": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "pesanan yang ia gerakkan maju (terima, atur kirim, kemas, kirim, serah terima), sekali per pesanan"
+              },
+              "packed": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "packedByScan": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "dari `packed`, yang diperiksa per barang di stasiun kemas"
+              },
+              "labels": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "label pesanan yang ia cetak, termasuk cetak ulang"
+              },
+              "pickLists": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "pesanan dalam pick list yang ia cetak"
+              },
+              "packingLists": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "pesanan yang daftar kemasnya ia cetak"
+              },
+              "handedOver": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "paket dalam serah terima kurir yang ia selesaikan"
+              },
+              "timedPacks": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991,
+                "description": "kemas dengan scan yang waktunya tercatat dan tidak lebih dari batas"
+              },
+              "packSecondsAverage": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "rata-rata detik kemas per pesanan dari `timedPacks`"
+              }
+            },
+            "required": [
+              "processed",
+              "packed",
+              "packedByScan",
+              "labels",
+              "pickLists",
+              "packingLists",
+              "handedOver",
+              "timedPacks",
+              "packSecondsAverage"
+            ],
+            "additionalProperties": false
+          },
+          "users": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "processed": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "pesanan yang ia gerakkan maju (terima, atur kirim, kemas, kirim, serah terima), sekali per pesanan"
+                },
+                "packed": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "packedByScan": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "dari `packed`, yang diperiksa per barang di stasiun kemas"
+                },
+                "labels": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "label pesanan yang ia cetak, termasuk cetak ulang"
+                },
+                "pickLists": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "pesanan dalam pick list yang ia cetak"
+                },
+                "packingLists": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "pesanan yang daftar kemasnya ia cetak"
+                },
+                "handedOver": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "paket dalam serah terima kurir yang ia selesaikan"
+                },
+                "timedPacks": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "kemas dengan scan yang waktunya tercatat dan tidak lebih dari batas"
+                },
+                "packSecondsAverage": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "rata-rata detik kemas per pesanan dari `timedPacks`"
+                },
+                "userId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "processed",
+                "packed",
+                "packedByScan",
+                "labels",
+                "pickLists",
+                "packingLists",
+                "handedOver",
+                "timedPacks",
+                "packSecondsAverage",
+                "userId",
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "processed": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "pesanan yang ia gerakkan maju (terima, atur kirim, kemas, kirim, serah terima), sekali per pesanan"
+                },
+                "packed": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "packedByScan": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "dari `packed`, yang diperiksa per barang di stasiun kemas"
+                },
+                "labels": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "label pesanan yang ia cetak, termasuk cetak ulang"
+                },
+                "pickLists": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "pesanan dalam pick list yang ia cetak"
+                },
+                "packingLists": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "pesanan yang daftar kemasnya ia cetak"
+                },
+                "handedOver": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "paket dalam serah terima kurir yang ia selesaikan"
+                },
+                "timedPacks": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "kemas dengan scan yang waktunya tercatat dan tidak lebih dari batas"
+                },
+                "packSecondsAverage": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "rata-rata detik kemas per pesanan dari `timedPacks`"
+                },
+                "date": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "processed",
+                "packed",
+                "packedByScan",
+                "labels",
+                "pickLists",
+                "packingLists",
+                "handedOver",
+                "timedPacks",
+                "packSecondsAverage",
+                "date"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "userDays": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "processed": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "pesanan yang ia gerakkan maju (terima, atur kirim, kemas, kirim, serah terima), sekali per pesanan"
+                },
+                "packed": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "packedByScan": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "dari `packed`, yang diperiksa per barang di stasiun kemas"
+                },
+                "labels": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "label pesanan yang ia cetak, termasuk cetak ulang"
+                },
+                "pickLists": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "pesanan dalam pick list yang ia cetak"
+                },
+                "packingLists": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "pesanan yang daftar kemasnya ia cetak"
+                },
+                "handedOver": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "paket dalam serah terima kurir yang ia selesaikan"
+                },
+                "timedPacks": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "kemas dengan scan yang waktunya tercatat dan tidak lebih dari batas"
+                },
+                "packSecondsAverage": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "rata-rata detik kemas per pesanan dari `timedPacks`"
+                },
+                "userId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "date": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "processed",
+                "packed",
+                "packedByScan",
+                "labels",
+                "pickLists",
+                "packingLists",
+                "handedOver",
+                "timedPacks",
+                "packSecondsAverage",
+                "userId",
+                "date"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "timezone",
+          "range",
+          "packTimeLimitSeconds",
+          "total",
+          "users",
+          "days",
+          "userDays"
         ],
         "additionalProperties": false
       },

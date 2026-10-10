@@ -6,6 +6,10 @@ export type SeriesPoint = SalesReport["series"][number];
 export type ReportQuery = NonNullable<operations["ReportsController_report"]["parameters"]["query"]>;
 export type Channel = NonNullable<ReportQuery["channel"]>;
 export type Section = "series" | "channels" | "stores" | "products" | "categories" | "regions" | "hours";
+export type StaffReport = components["schemas"]["StaffReportDto_Output"];
+export type StaffFigures = StaffReport["total"];
+export type StaffQuery = NonNullable<operations["ReportsController_staffReport"]["parameters"]["query"]>;
+export type StaffSection = "users" | "days";
 
 const CHANNELS = [
   "shopee",
@@ -233,6 +237,26 @@ export function exportHref(section: Section, query: ReportQuery): string {
   const params = new URLSearchParams(Object.entries(query).filter((e): e is [string, string] => e[1] !== undefined));
   params.set("section", section);
   return `/v1/reports/sales/export?${params}`;
+}
+
+/** The team report's CSV (`kinerja-tim-per-anggota-<dari>-<sampai>.csv`), same period (L33 "Unduh"). */
+export function staffExportHref(section: StaffSection, query: StaffQuery): string {
+  const params = new URLSearchParams({
+    ...(query.from && query.to ? { from: query.from, to: query.to } : {}),
+    section,
+  });
+  return `/v1/reports/staff/export?${params}`;
+}
+
+/** An average packing time as minutes with one decimal, the unit of L33's column: 95 s is "1,6". */
+export function packMinutes(seconds: number | null): string | null {
+  if (seconds === null) return null;
+  return new Intl.NumberFormat("id-ID", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(seconds / 60);
+}
+
+/** The rows of "Per hari": the whole team's days, or one member's. */
+export function staffDays(report: StaffReport, memberId: string | null): (StaffFigures & { date: string })[] {
+  return memberId ? report.userDays.filter((d) => d.userId === memberId) : report.days;
 }
 
 /** A change in percentage points with its sign: "+1,2 poin". */

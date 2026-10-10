@@ -78,6 +78,60 @@ describe("OrderDetailSheet", () => {
     expect(await screen.findByRole("button", { name: "Terima pesanan" })).toBeInTheDocument();
   });
 
+  it("names each step of the history and who took it", async () => {
+    const event = (type: string, over: Partial<OrderDetail["events"][number]> = {}): OrderDetail["events"][number] => ({
+      id: `01JEVENT${type
+        .padEnd(18, "0")
+        .slice(0, 18)
+        .toUpperCase()
+        .replace(/[^0-9A-Z]/g, "0")}`,
+      type,
+      fromStatus: null,
+      toStatus: null,
+      actorType: "user",
+      actorId: "01JUSER0000000000000000002",
+      actorName: "Budi Santoso",
+      payload: {},
+      createdAt: "2026-10-05T02:00:00.000Z",
+      ...over,
+    });
+    mockApi({
+      "GET /v1/orders/01JORDER000000000000000001": () =>
+        order({
+          events: [
+            event("created", { actorType: "marketplace", actorId: null, actorName: null }),
+            event("shipment_requested", { actorName: "Rina Wulandari" }),
+            event("pick_list_printed"),
+            event("status_changed", { fromStatus: "ready_to_pack", toStatus: "packed" }),
+            event("handed_over"),
+            event("label_ready", { actorType: "system", actorId: null, actorName: null }),
+            // a user who left keeps the entry without a name
+            event("packing_list_printed", { actorName: null }),
+            event("something_new"),
+          ],
+        }),
+      "GET /v1/orders/01JORDER000000000000000001/shipments": () => ({ items: [] }),
+      "GET /v1/stores": () => ({
+        items: [{ id: STORE, name: "Toko Utama", channel: "shopee", status: "active", syncMode: "live" }],
+      }),
+    });
+    renderApp(<OrderDetailSheet orderId="01JORDER000000000000000001" onClose={() => {}} />);
+    const history = (await screen.findByRole("heading", { name: "Riwayat" })).parentElement as HTMLElement;
+    const entries = within(history)
+      .getAllByRole("listitem")
+      .map((li) => [li.firstChild?.textContent, li.lastChild?.textContent?.replace(/^.* · /, "")]);
+    expect(entries).toEqual([
+      ["Pesanan diperbarui", "oleh Budi Santoso"],
+      ["Daftar kemas dicetak", "oleh pengguna"],
+      ["Label siap dicetak", "otomatis"],
+      ["Diserahkan ke kurir", "oleh Budi Santoso"],
+      ["Status: Siap Dikemas → Dikemas", "oleh Budi Santoso"],
+      ["Masuk pick list yang dicetak", "oleh Budi Santoso"],
+      ["Atur kirim diminta", "oleh Rina Wulandari"],
+      ["Pesanan masuk", "dari marketplace"],
+    ]);
+  });
+
   it("offers no seller step for a store still in parallel mode", async () => {
     api("read_only");
     renderApp(<OrderDetailSheet orderId="01JORDER000000000000000001" onClose={() => {}} />);

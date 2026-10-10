@@ -17,7 +17,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,7 +31,6 @@ import { useCan, useTimeZone } from "@/lib/session";
 import {
   bucketLabel,
   channelOf,
-  customProblem,
   exportHref,
   formatLocalDate,
   formatPercent,
@@ -54,7 +52,7 @@ import {
   todayIn,
   trendPoints,
 } from "./report-meta";
-import { type BarRow, HourHeatmap, HourTable, RankTable, ShareBars } from "./report-parts";
+import { type BarRow, CustomPeriod, HourHeatmap, HourTable, RankTable, ShareBars } from "./report-parts";
 import type { TrendData } from "./trend-chart";
 
 const TrendChart = dynamic(() => import("./trend-chart").then((m) => m.TrendChart), {
@@ -277,47 +275,6 @@ function ScopeSelect({
         ))}
       </SelectContent>
     </Select>
-  );
-}
-
-function CustomPeriod({
-  initial,
-  onApply,
-}: {
-  initial: { from: string; to: string };
-  onApply: (range: { from: string; to: string }) => void;
-}) {
-  const t = useTranslations("reports");
-  const [from, setFrom] = useState(initial.from);
-  const [to, setTo] = useState(initial.to);
-  const [problem, setProblem] = useState<ReturnType<typeof customProblem>>(null);
-  return (
-    <form
-      className="mb-3 flex flex-wrap items-end gap-2"
-      onSubmit={(e) => {
-        e.preventDefault();
-        const p = customProblem(from, to);
-        setProblem(p);
-        if (!p) onApply({ from, to });
-      }}
-    >
-      <div className="grid gap-1.5">
-        <Label htmlFor="report-from">{t("from")}</Label>
-        <Input id="report-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-44" />
-      </div>
-      <div className="grid gap-1.5">
-        <Label htmlFor="report-to">{t("to")}</Label>
-        <Input id="report-to" type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-44" />
-      </div>
-      <Button type="submit" variant="secondary">
-        {t("apply")}
-      </Button>
-      {problem ? (
-        <p role="alert" className="w-full text-sm text-danger">
-          {t(`customProblem_${problem}`)}
-        </p>
-      ) : null}
-    </form>
   );
 }
 

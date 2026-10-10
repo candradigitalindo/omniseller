@@ -60,6 +60,10 @@ interface Rendered {
   result: DocumentResult;
   /** Orders whose labels went into the file. */
   printed: string[];
+  /** Orders whose packing list went into the file (FR-SHP-03). */
+  packingLists?: string[];
+  /** Orders whose goods the pick list gathers (FR-SHP-02). */
+  picked?: string[];
 }
 
 /**
@@ -117,9 +121,11 @@ export class DocumentRenderService {
         const actor = doc.requestedBy
           ? { type: "user" as const, id: doc.requestedBy }
           : { type: "system" as const, id: null };
-        for (const orderId of out.printed) {
-          await this.intake.recordIn(tx, ctx, orderId, "label_printed", actor, { documentId: doc.id });
-        }
+        // the order history says who printed what, and the team report counts it (FR-RPT-10)
+        const note = { documentId: doc.id };
+        await this.intake.recordManyIn(tx, ctx, out.printed, "label_printed", actor, note);
+        await this.intake.recordManyIn(tx, ctx, out.packingLists ?? [], "packing_list_printed", actor, note);
+        await this.intake.recordManyIn(tx, ctx, out.picked ?? [], "pick_list_printed", actor, note);
         return this.print.documentFinishedIn(tx, { id: doc.id, status: "ready", fileObjectId: file.id, error: null });
       });
       // print agents waiting for this document hear about it once the file is attached (FR-SHP-17)
@@ -359,6 +365,8 @@ export class DocumentRenderService {
       pages: composed.pages,
       result: { orders: printed.length, labels: labelPages, missing },
       printed,
+      // an order whose label is not there gets no packing list either
+      packingLists: doc.params.packingList ? printed : [],
     };
   }
 
@@ -429,7 +437,13 @@ export class DocumentRenderService {
       entries.push({ pdf: await renderPackingList(this.packingListOf(o, data, data.template)) });
     }
     const composed = await composeLabels(entries, doc.params.format ?? "thermal");
-    return { pdf: composed.pdf, pages: composed.pages, result: { orders: printable.length, missing }, printed: [] };
+    return {
+      pdf: composed.pdf,
+      pages: composed.pages,
+      result: { orders: printable.length, missing },
+      printed: [],
+      packingLists: printable.map((o) => o.id),
+    };
   }
 
   /** What goes on a manual order's label; the sender is its warehouse (FR-WHS-08). */
@@ -493,6 +507,7 @@ export class DocumentRenderService {
       pages,
       result: { orders: built.sections.reduce((n, s) => n + s.orders, 0), missing: built.missing },
       printed: [],
+      picked: built.orderIds,
     };
   }
 }

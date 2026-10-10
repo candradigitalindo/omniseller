@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.22 |
+| Versi dokumen | 1.23 |
 | Tanggal | 10 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
@@ -554,6 +554,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
   - Kartu Pengiriman menampilkan gudang pengirim dengan tautan "Pindah". "Pindah gudang" juga ada di menu titik tiga dan di kartu Masalah untuk stok yang kurang. Pindah hanya ditawarkan untuk pesanan yang belum dikemas, tidak ditetapkan marketplace, dari toko yang sudah pindah sepenuhnya, dan bila ada gudang lain. Reservasi ikut pindah; stok tercatat yang kurang di gudang tujuan membuat pesanan bermasalah (stok yang belum pernah ditetapkan tidak dihitung, ADR-036).
   - "Perbarui" di samping "Lacak paket" meminta pelacakan dibaca ulang (paling sering sekali per 10 menit per pesanan) untuk pesanan marketplace yang dikirim penjual dan sudah dikirim.
   - Baris "Pickup kurir" dengan waktu cut-off dan pil hitung mundurnya tampil di atas "Batas kirim" marketplace bila pesanan punya batas internal (L43).
+  - Riwayat menyebut siapa: "oleh Budi Santoso" untuk aksi anggota tim, "dari marketplace", atau "otomatis". Setiap langkah punya nama: "Atur kirim diminta", "Label dicetak", "Masuk pick list yang dicetak", "Daftar kemas dicetak", "Diserahkan ke kurir", "Barang retur diterima", dan lainnya; yang belum dikenal tetap "Pesanan diperbarui".
   - Pesanan yang data pembelinya sudah dianonimkan (masa simpan di L47) menampilkan "Data pembeli dianonimkan 10 Okt 2026 sesuai masa simpan data pembeli." di tempat penerima, diikuti kota dan provinsi yang tersisa; event pelacakan tanpa keterangan bertuliskan "Keterangan dihapus bersama data pembeli". Kolom pembeli di daftar pesanan berisi "—".
 - **Prompt untuk AI**: "Panel samping detail pesanan selebar 420 px di kanan daftar. Judul 'SP-2609-88123' dengan pil biru 'Baru' dan ikon Shopee. Stepper mendatar empat langkah dengan langkah pertama aktif. Kartu 'Item (3)' berisi gambar produk 56 px, nama, varian 'Hitam, L', SKU mono 'KAOS-POLOS-HTM-L', 'x2', harga. Kartu 'Pengiriman': J&T Express Reguler, resi belum ada, batas kirim '30 Sep, 15.00 (2 jam lagi)' pil kuning, alamat pembeli. Kartu 'Pembayaran' dengan baris subtotal, voucher penjual, ongkir, total tebal, dan 'Perkiraan laba Rp 62.000' hijau. Kartu 'Masalah' merah muda: 'Stok Kaos Polos Hitam L di Gudang Jakarta tinggal 1, butuh 2' dengan tombol 'Pindahkan dari gudang lain' dan 'Tambah stok'. Footer lengket dengan tombol utama 'Terima pesanan' dan menu titik tiga."
 
@@ -580,6 +581,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **Isi**: tata letak dua kolom: kiri kotak scan besar berfokus otomatis dengan teks "Pindai nomor pesanan atau resi", di bawahnya hasil besar; kanan daftar item pesanan yang sedang dikemas dengan jumlah yang harus dipindai dan yang sudah (2 dari 3), gambar produk besar, kotak berubah hijau saat lengkap. Nada dan warna: hijau penuh layar 1,5 detik saat cocok, merah dengan pesan "SKU ini tidak ada di pesanan" saat salah. Setelah semua item cocok: tombol "Cetak label dan lanjut" (atau otomatis bila diatur).
 - **Aksi utama**: "Cetak label dan lanjut".
 - **Gudang**: teks 18 px ke atas, tombol 56 px; bekerja dengan pemindai USB atau kamera PDA.
+- **Di web app**: stasiun mengukur waktu dari pesanan dipindai sampai dikemas dengan jamnya sendiri dan mengirimkannya bersama pindaian; tidak ada yang tampil di layar. Angka itu menjadi menit kemas per pesanan di L33.
 - **Prompt untuk AI**: "Layar stasiun packing untuk PC gudang. Kiri: kotak input besar dengan ikon barcode dan placeholder 'Pindai nomor pesanan atau resi', di bawahnya area hasil besar bertuliskan 'Kaos Polos Hitam L, cocok, 2 dari 3' dengan latar hijau. Kanan: kartu pesanan 'SP-2609-88123' dengan tiga item bergambar besar, masing-masing dengan penghitung '2/2' hijau bercentang atau '0/1' abu. Tombol besar 56 px 'Cetak label dan lanjut' nonaktif sampai semua lengkap. Kontras tinggi, teks 18 px, tanpa sidebar (mode fokus) dengan tombol keluar kecil di pojok."
 
 #### L07 Pengiriman: Cetak Label dan Antrean Cetak
@@ -732,6 +734,14 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 - **L31 Laporan Stok**: nilai persediaan per gudang (bar), umur stok (bar bertumpuk 0 sampai 30, 31 sampai 60, 61 sampai 90, lebih dari 90 hari), produk tidak bergerak (tabel), prakiraan habis (tabel SKU dengan "habis dalam 6 hari"). Prompt: "Laporan stok dengan bar bertumpuk umur stok berwarna slot 1 sampai 4 dengan celah 2 px antar segmen dan legenda, tabel 'Akan habis' dengan pil kuning '6 hari'."
 - **L32 Kesehatan Toko**: kartu per toko: skor keseluruhan, metrik (Keterlambatan 6,2% dari batas 10%, Pesanan tidak terselesaikan 1,1%, Pembatalan, Respons chat, Poin penalti 2 dari 15) sebagai meter mendatar dengan garis ambang, tren 8 minggu, dan daftar tindakan yang disarankan. Prompt: "Kartu kesehatan 'Shopee Toko Utama': meter mendatar tipis 'Keterlambatan 6,2%' dengan garis ambang di 10% dan warna kuning saat mendekat, 'Poin penalti 2/15' hijau, sparkline 8 minggu, daftar 'Yang bisa dilakukan: kirim 7 pesanan sebelum 15.00'."
 - **L33 Kinerja Tim**: tabel per staf per hari: pesanan diproses, label dicetak, picking, paket dikirim, rata-rata menit per pesanan; grafik bar per staf; catatan "hanya aksi di dalam OmniSeller". Prompt: "Tabel kinerja staf dengan avatar inisial, kolom angka, dan bar kecil rata-rata menit per pesanan."
+  - **Di web app** (`/laporan/kinerja-tim`, izin `settings:user`, Owner secara bawaan; item sidebar Analitik "Kinerja Tim"; mulai paket Growth):
+    - filter periode seperti L30 (Hari ini, 7 hari, 30 hari, Bulan ini, Bulan lalu, Kustom) dan "Unduh" berisi CSV per anggota atau per anggota per hari;
+    - empat angka tim: Pesanan diproses (pesanan yang dikerjakan dua orang dihitung sekali), Dikemas dengan jumlah yang dengan scan, Diserahkan ke kurir, dan Menit kemas per pesanan ("1,6 menit", rata-rata dari Kemas dengan Scan);
+    - kartu "Per anggota tim": avatar inisial, nama, dan bar tipis pesanan diproses, urut terbanyak; kolom Diproses, Dikemas ("3 (2 scan)"), Label, Pick list, Daftar kemas, Ke kurir, Menit/pesanan. Di ponsel setiap anggota menjadi kartu pendek;
+    - kartu "Per hari" dengan pilihan "Semua anggota tim" atau satu anggota (tersimpan di URL), kolom yang sama per tanggal;
+    - kartu "Arti angka" menjelaskan setiap kolom, bahwa kemas lebih dari 30 menit tidak dihitung dalam rata-rata, dan "Hanya aksi di dalam OmniSeller yang dihitung";
+    - tanpa aksi pada periode: "Belum ada aksi tim pada periode ini". Di paket tanpa laporan ini (Starter): "Tersedia mulai paket Growth" dengan tautan "Lihat paket" untuk pemegang `settings:billing`; tanpa `settings:user` halaman menjelaskan siapa yang bisa membukanya.
+    - Picking lewat aplikasi gudang menyusul bersama aplikasinya.
 
 #### L34 Riset Produk, L35 Pantau Harga, L36 Kata Kunci dan Kompetitor
 
@@ -1068,3 +1078,4 @@ Sebelum layar dinyatakan selesai:
 | 1.20 | 8 Oktober 2026 | L53 Situs publik baru (beranda, harga, kontak, tiga kebijakan); L49 persetujuan di Daftar menautkan Syarat Layanan dan Kebijakan Privasi di situs itu | Candra Syahputra |
 | 1.21 | 10 Oktober 2026 | L41 peran kustom di web app: kartu "Peran kustom" dengan buat, ubah, dan hapus; dialog peran dengan izin per modul, "Salin izin dari", dan izin yang tidak dimiliki nonaktif; matriks izin dengan nama modul dan peran kustom, bisa difokus keyboard saat digeser; keadaan paket tanpa peran kustom di tab Peran, dialog "Ubah peran", dan undangan | Candra Syahputra |
 | 1.22 | 10 Oktober 2026 | L47 kartu "Data pembeli" (masa simpan 3 sampai 24 bulan, konfirmasi saat dipersingkat); L04 catatan data pembeli yang sudah dianonimkan dan keterangan pelacakan yang dihapus | Candra Syahputra |
+| 1.23 | 10 Oktober 2026 | L33 Kinerja Tim di web app (periode, empat angka tim, per anggota dengan avatar inisial dan bar, per hari untuk tim atau satu anggota, arti angka, CSV, terkunci di Starter); L06 mengukur waktu kemas per pesanan; L04 riwayat menyebut nama pelaku dan nama setiap langkah | Candra Syahputra |

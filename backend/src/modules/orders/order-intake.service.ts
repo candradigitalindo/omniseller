@@ -50,6 +50,8 @@ interface Placement {
 export type Actor = { type: "marketplace" | "user" | "system"; id: string | null };
 
 const MARKETPLACE: Actor = { type: "marketplace", id: null };
+/** History entries per insert: a few parameters each, well under Postgres's 65,535 per statement. */
+const RECORD_CHUNK = 1000;
 
 function address(r: NormalizedRecipient | null) {
   if (!r) return null;
@@ -234,6 +236,34 @@ export class OrderIntakeService {
     payload: Record<string, unknown> = {},
   ): Promise<void> {
     await this.event(tx, ctx, orderId, type, actor, { payload });
+  }
+
+  /**
+   * The same history entry for many orders (fulfillment: the orders a printed document holds), written in
+   * a few statements instead of one per order.
+   */
+  async recordManyIn(
+    tx: Tx,
+    ctx: RequestContext,
+    orderIds: readonly string[],
+    type: string,
+    actor: Actor,
+    payload: Record<string, unknown> = {},
+  ): Promise<void> {
+    for (let i = 0; i < orderIds.length; i += RECORD_CHUNK) {
+      await this.repo.insertEvents(
+        tx,
+        orderIds.slice(i, i + RECORD_CHUNK).map((orderId) => ({
+          id: newId(),
+          tenantId: ctx.tenantId,
+          orderId,
+          type,
+          actorType: actor.type,
+          actorId: actor.id,
+          payload,
+        })),
+      );
+    }
   }
 
   /**

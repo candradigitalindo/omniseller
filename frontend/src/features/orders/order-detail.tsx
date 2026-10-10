@@ -74,17 +74,29 @@ import { useOrderActions } from "./use-order-actions";
 type Shipments = components["schemas"]["ShipmentListDto_Output"];
 type OrderEvent = OrderDetail["events"][number];
 
-const KNOWN_EVENTS = new Set([
+/** History entries named by their type alone; the rest say their status step or "Pesanan diperbarui". */
+const NAMED_EVENTS = [
   "created",
-  "status_changed",
-  "problem_added",
-  "problem_resolved",
   "warehouse_changed",
   "note_changed",
   "tags_changed",
   "cancel_requested",
   "cancel_failed",
-]);
+  "details_changed",
+  "stock_shortfall",
+  "store_disconnected",
+  "shipment_requested",
+  "shipment_arranged",
+  "shipment_failed",
+  "label_ready",
+  "label_printed",
+  "pick_list_printed",
+  "packing_list_printed",
+  "handed_over",
+  "return_received",
+] as const;
+type NamedEvent = (typeof NAMED_EVENTS)[number];
+const isNamedEvent = (type: string): type is NamedEvent => (NAMED_EVENTS as readonly string[]).includes(type);
 
 /**
  * L04 Detail Pesanan as a 420 px side panel next to the list (DOKUMEN-UI-UX 14.2); full width on phones.
@@ -353,7 +365,9 @@ function OrderDetailContent({ order: o }: { order: OrderDetail }) {
                 <span className="text-sm text-text-900">{eventText(e, t)}</span>
                 <span className="text-[13px] text-text-500">
                   {formatDateTime(e.createdAt, tz)} ·{" "}
-                  {t(`actor_${e.actorType === "user" || e.actorType === "marketplace" ? e.actorType : "system"}`)}
+                  {e.actorName
+                    ? t("actor_named", { name: e.actorName })
+                    : t(`actor_${e.actorType === "user" || e.actorType === "marketplace" ? e.actorType : "system"}`)}
                 </span>
               </li>
             ))}
@@ -1094,10 +1108,8 @@ function eventText(e: OrderEvent, t: ReturnType<typeof useTranslations<"orders">
     case "problem_resolved":
       return t(`event_${e.type}`, { problem: code && isProblemCode(code) ? t(`problem_${code}`) : (code ?? "—") });
     default:
-      return KNOWN_EVENTS.has(e.type)
-        ? t(
-            `event_${e.type as "created" | "warehouse_changed" | "note_changed" | "tags_changed" | "cancel_requested" | "cancel_failed"}`,
-          )
+      return isNamedEvent(e.type)
+        ? t(`event_${e.type}`)
         : e.toStatus
           ? t("event_status_changed", { from: status(e.fromStatus), to: status(e.toStatus) })
           : t("event_other");

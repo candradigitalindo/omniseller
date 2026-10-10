@@ -15,7 +15,7 @@ import { errorMessage } from "@/lib/api/errors";
 import { formatNumber } from "@/lib/format";
 import { useCan } from "@/lib/session";
 import { PrintSettingsPanel, usePrintAgents, usePrintSettings } from "./print-target";
-import { type PackingView, packed, packingScans, scanUnit } from "./shipping-meta";
+import { type PackingView, packed, packingScans, packSeconds, scanUnit } from "./shipping-meta";
 
 type Flash = { tone: "success" | "danger" | "warning"; text: string };
 const NEXT_ORDER_MS = 1_500;
@@ -34,11 +34,14 @@ export function PackStation() {
   const [settings, setSettings] = usePrintSettings();
   const agents = usePrintAgents();
   const input = useRef<HTMLInputElement>(null);
+  // when the order was scanned, on the station's own clock: the packing time the team report averages
+  const startedAt = useRef<number | null>(null);
   const agent = agents.data?.items.find((a) => a.id === settings.deviceId) ?? null;
 
   const reset = () => {
     setView(null);
     setCounts({});
+    startedAt.current = null;
     setCode("");
     input.current?.focus();
   };
@@ -47,6 +50,7 @@ export function PackStation() {
     onSuccess: (v) => {
       setView(v);
       setCounts({});
+      startedAt.current = performance.now();
       input.current?.focus();
       setFlash(v.packable ? null : { tone: "danger", text: v.packRefusal?.message ?? t("notPackable") });
     },
@@ -59,6 +63,7 @@ export function PackStation() {
           params: { path: { id: view?.order.id ?? "" } },
           body: {
             scans: packingScans(view?.lines ?? [], counts),
+            ...(startedAt.current !== null ? { seconds: packSeconds(startedAt.current, performance.now()) } : {}),
             ...(print && settings.deviceId
               ? {
                   print: {

@@ -12,9 +12,14 @@ import {
   SalesExportQueryDto,
   SalesReportDto,
   SalesReportQueryDto,
+  StaffExportQueryDto,
+  StaffReportDto,
+  StaffReportQueryDto,
   salesReportView,
+  staffReportView,
 } from "./dto";
 import { SalesReportService } from "./sales-report.service";
+import { StaffReportService } from "./staff-report.service";
 
 @ApiTags("reporting")
 @Controller("v1/dashboard")
@@ -34,7 +39,10 @@ export class DashboardController {
 @ApiTags("reporting")
 @Controller("v1/reports")
 export class ReportsController {
-  constructor(@Inject(SalesReportService) private readonly sales: SalesReportService) {}
+  constructor(
+    @Inject(SalesReportService) private readonly sales: SalesReportService,
+    @Inject(StaffReportService) private readonly staff: StaffReportService,
+  ) {}
 
   /** L30 Laporan Penjualan (FR-RPT-02): KPIs against the period before, chart, and breakdowns. */
   @Get("sales")
@@ -53,6 +61,32 @@ export class ReportsController {
   @ApiOkResponse({ schema: { type: "string" }, description: "CSV, pemisah ;" })
   async export(@Ctx() ctx: RequestContext, @Query() q: SalesExportQueryDto, @Res() res: Response): Promise<void> {
     const { fileName, csv } = await this.sales.csv(ctx, q, q.section);
+    res.setHeader("content-type", "text/csv; charset=utf-8");
+    res.setHeader("content-disposition", `attachment; filename="${fileName}"`);
+    res.setHeader("cache-control", "private, no-store");
+    res.send(csv);
+  }
+
+  /**
+   * L33 Kinerja Tim (FR-RPT-10), from plan Growth on: what each member did to orders in OmniSeller, per
+   * member and per day. 422 `billing.feature_unavailable` on plans without it.
+   */
+  @Get("staff")
+  @RequirePermission("settings:user")
+  @Isolation({ fixture: "order" })
+  @ZodResponse({ type: StaffReportDto })
+  async staffReport(@Ctx() ctx: RequestContext, @Query() q: StaffReportQueryDto) {
+    return staffReportView(await this.staff.report(ctx, q));
+  }
+
+  /** The team report as CSV (L33 "Unduh"): per member, or per member per day. */
+  @Get("staff/export")
+  @RequirePermission("settings:user")
+  @Isolation({ fixture: "order" })
+  @ApiProduces("text/csv")
+  @ApiOkResponse({ schema: { type: "string" }, description: "CSV, pemisah ;" })
+  async staffExport(@Ctx() ctx: RequestContext, @Query() q: StaffExportQueryDto, @Res() res: Response): Promise<void> {
+    const { fileName, csv } = await this.staff.csv(ctx, q, q.section);
     res.setHeader("content-type", "text/csv; charset=utf-8");
     res.setHeader("content-disposition", `attachment; filename="${fileName}"`);
     res.setHeader("cache-control", "private, no-store");

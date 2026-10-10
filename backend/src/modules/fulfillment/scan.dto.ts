@@ -102,6 +102,13 @@ export class CompletePackingDto extends createZodDto(
       .min(1)
       .max(500)
       .describe("kode yang dipindai dan berapa kali; jumlah per baris harus sama persis dengan pesanan"),
+    seconds: z
+      .number()
+      .int()
+      .min(0)
+      .max(86_400)
+      .optional()
+      .describe("detik sejak pesanan dipindai sampai dikemas, diukur stasiun; untuk laporan kinerja tim"),
     print: printTargetSchema
       .extend(labelOptions.shape)
       .optional()

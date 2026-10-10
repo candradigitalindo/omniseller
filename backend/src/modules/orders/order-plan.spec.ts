@@ -7,6 +7,9 @@ import {
   itemStockPlan,
   manualOrderNumber,
   manualTotals,
+  PACK_TIME_LIMIT_SECONDS,
+  PROCESSING_EVENTS,
+  PROCESSING_STATUSES,
   type ProblemInput,
   pathTo,
   problemStep,
@@ -264,5 +267,20 @@ describe("buyer data of a later snapshot (backend doc 8.34)", () => {
     expect(BUYER_DATA_FIELDS).toHaveLength(6);
     // the input is left as it was
     expect(fields.buyerName).toBe("Dewi");
+  });
+});
+
+describe("what the team report counts as processing", () => {
+  it("is every seller step after new, so recording a manual order's payment is not one", () => {
+    expect(PROCESSING_STATUSES).toEqual([
+      "ready_to_pack",
+      "packed",
+      "ready_to_ship",
+      "shipped",
+      "delivered",
+      "completed",
+    ]);
+    expect(PROCESSING_EVENTS).toEqual(["shipment_requested", "handed_over"]);
+    expect(PACK_TIME_LIMIT_SECONDS).toBe(1800);
   });
 });

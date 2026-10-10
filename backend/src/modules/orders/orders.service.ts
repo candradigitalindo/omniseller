@@ -14,6 +14,7 @@ import { storeIsManual, storeNotFound } from "../channel/channel.errors";
 import { CONNECTORS, type ConnectorRegistry } from "../channel/connector-registry";
 import { channelDisplayName, isManualChannel, StoresService } from "../channel/stores.service";
 import { TenantsService } from "../identity/tenants.service";
+import { UsersService } from "../identity/users.service";
 import { InventoryService } from "../inventory/inventory.service";
 import { OrderIntakeService } from "./order-intake.service";
 import { MANUAL_CANCEL_REASONS, MOVABLE, SLA_WARNING_MS, warehouseFixed } from "./order-plan";
@@ -37,6 +38,7 @@ import {
   type OrderSort,
   OrdersRepository,
   type ShipByCursor,
+  type StaffActionRow,
 } from "./orders.repository";
 import { type OrderTagRef, TagsRepository } from "./tags.repository";
 
@@ -89,6 +91,9 @@ export interface SalesFilter {
   channel?: string | undefined;
 }
 
+/** An order history entry with the name of the user who made it (null for the marketplace and the system). */
+export type OrderHistoryEntry = OrderEventRow & { actorName: string | null };
+
 /** Orders per transaction when a disconnected store's orders stop holding stock. */
 const RELEASE_BATCH = 200;
 
@@ -110,6 +115,7 @@ export class OrdersService {
     @Inject(TagsRepository) private readonly tags: TagsRepository,
     @Inject(InventoryService) private readonly inventory: InventoryService,
     @Inject(TenantsService) private readonly tenants: TenantsService,
+    @Inject(UsersService) private readonly users: UsersService,
   ) {}
 
   private scope(ctx: RequestContext): Pick<OrderListFilter, "storeScope" | "warehouseScope"> {
@@ -375,6 +381,14 @@ export class OrdersService {
 
   // ---- figures for the dashboard (reporting, FR-RPT-01): the caller's transaction and scope ----
 
+  /**
+   * What users did to orders between `from` and `to` (team performance, FR-RPT-10, backend doc 8.35): per
+   * user and day of `timezone`, per user, per day, and in all, for orders in the caller's scope.
+   */
+  staffActionsIn(tx: Tx, ctx: RequestContext, from: Date, to: Date, timezone: string): Promise<StaffActionRow[]> {
+    return this.repo.staffActions(tx, this.scope(ctx), from, to, timezone);
+  }
+
   salesIn(tx: Tx, ctx: RequestContext, filter: { storeId?: string | undefined }, from: Date, to: Date) {
     return this.repo.sales(tx, { ...filter, ...this.scope(ctx) }, from, to);
   }
@@ -478,14 +492,20 @@ export class OrdersService {
   async get(
     ctx: RequestContext,
     id: string,
-  ): Promise<OrderView & { events: OrderEventRow[]; warehouseFixed: boolean }> {
+  ): Promise<OrderView & { events: OrderHistoryEntry[]; warehouseFixed: boolean }> {
     return withTenantTx(this.db, ctx, async (tx) => {
       const o = await this.load(tx, ctx, id);
       const [view] = await this.views(tx, ctx, [o]);
+      const events = await this.repo.events(tx, id);
+      // who did it (UI L04 "siapa"): users by name; the marketplace and the system have none
+      const names = events.some((e) => e.actorType === "user") ? await this.users.namesIn(tx) : new Map();
       return {
         ...view!,
         problems: await this.repo.problems(tx, [id]),
-        events: await this.repo.events(tx, id),
+        events: events.map((e) => ({
+          ...e,
+          actorName: e.actorType === "user" && e.actorId ? (names.get(e.actorId) ?? null) : null,
+        })),
         warehouseFixed:
           o.fulfillmentMode === "marketplace" ||
           warehouseFixed(o.channel, await this.sellerWarehousesIn(tx, o.storeId)),

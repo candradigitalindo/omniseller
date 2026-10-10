@@ -5,6 +5,7 @@ import { channelDisplayName } from "../channel/stores.service";
 import type { DashboardService } from "./dashboard.service";
 import type { SalesReportService } from "./sales-report.service";
 import { daysBetween } from "./sales-report-plan";
+import type { StaffReportService } from "./staff-report.service";
 
 const iso = z.iso.datetime();
 
@@ -348,5 +349,80 @@ export function salesReportView(
     ...r,
     period: windowView(r.period),
     previousPeriod: r.previousPeriod ? windowView(r.previousPeriod) : null,
+  };
+}
+
+// ---- team performance (FR-RPT-10, UI L33) ----
+
+const staffQuerySchema = z
+  .object({
+    /** First local day; with `to`. This month so far when both are absent. */
+    from: isoDate.optional(),
+    /** Last local day, included; at most 366 days after `from`. */
+    to: isoDate.optional(),
+  })
+  .refine((q) => (q.from === undefined) === (q.to === undefined), {
+    path: ["from"],
+    message: "Isi tanggal awal dan akhir bersama.",
+  })
+  .refine((q) => !q.from || !q.to || q.from <= q.to, {
+    path: ["to"],
+    message: "Tanggal akhir harus sama dengan atau setelah tanggal awal.",
+  })
+  .refine((q) => !q.from || !q.to || daysBetween(q.from, q.to) <= 366, {
+    path: ["to"],
+    message: "Periode paling panjang 366 hari.",
+  });
+
+export class StaffReportQueryDto extends createZodDto(staffQuerySchema) {}
+
+export class StaffExportQueryDto extends createZodDto(
+  staffQuerySchema.and(
+    z.object({
+      /** Per member for the period, or per member per day. */
+      section: z.enum(["users", "days"]).default("users"),
+    }),
+  ),
+) {}
+
+const staffFiguresSchema = z.object({
+  processed: z
+    .number()
+    .int()
+    .describe("pesanan yang ia gerakkan maju (terima, atur kirim, kemas, kirim, serah terima), sekali per pesanan"),
+  packed: z.number().int(),
+  packedByScan: z.number().int().describe("dari `packed`, yang diperiksa per barang di stasiun kemas"),
+  labels: z.number().int().describe("label pesanan yang ia cetak, termasuk cetak ulang"),
+  pickLists: z.number().int().describe("pesanan dalam pick list yang ia cetak"),
+  packingLists: z.number().int().describe("pesanan yang daftar kemasnya ia cetak"),
+  handedOver: z.number().int().describe("paket dalam serah terima kurir yang ia selesaikan"),
+  timedPacks: z.number().int().describe("kemas dengan scan yang waktunya tercatat dan tidak lebih dari batas"),
+  packSecondsAverage: z.number().int().nullable().describe("rata-rata detik kemas per pesanan dari `timedPacks`"),
+});
+
+const staffReportSchema = z.object({
+  timezone: z.string(),
+  range: dateRange,
+  /** Packs by scan longer than this were interrupted and stay out of the average. */
+  packTimeLimitSeconds: z.number().int(),
+  total: staffFiguresSchema,
+  users: z.array(staffFiguresSchema.extend({ userId: ulidSchema, name: z.string().nullable() })),
+  days: z.array(staffFiguresSchema.extend({ date: z.string() })),
+  userDays: z.array(staffFiguresSchema.extend({ userId: ulidSchema, date: z.string() })),
+});
+
+export class StaffReportDto extends createZodDto(staffReportSchema) {}
+
+export function staffReportView(
+  r: Awaited<ReturnType<StaffReportService["report"]>>,
+): z.infer<typeof staffReportSchema> {
+  return {
+    timezone: r.timezone,
+    range: r.range,
+    packTimeLimitSeconds: r.packTimeLimitSeconds,
+    total: r.total,
+    users: r.users,
+    days: r.days,
+    userDays: r.userDays,
   };
 }

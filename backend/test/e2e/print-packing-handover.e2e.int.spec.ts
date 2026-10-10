@@ -1,14 +1,19 @@
 import type { AddressInfo } from "node:net";
 import type { INestApplication } from "@nestjs/common";
 import type { NestExpressApplication } from "@nestjs/platform-express";
+import { newIdAt } from "@omniseller/shared";
 import { sql } from "drizzle-orm";
 import { PDFDocument } from "pdf-lib";
 import { io, type Socket } from "socket.io-client";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { systemContext } from "../../src/common/context/request-context";
 import { localDate } from "../../src/common/time-zone";
+import { orderEvent } from "../../src/db/schema";
+import { withTenantTx } from "../../src/db/tenant-tx";
 import { ExportRenderService } from "../../src/modules/exports/export-render.service";
 import { A4_PAGE, THERMAL_PAGE } from "../../src/modules/fulfillment/shipping-plan";
+import { addDays } from "../../src/modules/reporting/sales-report-plan";
 import { webhookProcessJob } from "../../src/modules/sync/sync.jobs";
 import {
   type Client,
@@ -27,8 +32,9 @@ import { testHandles } from "../setup/handles";
 import { MockMarketplace, type MockShopeeItem, type MockShopeeOrder } from "../setup/mock-marketplace";
 
 /**
- * Print agents and scan to print, packing by scan, courier handover with a manifest, and who sees cost
- * prices, end to end (backend doc 8.24; PRD FR-SHP-17, FR-SHP-04, FR-SHP-05).
+ * Print agents and scan to print, packing by scan, courier handover with a manifest, who sees cost
+ * prices, and the team report that counts who did what, end to end (backend doc 8.24 and 8.35; PRD
+ * FR-SHP-17, FR-SHP-04, FR-SHP-05, FR-RPT-10).
  */
 const h = testHandles();
 let mock: MockMarketplace;
@@ -81,7 +87,7 @@ async function business() {
   return { c, me, tenantId: me.tenant.id, warehouseId };
 }
 
-async function addMember(owner: Client, tenantId: string, role: string) {
+async function addMember(owner: Client, tenantId: string, role: string, name = role) {
   const roles = (await owner.get("/v1/roles")).body.items as { id: string; name: string }[];
   const email = uniqueEmail(role.toLowerCase());
   expect((await owner.post("/v1/invitations", { email, roleId: roles.find((r) => r.name === role)!.id })).status).toBe(
@@ -91,7 +97,7 @@ async function addMember(owner: Client, tenantId: string, role: string) {
   const member = client(api);
   const accepted = await member.post("/v1/auth/invitations/accept", {
     token: tokenFrom(worker.email.lastTo(email)!.text),
-    name: role,
+    name,
     password: PASSWORD,
   });
   expect(accepted.status).toBe(201);
@@ -884,5 +890,287 @@ describe("cost prices (UI L41)", () => {
     expect((await c.get("/v1/products/export")).text.split("\r\n")[1]!.split(";")[header.indexOf("hpp")]).toBe("22000");
     expect((await gudang.get("/v1/inventory/summary")).body).toMatchObject({ skus: 1, value: null });
     expect((await c.get("/v1/inventory/summary")).body).toMatchObject({ skus: 1, value: 220_000 });
+  });
+});
+
+describe("team performance (FR-RPT-10, UI L33)", () => {
+  type Figures = Record<string, number | null>;
+  const figures = (over: Figures): Figures => ({
+    processed: 0,
+    packed: 0,
+    packedByScan: 0,
+    labels: 0,
+    pickLists: 0,
+    packingLists: 0,
+    handedOver: 0,
+    timedPacks: 0,
+    packSecondsAverage: null,
+    ...over,
+  });
+
+  it("counts what each member did to orders per day, in the viewer's store scope, with a CSV", async () => {
+    const { c, me, tenantId, warehouseId } = await business();
+    const v = await product(c, "KAOS", [{ sku: "KAOS-M" }, { sku: "KAOS-L" }]);
+    await stock(c, warehouseId, { [v["KAOS-M"]!]: 20, [v["KAOS-L"]!]: 20 });
+    const { shopId, storeId, orders } = await connectShopee(c, tenantId, 804);
+
+    // the owner accepts and arranges two marketplace orders, and types and accepts a manual one
+    const [a, b] = (await arranged(c, tenantId, shopId, orders, [
+      shopeeOrder(804, [{ model: 8041, sku: "KAOS-M", qty: 1 }]),
+      shopeeOrder(804, [{ model: 8042, sku: "KAOS-L", qty: 1 }]),
+    ])) as [{ id: string; sn: string; tracking: string }, { id: string; sn: string; tracking: string }];
+    const manual = (
+      await c.post("/v1/orders/manual", {
+        buyer: { name: "Rudi", phone: "081234567890" },
+        shippingAddress: { line1: "Jl. Melati 2", city: "Jakarta Selatan", province: "DKI JAKARTA" },
+        items: [{ variantId: v["KAOS-L"], qty: 1 }],
+        paymentMethod: "cash",
+        shippingProvider: "SPX Standard",
+      })
+    ).body as { id: string; externalOrderId: string };
+    await c.post("/v1/orders/accept", { orderIds: [manual.id] });
+    const all = [a.id, b.id, manual.id];
+    const gudang = await addMember(c, tenantId, "Gudang");
+    const kurir = await addMember(c, tenantId, "Gudang", "Kurir");
+
+    // an order not paid yet has nothing to pick: the pick list leaves it out
+    const unpaid = (
+      await c.post("/v1/orders/manual", {
+        buyer: { name: "Sinta", phone: "081234567891" },
+        items: [{ variantId: v["KAOS-M"], qty: 1 }],
+        paymentMethod: "transfer",
+      })
+    ).body as { id: string; status: string };
+    expect(unpaid.status).toBe("unpaid");
+
+    // the member prints the pick list; the owner prints labels with packing lists; the member one more list
+    expect((await gudang.post("/v1/documents", { kind: "pick_list", orderIds: [...all, unpaid.id] })).status).toBe(202);
+    await drain(tenantId);
+    expect((await c.post("/v1/documents", { kind: "labels", orderIds: all, packingList: true })).status).toBe(202);
+    await drain(tenantId);
+    expect((await gudang.post("/v1/documents", { kind: "packing_list", orderIds: [a.id] })).status).toBe(202);
+    await drain(tenantId);
+
+    // the member packs both parcels by scan (the second took too long to count as a time); the owner the third.
+    // A station's time is whole seconds within a day
+    for (const seconds of [-1, 86_401]) {
+      const wrong = await gudang.post(`/v1/packing/orders/${a.id}/complete`, { scans: [{ code: "KAOS-M" }], seconds });
+      expect(wrong.status).toBe(422);
+    }
+    const packedA = await gudang.post(`/v1/packing/orders/${a.id}/complete`, {
+      scans: [{ code: "KAOS-M" }],
+      seconds: 95,
+    });
+    expect(packedA.status).toBe(200);
+    const packedB = await gudang.post(`/v1/packing/orders/${b.id}/complete`, {
+      scans: [{ code: "KAOS-L" }],
+      seconds: 4000,
+    });
+    expect(packedB.status).toBe(200);
+    expect((await c.post("/v1/orders/pack", { orderIds: [manual.id] })).body.items[0].ok).toBe(true);
+    await drain(tenantId);
+    // the member prints the first parcel's label again, without a packing list this time
+    expect((await gudang.post("/v1/documents", { kind: "labels", orderIds: [a.id] })).status).toBe(202);
+    await drain(tenantId);
+    // another member hands all three to the courier: their only work on the marketplace parcels
+    const hid = (await kurir.post("/v1/handovers", { warehouseId, courier: "SPX Standard" })).body.id as string;
+    for (const code of [a.tracking, b.tracking, manual.externalOrderId]) {
+      expect((await kurir.post(`/v1/handovers/${hid}/scan`, { code })).status).toBe(200);
+    }
+    expect((await kurir.post(`/v1/handovers/${hid}/complete`, {})).status).toBe(200);
+    await drain(tenantId);
+
+    // the order's history says who did each step
+    const history = (await c.get(`/v1/orders/${a.id}`)).body.events as {
+      type: string;
+      toStatus: string | null;
+      actorType: string;
+      actorName: string | null;
+      payload: Record<string, unknown>;
+    }[];
+    expect(history).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "created", actorType: "marketplace", actorName: null }),
+        expect.objectContaining({ type: "shipment_requested", actorName: "Rina" }),
+        expect.objectContaining({ type: "pick_list_printed", actorName: "Gudang" }),
+        expect.objectContaining({ type: "label_printed", actorName: "Rina" }),
+        expect.objectContaining({
+          toStatus: "packed",
+          actorName: "Gudang",
+          payload: { verified: "scan", units: 1, seconds: 95 },
+        }),
+        expect.objectContaining({ type: "handed_over", actorName: "Kurir" }),
+      ]),
+    );
+    expect(history.filter((e) => e.type === "packing_list_printed").map((e) => e.actorName)).toEqual([
+      "Rina",
+      "Gudang",
+    ]);
+
+    // this month so far: the owner and the courier desk processed all three, the owner packed one more
+    const today = localDate("Asia/Jakarta", new Date());
+    const report = await c.get("/v1/reports/staff");
+    expect(report.status).toBe(200);
+    const gudangId = (await gudang.get("/v1/me")).body.user.id as string;
+    const kurirId = (await kurir.get("/v1/me")).body.user.id as string;
+    const owner = figures({ processed: 3, packed: 1, labels: 3, packingLists: 3 });
+    const courier = figures({ processed: 3, handedOver: 3 });
+    const member = figures({
+      processed: 2,
+      packed: 2,
+      packedByScan: 2,
+      labels: 1,
+      pickLists: 3,
+      packingLists: 1,
+      timedPacks: 1,
+      packSecondsAverage: 95,
+    });
+    const team = figures({
+      processed: 3,
+      packed: 3,
+      packedByScan: 2,
+      labels: 4,
+      pickLists: 3,
+      packingLists: 4,
+      handedOver: 3,
+      timedPacks: 1,
+      packSecondsAverage: 95,
+    });
+    expect(report.body).toEqual({
+      timezone: "Asia/Jakarta",
+      range: { from: `${today.slice(0, 8)}01`, to: today },
+      packTimeLimitSeconds: 1800,
+      total: team,
+      users: [
+        { userId: me.user.id, name: "Rina", ...owner },
+        { userId: kurirId, name: "Kurir", ...courier },
+        { userId: gudangId, name: "Gudang", ...member },
+      ],
+      days: [{ date: today, ...team }],
+      userDays: [
+        { userId: me.user.id, date: today, ...owner },
+        { userId: kurirId, date: today, ...courier },
+        { userId: gudangId, date: today, ...member },
+      ],
+    });
+
+    // as CSV, per member and per member per day
+    const perMember = await c.get("/v1/reports/staff/export?section=users");
+    expect(perMember.headers["content-type"]).toContain("text/csv");
+    expect(perMember.headers["content-disposition"]).toContain(
+      `kinerja-tim-per-anggota-${today.slice(0, 8)}01-${today}.csv`,
+    );
+    expect(perMember.text.replace("\ufeff", "").split("\r\n")).toEqual([
+      "nama;pesanan_diproses;dikemas;dikemas_dengan_scan;label_dicetak;pesanan_di_pick_list;daftar_kemas_dicetak;diserahkan_ke_kurir;kemas_berwaktu;rata_rata_detik_kemas",
+      "Rina;3;1;0;3;0;3;0;0;",
+      "Kurir;3;0;0;0;0;0;3;0;",
+      "Gudang;2;2;2;1;3;1;0;1;95",
+      "",
+    ]);
+    const perDay = (await c.get("/v1/reports/staff/export?section=days")).text.split("\r\n");
+    expect(perDay.slice(1, 4)).toEqual([
+      `${today};Rina;3;1;0;3;0;3;0;0;`,
+      `${today};Kurir;3;0;0;0;0;0;3;0;`,
+      `${today};Gudang;2;2;2;1;3;1;0;1;95`,
+    ]);
+
+    // someone who sees only the marketplace store sees only what was done to its orders
+    const role = await c.post("/v1/roles", { name: "Supervisor", permissions: ["order:read", "settings:user"] });
+    expect(role.status).toBe(201);
+    const supervisor = await addMember(c, tenantId, "Supervisor");
+    const supervisorId = (await supervisor.get("/v1/me")).body.user.id as string;
+    expect((await c.put(`/v1/users/${supervisorId}/scopes`, { storeIds: [storeId] })).status).toBe(200);
+    const scoped = (await supervisor.get("/v1/reports/staff")).body;
+    expect(scoped.total).toEqual(
+      figures({
+        processed: 2,
+        packed: 2,
+        packedByScan: 2,
+        labels: 3,
+        pickLists: 2,
+        packingLists: 3,
+        handedOver: 2,
+        timedPacks: 1,
+        packSecondsAverage: 95,
+      }),
+    );
+    // all three processed both parcels; the packer packed them, then by name
+    expect(scoped.users.map((u: { name: string; processed: number }) => [u.name, u.processed])).toEqual([
+      ["Gudang", 2],
+      ["Kurir", 2],
+      ["Rina", 2],
+    ]);
+
+    // other periods have none of it; periods are checked as the sales report's
+    const none = { total: figures({}), users: [], days: [], userDays: [] };
+    const before = await c.get(`/v1/reports/staff?from=${addDays(today, -60)}&to=${addDays(today, -31)}`);
+    expect(before.body).toMatchObject(none);
+    const after = await c.get(`/v1/reports/staff?from=${addDays(today, 1)}&to=${addDays(today, 2)}`);
+    expect(after.body).toMatchObject(none);
+    expect((await c.get(`/v1/reports/staff?from=${today}`)).status).toBe(422);
+    expect((await c.get(`/v1/reports/staff?from=${today}&to=${addDays(today, -1)}`)).status).toBe(422);
+    // the report is for whoever manages the team
+    expect((await gudang.get("/v1/reports/staff")).status).toBe(403);
+    expect((await gudang.get("/v1/reports/staff/export")).status).toBe(403);
+  });
+
+  it("counts by the business's day: 23.59 WIB is still that day, 00.00 the next", async () => {
+    const { c, me, tenantId, warehouseId } = await business();
+    const v = await product(c, "KAOS", [{ sku: "KAOS-M" }]);
+    await stock(c, warehouseId, { [v["KAOS-M"]!]: 5 });
+    const manual = (
+      await c.post("/v1/orders/manual", {
+        buyer: { name: "Rudi", phone: "081234567890" },
+        shippingAddress: { line1: "Jl. Melati 2", city: "Jakarta Selatan", province: "DKI JAKARTA" },
+        items: [{ variantId: v["KAOS-M"], qty: 1 }],
+        paymentMethod: "cash",
+      })
+    ).body as { id: string };
+    // labels printed at the edges of 15 September in Jakarta (UTC+7)
+    const at = [
+      "2026-09-14T16:59:59Z", // 14 Sep 23.59.59
+      "2026-09-14T17:00:00Z", // 15 Sep 00.00
+      "2026-09-15T16:59:59Z", // 15 Sep 23.59.59
+      "2026-09-15T17:00:00Z", // 16 Sep 00.00
+    ].map((t) => new Date(t));
+    await withTenantTx(h.worker, systemContext(tenantId), (tx) =>
+      tx.insert(orderEvent).values(
+        at.map((t) => ({
+          id: newIdAt(t),
+          tenantId,
+          orderId: manual.id,
+          type: "label_printed",
+          actorType: "user" as const,
+          actorId: me.user.id,
+          createdAt: t,
+        })),
+      ),
+    );
+
+    const day = (await c.get("/v1/reports/staff?from=2026-09-15&to=2026-09-15")).body;
+    expect(day.total).toEqual(figures({ labels: 2 }));
+    expect(day.days).toEqual([{ date: "2026-09-15", ...figures({ labels: 2 }) }]);
+    const around = (await c.get("/v1/reports/staff?from=2026-09-14&to=2026-09-16")).body;
+    expect(around.days.map((d: { date: string; labels: number }) => [d.date, d.labels])).toEqual([
+      ["2026-09-14", 1],
+      ["2026-09-15", 2],
+      ["2026-09-16", 1],
+    ]);
+  });
+
+  it("is a plan Growth feature: Starter is told where it is", async () => {
+    const { c } = await business();
+    expect((await c.post("/v1/billing/subscription", { planCode: "starter" })).status).toBe(200);
+    const refused = await c.get("/v1/reports/staff");
+    expect(refused.status).toBe(422);
+    expect(refused.body).toMatchObject({
+      code: "billing.feature_unavailable",
+      detail:
+        "Laporan kinerja staf tidak termasuk paket Starter. Tersedia mulai paket Growth; naik paket di Langganan & Tagihan.",
+      feature: "staff_report",
+      plan: "Starter",
+      requiredPlan: "Growth",
+    });
+    expect((await c.get("/v1/reports/staff/export")).status).toBe(422);
   });
 });

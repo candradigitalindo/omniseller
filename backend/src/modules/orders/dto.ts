@@ -7,8 +7,8 @@ import { type OrderProblemCode, PAYMENT_METHODS } from "../../db/schema";
 import { internalSlaOf } from "../campaign/cutoff-plan";
 import { channelDisplayName } from "../channel/stores.service";
 import { slaOf, TO_SHIP_STATUSES } from "./order-plan";
-import type { OrderEventRow, OrderItemRow, OrderProblemRow } from "./orders.repository";
-import { type ActionResult, type OrderView, orderStatusLabel } from "./orders.service";
+import type { OrderItemRow, OrderProblemRow } from "./orders.repository";
+import { type ActionResult, type OrderHistoryEntry, type OrderView, orderStatusLabel } from "./orders.service";
 import type { OrderTagRef, TagRow } from "./tags.repository";
 
 /** Request and response DTOs of the order endpoints (backend doc 10.6). */
@@ -304,6 +304,8 @@ const eventSchema = z.object({
   toStatus: z.enum(ORDER_STATUSES).nullable(),
   actorType: z.string(),
   actorId: ulidSchema.nullable(),
+  /** The user's name when a user did it; null for the marketplace and the system. */
+  actorName: z.string().nullable(),
   payload: z.record(z.string(), z.unknown()),
   createdAt: iso,
 });
@@ -428,7 +430,7 @@ export function orderListView(v: OrderView, now = new Date()): z.infer<typeof li
 
 export function orderDetailView(
   ctx: RequestContext,
-  v: OrderView & { events: OrderEventRow[]; warehouseFixed: boolean },
+  v: OrderView & { events: OrderHistoryEntry[]; warehouseFixed: boolean },
 ): z.infer<typeof detailSchema> {
   const o = v.order;
   const show = canSeeAddress(ctx);
@@ -483,6 +485,7 @@ export function orderDetailView(
       toStatus: e.toStatus,
       actorType: e.actorType,
       actorId: e.actorId,
+      actorName: e.actorName,
       payload: e.payload,
       createdAt: e.createdAt.toISOString(),
     })),

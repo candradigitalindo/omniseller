@@ -19,6 +19,7 @@ const PAGES = [
   "/stok/restock",
   "/stok/riwayat",
   "/laporan/penjualan",
+  "/laporan/kinerja-tim",
   "/stok/gudang",
   "/integrasi",
   "/tim",

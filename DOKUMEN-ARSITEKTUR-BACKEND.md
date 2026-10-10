@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.35 |
+| Versi dokumen | 1.36 |
 | Tanggal | 10 Oktober 2026 |
 | Status | Keputusan final untuk implementasi; fondasi (bagian 4 sampai 9, 12, 13), identitas, autentikasi, dan audit (8.1, 8.10), koneksi toko Shopee dan Tokopedia & Shop (8.6, 8.11), katalog, listing, dan pemetaan SKU (7.8.3, 8.12), stok, penyesuaian, dan push stok ke marketplace (7.8.4, 8.13, 9.4), pesanan dari Shopee dan Tokopedia & Shop (7.8.6, 7.9, 8.14, 10.6), pengiriman, label, pick list, dan peringatan batas kirim (8.15), dasbor, notifikasi in-app, ekspor data penuh, dan audit aksi sensitif (8.16 sampai 8.18), migrasi dari aplikasi lain dengan mode paralel dan cutover (8.19), laporan penjualan, daftar perlu restock, ringkasan email harian, dan preferensi notifikasi (8.20), banyak gudang fisik, pesanan manual, alokasi gudang otomatis, dan tag pesanan (8.21), pelacakan paket, daftar kemas, dan template label kustom (8.22), putus toko dengan atau tanpa data, peringatan koneksi, riwayat produk, dan barcode (8.23), agen cetak, scan untuk cetak, kemas dengan scan, serah terima kurir dengan manifest, dan visibilitas HPP (8.24), salin listing antar toko sendiri (8.25), retur, refund, permintaan batal pembeli, dan paket kembali (8.26), stok opname dan transfer stok antar gudang (8.27), log audit yang terbaca (8.28), profil bisnis dan legalitas (8.29), verifikasi dua langkah dan sesi aktif (8.30), cut-off kurir dan jam operasional (8.31), langganan, tagihan lewat Xendit dengan PDF ber-NPWP, kuota paket, dan meteran pesanan (8.32), peran kustom dan fitur per paket (8.33), serta anonimisasi data pembeli (8.34) sudah diimplementasikan di folder `backend/` |
 | Pemilik dokumen | Candra Syahputra |
@@ -992,7 +992,7 @@ Id pesanan dibuat dengan `newIdAt(ordered_at)` (6.3).
 
 `external_item_id` adalah id baris pesanan yang stabil: Shopee `line_item_id` (atau item, model, dan grup promosi), TikTok Shop `sku_id` (satu baris TikTok Shop per unit dikelompokkan per SKU).
 
-**order_event** (partisi bulanan pada `id`, tanpa `updated_at` dan `row_version`): `order_id → order` CASCADE, `type text NOT NULL` (contoh `status_changed`, `problem_added`, `note_added`, `label_printed`, `packed`, `handed_over`), `from_status`, `to_status`, `actor_type text NOT NULL CHECK IN ('user','system','marketplace','device')`, `actor_id ulid`, `payload jsonb NOT NULL DEFAULT '{}'`; INDEX `(order_id, id)`.
+**order_event** (partisi bulanan pada `id`, tanpa `updated_at` dan `row_version`): `order_id → order` CASCADE, `type text NOT NULL` (contoh `status_changed`, `problem_added`, `shipment_requested`, `label_printed`, `pick_list_printed`, `packing_list_printed`, `handed_over`), `from_status`, `to_status`, `actor_type text NOT NULL CHECK IN ('user','system','marketplace','device')`, `actor_id ulid`, `payload jsonb NOT NULL DEFAULT '{}'`; INDEX `(order_id, id)`; INDEX parsial `(tenant_id, created_at) WHERE actor_type = 'user'` untuk laporan kinerja tim (migrasi 0026, 8.35).
 
 **order_problem**: `order_id → order` CASCADE, `code text NOT NULL CHECK IN ('unmapped_sku','insufficient_stock','unmapped_warehouse','address_incomplete','duplicate','watchlist','high_value','fulfillment_conflict')`, `detail jsonb`, `resolved_at`, `resolved_by → user` SET NULL, `resolution text`; UNIQUE parsial `(order_id, code) WHERE resolved_at IS NULL`.
 
@@ -2115,7 +2115,8 @@ Yang perlu diperhatikan:
 - **Selesai.** `POST /v1/packing/orders/{id}/complete {scans: [{code, qty}], print?}` memeriksa ulang di server (`checkPacking`):
   - jumlah setiap baris harus sama persis, dan tidak boleh ada kode asing;
   - bila tidak cocok: 422 `packing.mismatch` dengan baris yang berbeda dan kode asingnya;
-  - bila cocok: pesanan dikemas lewat `OrdersService.packIn`, dengan riwayat `{verified: "scan", units}`. Toko baca saja, pesanan bermasalah, dan status lain ditolak seperti "Tandai dikemas".
+  - bila cocok: pesanan dikemas lewat `OrdersService.packIn`, dengan riwayat `{verified: "scan", units, seconds}`. Toko baca saja, pesanan bermasalah, dan status lain ditolak seperti "Tandai dikemas".
+  - `seconds` (0 sampai 86.400, opsional): detik sejak pesanan dipindai sampai selesai, diukur stasiun dengan jamnya sendiri (`performance.now()`), untuk menit kemas per pesanan di laporan kinerja tim (8.35).
 - **Cetak label dan lanjut.** Dengan `print`, label dikirim ke agen. Label yang belum bisa dicetak tidak membatalkan pengemasan; jawabannya membawa `printRefusal`.
 
 **Serah terima kurir** (FR-SHP-05, L08; `shipment:handover`):
@@ -2568,7 +2569,7 @@ Belum termasuk: pengembalian dana, pembayaran berulang otomatis (Xendit Recurrin
 ### 8.33 Peran kustom dan fitur per paket
 
 Implementasi:
-- `common/plan-features.ts`: `PLAN_FEATURES` (sekarang `custom_roles`), `hasFeature`, `cheapestWith` (paket termurah yang masih ditawarkan dan punya fitur itu), `planFeatureUnavailable` (422 `billing.feature_unavailable` dengan `feature`, `plan`, `requiredPlan`);
+- `common/plan-features.ts`: `PLAN_FEATURES` (sekarang `staff_report`, 8.35, dan `custom_roles`), `hasFeature`, `cheapestWith` (paket termurah yang masih ditawarkan dan punya fitur itu), `planFeatureUnavailable` (422 `billing.feature_unavailable` dengan `feature`, `plan`, `requiredPlan`);
 - modul `identity`: `TenantsService.requireFeatureIn`, `RolesService.create | update | remove | exportSheets`, pemeriksaan di `UsersService.setRoles` dan `InvitationsService.invite`; `Principal.plan` (paket yang berlaku, dari `loadPrincipal`) di `GET /v1/me`;
 - migrasi `0024_custom_roles.sql`.
 
@@ -2586,7 +2587,7 @@ PRD: FR-USR-01 (peran kustom dengan hak akses per fitur), 14 (peran kustom mulai
 
 **Ekspor dan audit.** Ekspor data (8.18) menambah `peran.csv` (nama, jenis, keterangan, izin, jumlah pemegang). Audit sudah ada untuk `role`, `role_permission`, dan `user_role` (8.28).
 
-Belum termasuk: fitur paket lain (aturan proses otomatis, perpanjang promo otomatis, naikkan produk otomatis, rekonsiliasi pelanggan, laporan kinerja staf, chat terpadu), karena fiturnya belum dibangun; masing-masing memeriksa `requireFeatureIn` saat dibangun.
+Belum termasuk: fitur paket lain (aturan proses otomatis, perpanjang promo otomatis, naikkan produk otomatis, rekonsiliasi pelanggan, chat terpadu), karena fiturnya belum dibangun; masing-masing memeriksa `requireFeatureIn` saat dibangun. Laporan kinerja staf sudah (8.35).
 
 
 ### 8.34 Anonimisasi data pembeli
@@ -2614,6 +2615,33 @@ Nilai, barang, status, tanggal, catatan internal, dan riwayat pesanan tetap, seh
 **API dan ekspor.** `GET /v1/orders/{id}` membawa `buyerAnonymizedAt`; `pesanan.csv` menambah `data_pembeli_dianonimkan_pada`, dan `profil_bisnis.csv` menambah `masa_simpan_data_pembeli_bulan`.
 
 Belum termasuk: penutupan akun dan penghapusan data bisnis 30 hari setelahnya (PRD 12.1, Kebijakan Privasi), penghapusan `webhook_inbox` dan `outbox_event` lama (`retention.run`, 9.5), dan permintaan hak subjek data per pembeli lewat aplikasi.
+
+
+### 8.35 Laporan kinerja tim
+
+Implementasi:
+- modul `reporting`: `StaffReportService` (api), `staff-report-plan.ts` (murni: angka per kelompok, urutan anggota, baris CSV);
+- modul `orders`: `OrdersService.staffActionsIn` (satu kueri `GROUPING SETS` atas `order_event`), `order-plan.ts` (`PROCESSING_STATUSES`, `PROCESSING_EVENTS`, `PACK_TIME_LIMIT_SECONDS`), `OrderIntakeService.recordManyIn`, nama pelaku di `GET /v1/orders/{id}`;
+- modul `fulfillment`: riwayat `pick_list_printed` dan `packing_list_printed` saat dokumen selesai dibuat, `seconds` di kemas dengan scan;
+- migrasi `0026_staff_report.sql`.
+
+PRD: FR-RPT-10 (laporan kinerja staf: per pengguna dan per hari, perbandingan antar staf, rata-rata waktu per pesanan, hanya aksi di dalam sistem), 14 (mulai paket Growth); layar L33 Kinerja Tim (DOKUMEN-UI-UX).
+
+**Sumbernya riwayat pesanan.** Setiap aksi penjual sudah tercatat di `order_event` dengan pelakunya (`actor_type = 'user'`, `actor_id`), jadi laporan tidak punya tabel sendiri dan tidak menghitung yang dikerjakan di Seller Center. Yang dihitung, per pengguna:
+- **Pesanan diproses**: pesanan yang ia gerakkan maju, sekali per pesanan per kelompok: langkah status penjual setelah `new` (`ready_to_pack` sampai `completed`; mencatat bayar pesanan manual tidak termasuk), atur kirim (`shipment_requested`), atau serah terima (`handed_over`);
+- **Dikemas**: langkah ke `packed`; **dengan scan** bila `payload.verified = 'scan'`;
+- **Label**: `label_printed` (termasuk cetak ulang); **Pick list**: `pick_list_printed`, pesanan dalam pick list yang ia cetak; **Daftar kemas**: `packing_list_printed`, sendiri atau bersama label;
+- **Ke kurir**: `handed_over`, ditambah pesanan manual yang dikirim oleh serah terima (langkah `shipped` dengan `payload.handoverId`);
+- **Menit kemas per pesanan**: rata-rata `payload.seconds` kemas dengan scan (8.24) yang tidak lebih dari 30 menit (`PACK_TIME_LIMIT_SECONDS`; yang lebih lama dianggap terputus), dibulatkan ke detik.
+Riwayat `pick_list_printed` dan `packing_list_printed` ditulis worker saat dokumen selesai dibuat, untuk pelaku yang memintanya, bersama `label_printed` (`recordManyIn`: satu INSERT per 1.000 pesanan). Pesanan yang labelnya tidak ada tidak mendapat daftar kemas di dokumen label.
+
+**Kueri.** `OrdersRepository.staffActions` membaca `order_event` pengguna dalam periode (indeks parsial `(tenant_id, created_at) WHERE actor_type = 'user'`) yang pesanannya dalam cakupan toko dan gudang pemanggil, lalu mengelompokkan per pengguna dan hari zona waktu bisnis dengan `GROUPING SETS ((1, 2), (1), (2), ())`: per anggota per hari, per anggota, per hari untuk seluruh tim, dan total. Pesanan diproses dihitung `count(DISTINCT order_id)` di setiap kelompok, jadi pesanan yang dikerjakan dua orang dihitung sekali untuk tim. Zona waktu muncul sekali di SELECT dan pengelompokan memakai posisi kolom (jebakan 42803 di AGENTS.md).
+
+**API.** `GET /v1/reports/staff?from=&to=` (`settings:user`, fitur paket `staff_report`; 422 `billing.feature_unavailable` di Starter), periode seperti laporan penjualan (bulan berjalan bila kosong, paling panjang 366 hari): `total`, `users` (diurutkan pesanan diproses, lalu dikemas, lalu nama; `name` null untuk pengguna yang sudah tidak ada), `days` (tim per hari), `userDays`, dan `packTimeLimitSeconds`. `GET /v1/reports/staff/export?section=users|days` memberi CSV `kinerja-tim-per-anggota-<dari>-<sampai>.csv` atau `kinerja-tim-per-hari-...` (`common/csv.ts`).
+
+**Riwayat pesanan.** `GET /v1/orders/{id}` membawa `events[].actorName`: nama pengguna untuk aksi pengguna, null untuk marketplace dan sistem (L04 "siapa").
+
+Belum termasuk: picking lewat aplikasi gudang (menunggu aplikasi Android, ADR-032), laporan terjadwal lewat email (FR-RPT-05), dan rencana kapasitas dari menit per pesanan (FR-CMP-03).
 
 ---
 
@@ -2861,7 +2889,7 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `data:export` | `/v1/exports*`: ekspor seluruh data bisnis (8.18). Hanya Owner secara bawaan; peran bawaan Owner selalu memegang semua izin, termasuk yang ditambahkan kemudian (seed) |
 | `audit:read` | `GET /v1/audit-logs`, `GET /v1/audit-logs/people` |
 | `chat:read`, `chat:write`, `chat:assign` | Chat |
-| `settings:store`, `settings:warehouse`, `settings:user`, `settings:billing` | Pengaturan; `settings:store` juga saluran pesanan manual, `settings:warehouse` menambah, mengubah, dan menghapus gudang (8.21) serta memasang, mengubah, dan mencabut agen cetak (8.24), cut-off kurir, hari libur kurir, dan jam operasional (8.31); `settings:billing` juga profil bisnis dan legalitas, tugas legalitas di dasbor, dan pengingatnya (8.29), serta langganan, paket, tagihan, tugas `billing_due`, dan pemberitahuan langganan (8.32); `settings:user` juga mengeluarkan anggota dari semua perangkat dan mematikan verifikasi dua langkah anggota (8.30) |
+| `settings:store`, `settings:warehouse`, `settings:user`, `settings:billing` | Pengaturan; `settings:user` juga laporan kinerja tim (8.35); `settings:store` juga saluran pesanan manual, `settings:warehouse` menambah, mengubah, dan menghapus gudang (8.21) serta memasang, mengubah, dan mencabut agen cetak (8.24), cut-off kurir, hari libur kurir, dan jam operasional (8.31); `settings:billing` juga profil bisnis dan legalitas, tugas legalitas di dasbor, dan pengingatnya (8.29), serta langganan, paket, tagihan, tugas `billing_due`, dan pemberitahuan langganan (8.32); `settings:user` juga mengeluarkan anggota dari semua perangkat dan mematikan verifikasi dua langkah anggota (8.30) |
 | `research:read`, `research:write` | Riset |
 | `admin:internal` | UI admin internal OmniSeller (bukan tenant) |
 
@@ -2979,6 +3007,7 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `GET /v1/notifications/preferences`, `PUT /v1/notifications/preferences/{kind}` | Masuk saja (milik sendiri) | Preferensi notifikasi; sekarang email ringkasan harian `digest.daily` (8.20) |
 | `GET /v1/dashboard` | `order:read` | 8.16. `range` `today`, `7d`, `30d`; `storeId`; bagian tanpa izin bernilai `null` |
 | `GET /v1/reports/sales`, `GET /v1/reports/sales/export` | `report:read` | 8.20. Penjualan per periode, marketplace, toko, produk, kategori, provinsi, dan jam, dengan pembanding; CSV per bagian (`section`) |
+| `GET /v1/reports/staff`, `GET /v1/reports/staff/export` | `settings:user` | 8.35. Kinerja tim per anggota dan per hari dari riwayat pesanan, dalam cakupan pemanggil; fitur paket `staff_report` (422 `billing.feature_unavailable`); CSV per anggota atau per anggota per hari (`section`) |
 | `POST /v1/exports`, `GET /v1/exports`, `GET /v1/exports/{id}` | `data:export`, tanpa batasan toko atau gudang | 8.18. Ekspor seluruh data ke ZIP berisi CSV, dibuat worker (202); satu yang berjalan per bisnis |
 | `GET /v1/exports/{id}/download` | `data:export` | ZIP: redirect ke tautan R2 10 menit, atau berkasnya (penyimpanan lokal); setiap unduhan diaudit |
 | `GET /v1/migration/fields`, `POST/GET /v1/migration/imports`, `GET /v1/migration/imports/{id}`, `PUT .../mapping`, `POST .../validate`, `POST .../import`, `GET .../errors`, `GET .../errors/export` | `settings:store`; impor juga `catalog:write`, dan `inventory:adjust` bila memuat stok awal | 8.19. Unggah Excel atau CSV (base64, 8 MB), pemetaan kolom, validasi dan impor oleh worker (202), masalah per baris dan CSV-nya |
@@ -3017,7 +3046,7 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `notification` | `notification`, `notification_preference`. `NotificationInboxService` (`notifyIn`, `notifyScopedIn`; api dan worker) menulis notifikasi in-app di transaksi modul yang memutuskan (8.17); `NotificationPreferencesService` (`list`, `set`, `emailChoicesIn`) menyimpan pilihan pengguna (8.20); `EmailSender` (`smtp`, `log`, `memory`) dan templat email hanya di worker | `notification.email_requested` | Tidak langsung: job modul pemilik keputusan (`order.new_notice`, `order.sla_alert`, `inventory.stock_alert`, `store.reauth_notice`, `store.expiry_notice`, `store.connection_check`, `export.render`) | `notification.email` (notifikasi yang juga dikirim lewat email, 8.23); menyusul `notify.send` |
 | `business` | `business_profile`, `business_document` (8.29). Nama dan zona waktu bisnis lewat `TenantsService` (`profileIn`, `updateProfileIn`), berkas lewat `FilesService`, pengingat lewat `NotificationInboxService.notifyScopedIn`; `legalTasksIn` untuk dasbor dan `exportSheets` untuk ekspor | | | `business.legal_alert` (antrean `notify`); di scheduler: `business.legal_scan` |
 | `billing` | `subscription`, `invoice`, `usage_counter` (8.32). Paket lewat `TenantsService`; yang ditagih lewat `BusinessProfileService.billToIn`; PDF tagihan di api (`InvoicePdfService`); kuota diperiksa modul pemilik tabel lewat `common/plan-limits.ts`; `UsageMeterService.countIn` dipanggil `OrderIntakeService`; `taskIn` untuk dasbor, `exportSheets` untuk ekspor; Xendit hanya di worker (`BillingWorkerService`) dan callback di proses webhook | `billing.invoice_requested`, `billing.invoice_voided` | `tenant.created` | `billing.trial_start`, `billing.invoice_create`, `billing.invoice_expire`, `billing.invoice_callback`, `billing.renew` (antrean `billing`); di scheduler: `billing.renewal_scan` |
-| `reporting` | `daily_digest`. `DashboardService` (8.16) dan `SalesReportService` (8.20) tidak menulis apa pun: angkanya dibaca lewat service modul pemilik dan view yang diekspornya. `DigestService` (worker) mengklaim `daily_digest` dan mengirim email lewat `EmailSender` | `digest.email_requested` | `digest.email_requested` | `digest.daily`, `digest.email` (antrean `notify`); menyusul `report.scheduled_email` |
+| `reporting` | `daily_digest`. `DashboardService` (8.16), `SalesReportService` (8.20), dan `StaffReportService` (8.35) tidak menulis apa pun: angkanya dibaca lewat service modul pemilik dan view yang diekspornya. `DigestService` (worker) mengklaim `daily_digest` dan mengirim email lewat `EmailSender` | `digest.email_requested` | `digest.email_requested` | `digest.daily`, `digest.email` (antrean `notify`); menyusul `report.scheduled_email` |
 | `exports` | `data_export`. `ExportsService` (api) dan `ExportRenderService` (worker) membaca data lewat `exportSheets()` setiap modul pemilik dan menyimpan ZIP lewat `FilesService` (8.18) | `export.requested` | `export.requested` | `export.render` (antrean `export`) |
 | `retention` | Tidak punya tabel. Menganonimkan data pembeli yang melewati masa simpan bisnis (8.34: `BuyerDataRetentionService` lewat `BusinessProfileService.buyerDataRetentionIn`, `OrdersService.buyerDataDueIn | anonymizeBuyersIn`, `FulfillmentService.anonymizeIn`, `ReturnsService.anonymizeIn`). Menghapus data toko yang diputus tanpa menyimpan data (8.23) lewat service modul pemilik: `OrdersService` (`storeOrderIdsIn`, `deleteOrdersIn`), `FulfillmentService.deleteForOrdersIn`, `ListingsService.deleteStoreListingsIn`, `InventoryService.deleteStoreRulesIn`, `SyncLogService.deleteStoreLogIn`, `ListingCopyService.deleteStoreCopiesIn` dan `CategoriesService.deleteStoreCategoriesIn` (8.25), `StoresService.finishDataDeletionIn`. Hanya worker | | `store.data_deletion_requested` | `store.data_delete`, `retention.buyer_anonymize` (antrean `import`); di scheduler: `retention.buyer_scan`; menyusul `retention.run` (9.5) |
 | `ai` | `ai_route_config`, `ai_call_log`, `ai_budget` | `ai.budget_exhausted` | | `ai.*` |
@@ -3424,3 +3453,4 @@ Berkas `.env.example` adalah versi yang berlaku. Kunci dikelompokkan per peran p
 | 1.33 | 8 Oktober 2026 | Lampiran email notifikasi (8.17): `EmailAttachments` di modul notifikasi, sumber didaftarkan modul lain di worker, berkas digambar saat dikirim, transport `log` hanya mencatat nama dan ukuran. Email "Pembayaran ... diterima" dan pembayaran terlambat membawa PDF tagihannya (8.32, `ReceiptAttachments`); env penerbit kini dibaca api dan worker | Candra Syahputra |
 | 1.34 | 10 Oktober 2026 | Peran kustom dan fitur per paket (8.33 baru, PRD FR-USR-01 dan 14): `POST`, `PATCH`, `DELETE /v1/roles` dengan nama unik tanpa membedakan huruf, izin yang dimiliki pemanggil (lama dan baru), perubahan izin sebagai selisih, hapus bila tidak dipegang dan tidak ditawarkan undangan terbuka. Fitur paket `custom_roles` diperiksa `TenantsService.requireFeatureIn` saat membuat, mengubah, dan memberi peran kustom; pemegangnya tetap memegangnya setelah turun paket. `GET /v1/me` membawa `plan`, peran membawa `userCount`, ekspor `peran.csv`. Migrasi 0024: `invitation.role_id` SET NULL, CHECK panjang nama dan indeks unik `lower(name)` | Candra Syahputra |
 | 1.35 | 10 Oktober 2026 | Anonimisasi data pembeli (8.34 baru, PRD 12.1): masa simpan per bisnis 3 sampai 24 bulan (`business_profile.buyer_data_retention_months`, bawaan 24, diaudit), `retention.buyer_scan` setiap jam dan job `retention.buyer_anonymize` per bisnis: pesanan yang lewat masa simpan dan tidak lagi ditahan kehilangan nama, telepon, alamat (kecuali kota dan provinsi), catatan, dan id pembeli; keterangan pelacakan dikosongkan, alasan dan foto retur dihapus, label, dokumen, dan foto bukti kedaluwarsa. Snapshot marketplace kemudian tidak mengisinya lagi; pesanan manual yang sudah dianonimkan menolak data pembeli baru (409 `order.buyer_anonymized`). Migrasi 0025: kolom dan indeks parsial `order.buyer_anonymized_at`, trigger audit profil dibuat ulang | Candra Syahputra |
+| 1.36 | 10 Oktober 2026 | Laporan kinerja tim (8.35 baru, PRD FR-RPT-10, layar L33): `GET /v1/reports/staff` dan `/export` (`settings:user`, fitur paket `staff_report` mulai Growth) menghitung dari `order_event` per anggota dan per hari: pesanan diproses (sekali per pesanan), dikemas dan dengan scan, label, pick list, daftar kemas, serah terima, dan menit kemas per pesanan dengan scan (`seconds` baru di `POST /v1/packing/orders/{id}/complete`, di atas 30 menit tidak dihitung). Riwayat baru `pick_list_printed` dan `packing_list_printed` saat dokumen dibuat; riwayat pesanan membawa `actorName`. Migrasi 0026: indeks parsial aksi pengguna di `order_event` | Candra Syahputra |

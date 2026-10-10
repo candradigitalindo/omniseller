@@ -25,7 +25,7 @@ Pengiriman pesanan (PRD 6.5: FR-SHP-01, 02, 03, 04, 05, 06, 07, 16, 17; FR-ORD-0
 - `LabelTemplateService` (api dan worker): `get`, `set`, `preview`, `optionsIn`.
 - `FulfillmentService.requestBarcodeLabels` (dokumen `barcode_labels`) dan `deleteForOrdersIn` (modul retention: pengiriman dihapus, label dan dokumen PDF pesanan itu kedaluwarsa seketika lewat `FilesService.expireIn`).
 - `FulfillmentService.anonymizeIn` (modul retention, masa simpan data pembeli, backend doc 8.34): keterangan kejadian pelacakan dikosongkan (waktu, tahap, dan lokasi tetap), label pengiriman, label paket, dan dokumen cetak pesanan itu kedaluwarsa.
-- `PickListBuilder` (api dan worker): `buildIn`.
+- `PickListBuilder` (api dan worker): `buildIn` (bagian per gudang, yang tertinggal, dan `orderIds` pesanan yang barangnya diambil).
 - Hanya worker: `FulfillmentWorkerService` (`arrange`, `fetchLabels`, `followOrder`, `labelsForOrders`, `pullTracking`) dan `DocumentRenderService` (`render`; juga manifest serah terima dan halaman uji agen). Marketplace selalu lewat `MarketplaceGateway`, di luar transaksi.
 - `PrintService` (api dan worker): `queueIn` (pekerjaan untuk sebuah dokumen), `push` (setelah commit), `printDocument`, `list`, `get`, `retry`, `cancel`, `cancelForDeviceIn`, `documentFinishedIn` (worker), dan rute agen `pending`, `take`, `report`, `agentStatus`.
 - `PrintAgentsService` (api): `list`, `get`, `create`, `update`, `revoke`, `testPrint`.
@@ -43,6 +43,7 @@ Pengiriman pesanan (PRD 6.5: FR-SHP-01, 02, 03, 04, 05, 06, 07, 16, 17; FR-ORD-0
 - `label.fetch` gagal dengan sengaja (`LabelsPendingError`) selama resi atau label belum ada; BullMQ mengulang dengan backoff. Jangan ditangkap.
 - Pengiriman mengikuti pesanan lewat `order.status_changed` dan `shipmentStepFor`; modul ini menulis pesanan hanya lewat `OrderIntakeService`.
 - Dokumen kosong tidak dibuat: dokumen tanpa isi gagal dengan alasan dan daftar pesanan yang tertinggal.
+- Dokumen yang selesai menulis riwayat pesanannya atas nama peminta: `label_printed`, `pick_list_printed`, dan `packing_list_printed` (daftar kemas sendiri, atau bersama label untuk pesanan yang labelnya tercetak). Laporan kinerja tim menghitungnya (backend doc 8.35).
 - **Pelacakan** (backend doc 8.22) hanya untuk dilihat; tidak pernah mengubah status pesanan atau pengiriman.
   - Yang dilacak: pesanan marketplace yang dikirim penjual, sejak `shipped`, dari toko yang terhubung (toko baca saja juga).
   - Tahap pesanan dari gabungan paketnya (`combineParcels`): tahap yang perlu perhatian lebih dulu, lalu paket yang paling tertinggal.
@@ -58,7 +59,7 @@ Pengiriman pesanan (PRD 6.5: FR-SHP-01, 02, 03, 04, 05, 06, 07, 16, 17; FR-ORD-0
 - **Agen cetak.** Token sekali tampil, hanya hash yang disimpan; dicabut, bukan dihapus. Pengguna dengan cakupan gudang hanya memakai agen gudangnya dan agen tanpa gudang. Printer pekerjaan: yang diminta, lalu printer agen untuk kertasnya (`paperOf`: label atau A4), lalu printer bawaan komputer.
 - **Pekerjaan cetak.** Dibuat bersama dokumennya dan menunggu worker; worker memasang berkas lalu mendorong `print.job` setelah commit (`PrintService.push`). Agen mengambil berkas (`sent`), lalu melapor `printed` atau `failed`. Socket bisa terlewat: agen membaca daftar tertunda lewat REST.
 - **Scan.** `ScanService.orderIn` mencari nomor pesanan, resi pesanan, resi pengiriman, dan resi paket, persis atau huruf besar, dalam cakupan pengguna; dua pesanan atau lebih: 409 `scan.ambiguous`. Penolakan label memakai kode dokumen label (`labelRefusal`).
-- **Kemas dengan scan.** Server memeriksa ulang semua pindaian (`checkPacking`): jumlah per baris sama persis, tanpa kode asing; lalu `OrdersService.packIn` dengan aturan "Tandai dikemas". Label yang belum siap tidak membatalkan pengemasan.
+- **Kemas dengan scan.** Server memeriksa ulang semua pindaian (`checkPacking`): jumlah per baris sama persis, tanpa kode asing; lalu `OrdersService.packIn` dengan aturan "Tandai dikemas". Label yang belum siap tidak membatalkan pengemasan. `seconds` dari stasiun (waktu sejak pesanan dipindai) disimpan di riwayat untuk menit kemas per pesanan (backend doc 8.35).
 - **Serah terima.** Satu manifest terbuka per gudang dan kurir. Pindai memeriksa gudang, kurir (`courierMatches`), status (`handoverRefusal`), dan manifest terbuka lain; kunci pesanan mencegah satu paket di dua manifest. Selesai memeriksa ulang semua paket, lalu semua atau tidak sama sekali: pengiriman marketplace `handed_over`, pesanan manual dikirim. Kunci pengiriman dulu, baru pesanan. Manifest A4 tanpa data pembeli.
 
 ## Event

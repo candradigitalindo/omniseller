@@ -3,9 +3,13 @@
 import { cn } from "cn";
 import { useTranslations } from "next-intl";
 import { Fragment, type ReactNode, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatNumber, formatRupiah } from "@/lib/format";
 import {
+  customProblem,
   formatPercent,
   HEAT_LEVELS,
   type HeatCell,
@@ -72,6 +76,7 @@ export function RankTable<T>({
   name,
   measure,
   columns,
+  scrollLabel,
 }: {
   rows: readonly T[];
   rowKey: (row: T) => string;
@@ -80,6 +85,8 @@ export function RankTable<T>({
   /** what the bar under the name shows */
   measure: (row: T) => number;
   columns: RankColumn<T>[];
+  /** names the table's scroll region when its columns may not fit (see `Table`) */
+  scrollLabel?: string | undefined;
 }) {
   const max = rows.reduce((m, r) => Math.max(m, measure(r)), 0);
   const bar = (r: T) => (
@@ -92,7 +99,7 @@ export function RankTable<T>({
   return (
     <>
       <div className="hidden md:block">
-        <Table>
+        <Table scrollLabel={scrollLabel}>
           <TableHeader className="bg-surface-2">
             <TableRow>
               <TableHead className="w-[45%]">{nameHeader}</TableHead>
@@ -269,5 +276,47 @@ export function HourTable({ byHour }: { byHour: SalesReport["byHour"] }) {
         </TableBody>
       </Table>
     </div>
+  );
+}
+
+/** "Kustom": two dates and "Terapkan"; the period is checked as the api does (366 days at most). */
+export function CustomPeriod({
+  initial,
+  onApply,
+}: {
+  initial: { from: string; to: string };
+  onApply: (range: { from: string; to: string }) => void;
+}) {
+  const t = useTranslations("reports");
+  const [from, setFrom] = useState(initial.from);
+  const [to, setTo] = useState(initial.to);
+  const [problem, setProblem] = useState<ReturnType<typeof customProblem>>(null);
+  return (
+    <form
+      className="mb-3 flex flex-wrap items-end gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const p = customProblem(from, to);
+        setProblem(p);
+        if (!p) onApply({ from, to });
+      }}
+    >
+      <div className="grid gap-1.5">
+        <Label htmlFor="report-from">{t("from")}</Label>
+        <Input id="report-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-44" />
+      </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="report-to">{t("to")}</Label>
+        <Input id="report-to" type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-44" />
+      </div>
+      <Button type="submit" variant="secondary">
+        {t("apply")}
+      </Button>
+      {problem ? (
+        <p role="alert" className="w-full text-sm text-danger">
+          {t(`customProblem_${problem}`)}
+        </p>
+      ) : null}
+    </form>
   );
 }

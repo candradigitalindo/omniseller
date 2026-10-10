@@ -102,7 +102,12 @@ export class PackingService {
   async complete(
     ctx: RequestContext,
     orderId: string,
-    input: { scans: { code: string; qty: number }[]; print?: (PrintTarget & ScanLabelOptions) | undefined },
+    input: {
+      scans: { code: string; qty: number }[];
+      /** How long the station took from scanning the order to now (team performance, FR-RPT-10). */
+      seconds?: number | undefined;
+      print?: (PrintTarget & ScanLabelOptions) | undefined;
+    },
   ): Promise<{ order: OrderRow; print: LabelPrint | null; printRefusal: Refusal | null }> {
     return withTenantTx(this.db, ctx, async (tx) => {
       const o = await this.orders.visibleIn(tx, ctx, orderId, true);
@@ -110,7 +115,11 @@ export class PackingService {
       const check = checkPacking(lines, input.scans);
       if (!check.ok) throw packingMismatch(check);
       const units = lines.reduce((n, l) => n + l.qty, 0);
-      const order = await this.orders.packIn(tx, ctx, o, { verified: "scan", units });
+      const order = await this.orders.packIn(tx, ctx, o, {
+        verified: "scan",
+        units,
+        ...(input.seconds !== undefined ? { seconds: input.seconds } : {}),
+      });
       if (!input.print) return { order, print: null, printRefusal: null };
       const printRefusal = await this.scan.labelRefusalIn(tx, order);
       if (printRefusal) return { order, print: null, printRefusal };

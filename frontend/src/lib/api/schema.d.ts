@@ -3044,6 +3044,38 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/reports/staff": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["ReportsController_staffReport"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/reports/staff/export": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["ReportsController_staffExport"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/exports": {
     parameters: {
       query?: never;
@@ -6560,6 +6592,7 @@ export interface components {
           | null;
         actorType: string;
         actorId: string | null;
+        actorName: string | null;
         payload: {
           [key: string]: unknown;
         };
@@ -7257,6 +7290,8 @@ export interface components {
         /** @default 1 */
         qty: number;
       }[];
+      /** @description detik sejak pesanan dipindai sampai dikemas, diukur stasiun; untuk laporan kinerja tim */
+      seconds?: number;
       /** @description Cetak label dan lanjut: label dikirim ke agen cetak setelah pesanan dikemas */
       print?: {
         /** @description agen cetak tujuan (GET /v1/print-agents) */
@@ -8209,6 +8244,95 @@ export interface components {
         hour: number;
         orders: number;
         revenue: number;
+      }[];
+    };
+    StaffReportDto_Output: {
+      timezone: string;
+      range: {
+        from: string;
+        to: string;
+      };
+      packTimeLimitSeconds: number;
+      total: {
+        /** @description pesanan yang ia gerakkan maju (terima, atur kirim, kemas, kirim, serah terima), sekali per pesanan */
+        processed: number;
+        packed: number;
+        /** @description dari `packed`, yang diperiksa per barang di stasiun kemas */
+        packedByScan: number;
+        /** @description label pesanan yang ia cetak, termasuk cetak ulang */
+        labels: number;
+        /** @description pesanan dalam pick list yang ia cetak */
+        pickLists: number;
+        /** @description pesanan yang daftar kemasnya ia cetak */
+        packingLists: number;
+        /** @description paket dalam serah terima kurir yang ia selesaikan */
+        handedOver: number;
+        /** @description kemas dengan scan yang waktunya tercatat dan tidak lebih dari batas */
+        timedPacks: number;
+        /** @description rata-rata detik kemas per pesanan dari `timedPacks` */
+        packSecondsAverage: number | null;
+      };
+      users: {
+        /** @description pesanan yang ia gerakkan maju (terima, atur kirim, kemas, kirim, serah terima), sekali per pesanan */
+        processed: number;
+        packed: number;
+        /** @description dari `packed`, yang diperiksa per barang di stasiun kemas */
+        packedByScan: number;
+        /** @description label pesanan yang ia cetak, termasuk cetak ulang */
+        labels: number;
+        /** @description pesanan dalam pick list yang ia cetak */
+        pickLists: number;
+        /** @description pesanan yang daftar kemasnya ia cetak */
+        packingLists: number;
+        /** @description paket dalam serah terima kurir yang ia selesaikan */
+        handedOver: number;
+        /** @description kemas dengan scan yang waktunya tercatat dan tidak lebih dari batas */
+        timedPacks: number;
+        /** @description rata-rata detik kemas per pesanan dari `timedPacks` */
+        packSecondsAverage: number | null;
+        userId: string;
+        name: string | null;
+      }[];
+      days: {
+        /** @description pesanan yang ia gerakkan maju (terima, atur kirim, kemas, kirim, serah terima), sekali per pesanan */
+        processed: number;
+        packed: number;
+        /** @description dari `packed`, yang diperiksa per barang di stasiun kemas */
+        packedByScan: number;
+        /** @description label pesanan yang ia cetak, termasuk cetak ulang */
+        labels: number;
+        /** @description pesanan dalam pick list yang ia cetak */
+        pickLists: number;
+        /** @description pesanan yang daftar kemasnya ia cetak */
+        packingLists: number;
+        /** @description paket dalam serah terima kurir yang ia selesaikan */
+        handedOver: number;
+        /** @description kemas dengan scan yang waktunya tercatat dan tidak lebih dari batas */
+        timedPacks: number;
+        /** @description rata-rata detik kemas per pesanan dari `timedPacks` */
+        packSecondsAverage: number | null;
+        date: string;
+      }[];
+      userDays: {
+        /** @description pesanan yang ia gerakkan maju (terima, atur kirim, kemas, kirim, serah terima), sekali per pesanan */
+        processed: number;
+        packed: number;
+        /** @description dari `packed`, yang diperiksa per barang di stasiun kemas */
+        packedByScan: number;
+        /** @description label pesanan yang ia cetak, termasuk cetak ulang */
+        labels: number;
+        /** @description pesanan dalam pick list yang ia cetak */
+        pickLists: number;
+        /** @description pesanan yang daftar kemasnya ia cetak */
+        packingLists: number;
+        /** @description paket dalam serah terima kurir yang ia selesaikan */
+        handedOver: number;
+        /** @description kemas dengan scan yang waktunya tercatat dan tidak lebih dari batas */
+        timedPacks: number;
+        /** @description rata-rata detik kemas per pesanan dari `timedPacks` */
+        packSecondsAverage: number | null;
+        userId: string;
+        date: string;
       }[];
     };
     DataExportDto_Output: {
@@ -13811,6 +13935,52 @@ export interface operations {
         channel?: "shopee" | "tiktokshop" | "lazada" | "blibli" | "shopify" | "woocommerce" | "manual";
         compare?: "true" | "false";
         section?: "series" | "channels" | "stores" | "products" | "categories" | "regions" | "hours";
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description CSV, pemisah ; */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/csv": string;
+        };
+      };
+    };
+  };
+  ReportsController_staffReport: {
+    parameters: {
+      query?: {
+        from?: string;
+        to?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["StaffReportDto_Output"];
+        };
+      };
+    };
+  };
+  ReportsController_staffExport: {
+    parameters: {
+      query?: {
+        from?: string;
+        to?: string;
+        section?: "users" | "days";
       };
       header?: never;
       path?: never;

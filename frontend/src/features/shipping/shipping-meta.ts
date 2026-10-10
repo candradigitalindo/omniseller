@@ -62,6 +62,17 @@ export function packingScans(lines: readonly PackLine[], counts: Readonly<Record
   });
 }
 
+/** The api's longest packing time, a day; a station left open longer still sends a day. */
+export const MAX_PACK_SECONDS = 86_400;
+
+/**
+ * Whole seconds from scanning the order to finishing it, from two `performance.now()` readings (the team
+ * report's minutes per order, FR-RPT-10). The station's own clock, so a wrong system time does not matter.
+ */
+export function packSeconds(startMs: number, endMs: number): number {
+  return Math.min(MAX_PACK_SECONDS, Math.max(0, Math.round((endMs - startMs) / 1000)));
+}
+
 /** A document is done once it is ready or failed; until then its page polls it. */
 export function documentDone(d: Pick<DocumentView, "status"> | undefined): boolean {
   return d?.status === "ready" || d?.status === "failed";

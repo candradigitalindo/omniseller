@@ -4,9 +4,11 @@ import {
   documentDone,
   lineOf,
   loadPrintSettings,
+  MAX_PACK_SECONDS,
   type PackLine,
   packed,
   packingScans,
+  packSeconds,
   savePrintSettings,
   scanUnit,
 } from "./shipping-meta";
@@ -53,6 +55,17 @@ describe("packing by scan", () => {
 
   it("treats an order without lines as nothing to pack", () => {
     expect(packed([], {})).toBe(false);
+  });
+});
+
+describe("packing time", () => {
+  it("is whole seconds between two readings of the station's clock, within what the api takes", () => {
+    expect(packSeconds(1_000, 96_400)).toBe(95);
+    expect(packSeconds(1_000, 96_600)).toBe(96);
+    // a clock that went back (it cannot, but) says nothing took negative time
+    expect(packSeconds(5_000, 1_000)).toBe(0);
+    expect(packSeconds(0, 90_000_000)).toBe(MAX_PACK_SECONDS);
+    expect(MAX_PACK_SECONDS).toBe(86_400);
   });
 });
 

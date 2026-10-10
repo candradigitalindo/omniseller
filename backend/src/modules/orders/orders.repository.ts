@@ -29,7 +29,14 @@ import {
   orderItem,
   orderProblem,
 } from "../../db/schema";
-import { HOLD_STATUSES, SLA_WARNING_MS, TO_SHIP_STATUSES } from "./order-plan";
+import {
+  HOLD_STATUSES,
+  PACK_TIME_LIMIT_SECONDS,
+  PROCESSING_EVENTS,
+  PROCESSING_STATUSES,
+  SLA_WARNING_MS,
+  TO_SHIP_STATUSES,
+} from "./order-plan";
 
 export type OrderRow = typeof order.$inferSelect;
 export type OrderItemRow = typeof orderItem.$inferSelect;
@@ -64,6 +71,25 @@ export interface OrderListFilter {
 }
 
 export type OrderSort = "newest" | "ship_by";
+
+/**
+ * What users did to orders (team performance, FR-RPT-10): per user and local day, per user (`day` null),
+ * per day (`userId` null), and in all (both null). `processed` counts orders, each once per group; the
+ * rest count history entries. `packSeconds` adds up the `timedPacks`.
+ */
+export interface StaffActionRow {
+  userId: string | null;
+  day: string | null;
+  processed: number;
+  packed: number;
+  packedByScan: number;
+  labels: number;
+  pickLists: number;
+  packingLists: number;
+  handedOver: number;
+  timedPacks: number;
+  packSeconds: number;
+}
 
 /** Not sales: unpaid orders may never be paid, cancelled ones were not sold. */
 const NOT_SALES: OrderStatus[] = ["unpaid", "cancelled"];
@@ -556,6 +582,57 @@ export class OrdersRepository {
       .from(o)
       .where(this.where({ ...f, statuses: undefined, internalBefore: before }));
     return { count: r?.count ?? 0, missed: r?.missed ?? 0, next: r?.next ? new Date(r.next) : null };
+  }
+
+  // ---- team performance (FR-RPT-10, backend doc 8.35) ----
+
+  /**
+   * Users' entries in the order history between `from` and `to`, counted per user and day of the business's
+   * time zone, per user, per day, and in all (one query, grouping sets), for orders in the caller's scope.
+   */
+  async staffActions(
+    tx: Tx,
+    f: Pick<OrderListFilter, "storeScope" | "warehouseScope">,
+    from: Date,
+    to: Date,
+    timezone: string,
+  ): Promise<StaffActionRow[]> {
+    const e = orderEvent;
+    const reached = (statuses: readonly OrderStatus[]) =>
+      and(eq(e.type, "status_changed"), inArray(e.toStatus, [...statuses]));
+    const packed = reached(["packed"]);
+    const timed = and(
+      packed,
+      sql`jsonb_typeof(${e.payload} -> 'seconds') = 'number'`,
+      sql`(${e.payload} ->> 'seconds')::numeric <= ${PACK_TIME_LIMIT_SECONDS}`,
+    );
+    const count = (where: SQL | undefined) => sql<number>`(count(*) FILTER (WHERE ${where ?? sql`false`}))::int`;
+    const processing = or(reached(PROCESSING_STATUSES), inArray(e.type, [...PROCESSING_EVENTS]));
+    const rows = await tx
+      .select({
+        userId: e.actorId,
+        // the parameterized time zone appears once: the grouping refers to the column by position
+        day: sql<string | null>`to_char(${e.createdAt} AT TIME ZONE ${timezone}, 'YYYY-MM-DD')`,
+        processed: sql<number>`(count(DISTINCT ${e.orderId}) FILTER (WHERE ${processing ?? sql`false`}))::int`,
+        packed: count(packed),
+        packedByScan: count(and(packed, sql`${e.payload} ->> 'verified' = 'scan'`)),
+        labels: count(eq(e.type, "label_printed")),
+        pickLists: count(eq(e.type, "pick_list_printed")),
+        packingLists: count(eq(e.type, "packing_list_printed")),
+        // manual orders in a manifest are shipped by the handover itself, with the manifest in the payload
+        handedOver: count(
+          or(eq(e.type, "handed_over"), and(reached(["shipped"]), sql`(${e.payload} ->> 'handoverId') IS NOT NULL`)),
+        ),
+        timedPacks: count(timed),
+        packSeconds: sql<string>`coalesce(sum((${e.payload} ->> 'seconds')::numeric) FILTER (WHERE ${timed ?? sql`false`}), 0)::bigint`,
+      })
+      .from(e)
+      .innerJoin(o, and(eq(o.tenantId, e.tenantId), eq(o.id, e.orderId)))
+      .where(
+        and(eq(e.actorType, "user"), isNotNull(e.actorId), gte(e.createdAt, from), lt(e.createdAt, to), this.where(f)),
+      )
+      .groupBy(sql`GROUPING SETS ((1, 2), (1), (2), ())`);
+    return rows.map((r) => ({ ...r, packSeconds: Number(r.packSeconds) }));
   }
 
   // ---- sales (dashboard, FR-RPT-01) ----

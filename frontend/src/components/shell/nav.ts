@@ -22,6 +22,7 @@ import {
   ShoppingBag,
   Store,
   Truck,
+  Users,
   UsersRound,
   Warehouse,
 } from "lucide-react";
@@ -41,6 +42,7 @@ type NavKey =
   | "transfers"
   | "restock"
   | "salesReport"
+  | "teamPerformance"
   | "warehouses"
   | "stores"
   | "team"
@@ -121,6 +123,7 @@ export const NAV: readonly NavGroup[] = [
     key: "groupAnalytics",
     items: [
       { key: "salesReport", href: "/laporan/penjualan", icon: BarChart3, permission: "report:read", ready: true },
+      { key: "teamPerformance", href: "/laporan/kinerja-tim", icon: Users, permission: "settings:user", ready: true },
     ],
   },
   {

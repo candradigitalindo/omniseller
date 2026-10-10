@@ -49,7 +49,11 @@ export class PickListBuilder {
     @Inject(WarehousesService) private readonly warehouses: WarehousesService,
   ) {}
 
-  async buildIn(tx: Tx, orderIds: string[]): Promise<{ sections: PickListSection[]; missing: Missing[] }> {
+  /** `orderIds` of the result: the orders whose goods the list gathers. */
+  async buildIn(
+    tx: Tx,
+    orderIds: string[],
+  ): Promise<{ sections: PickListSection[]; missing: Missing[]; orderIds: string[] }> {
     const { orders, items } = await this.orders.readIn(tx, orderIds);
     const missing: Missing[] = [];
     const pickable = new Map<string, OrderRow>();
@@ -100,6 +104,6 @@ export class PickListBuilder {
       ).size;
     }
     const sections = [...byWarehouse.values()].sort((a, b) => a.warehouse.localeCompare(b.warehouse));
-    return { sections, missing };
+    return { sections, missing, orderIds: [...new Set(inputs.map((i) => i.orderId))] };
   }
 }

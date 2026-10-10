@@ -8,9 +8,13 @@ import {
   formatRange,
   heatGrid,
   heatLevel,
+  packMinutes,
   periodRange,
   reportQuery,
   type SalesReport,
+  type StaffReport,
+  staffDays,
+  staffExportHref,
   todayIn,
   trendPoints,
 } from "./report-meta";
@@ -201,5 +205,44 @@ describe("report queries", () => {
     expect(formatPointChange(1.25)).toBe("+1,3 poin");
     expect(formatPointChange(-0.5)).toBe("-0,5 poin");
     expect(formatPointChange(0)).toBe("0 poin");
+  });
+});
+
+describe("the team report (L33)", () => {
+  it("writes the average packing time in minutes with one decimal", () => {
+    expect(packMinutes(95)).toBe("1,6");
+    expect(packMinutes(20)).toBe("0,3");
+    expect(packMinutes(600)).toBe("10,0");
+    expect(packMinutes(null)).toBeNull();
+  });
+
+  it("downloads per member or per member per day for the period", () => {
+    expect(staffExportHref("users", { from: "2026-10-01", to: "2026-10-31" })).toBe(
+      "/v1/reports/staff/export?from=2026-10-01&to=2026-10-31&section=users",
+    );
+    expect(staffExportHref("days", {})).toBe("/v1/reports/staff/export?section=days");
+  });
+
+  it("lists the team's days, or one member's", () => {
+    const f = {
+      processed: 1,
+      packed: 0,
+      packedByScan: 0,
+      labels: 0,
+      pickLists: 0,
+      packingLists: 0,
+      handedOver: 0,
+      timedPacks: 0,
+      packSecondsAverage: null,
+    };
+    const report = {
+      days: [{ date: "2026-10-01", ...f }],
+      userDays: [
+        { userId: "a", date: "2026-10-01", ...f },
+        { userId: "b", date: "2026-10-02", ...f },
+      ],
+    } as unknown as StaffReport;
+    expect(staffDays(report, null)).toBe(report.days);
+    expect(staffDays(report, "b").map((d) => d.date)).toEqual(["2026-10-02"]);
   });
 });

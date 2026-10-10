@@ -367,3 +367,18 @@ export const MOVABLE: ReadonlySet<OrderStatus> = new Set(["unpaid", "new", "prob
 export function warehouseFixed(channel: string, sellerWarehouses: number): boolean {
   return channel !== "manual" && sellerWarehouses > 1;
 }
+
+/**
+ * What the team performance report (FR-RPT-10, backend doc 8.35) counts from the order history. Only a
+ * user's own entries count: the marketplace's and the system's never do. A user processed an order on a
+ * day when they moved it on that day: a seller step of its status (every step of `SELLER_PATH` after
+ * `new`, so recording a manual order's payment is not one), arranging its shipment, or handing it over.
+ */
+export const PROCESSING_STATUSES: readonly OrderStatus[] = SELLER_PATH.slice(1);
+export const PROCESSING_EVENTS = ["shipment_requested", "handed_over"] as const;
+
+/**
+ * Packing by scan records how long it took from scanning the order to finishing it (`seconds`). Longer
+ * than this the packer was interrupted, so the average time per order leaves it out.
+ */
+export const PACK_TIME_LIMIT_SECONDS = 30 * 60;
