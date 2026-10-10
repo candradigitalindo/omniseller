@@ -18,6 +18,7 @@ describe("migration runner (ADR-027)", () => {
     expect(result.repeatables).toEqual([
       "10_functions.sql",
       "15_views.sql",
+      "16_tenant_purge.sql",
       "20_triggers.sql",
       "30_policies.sql",
       "40_grants.sql",

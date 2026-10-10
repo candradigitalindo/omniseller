@@ -5,6 +5,7 @@ import { jobKey } from "../../jobs/job-id";
 import { storeDataDeletionRequested } from "../channel/channel.events";
 import { BuyerDataRetentionService } from "./buyer-data-retention.service";
 import { StoreDataDeletionService } from "./store-data-deletion.service";
+import { TenantPurgeService } from "./tenant-purge.service";
 
 /**
  * FR-INT-07: deletes the data of a store disconnected without keeping it; a large store continues
@@ -39,4 +40,19 @@ export const buyerDataAnonymizeJob = defineJob({
   },
 });
 
-export const RETENTION_JOBS = [storeDataDeleteJob, buyerDataAnonymizeJob];
+/**
+ * Backend doc 8.36: a business closed past its purge date is deleted. Queued by the scheduler's
+ * account.closure_scan per business and slot; a large business continues in the next slot.
+ */
+export const tenantPurgeJob = defineJob({
+  queue: "import",
+  name: "tenant.purge",
+  schema: z.object({ slot: z.string().min(1) }),
+  options: { attempts: 3, backoff: { type: "exponential", delay: 60_000 } },
+  jobId: (p) => jobKey("tenant.purge", p.tenantId, p.slot),
+  handler: async (_p, run) => {
+    await run.deps.resolve(TenantPurgeService).run(run.ctx.tenantId);
+  },
+});
+
+export const RETENTION_JOBS = [storeDataDeleteJob, buyerDataAnonymizeJob, tenantPurgeJob];

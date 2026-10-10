@@ -8,6 +8,7 @@ import type { AuthedRequest } from "./request";
 export const PUBLIC_KEY = "omniseller:public";
 export const PERMISSION_KEY = "omniseller:permission";
 export const DEVICE_KEY = "omniseller:device";
+export const WHILE_CLOSING_KEY = "omniseller:while_closing";
 /** OpenAPI security scheme of device routes (`Authorization: Bearer <device token>`). */
 export const DEVICE_AUTH_SCHEME = "deviceToken";
 
@@ -42,6 +43,12 @@ export function Public(): MethodDecorator {
 export function DeviceRoute(kind: "print_agent"): MethodDecorator & ClassDecorator {
   return applyDecorators(SetMetadata(DEVICE_KEY, kind), ApiBearerAuth(DEVICE_AUTH_SCHEME));
 }
+
+/**
+ * A write still allowed while the business is closing its account (backend doc 8.36): taking the data
+ * export, reopening, signing out. Every other write is refused then (403 `tenant.read_only`).
+ */
+export const AllowWhileClosing = () => SetMetadata(WHILE_CLOSING_KEY, true);
 
 /** Permission checked by PermissionGuard after authentication (backend doc 10.5). */
 export const RequirePermission = (permission: Permission) => SetMetadata(PERMISSION_KEY, permission);

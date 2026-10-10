@@ -110,7 +110,7 @@ export default {
         {
           id: "penghentian",
           title: "Penghentian",
-          body: html`<p>Anda dapat berhenti berlangganan kapan saja dengan memilih paket Starter, atau meminta penutupan akun lewat <a href="mailto:${site.contact.email}">${site.contact.email}</a>. Kami dapat menangguhkan atau menghentikan akun yang melanggar Syarat Layanan ini secara serius, dengan pemberitahuan lebih dulu bila memungkinkan. Sebelum data dihapus, Anda tetap dapat mengekspornya.</p>`,
+          body: html`<p>Anda dapat berhenti berlangganan kapan saja dengan memilih paket Starter, atau menutup akun sendiri dari Profil bisnis (pemilik akun, dengan kata sandi). Bila tidak bisa masuk, minta penutupan lewat <a href="mailto:${site.contact.email}">${site.contact.email}</a>. Setelah akun ditutup, toko marketplace diputus, anggota tim tidak bisa masuk, dan langganan turun ke Starter tanpa pengembalian dana. Selama ${site.legal.deletionDays} hari pemilik akun masih bisa masuk untuk mengekspor data atau membuka kembali akun; setelah itu data dihapus. Kami dapat menangguhkan atau menghentikan akun yang melanggar Syarat Layanan ini secara serius, dengan pemberitahuan lebih dulu bila memungkinkan. Sebelum data dihapus, Anda tetap dapat mengekspornya.</p>`,
         },
         {
           id: "hukum",

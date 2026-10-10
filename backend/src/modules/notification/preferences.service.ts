@@ -37,6 +37,13 @@ export const PREFERENCE_KINDS: readonly PreferenceKind[] = [
     locked: true,
   },
   {
+    kind: "account.closing",
+    label:
+      "Penutupan akun bisnis: konfirmasi, pengingat sebelum data dihapus, dan pembukaan kembali (dalam aplikasi dan email)",
+    emailByDefault: (p) => p.has("settings:billing"),
+    locked: true,
+  },
+  {
     kind: "billing.reminder",
     label:
       "Langganan dan tagihan: uji coba berakhir, tagihan jatuh tempo, pembayaran, dan kuota pesanan (dalam aplikasi dan email)",

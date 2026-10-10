@@ -11,6 +11,7 @@ Berkas privat (backend doc 8.15, 8.18, DOKUMEN-TEKNOLOGI 13): label pengiriman, 
 - `FileStorage` (`FILE_STORAGE`): `R2FileStorage` (S3 API, path-style, tautan GET 10 menit) atau `LocalFileStorage` (hanya `local` dan `test`); `put` (byte) dan `putFile` (stream dari disk).
 
 ## Aturan
+- Semua berkas tenant disimpan di bawah `t/<tenantId>/`: purge bisnis yang ditutup menghapus awalan itu (`FilesService.deleteAllObjects`, `FileStorage.deletePrefix`; R2 satu objek per permintaan karena DeleteObjects butuh checksum yang tidak didokumentasikan R2), backend doc 8.36.
 - Unggah dulu, lalu tulis baris dalam transaksi pendek; transaksi tidak pernah terbuka selama unggahan. Unggahan yang barisnya gagal ditulis tertinggal sebagai objek tanpa baris.
 - Kunci objek dibuat service (`t/<tenant>/<purpose>/<id>.<ext>`), tidak pernah dari permintaan, dan tanpa data pembeli.
 - Berkas dengan data pembeli wajib punya `expires_at` (label 30 hari, dokumen dan ekspor 7 hari). Berkas unggahan migrasi (purpose `import`) disimpan 30 hari dan hanya dibaca worker; tidak ada endpoint unduhnya.

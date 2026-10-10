@@ -24,6 +24,7 @@ import {
   ChannelWorkerModule,
   ConnectorsModule,
 } from "./modules/channel/channel.module";
+import { ClosureHttpModule, ClosureModule } from "./modules/closure/closure.module";
 import { ExportsHttpModule, ExportsWorkerModule } from "./modules/exports/exports.module";
 import { FilesHttpModule, FilesModule } from "./modules/files/files.module";
 import {
@@ -118,6 +119,7 @@ export class AppModule {
             NotificationHttpModule,
             ReportingHttpModule,
             ExportsHttpModule,
+            ClosureHttpModule,
             MigrationHttpModule,
             RealtimeModule,
           ],
@@ -171,6 +173,7 @@ export class AppModule {
             CampaignModule,
             BillingModule,
             BillingWorkerModule,
+            ClosureModule,
           ],
           providers: [WorkerRunner],
         };

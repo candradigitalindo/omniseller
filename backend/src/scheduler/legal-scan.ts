@@ -4,6 +4,7 @@ import { withSystemTx } from "../db/tenant-tx";
 import { jobKey } from "../jobs/job-id";
 import type { QueueRegistry } from "../jobs/queues";
 import type { JobRegistry } from "../jobs/registry";
+import { OF_ACTIVE_TENANT } from "./active-tenants";
 
 /** Hourly: a reminder falls due at a business's local midnight, in any of Indonesia's zones. */
 export const LEGAL_SCAN_MS = 60 * 60_000;
@@ -24,13 +25,13 @@ export async function scanLegalReminders(
     const r = await tx.execute<{ tenant_id: string }>(sql`
       WITH d AS (SELECT (${now.toISOString()}::timestamptz AT TIME ZONE 'UTC')::date AS today)
       SELECT tenant_id FROM business_document, d
-       WHERE valid_until IS NOT NULL
+       WHERE valid_until IS NOT NULL AND ${OF_ACTIVE_TENANT}
          AND ((reminded_stage IS NULL AND valid_until <= today + 31)
            OR (reminded_stage = '30d' AND valid_until <= today + 8)
            OR (reminded_stage = '7d' AND valid_until <= today))
       UNION
       SELECT tenant_id FROM business_profile, d
-       WHERE nib IS NULL AND nib_in_process_since IS NOT NULL
+       WHERE nib IS NULL AND nib_in_process_since IS NOT NULL AND ${OF_ACTIVE_TENANT}
          AND ((nib_reminded_stage IS NULL AND (nib_in_process_since + interval '6 months')::date <= today + 31)
            OR (nib_reminded_stage = '30d' AND (nib_in_process_since + interval '6 months')::date <= today + 8)
            OR (nib_reminded_stage = '7d' AND (nib_in_process_since + interval '6 months')::date <= today))

@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.23 |
+| Versi dokumen | 1.24 |
 | Tanggal | 10 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
@@ -843,6 +843,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
   - kartu Logo: unggah, ganti, dan hapus (PNG, JPG, atau WebP, paling besar 1 MB). Mengganti logo tidak menghapus isian formulir yang belum disimpan;
   - kartu "Dokumen legalitas": setiap dokumen dengan jenis, nomor, tanggal terbit, nama berkas, dan pil masa berlaku (Berlaku seterusnya, Berlaku sampai, kuning "Habis dalam 9 hari", merah "Habis berlaku 1 Okt 2026"); "Lihat" membuka berkasnya di tab baru, "Ubah" untuk dokumen yang diperpanjang (tanggal berlaku baru memulai pengingat lagi), "Hapus" setelah konfirmasi. Dialog "Unggah dokumen": jenis, nama (wajib untuk Dokumen lain), nomor, tanggal terbit, berlaku sampai atau "Berlaku seterusnya", dan berkas PDF, JPG, atau PNG paling besar 5 MB;
   - pengingat 30 hari dan 7 hari sebelum habis, lalu setelah lewat, datang di lonceng dan email (selalu dikirim) dan membuka halaman ini. Dasbor L01 menampilkan tugas NIB dan dokumen yang habis. Log Audit L41a punya jenis "Profil dan legalitas usaha"; logo dan berkas tampil sebagai ditambahkan, diganti, atau dihapus.
+  - kartu "Tutup akun bisnis" paling bawah, bertepi merah: akibatnya (toko marketplace diputus, anggota tim dikeluarkan, langganan turun ke Starter tanpa pengembalian dana, 30 hari untuk mengunduh ekspor atau membuka kembali, lalu seluruh data dihapus kecuali tagihan) dan tombol merah "Tutup akun bisnis". Dialognya meminta nama bisnis diketik ulang ("Ketik nama bisnis: Toko Rina"; huruf besar dan spasi tidak berpengaruh) dan kata sandi pengguna; "Tutup akun" baru aktif bila keduanya terisi dan nama cocok. Kesalahan dari api tampil di bawah isiannya. Setelah ditutup, web app langsung berganti ke L54. Log Audit L41a mencatat "Menutup akun bisnis" dan "Membuka kembali akun bisnis".
 - **L48**: kartu integrasi (Accurate, Jurnal, agregator ekspedisi, ekstensi riset, API dan webhook keluar) dengan status dan tombol hubungkan; halaman API key dengan pembuatan kunci, cakupan, dan peringatan sekali tampil. Prompt: "Grid kartu integrasi dengan logo, keterangan satu kalimat, pil 'Terhubung' atau tombol 'Hubungkan'. Halaman API: tabel kunci 'os_live_8f2a...' dengan cakupan dan tombol 'Cabut'."
 
 ### 14.9 Layar umum
@@ -850,6 +851,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 #### L49 Masuk, Daftar, Verifikasi 2FA, Terima Undangan
 
 - **Di web app**: setelah kata sandi benar, akun dengan verifikasi dua langkah melihat "Verifikasi dua langkah" di kartu yang sama.
+  - Anggota bisnis yang sedang ditutup (L54) tidak bisa masuk: "Akun bisnis ini sedang ditutup. Hanya pengelola langganan yang bisa masuk untuk mengunduh data atau membuka kembali akun."
   - Kode masuk lewat enam kotak besar yang sebenarnya satu input, jadi tempel dan isi otomatis kode dari ponsel tetap jalan. Kode dikirim begitu angka keenam masuk.
   - Kode salah menampilkan pesan di bawah kotak dan mengosongkannya. "Pakai kode cadangan" mengganti kotak dengan satu input kode cadangan, dan setelah masuk muncul toast berisi sisa kode.
   - Bila waktu lima menit habis, terlalu banyak kode salah, atau akun terkunci, layar kembali ke email dan kata sandi dengan pesan dari api; email tetap terisi.
@@ -917,6 +919,14 @@ Tiga minggu sebelum: notifikasi "Rencanakan 11.11" mengarah ke L37. Pengguna mel
 - Warna, logo, dan nada bahasa sama dengan web app; huruf sistem; terang dan gelap mengikuti perangkat. Tanpa skrip, cookie, atau font dari luar. Header: logo, menu Fitur, Harga, Kontak, tombol "Masuk" (sembunyi di ponsel) dan "Coba gratis". Kaki: pengelola dengan NIB dan NPWP, tautan produk, kebijakan, dan kontak.
 - Dokumen hukum: judul, tanggal pembaruan, ringkasan berlatar biru muda, daftar isi, bagian bernomor.
 - Isinya dibangun dari `website/site.json`; rincian di `website/README.md`.
+
+#### L54 Akun Ditutup
+
+- **Tujuan**: selama 30 hari setelah akun ditutup (backend doc 8.36), memberi pengelola langganan tiga hal: mengetahui kapan data dihapus, mengambil datanya, dan membatalkan bila berubah pikiran.
+- **Isi**: halaman penuh tanpa sidebar menggantikan web app (siapa pun yang masuk dengan `settings:billing` ke bisnis yang ditutup langsung ke sini, apa pun alamatnya). Kartu bertepi merah dengan ikon peringatan dan judul "Akun Toko Rina sedang ditutup"; "Seluruh data bisnis akan dihapus pada 9 Nov 2026 (30 hari lagi). Ditutup oleh Rina Wulandari pada 10 Okt 2026, 10.04."; daftar "Selama masa ini" (toko diputus dan tidak disinkron, anggota tim tidak bisa masuk, langganan Starter tanpa tagihan baru); bila ada toko marketplace yang diputus, "Cabut juga izin OmniSeller di marketplace" dengan tombol "Cabut di Shopee" (tab baru); tombol "Buka kembali akun" dan "Keluar". Di bawahnya bagian "Ekspor Data" (sama dengan L46a Ekspor Data, dengan judul tingkat dua dan kalimat "Unduh sebelum 9 Nov 2026: setelah itu ekspor ikut terhapus."), hanya untuk pemegang `data:export`.
+- **Aksi utama**: "Buka kembali akun" meminta konfirmasi ("Anggota tim bisa masuk lagi. Toko marketplace tetap terputus: hubungkan lagi di Toko Terhubung."), lalu web app kembali seperti biasa dengan toast "Akun dibuka kembali.".
+- **Ponsel**: lebar penuh dengan tepi 16 px; tombol membungkus ke baris berikutnya.
+- **Prompt untuk AI**: "Halaman penuh pada latar abu muda, kolom tengah 720 px. Kartu putih bertepi merah tipis: ikon peringatan merah, judul 'Akun Toko Rina sedang ditutup', kalimat 'Seluruh data bisnis akan dihapus pada 9 Nov 2026 (30 hari lagi).', daftar tiga butir 'Selama masa ini', tombol sekunder 'Cabut di Shopee' dengan ikon tautan luar, tombol utama 'Buka kembali akun' dan sekunder 'Keluar'. Di bawah: bagian 'Ekspor Data' dengan tombol 'Buat ekspor' dan kartu ekspor 'Siap · 14 berkas · 2,3 MB' dengan tombol 'Unduh'."
 
 ---
 
@@ -1079,3 +1089,4 @@ Sebelum layar dinyatakan selesai:
 | 1.21 | 10 Oktober 2026 | L41 peran kustom di web app: kartu "Peran kustom" dengan buat, ubah, dan hapus; dialog peran dengan izin per modul, "Salin izin dari", dan izin yang tidak dimiliki nonaktif; matriks izin dengan nama modul dan peran kustom, bisa difokus keyboard saat digeser; keadaan paket tanpa peran kustom di tab Peran, dialog "Ubah peran", dan undangan | Candra Syahputra |
 | 1.22 | 10 Oktober 2026 | L47 kartu "Data pembeli" (masa simpan 3 sampai 24 bulan, konfirmasi saat dipersingkat); L04 catatan data pembeli yang sudah dianonimkan dan keterangan pelacakan yang dihapus | Candra Syahputra |
 | 1.23 | 10 Oktober 2026 | L33 Kinerja Tim di web app (periode, empat angka tim, per anggota dengan avatar inisial dan bar, per hari untuk tim atau satu anggota, arti angka, CSV, terkunci di Starter); L06 mengukur waktu kemas per pesanan; L04 riwayat menyebut nama pelaku dan nama setiap langkah | Candra Syahputra |
+| 1.24 | 10 Oktober 2026 | L47 kartu "Tutup akun bisnis" dengan dialog nama bisnis dan kata sandi; L54 Akun Ditutup baru (tanggal hapus, siapa yang menutup, yang berhenti, cabut izin marketplace, ekspor data, buka kembali); L49 pesan untuk anggota bisnis yang sedang ditutup; L41a judul penutupan dan pembukaan kembali | Candra Syahputra |

@@ -17,6 +17,7 @@ Marketplace yang didukung: Shopee dan TikTok Shop. Di Indonesia TikTok Shop dan 
 - Hanya worker: `StoreConnectService.complete` (job `store.authorize`), `CredentialService` (`save`, `forShop`, `refresh`), `MarketplaceGateway.call` (satu-satunya jalan memanggil marketplace untuk toko; `{ background: true }` untuk pekerjaan latar yang hanya boleh memakai 30% batas laju toko, backend doc 8.6), `ChannelSyncService` (`syncWarehouses`, `subscribeWebhooks`), `ChannelAlertsService` (`reauthRequired`, `authorizationExpiring`, `warehousesChanged`, `checkConnections`: notifikasi in-app ke pengguna dengan `settings:store` yang melihat toko itu, backend doc 8.17, 8.21, 8.23; koneksi terputus juga lewat email).
 
 ## Aturan
+- **Penutupan akun** (backend doc 8.36): `StoresService.disconnectAllIn(tx, ctx, reason)` memutus setiap toko marketplace yang masih terhubung dengan data disimpan, seperti `disconnect` satu toko (`statusReason` = alasannya); saluran manual tetap. `revokeLinks` memberi tautan pencabutan izin per marketplace (Shopee).
 - `api` tidak pernah memanggil marketplace dan tidak bisa membaca atau menulis token. Kode otorisasi lewat outbox ke worker (ADR-029).
 - `state` otorisasi: 256 bit acak, hanya hash yang disimpan, berlaku 30 menit, sekali pakai, dan hanya bisa dipakai tenant yang membuatnya (RLS).
 - Satu toko marketplace hanya dipakai satu tenant: indeks unik parsial `(channel, external_shop_id) WHERE status <> 'disconnected'`. Toko yang dipakai tenant lain dideteksi lewat `resolve_store` sebelum insert dan gagal `shop_connected_elsewhere`.

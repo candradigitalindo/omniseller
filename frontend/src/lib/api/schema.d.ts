@@ -3124,6 +3124,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/account-closure": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["AccountClosureController_get"];
+    put?: never;
+    post: operations["AccountClosureController_close"];
+    delete: operations["AccountClosureController_reopen"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/migration/fields": {
     parameters: {
       query?: never;
@@ -8376,6 +8392,29 @@ export interface components {
         lastDownloadedAt: string | null;
         downloadUrl: string | null;
       }[];
+    };
+    AccountClosureDto_Output: {
+      /** @enum {string} */
+      status: "active" | "suspended" | "closing" | "closed";
+      closingAt: string | null;
+      purgeAfter: string | null;
+      closedBy: {
+        id: string;
+        name: string | null;
+      } | null;
+      /** @description marketplace tempat izin OmniSeller masih bisa dicabut penjual */
+      revokeLinks: {
+        channel: string;
+        url: string;
+      }[];
+      /** @description hari sampai data dihapus setelah akun ditutup */
+      purgeAfterDays: number;
+    };
+    CloseAccountDto: {
+      /** @description nama bisnis diketik ulang sebagai konfirmasi */
+      businessName: string;
+      /** @description kata sandi pengguna yang menutup akun */
+      password: string;
     };
     ImportFieldsDto_Output: {
       fields: {
@@ -14082,6 +14121,67 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+    };
+  };
+  AccountClosureController_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AccountClosureDto_Output"];
+        };
+      };
+    };
+  };
+  AccountClosureController_close: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CloseAccountDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AccountClosureDto_Output"];
+        };
+      };
+    };
+  };
+  AccountClosureController_reopen: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AccountClosureDto_Output"];
+        };
       };
     };
   };

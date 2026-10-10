@@ -240,6 +240,10 @@ BEGIN
   ELSE
     v_tenant_id := NEW.tenant_id; v_entity_id := NEW.id; v_before := to_jsonb(OLD); v_after := to_jsonb(NEW);
   END IF;
+  -- The tenant purge deletes a closed business's rows and writes no history about them (backend doc 8.36).
+  IF v_tenant_id = nullif(current_setting('app.purge_tenant', true), '') THEN
+    RETURN NULL;
+  END IF;
   -- Columns named after the entity never reach the log (a device's token hash).
   FOR i IN 1 .. TG_NARGS - 1 LOOP
     v_before := v_before - TG_ARGV[i];
@@ -255,7 +259,32 @@ END $$;
 
 CREATE OR REPLACE FUNCTION audit_log_immutable() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
+  -- the tenant purge deletes the log of the business it deletes, and nothing else (backend doc 8.36)
+  IF TG_OP = 'DELETE' AND OLD.tenant_id = nullif(current_setting('app.purge_tenant', true), '') THEN
+    RETURN OLD;
+  END IF;
   RAISE EXCEPTION 'AUDIT_LOG_IMMUTABLE' USING ERRCODE = 'insufficient_privilege';
+END $$;
+
+-- The tenant row has no tenant_id, so audit_row cannot log it: a closure and a reopening (status
+-- changes) are written here, in the business's own log (backend doc 8.36).
+CREATE OR REPLACE FUNCTION audit_tenant() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+  v_actor_type text := coalesce(nullif(current_setting('app.actor_type', true), ''), 'system');
+BEGIN
+  IF NEW.id = nullif(current_setting('app.purge_tenant', true), '') THEN
+    RETURN NULL;
+  END IF;
+  IF v_actor_type NOT IN ('user', 'system', 'api_key', 'device') THEN
+    v_actor_type := 'system';
+  END IF;
+  INSERT INTO audit_log (id, tenant_id, actor_type, actor_id, request_id, action, entity_type, entity_id, before, after)
+  VALUES (gen_ulid(), NEW.id, v_actor_type, nullif(current_setting('app.actor_id', true), ''),
+          nullif(current_setting('app.request_id', true), ''), 'update', 'tenant', NEW.id,
+          jsonb_build_object('status', OLD.status, 'closing_at', OLD.closing_at, 'purge_after', OLD.purge_after),
+          jsonb_build_object('status', NEW.status, 'closing_at', NEW.closing_at, 'purge_after', NEW.purge_after));
+  RETURN NULL;
 END $$;
 
 ------------------------------------------------------------------------------------------------

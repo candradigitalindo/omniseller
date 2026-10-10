@@ -26,6 +26,7 @@ Notifikasi untuk pengguna OmniSeller (PRD FR-NTF-01, FR-NTF-02; backend doc 7.8.
 - `EmailAttachments` (diekspor `NotificationInboxModule`): modul lain mendaftarkan sumber lampiran saat modul worker-nya mulai (`register`), dan job `notification.email` menanyai semuanya untuk setiap email (`for`), sebelum mengirim. Modul ini tidak mengimpor pemilik sumbernya. Sumber sekarang: PDF tagihan untuk email pembayaran (billing).
 
 ## Aturan
+- Jenis `account.closing` (penutupan akun, pengingat 7 hari sebelum data dihapus, pembukaan kembali; backend doc 8.36) selalu dikirim ke pemegang `settings:billing`, dalam aplikasi dan email.
 - Setiap pengguna hanya membaca dan menandai notifikasinya sendiri; penanda untuk id milik orang lain diabaikan. Preferensi juga hanya milik sendiri.
 - Isi notifikasi tidak memuat data pribadi pembeli; data cukup id pesanan.
 - Penerima dipilih lewat `notifyScopedIn`: pengguna aktif yang memegang izin, dan masing-masing hanya mendengar item di cakupan toko dan gudangnya. Pengguna yang tidak melihat satu item pun tidak menerima apa-apa.

@@ -137,6 +137,11 @@ test("trial, grace, and renewal days are the backend's own", () => {
   const months = Number(/export const DEFAULT_BUYER_DATA_RETENTION_MONTHS = (\d+);/.exec(business)?.[1]);
   assert.equal(real.legal.buyerDataMonths, months);
   assert.equal(filled.legal.buyerDataMonths, months);
+  // a closed account's data goes when the purge says (backend doc 8.36)
+  const closure = readFileSync(join(ROOT, "../backend/src/modules/closure/closure-plan.ts"), "utf8");
+  const purgeDays = Number(/export const PURGE_AFTER_DAYS = (\d+);/.exec(closure)?.[1]);
+  assert.equal(real.legal.deletionDays, purgeDays);
+  assert.equal(filled.legal.deletionDays, purgeDays);
   assert.deepEqual(filled.pricing, { ...real.pricing, taxNote: filled.pricing.taxNote });
 });
 

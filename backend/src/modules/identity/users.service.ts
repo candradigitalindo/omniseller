@@ -44,6 +44,16 @@ export class UsersService {
    * Who should hear about something that needs this permission (alerts, FR-SHP-10), with the scopes
    * that decide which stores and warehouses each of them may hear about.
    */
+  /** Every user of the business, whatever their status (account closure ends their sessions). */
+  idsIn(tx: Tx): Promise<string[]> {
+    return this.repo.userIds(tx);
+  }
+
+  /** Ends every session of these users; `keepToken` stays (the request that asked). */
+  async endSessions(tenantId: string, userIds: readonly string[], keepToken?: string): Promise<void> {
+    for (const id of userIds) await this.sessions.revokeAll(tenantId, id, keepToken);
+  }
+
   async recipientsIn(
     tx: Tx,
     permission: Permission,

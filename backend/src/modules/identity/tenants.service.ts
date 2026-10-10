@@ -55,6 +55,15 @@ export interface SignupInput {
   password: string;
 }
 
+export interface TenantClosure {
+  name: string;
+  status: "active" | "suspended" | "closing" | "closed";
+  closingAt: Date | null;
+  closedBy: string | null;
+  purgeAfter: Date | null;
+  purgeRemindedAt: Date | null;
+}
+
 /**
  * Tenant creation (PRD 7.1 step 1): tenant, the six built-in roles copied into the tenant
  * (backend doc 7.8.1), the Owner user, and a default warehouse so a first store can be mapped to it
@@ -124,6 +133,40 @@ export class TenantsService {
   /** Moves the business to the plan in force (trial, payment, lapse); billing's call only. */
   async setPlanIn(tx: Tx, ctx: RequestContext, planId: string): Promise<void> {
     await this.repo.setTenantPlan(tx, ctx.tenantId, planId);
+  }
+
+  // ---- account closure (backend doc 8.36): the closure module decides, the tenant row records ----
+
+  /** The business's status and closure times; locked when `lock`. */
+  async closureIn(tx: Tx, ctx: RequestContext, lock = false): Promise<TenantClosure> {
+    const row = await this.repo.tenantClosure(tx, ctx.tenantId, lock);
+    if (!row) throw new Error(`tenant ${ctx.tenantId} not found`);
+    return row;
+  }
+
+  /** Read only from now, deleted after `purgeAfter`. */
+  async markClosingIn(tx: Tx, ctx: RequestContext, p: { closedBy: string; at: Date; purgeAfter: Date }): Promise<void> {
+    await this.repo.setTenantClosure(tx, ctx.tenantId, {
+      status: "closing",
+      closingAt: p.at,
+      closedBy: p.closedBy,
+      purgeAfter: p.purgeAfter,
+      purgeRemindedAt: null,
+    });
+  }
+
+  async reopenIn(tx: Tx, ctx: RequestContext): Promise<void> {
+    await this.repo.setTenantClosure(tx, ctx.tenantId, {
+      status: "active",
+      closingAt: null,
+      closedBy: null,
+      purgeAfter: null,
+      purgeRemindedAt: null,
+    });
+  }
+
+  async markPurgeRemindedIn(tx: Tx, ctx: RequestContext, at: Date): Promise<void> {
+    await this.repo.setPurgeReminded(tx, ctx.tenantId, at);
   }
 
   /** Renames the business or moves it to another time zone, in the caller's transaction (L47). */

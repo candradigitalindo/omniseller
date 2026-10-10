@@ -34,6 +34,12 @@ export const tenantInactive = () =>
   new ForbiddenError("tenant.inactive", "Bisnis ini sedang dinonaktifkan. Hubungi tim OmniSeller.");
 export const tenantReadOnly = () =>
   new ForbiddenError("tenant.read_only", "Bisnis ini sedang ditutup dan hanya bisa dibaca.");
+/** Backend doc 8.36: while an account is closing, only who manages billing may sign in. */
+export const tenantClosing = () =>
+  new ForbiddenError(
+    "tenant.closing",
+    "Akun bisnis ini sedang ditutup. Hanya pengelola langganan yang bisa masuk untuk mengunduh data atau membuka kembali akun.",
+  );
 export const permissionDenied = () =>
   new ForbiddenError("auth.permission_denied", "Anda tidak punya izin untuk tindakan ini.");
 /** The password is right; the client sends a code with `challenge` to POST /v1/auth/login/two-factor. */

@@ -343,6 +343,29 @@ export class BillingService {
   }
 
   /**
+   * Account closure (backend doc 8.36), in the caller's transaction: invoices waiting for payment are
+   * withdrawn (and closed at Xendit), and the business moves to Starter as choosing it on L45 would: at
+   * once from a trial or an unpaid period, at the end of a paid one. Nothing is refunded; a period already
+   * paid in advance still runs.
+   */
+  async closeIn(tx: Tx, ctx: RequestContext, now = new Date()): Promise<void> {
+    const live = await this.repo.live(tx, true);
+    if (!live) return;
+    await this.voidPendingIn(tx, ctx, live.id, "Akun ditutup.");
+    const starter = await this.planByCode(tx, FREE_PLAN);
+    const current = (await this.tenants.listPlansIn(tx)).find((p) => p.id === live.planId);
+    if (!current) throw new Error(`subscription ${live.id} has an unknown plan`);
+    const choice = planChoice(
+      { status: live.status, plan: current, currentPeriodEnd: live.currentPeriodEnd, nextPlanId: live.nextPlanId },
+      starter,
+    );
+    if (choice.kind === "free_now") await this.endAndStartFreeIn(tx, ctx, live, "cancelled", now);
+    if (choice.kind === "at_period_end") {
+      await this.repo.updateSubscription(tx, live.id, { nextPlanId: starter.id, remindedStage: null });
+    }
+  }
+
+  /**
    * A waiting invoice the business does not want after all: a move up, or the month after the trial. A
    * renewal of a paid plan goes away with another plan, never by hand.
    */

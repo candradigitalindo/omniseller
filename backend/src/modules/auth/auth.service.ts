@@ -23,8 +23,10 @@ import {
   invalidCredentials,
   resetTokenInvalid,
   tenantChoiceRequired,
+  tenantClosing,
   twoFactorRequired,
 } from "./auth.errors";
+import { CLOSING_PERMISSION } from "./auth.guard";
 import { AuthRepository } from "./auth.repository";
 
 export const RESET_TTL_MINUTES = 60;
@@ -98,6 +100,11 @@ export class AuthService {
       throw tenantChoiceRequired(usable.map((c) => ({ slug: c.tenant_slug, name: c.tenant_name })));
     }
     const chosen = usable[0]!;
+    // an account closing (backend doc 8.36): only who manages billing signs in, to export or reopen
+    if (chosen.tenant_status === "closing") {
+      const principal = await this.users.loadPrincipal(chosen.tenant_id, chosen.user_id);
+      if (!principal?.permissions.includes(CLOSING_PERMISSION)) throw tenantClosing();
+    }
 
     const rehash = needsRehash(chosen.password_hash) ? await hashPassword(input.password) : undefined;
     if (chosen.totp_enabled) {

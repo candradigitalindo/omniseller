@@ -7,7 +7,7 @@ import { limitReached, planLimitReached } from "../../common/plan-limits";
 import { hashPassword } from "../../common/security/password";
 import { hashToken, newSecretToken } from "../../common/security/tokens";
 import { ENV } from "../../config/config.module";
-import type { DbHandle } from "../../db/client";
+import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
@@ -108,6 +108,11 @@ export class InvitationsService {
       await this.outbox.enqueue(tx, ctx, invitationSendRequested, { invitationId: id }, id);
       return view(row);
     });
+  }
+
+  /** Every open invitation goes, in the caller's transaction: a closing business takes no new members (8.36). */
+  revokeOpenIn(tx: Tx, at: Date): Promise<number> {
+    return this.repo.revokeOpenInvitations(tx, at);
   }
 
   async revoke(ctx: RequestContext, id: string): Promise<void> {

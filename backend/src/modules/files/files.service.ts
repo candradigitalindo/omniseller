@@ -135,6 +135,14 @@ export class FilesService {
     await this.repo.expire(tx, [...new Set(ids)], now);
   }
 
+  /**
+   * Every stored object of a closed business (`t/<tenantId>/`, backend doc 8.36): its purge deletes the rows
+   * itself. Returns how many went.
+   */
+  deleteAllObjects(tenantId: string): Promise<number> {
+    return this.storage.deletePrefix(`t/${tenantId}/`);
+  }
+
   /** Deletes this tenant's expired files: the object, then the row (rows pointing at it lose the link). */
   async cleanupExpired(ctx: RequestContext, now = new Date(), limit = 500): Promise<number> {
     const rows = await withTenantTx(this.db, ctx, (tx) => this.repo.expired(tx, now, limit));

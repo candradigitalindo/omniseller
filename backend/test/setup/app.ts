@@ -20,6 +20,7 @@ import { AuthModule } from "../../src/modules/auth/auth.module";
 import { BillingModule, BillingWorkerModule } from "../../src/modules/billing/billing.module";
 import { CatalogModule, CatalogWorkerModule } from "../../src/modules/catalog/catalog.module";
 import { ChannelModule, ChannelWorkerModule, ConnectorsModule } from "../../src/modules/channel/channel.module";
+import { ClosureModule } from "../../src/modules/closure/closure.module";
 import { ExportsWorkerModule } from "../../src/modules/exports/exports.module";
 import { FilesModule } from "../../src/modules/files/files.module";
 import { FulfillmentModule, FulfillmentWorkerModule } from "../../src/modules/fulfillment/fulfillment.module";
@@ -181,6 +182,7 @@ export async function startWorker(
       MigrationWorkerModule,
       ReportingWorkerModule,
       RetentionWorkerModule,
+      ClosureModule,
       BillingModule,
       BillingWorkerModule,
     ],

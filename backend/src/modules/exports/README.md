@@ -12,6 +12,7 @@ Ekspor seluruh data bisnis kapan saja tanpa biaya (PRD FR-MIG-09, backend doc 8.
 - Hanya worker: `ExportRenderService` (`render`, `sheets`).
 
 ## Aturan
+- `POST /v1/exports` tetap boleh saat akun ditutup (`@AllowWhileClosing()`, backend doc 8.36): data milik bisnis sampai dihapus.
 - Izin `data:export` (Owner secara bawaan) dan tanpa batasan toko atau gudang: ZIP memuat semua toko dan gudang (403 `export.scope_limited`).
 - Satu ekspor `queued` atau `running` per bisnis (indeks unik parsial); permintaan kedua mendapat yang sama. Ekspor yang tidak bergerak lebih dari 1 jam ditandai `failed` dan diganti. Ekspor gagal tidak diulang; permintaan berikutnya membuat yang baru.
 - Semua sheet dibaca dalam satu transaksi `REPEATABLE READ READ ONLY` (`withTenantTx(..., { snapshot: true })`), per halaman 2.000 baris (keyset `id`), ditulis ke berkas di direktori sementara, lalu di-ZIP (yazl, streaming) dan diunggah dari disk. Tidak ada transaksi terbuka selama unggahan.

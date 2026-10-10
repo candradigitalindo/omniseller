@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { ClosureCard } from "@/features/closure/closure-card";
 import { api, unwrap } from "@/lib/api/client";
 import { ApiError, errorMessage } from "@/lib/api/errors";
 import { fileToBase64 } from "@/lib/file";
@@ -86,6 +87,7 @@ function Loaded({ profile: p }: { profile: BusinessProfile }) {
         <LogoCard profile={p} />
       </div>
       <DocumentsCard profile={p} />
+      <ClosureCard businessName={p.name} />
     </div>
   );
 }

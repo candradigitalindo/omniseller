@@ -30,6 +30,10 @@ describe("what an entry says", () => {
     expect(titleKey(entry({ entityType: "store", changes: status("active", "disconnected") }))).toBe(
       "store_disconnected",
     );
+    // a business closing its account and reopening it (backend doc 8.36)
+    expect(titleKey(entry({ entityType: "tenant", changes: status("active", "closing") }))).toBe("tenant_closing");
+    expect(titleKey(entry({ entityType: "tenant", changes: status("closing", "active") }))).toBe("tenant_reopened");
+    expect(titleKey(entry({ entityType: "tenant", changes: status("active", "suspended") }))).toBe("tenant_updated");
     expect(titleKey(entry({ entityType: "store", changes: status("reauth_required", "active") }))).toBe(
       "store_updated",
     );

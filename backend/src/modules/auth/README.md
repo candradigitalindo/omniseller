@@ -14,6 +14,7 @@ Masuk, keluar, sesi web, reset kata sandi, verifikasi dua langkah, perangkat yan
 - `AuthService.requestPasswordReset(email, ip)`: selalu berhasil dari sudut pandang pemanggil; `sendPasswordReset(ctx, userId)` (job); `confirmPasswordReset(token, password)`. Error: `auth.reset_token_invalid`.
 
 ## Aturan
+- **Akun yang ditutup** (`tenant.status = 'closing'`, backend doc 8.36): login dan `AuthGuard` hanya menerima pemegang `settings:billing` (lainnya 403 `tenant.closing`), dan tulis hanya lewat route `@AllowWhileClosing()` (ekspor, buka kembali, keluar); lainnya 403 `tenant.read_only`.
 - Sesi: token acak 256 bit di cookie `os_session` (HttpOnly, SameSite=Lax, Secure di luar lokal dan tes), 30 hari geser, maksimal 10 sesi per pengguna. Redis hanya menyimpan hash token.
 - Kata sandi: Argon2id 64 MB, 3 iterasi, paralelisme 4 (`@node-rs/argon2`); hash lama dinaikkan parameternya saat login berhasil. Minimal 10 karakter.
 - Email yang tidak terdaftar membuang waktu yang sama dengan verifikasi hash, sehingga waktu respons tidak membocorkan email terdaftar.

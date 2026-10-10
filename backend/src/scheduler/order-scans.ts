@@ -5,6 +5,7 @@ import { jobKey } from "../jobs/job-id";
 import type { QueueRegistry } from "../jobs/queues";
 import type { JobRegistry } from "../jobs/registry";
 import { SLA_WARNING_MS } from "../modules/orders/order-plan";
+import { OF_ACTIVE_TENANT } from "./active-tenants";
 
 /** Cross-tenant scans of the orders and files modules (backend doc 9.5); the work happens in tenant jobs. */
 
@@ -33,7 +34,7 @@ export async function scanSlaAlerts(system: DbHandle, queues: QueueRegistry, reg
     const r = await tx.execute<{ tenant_id: string }>(sql`
       SELECT DISTINCT tenant_id FROM "order"
        WHERE status IN ('new', 'problem', 'ready_to_pack', 'packed', 'ready_to_ship')
-         AND fulfillment_mode = 'seller' AND ship_by_at IS NOT NULL
+         AND fulfillment_mode = 'seller' AND ship_by_at IS NOT NULL AND ${OF_ACTIVE_TENANT}
          AND ship_by_at <= ${new Date(now.getTime() + SLA_WARNING_MS)}
          AND (sla_alert_level IS NULL OR (sla_alert_level = 'warning' AND ship_by_at <= ${now}))
        LIMIT 2000`);
@@ -62,7 +63,7 @@ export async function scanNewOrderNotices(
 ) {
   const rows = await withSystemTx(system, async (tx) => {
     const r = await tx.execute<{ tenant_id: string }>(sql`
-      SELECT DISTINCT tenant_id FROM "order" WHERE notify_new LIMIT 2000`);
+      SELECT DISTINCT tenant_id FROM "order" WHERE notify_new AND ${OF_ACTIVE_TENANT} LIMIT 2000`);
     return r.rows;
   });
   const slot = `n${Math.floor(now.getTime() / SLA_ALERT_SLOT_MS)}`;

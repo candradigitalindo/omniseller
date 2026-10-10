@@ -5,6 +5,7 @@ import { jobKey } from "../jobs/job-id";
 import type { QueueRegistry } from "../jobs/queues";
 import type { JobRegistry } from "../jobs/registry";
 import { DUE_ALERT_MS } from "../modules/returns/return-plan";
+import { OF_ACTIVE_TENANT } from "./active-tenants";
 
 /** Cross-tenant scans of the returns module (backend doc 9.5, 8.26); the work happens in tenant jobs. */
 
@@ -66,7 +67,7 @@ export async function scanReturnNotices(
 ) {
   const rows = await withSystemTx(system, async (tx) => {
     const r = await tx.execute<{ tenant_id: string }>(sql`
-      SELECT DISTINCT tenant_id FROM return_request WHERE notify_new LIMIT 2000`);
+      SELECT DISTINCT tenant_id FROM return_request WHERE notify_new AND ${OF_ACTIVE_TENANT} LIMIT 2000`);
     return r.rows;
   });
   const slot = `n${Math.floor(now.getTime() / RETURN_NOTICE_SLOT_MS)}`;
@@ -88,7 +89,7 @@ export async function scanReturnDue(system: DbHandle, queues: QueueRegistry, reg
   const rows = await withSystemTx(system, async (tx) => {
     const r = await tx.execute<{ tenant_id: string }>(sql`
       SELECT DISTINCT tenant_id FROM return_request
-       WHERE due_alerted_at IS NULL AND respond_by_at IS NOT NULL
+       WHERE due_alerted_at IS NULL AND respond_by_at IS NOT NULL AND ${OF_ACTIVE_TENANT}
          AND respond_by_at <= ${new Date(now.getTime() + DUE_ALERT_MS)}
          AND status NOT IN ('refunded', 'cancelled', 'closed')
        LIMIT 2000`);

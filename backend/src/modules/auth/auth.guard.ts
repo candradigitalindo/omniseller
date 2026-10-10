@@ -3,7 +3,7 @@ import { Reflector } from "@nestjs/core";
 import type { Response } from "express";
 import { attachContext, deviceContext, type RequestContext } from "../../common/context/request-context";
 import { RateLimitedError } from "../../common/errors/domain-errors";
-import { DEVICE_KEY, PERMISSION_KEY, PUBLIC_KEY } from "../../common/http/decorators";
+import { DEVICE_KEY, PERMISSION_KEY, PUBLIC_KEY, WHILE_CLOSING_KEY } from "../../common/http/decorators";
 import { type AuthedRequest, readCookie, SESSION_COOKIE } from "../../common/http/request";
 import { RATE_RULES, type RateLimiter } from "../../common/security/rate-limiter";
 import type { SessionStore } from "../../common/security/session-store";
@@ -11,9 +11,18 @@ import { looksLikeSecretToken } from "../../common/security/tokens";
 import { RATE_LIMITER, SESSIONS } from "../../infra/tokens";
 import { DevicesService } from "../identity/devices.service";
 import { UsersService } from "../identity/users.service";
-import { authRequired, deviceUnauthorized, permissionDenied, tenantInactive, tenantReadOnly } from "./auth.errors";
+import {
+  authRequired,
+  deviceUnauthorized,
+  permissionDenied,
+  tenantClosing,
+  tenantInactive,
+  tenantReadOnly,
+} from "./auth.errors";
 
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+/** Who may still sign in to a closing account (backend doc 8.36). */
+export const CLOSING_PERMISSION = "settings:billing";
 
 /** `Authorization: Bearer <token>`, or undefined. */
 function bearerToken(req: AuthedRequest): string | undefined {
@@ -59,7 +68,15 @@ export class AuthGuard implements CanActivate {
       throw authRequired();
     }
     if (principal.tenant.status === "suspended" || principal.tenant.status === "closed") throw tenantInactive();
-    if (principal.tenant.status === "closing" && !READ_METHODS.has(req.method)) throw tenantReadOnly();
+    if (principal.tenant.status === "closing") {
+      // an account closing (backend doc 8.36): who manages billing may read, export, reopen, sign out
+      if (!principal.permissions.includes(CLOSING_PERMISSION)) throw tenantClosing();
+      const allowed = this.reflector.getAllAndOverride<boolean>(WHILE_CLOSING_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]);
+      if (!READ_METHODS.has(req.method) && !allowed) throw tenantReadOnly();
+    }
 
     const rate = await this.limiter.take(`api:tenant:${principal.tenant.id}`, RATE_RULES.tenantApi);
     res.setHeader("X-RateLimit-Remaining", String(rate.remaining));

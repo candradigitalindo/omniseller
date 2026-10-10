@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ClosingView } from "@/features/closure/closing-view";
 import { ApiError, errorMessage } from "@/lib/api/errors";
 import { SessionProvider, useMe } from "@/lib/session";
 import { AppSidebar } from "./app-sidebar";
@@ -55,6 +56,15 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Button>
         </div>
       </main>
+    );
+  }
+
+  // an account closing (backend doc 8.36): its own page instead of the app
+  if (me.data.tenant.status === "closing") {
+    return (
+      <SessionProvider me={me.data}>
+        <ClosingView />
+      </SessionProvider>
     );
   }
 

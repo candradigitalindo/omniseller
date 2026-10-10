@@ -287,3 +287,67 @@ describe("schema conventions", () => {
     for (const r of rows) expect(r.def).toContain(`enforce_status_transition('${r.tbl}')`);
   });
 });
+
+describe("tenant purge (backend doc 8.36)", () => {
+  const order = async () =>
+    q<{ table_name: string; depth: number }>("SELECT table_name, depth FROM tenant_purge_order()");
+
+  it("walks every table holding a business's rows, but the tax records and the outbox", async () => {
+    const withTenant = await q<{ name: string }>(
+      `SELECT c.relname AS name FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') AND NOT c.relispartition
+          AND EXISTS (SELECT 1 FROM pg_attribute a WHERE a.attrelid = c.oid AND a.attname = 'tenant_id' AND NOT a.attisdropped)`,
+    );
+    const kept = (await q<{ t: string[] }>("SELECT tenant_kept_tables() AS t"))[0]!.t;
+    expect(kept).toEqual(["invoice", "subscription"]);
+    expect((await order()).map((r) => r.table_name).sort()).toEqual(
+      withTenant
+        .map((r) => r.name)
+        .filter((t) => ![...kept, "outbox_event"].includes(t))
+        .sort(),
+    );
+  });
+
+  it("deletes every referencing table before the table it references", async () => {
+    const depth = new Map((await order()).map((r) => [r.table_name, r.depth]));
+    const edges = await q<{ child: string; parent: string }>(
+      `SELECT k.conrelid::regclass::text AS child, k.confrelid::regclass::text AS parent FROM pg_constraint k
+        WHERE k.contype = 'f' AND k.conrelid <> k.confrelid AND k.confdeltype IN ('a', 'r', 'c')`,
+    );
+    const late = edges
+      .map((e) => ({ child: e.child.replaceAll('"', ""), parent: e.parent.replaceAll('"', "") }))
+      .filter((e) => depth.has(e.child) && depth.has(e.parent))
+      .filter((e) => depth.get(e.child)! >= depth.get(e.parent)!);
+    expect(late).toEqual([]);
+    // the graph has no cycle: the deepest chain is shorter than the number of tables
+    expect(Math.max(...depth.values())).toBeLessThan(depth.size);
+  });
+
+  it("finds each table's rows by an index leading with tenant_id", async () => {
+    const unindexed = await q<{ table_name: string }>(
+      `SELECT o.table_name FROM tenant_purge_order() o
+         JOIN pg_class c ON c.relname = o.table_name AND c.relnamespace = 'public'::regnamespace
+        WHERE NOT EXISTS (
+          SELECT 1 FROM pg_index i JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = i.indkey[0]
+           WHERE i.indrelid = c.oid AND a.attname = 'tenant_id' AND i.indpred IS NULL)`,
+    );
+    expect(unindexed).toEqual([]);
+  });
+
+  it("refuses a business that is not closed and past its purge date, and only the worker may call it", async () => {
+    const worker = await h.raw("worker");
+    const api = await h.raw("api");
+    try {
+      const nobody = "01JZZZZZZZZZZZZZZZZZZZZZZZ";
+      expect((await worker.query("SELECT begin_tenant_purge($1) AS go", [nobody])).rows[0].go).toBe(false);
+      await expect(worker.query("SELECT purge_tenant_step($1, 'product', 10)", [nobody])).rejects.toThrow(
+        /TENANT_NOT_PURGEABLE/,
+      );
+      expect((await worker.query("SELECT finish_tenant_purge($1) AS done", [nobody])).rows[0].done).toBe(false);
+      await expect(api.query("SELECT begin_tenant_purge($1)", [nobody])).rejects.toThrow(/permission denied/);
+    } finally {
+      await worker.end();
+      await api.end();
+    }
+  });
+});

@@ -4,13 +4,15 @@
 Menghapus data yang tidak boleh atau tidak diminta disimpan:
 - data toko yang diputus tanpa menyimpan data (PRD FR-INT-07, backend doc 8.23);
 - data pribadi pembeli pesanan yang melewati masa simpan bisnis (PRD 12.1, backend doc 8.34);
-- menyusul: `retention.run` (backend doc 9.5): inbox webhook lama dan outbox terkirim.
+- bisnis yang ditutup setelah tanggal hapusnya (PRD 12.1, backend doc 8.36): seluruh baris dan berkasnya, kecuali tagihan dan langganan.
+`retention.run` (inbox webhook lebih dari 30 hari, outbox terkirim lebih dari 7 hari, backend doc 9.5) berjalan di scheduler dengan role system (`scheduler/retention-run.ts`), bukan di modul ini.
 
 ## Tabel yang dimiliki
 Tidak ada. Data dihapus lewat service modul pemiliknya, di transaksi pendek per batch.
 
 ## Service publik
 - `StoreDataDeletionService.run(ctx, storeId, budgetMs?)` (hanya worker, job `store.data_delete`): `done`, `continued` (waktu habis; event `store.data_deletion_requested` ditulis lagi), atau `skipped` (toko tidak diminta dihapus, sudah selesai, atau tidak diputus).
+- `TenantPurgeService.run(tenantId, budgetMs?)` (hanya worker, job `tenant.purge`): `not_due`, `continued` (waktu habis; pemindaian berikutnya melanjutkan), atau `done`. Semua hapus lewat fungsi SQL `SECURITY DEFINER` di `drizzle/sql/16_tenant_purge.sql` yang menolak bisnis yang belum ditutup dan belum lewat `purge_after`.
 - `BuyerDataRetentionService.run(ctx, now?, budgetMs?)` (hanya worker, job `retention.buyer_anonymize`): `{anonymized, done}`. Masa simpan dari `BusinessProfileService.buyerDataRetentionIn`; batas waktu dari `retentionCutoff` (`retention-plan.ts`).
 
 ## Aturan
@@ -34,4 +36,5 @@ Tidak ada. Data dihapus lewat service modul pemiliknya, di transaksi pendek per 
 | Job | Antrean | Pemicu |
 |---|---|---|
 | `store.data_delete` | `import` | `store.data_deletion_requested` |
+| `tenant.purge` | `import` | Scheduler `account.closure_scan` (setiap 10 menit, `scheduler/closure-scan.ts`), id per bisnis dan slot |
 | `retention.buyer_anonymize` | `import` | Scheduler `retention.buyer_scan` (setiap jam, `scheduler/retention-scan.ts`), id per bisnis dan jam |

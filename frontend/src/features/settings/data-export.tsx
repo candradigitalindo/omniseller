@@ -34,7 +34,11 @@ export function formatSize(bytes: number): string {
  * Ekspor Data (FR-MIG-09, backend 8.18): every table of the business as CSV in one ZIP, at any time and free,
  * so the data is the seller's to take along. Prepared by the worker; the file is kept for a few days.
  */
-export function DataExportView() {
+/**
+ * `embedded`: part of another page (L54 "Akun ditutup"), with its title as a section heading, not the
+ * page's; `note` adds a sentence to the description.
+ */
+export function DataExportView({ embedded = false, note }: { embedded?: boolean; note?: string | undefined } = {}) {
   const t = useTranslations("dataExport");
   const tz = useTimeZone();
   const can = useCan();
@@ -57,18 +61,31 @@ export function DataExportView() {
   });
   if (!allowed) return <PageHeader title={t("title")} description={t("noAccess")} />;
   const busy = list.data?.items.some((e) => e.status === "queued" || e.status === "running") ?? false;
+  const start = (
+    <Button loading={create.isPending} disabled={busy} onClick={() => create.mutate()}>
+      <FileArchive aria-hidden />
+      {t("create")}
+    </Button>
+  );
+  const Wrapper = embedded ? "section" : "div";
   return (
-    <>
-      <PageHeader
-        title={t("title")}
-        description={t("description")}
-        actions={
-          <Button loading={create.isPending} disabled={busy} onClick={() => create.mutate()}>
-            <FileArchive aria-hidden />
-            {t("create")}
-          </Button>
-        }
-      />
+    <Wrapper className="grid gap-3" {...(embedded ? { "aria-labelledby": "data-export-title" } : {})}>
+      {embedded ? (
+        <div className="grid gap-3 sm:flex sm:items-start sm:justify-between">
+          <div className="grid gap-1">
+            <h2 id="data-export-title" className="text-lg font-semibold text-text-900">
+              {t("title")}
+            </h2>
+            <p className="text-sm text-text-500">
+              {t("description")}
+              {note ? ` ${note}` : null}
+            </p>
+          </div>
+          {start}
+        </div>
+      ) : (
+        <PageHeader title={t("title")} description={t("description")} actions={start} />
+      )}
       {list.isPending ? (
         <Skeleton className="h-40" />
       ) : list.isError ? (
@@ -132,6 +149,6 @@ export function DataExportView() {
           ))}
         </ul>
       )}
-    </>
+    </Wrapper>
   );
 }

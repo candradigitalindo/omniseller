@@ -3,7 +3,7 @@ import { ApiFoundResponse, ApiOkResponse, ApiProduces, ApiTags } from "@nestjs/s
 import type { Response } from "express";
 import { ZodResponse } from "nestjs-zod";
 import type { RequestContext } from "../../common/context/request-context";
-import { Ctx, Isolation, RequirePermission } from "../../common/http/decorators";
+import { AllowWhileClosing, Ctx, Isolation, RequirePermission } from "../../common/http/decorators";
 import { DataExportDto, DataExportListDto, ExportIdParamDto, exportView } from "./dto";
 import { ExportsService } from "./exports.service";
 
@@ -20,6 +20,8 @@ export class ExportsController {
   @HttpCode(202)
   @RequirePermission("data:export")
   @Isolation("self")
+  // the data stays the business's until it is deleted: a closing account can still take it (8.36)
+  @AllowWhileClosing()
   @ZodResponse({ type: DataExportDto, status: 202 })
   async request(@Ctx() ctx: RequestContext) {
     return exportView(await this.exports.request(ctx));

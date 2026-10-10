@@ -2,6 +2,7 @@ import { BILLING_JOBS } from "../modules/billing/billing.jobs";
 import { BUSINESS_JOBS } from "../modules/business/business.jobs";
 import { CATALOG_JOBS } from "../modules/catalog/catalog.jobs";
 import { CHANNEL_JOBS } from "../modules/channel/channel.jobs";
+import { CLOSURE_JOBS } from "../modules/closure/closure.jobs";
 import { EXPORT_JOBS } from "../modules/exports/exports.jobs";
 import { FILES_JOBS } from "../modules/files/files.jobs";
 import { FULFILLMENT_JOBS } from "../modules/fulfillment/fulfillment.jobs";
@@ -72,6 +73,7 @@ export const JOB_DEFINITIONS: readonly JobDef[] = [
   ...MIGRATION_JOBS,
   ...REPORTING_JOBS,
   ...RETENTION_JOBS,
+  ...CLOSURE_JOBS,
   ...BUSINESS_JOBS,
   ...BILLING_JOBS,
   ...FILES_JOBS,

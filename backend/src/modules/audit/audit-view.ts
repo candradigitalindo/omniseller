@@ -222,6 +222,11 @@ export const AUDIT_ENTITIES: Record<string, EntitySpec> = {
     fields: [f("name"), f("schedule"), f("valid_from"), f("valid_to")],
   },
   // the logo and a document's file are files: their ids say only that one was set, replaced, or removed
+  // account closure and reopening (backend doc 8.36), written by audit_tenant()
+  tenant: {
+    label: [],
+    fields: [f("status"), f("closing_at"), f("purge_after")],
+  },
   business_profile: {
     label: [],
     fields: [

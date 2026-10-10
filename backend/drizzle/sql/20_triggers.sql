@@ -188,6 +188,11 @@ SELECT ensure_trigger('data_export', 'audit_download_trg',
      WHEN (OLD.download_count IS DISTINCT FROM NEW.download_count)
      EXECUTE FUNCTION audit_row()');
 
+-- A business closing its account, and reopening it (backend doc 8.36): its own log, see audit_tenant().
+SELECT ensure_trigger('tenant', 'audit_closure_trg',
+  'CREATE TRIGGER audit_closure_trg AFTER UPDATE OF status ON tenant FOR EACH ROW
+     WHEN (OLD.status IS DISTINCT FROM NEW.status) EXECUTE FUNCTION audit_tenant()');
+
 SELECT ensure_trigger('audit_log', 'audit_log_immutable_trg',
   'CREATE TRIGGER audit_log_immutable_trg BEFORE UPDATE OR DELETE ON audit_log FOR EACH ROW EXECUTE FUNCTION audit_log_immutable()');
 

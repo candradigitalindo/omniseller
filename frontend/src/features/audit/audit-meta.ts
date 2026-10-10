@@ -58,6 +58,9 @@ export const TITLE_KEYS = [
   "store_created",
   "store_updated",
   "store_disconnected",
+  "tenant_updated",
+  "tenant_closing",
+  "tenant_reopened",
   "store_deleted",
   "role_created",
   "role_updated",
@@ -286,6 +289,9 @@ function stepKey(e: AuditEntry): string {
     }
     case "store":
       return becomes(e, "status", "disconnected") ? "store_disconnected" : base;
+    case "tenant":
+      if (becomes(e, "status", "closing")) return "tenant_closing";
+      return becomes(e, "status", "active") ? "tenant_reopened" : base;
     case "user":
       if (find(e, "twoFactorEnabled")) {
         return becomes(e, "twoFactorEnabled", true) ? "user_two_factor_on" : "user_two_factor_off";
@@ -343,6 +349,7 @@ export const VALUE_LABELS: Record<string, [namespace: string, prefix: string]> =
   "variant.status": ["products", "status_"],
   "channel_listing.status": ["listings", "status_"],
   "store.status": ["stores", "status_"],
+  "tenant.status": ["audit", "tenantStatus_"],
   "user.status": ["team", "userStatus_"],
   "store.syncMode": ["audit", "syncMode_"],
   "channel_warehouse.mappingStatus": ["warehouses", "mapping_"],
@@ -388,6 +395,8 @@ export const MOMENT_FIELDS = new Set([
   "periodEnd",
   "dueAt",
   "paidAt",
+  "closingAt",
+  "purgeAfter",
 ]);
 /** Calendar dates (YYYY-MM-DD), shown without a time. */
 export const DATE_FIELDS = new Set([

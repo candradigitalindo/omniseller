@@ -9181,6 +9181,78 @@
         }
       }
     },
+    "/v1/account-closure": {
+      "get": {
+        "operationId": "AccountClosureController_get",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountClosureDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "account-closure"
+        ],
+        "x-isolation": "self"
+      },
+      "post": {
+        "operationId": "AccountClosureController_close",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloseAccountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountClosureDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "account-closure"
+        ],
+        "x-isolation": "self"
+      },
+      "delete": {
+        "operationId": "AccountClosureController_reopen",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountClosureDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "account-closure"
+        ],
+        "x-isolation": "self"
+      }
+    },
     "/v1/migration/fields": {
       "get": {
         "operationId": "MigrationImportsController_fields",
@@ -34404,6 +34476,127 @@
           "items"
         ],
         "additionalProperties": false
+      },
+      "AccountClosureDto_Output": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "suspended",
+              "closing",
+              "closed"
+            ]
+          },
+          "closingAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "purgeAfter": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "closedBy": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  "name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revokeLinks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "channel": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "channel",
+                "url"
+              ],
+              "additionalProperties": false
+            },
+            "description": "marketplace tempat izin OmniSeller masih bisa dicabut penjual"
+          },
+          "purgeAfterDays": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "hari sampai data dihapus setelah akun ditutup"
+          }
+        },
+        "required": [
+          "status",
+          "closingAt",
+          "purgeAfter",
+          "closedBy",
+          "revokeLinks",
+          "purgeAfterDays"
+        ],
+        "additionalProperties": false
+      },
+      "CloseAccountDto": {
+        "type": "object",
+        "properties": {
+          "businessName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "nama bisnis diketik ulang sebagai konfirmasi"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "kata sandi pengguna yang menutup akun"
+          }
+        },
+        "required": [
+          "businessName",
+          "password"
+        ]
       },
       "ImportFieldsDto_Output": {
         "type": "object",

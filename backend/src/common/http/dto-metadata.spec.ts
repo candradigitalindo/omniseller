@@ -10,6 +10,7 @@ import {
   StoreAuthorizationsController,
   StoresController,
 } from "../../modules/channel/channel.controllers";
+import { AccountClosureController } from "../../modules/closure/closure.controller";
 import { ExportsController } from "../../modules/exports/exports.controller";
 import { FilesController } from "../../modules/files/files.controller";
 import { DocumentsController, ShipmentsController } from "../../modules/fulfillment/fulfillment.controllers";
@@ -80,6 +81,7 @@ const CONTROLLERS = [
   NotificationsController,
   DashboardController,
   ReportsController,
+  AccountClosureController,
   ExportsController,
   MigrationImportsController,
   MigrationCutoverController,

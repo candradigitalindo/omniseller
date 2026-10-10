@@ -130,6 +130,59 @@ export class IdentityRepository {
     return row;
   }
 
+  /** The business's account closure (backend doc 8.36), locked when `lock`. */
+  async tenantClosure(tx: Tx, id: string, lock = false) {
+    const q = tx
+      .select({
+        name: tenant.name,
+        status: tenant.status,
+        closingAt: tenant.closingAt,
+        closedBy: tenant.closedBy,
+        purgeAfter: tenant.purgeAfter,
+        purgeRemindedAt: tenant.purgeRemindedAt,
+      })
+      .from(tenant)
+      .where(eq(tenant.id, id));
+    const [row] = lock ? await q.for("update") : await q;
+    return row;
+  }
+
+  async setTenantClosure(
+    tx: Tx,
+    id: string,
+    patch: {
+      status: "active" | "closing";
+      closingAt: Date | null;
+      closedBy: string | null;
+      purgeAfter: Date | null;
+      purgeRemindedAt?: Date | null;
+    },
+  ): Promise<void> {
+    await tx
+      .update(tenant)
+      .set({ ...patch, updatedAt: new Date(), rowVersion: sql`${tenant.rowVersion} + 1` })
+      .where(eq(tenant.id, id));
+  }
+
+  async setPurgeReminded(tx: Tx, id: string, at: Date): Promise<void> {
+    await tx.update(tenant).set({ purgeRemindedAt: at }).where(eq(tenant.id, id));
+  }
+
+  /** Every user of the tenant, whatever their status: whose sessions end when the business closes. */
+  async userIds(tx: Tx): Promise<string[]> {
+    return (await tx.select({ id: user.id }).from(user)).map((r) => r.id);
+  }
+
+  /** Invitations nobody accepted yet go (a closing business takes no new members). */
+  async revokeOpenInvitations(tx: Tx, at: Date): Promise<number> {
+    const rows = await tx
+      .update(invitation)
+      .set({ revokedAt: at, updatedAt: at })
+      .where(and(isNull(invitation.acceptedAt), isNull(invitation.revokedAt)))
+      .returning({ id: invitation.id });
+    return rows.length;
+  }
+
   /** Every role of the tenant: names for the audit log. */
   async roleNames(tx: Tx): Promise<{ id: string; name: string }[]> {
     return tx.select({ id: role.id, name: role.name }).from(role);

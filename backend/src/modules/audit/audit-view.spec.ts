@@ -269,7 +269,7 @@ describe("the view and the audit triggers agree", () => {
   // each audit trigger: its table and the CREATE TRIGGER text inside ensure_trigger(...)
   const audited = [...triggers.matchAll(/ensure_trigger\('(\w+)', '\w+',\s*'([\s\S]*?)'\);/g)]
     .map((m) => ({ table: m[1]!, statement: m[2]! }))
-    .filter((a) => a.statement.includes("EXECUTE FUNCTION audit_row("));
+    .filter((a) => /EXECUTE FUNCTION audit_(row|tenant)\(/.test(a.statement));
   const generic = /ARRAY\[([^\]]*)\][\s\S]*?audit_trg/.exec(triggers)?.[1] ?? "";
   const tables = new Set([...audited.map((a) => a.table), ...[...generic.matchAll(/'(\w+)'/g)].map((m) => m[1]!)]);
 

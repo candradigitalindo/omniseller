@@ -23,6 +23,12 @@ export const tenant = pgTable("tenant", {
   planId: ulid("plan_id").notNull(),
   legal: jsonb("legal").$type<TenantLegal>().notNull().default({}),
   settings: jsonb("settings").$type<Record<string, unknown>>().notNull().default({}),
+  /** Account closure (backend doc 8.36): read only until `purge_after`, then deleted (`purged_at`). */
+  closingAt: tstz("closing_at"),
+  closedBy: ulid("closed_by"),
+  purgeAfter: tstz("purge_after"),
+  purgeRemindedAt: tstz("purge_reminded_at"),
+  purgedAt: tstz("purged_at"),
 });
 
 export const permission = pgTable("permission", {

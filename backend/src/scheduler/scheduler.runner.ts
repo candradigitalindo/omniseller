@@ -21,6 +21,7 @@ import {
   sweepWebhookInbox,
   WAREHOUSE_POLL_SLOT_MS,
 } from "./channel-scans";
+import { CLOSURE_SCAN_MS, scanAccountClosures } from "./closure-scan";
 import { DIGEST_SCAN_MS, scanDailyDigests } from "./digest-scan";
 import { LEGAL_SCAN_MS, scanLegalReminders } from "./legal-scan";
 import {
@@ -31,6 +32,7 @@ import {
   scanSlaAlerts,
 } from "./order-scans";
 import { OutboxRelayRunner } from "./outbox-relay";
+import { RETENTION_RUN_MS, runRetention } from "./retention-run";
 import { RETENTION_SCAN_MS, scanBuyerRetention } from "./retention-scan";
 import {
   RETURN_DUE_SLOT_MS,
@@ -106,6 +108,10 @@ export class SchedulerRunner implements OnApplicationBootstrap, OnApplicationShu
     );
     this.every(RETENTION_SCAN_MS, "retention.buyer_scan", () =>
       scanBuyerRetention(this.system, this.queues, this.registry),
+    );
+    this.every(RETENTION_RUN_MS, "retention.run", () => runRetention(this.system));
+    this.every(CLOSURE_SCAN_MS, "account.closure_scan", () =>
+      scanAccountClosures(this.system, this.queues, this.registry),
     );
     log.info("scheduler started");
   }

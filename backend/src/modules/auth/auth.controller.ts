@@ -3,7 +3,7 @@ import { ApiTags } from "@nestjs/swagger";
 import type { Response } from "express";
 import { ZodResponse } from "nestjs-zod";
 import { RateLimitedError } from "../../common/errors/domain-errors";
-import { Isolation, Public } from "../../common/http/decorators";
+import { AllowWhileClosing, Isolation, Public } from "../../common/http/decorators";
 import { type AuthedRequest, clientIp } from "../../common/http/request";
 import { RATE_RULES, type RateLimiter } from "../../common/security/rate-limiter";
 import { ENV } from "../../config/config.module";
@@ -92,6 +92,7 @@ export class AuthController {
 
   @Post("logout")
   @Isolation("self")
+  @AllowWhileClosing()
   @HttpCode(204)
   async logout(@Req() req: AuthedRequest, @Res({ passthrough: true }) res: Response): Promise<void> {
     if (req.sessionToken) await this.auth.logout(req.sessionToken);

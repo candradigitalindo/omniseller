@@ -227,36 +227,63 @@ export class StoresService {
       const store = await this.load(tx, ctx, id, true);
       // a manual sales channel has no marketplace: disconnecting it archives it
       if (store.status === "disconnected") throw storeAlreadyDisconnected();
-      const now = new Date();
-      await this.repo.deleteCredential(tx, id);
-      await this.repo.updateStore(tx, id, {
-        status: "disconnected",
-        statusReason: "disconnected_by_user",
-        statusChangedAt: now,
-        disconnectedAt: now,
-        syncMode: "read_only",
-        ...(store.syncMode !== "read_only" ? { syncModeChangedAt: now } : {}),
-        failingSince: null,
-        connectionAlertAt: null,
-        ...(keepData ? {} : { dataDeletionRequestedAt: now }),
-      });
-      await this.outbox.enqueue(
-        tx,
-        ctx,
-        storeDisconnected,
-        { storeId: id, reason: "disconnected_by_user", keepData },
-        id,
-      );
-      if (!keepData) await this.outbox.enqueue(tx, ctx, storeDataDeletionRequested, { storeId: id }, id);
+      await this.disconnectIn(tx, ctx, store, keepData, "disconnected_by_user");
       return (await this.view(tx, [(await this.repo.getStore(tx, id))!]))[0]!;
     });
-    let revokeUrl: string | null = null;
-    if (isSupportedChannel(view.store.channel) && this.connectors.isConfigured(view.store.channel)) {
-      revokeUrl = this.connectors
-        .get(view.store.channel)
-        .auth.revokeUrl({ redirectUri: `${publicWebUrl(this.env)}/integrasi` });
+    return { view, revokeUrl: this.revokeLinks([view.store.channel])[0]?.url ?? null };
+  }
+
+  /**
+   * Account closure (backend doc 8.36): every marketplace store still connected is disconnected keeping
+   * its data, in the caller's transaction, as `disconnect` does one store, so no stock is pushed and no
+   * order is read any more. Manual sales channels stay. Returns the channels disconnected.
+   */
+  async disconnectAllIn(tx: Tx, ctx: RequestContext, reason: string): Promise<string[]> {
+    const stores = (await this.repo.listStores(tx, null)).filter(
+      (s) => s.status !== "disconnected" && !isManualChannel(s.channel),
+    );
+    for (const s of stores) await this.disconnectIn(tx, ctx, s, true, reason);
+    return [...new Set(stores.map((s) => s.channel))];
+  }
+
+  /** Channels of the stores disconnected for `reason` (account closure: where the app may still be authorized). */
+  async channelsDisconnectedIn(tx: Tx, reason: string): Promise<string[]> {
+    const stores = await this.repo.listStores(tx, null);
+    return [
+      ...new Set(stores.filter((s) => s.status === "disconnected" && s.statusReason === reason).map((s) => s.channel)),
+    ];
+  }
+
+  /**
+   * Where the seller withdraws OmniSeller's authorization at each marketplace: marketplaces keep the app
+   * authorized after a local disconnect until the seller revokes it there (Shopee gives a link).
+   */
+  revokeLinks(channels: readonly string[]): { channel: string; url: string }[] {
+    const links: { channel: string; url: string }[] = [];
+    for (const channel of new Set(channels)) {
+      if (!isSupportedChannel(channel) || !this.connectors.isConfigured(channel)) continue;
+      const url = this.connectors.get(channel).auth.revokeUrl({ redirectUri: `${publicWebUrl(this.env)}/integrasi` });
+      if (url) links.push({ channel, url });
     }
-    return { view, revokeUrl };
+    return links;
+  }
+
+  private async disconnectIn(tx: Tx, ctx: RequestContext, store: StoreRow, keepData: boolean, reason: string) {
+    const now = new Date();
+    await this.repo.deleteCredential(tx, store.id);
+    await this.repo.updateStore(tx, store.id, {
+      status: "disconnected",
+      statusReason: reason,
+      statusChangedAt: now,
+      disconnectedAt: now,
+      syncMode: "read_only",
+      ...(store.syncMode !== "read_only" ? { syncModeChangedAt: now } : {}),
+      failingSince: null,
+      connectionAlertAt: null,
+      ...(keepData ? {} : { dataDeletionRequestedAt: now }),
+    });
+    await this.outbox.enqueue(tx, ctx, storeDisconnected, { storeId: store.id, reason, keepData }, store.id);
+    if (!keepData) await this.outbox.enqueue(tx, ctx, storeDataDeletionRequested, { storeId: store.id }, store.id);
   }
 
   async requestWarehouseSync(ctx: RequestContext, id: string): Promise<void> {

@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.36 |
+| Versi dokumen | 1.37 |
 | Tanggal | 10 Oktober 2026 |
 | Status | Keputusan final untuk implementasi; fondasi (bagian 4 sampai 9, 12, 13), identitas, autentikasi, dan audit (8.1, 8.10), koneksi toko Shopee dan Tokopedia & Shop (8.6, 8.11), katalog, listing, dan pemetaan SKU (7.8.3, 8.12), stok, penyesuaian, dan push stok ke marketplace (7.8.4, 8.13, 9.4), pesanan dari Shopee dan Tokopedia & Shop (7.8.6, 7.9, 8.14, 10.6), pengiriman, label, pick list, dan peringatan batas kirim (8.15), dasbor, notifikasi in-app, ekspor data penuh, dan audit aksi sensitif (8.16 sampai 8.18), migrasi dari aplikasi lain dengan mode paralel dan cutover (8.19), laporan penjualan, daftar perlu restock, ringkasan email harian, dan preferensi notifikasi (8.20), banyak gudang fisik, pesanan manual, alokasi gudang otomatis, dan tag pesanan (8.21), pelacakan paket, daftar kemas, dan template label kustom (8.22), putus toko dengan atau tanpa data, peringatan koneksi, riwayat produk, dan barcode (8.23), agen cetak, scan untuk cetak, kemas dengan scan, serah terima kurir dengan manifest, dan visibilitas HPP (8.24), salin listing antar toko sendiri (8.25), retur, refund, permintaan batal pembeli, dan paket kembali (8.26), stok opname dan transfer stok antar gudang (8.27), log audit yang terbaca (8.28), profil bisnis dan legalitas (8.29), verifikasi dua langkah dan sesi aktif (8.30), cut-off kurir dan jam operasional (8.31), langganan, tagihan lewat Xendit dengan PDF ber-NPWP, kuota paket, dan meteran pesanan (8.32), peran kustom dan fitur per paket (8.33), serta anonimisasi data pembeli (8.34) sudah diimplementasikan di folder `backend/` |
 | Pemilik dokumen | Candra Syahputra |
@@ -493,7 +493,7 @@ Soft delete (`deleted_at`) hanya pada tabel master di 7.2. Aturan:
 
 - Baris dengan `deleted_at` tidak muncul di daftar dan tidak boleh dipilih di formulir baru, tetapi tetap dapat dirujuk oleh data historis.
 - Batasan unik pada tabel master memakai indeks parsial `WHERE deleted_at IS NULL` sehingga SKU yang dihapus dapat dipakai ulang.
-- Hard delete tabel master hanya lewat job penghapusan tenant (16.6) dengan role `omniseller_system`, dalam urutan dependensi yang dihasilkan dari `information_schema`.
+- Hard delete tabel master hanya lewat purge tenant (8.36): job `tenant.purge` di worker memanggil fungsi `SECURITY DEFINER` (`purge_tenant_step`) yang menolak bisnis yang belum ditutup dan belum lewat tanggal hapusnya, dalam urutan dependensi dari katalog (`tenant_purge_order()`).
 
 ### 7.5 Row-Level Security
 
@@ -504,7 +504,7 @@ Soft delete (`deleted_at`) hanya pada tabel master di 7.2. Aturan:
 |---|---|---|---|
 | `omniseller_api` | Ditegakkan | CRUD tabel tenant, dengan pengecualian di bawah. Pada `store_credential` hanya SELECT kolom metadata (kedaluwarsa, jumlah gagal), tanpa kolom token dan tanpa INSERT atau UPDATE | `api`, `webhook` |
 | `omniseller_worker` | Ditegakkan | CRUD tabel tenant termasuk membaca dan menulis token, dengan pengecualian di bawah | `worker`, `research-collector`, job per tenant di `scheduler` |
-| `omniseller_system` | `BYPASSRLS` | Hanya untuk job lintas tenant yang terdaftar: outbox relay, pemeliharaan partisi, retensi, penghapusan tenant, statistik platform | `scheduler` |
+| `omniseller_system` | `BYPASSRLS` | Hanya untuk job lintas tenant yang terdaftar: outbox relay, pemeliharaan partisi, retensi (`retention.run`), pemindaian penutupan akun, statistik platform. Penghapusan tenant tidak memakainya: worker memanggil fungsi `SECURITY DEFINER` yang memeriksa sendiri (8.36) | `scheduler` |
 | `omniseller_migrator` | `BYPASSRLS` | Pemilik skema: DDL, fungsi, grant | Tugas migrasi |
 
 Pengecualian hak yang berlaku untuk `omniseller_api` dan `omniseller_worker` (`drizzle/sql/40_grants.sql`):
@@ -610,6 +610,7 @@ erDiagram
 | `plan_id` | `ulid` | NOT NULL → `plan(id)` RESTRICT; paket yang berlaku, diatur modul `billing` lewat `TenantsService.setPlanIn` (8.32) |
 | `legal` | `jsonb` | NOT NULL DEFAULT `{}`; tidak dipakai: profil dan dokumen legalitas ada di `business_profile` dan `business_document` (7.8.12, 8.29); dibuang di langkah contract kemudian |
 | `settings` | `jsonb` | NOT NULL DEFAULT `{}` |
+| `closing_at`, `closed_by`, `purge_after`, `purge_reminded_at`, `purged_at` | `timestamptz`, `ulid` | NULL; penutupan akun (8.36, migrasi 0027): `closing` mewajibkan `closing_at` dan `purge_after`, `active` mewajibkan semuanya NULL; `closed_by` tanpa FK karena penggunanya ikut terhapus |
 | `created_at`, `updated_at`, `row_version` | | Standar |
 
 **user**
@@ -1092,7 +1093,7 @@ Indeks: daftar `(tenant_id, id DESC)`, per pesanan, tenggat (`respond_by_at` par
 | `processed_at` | `timestamptz` | NULL |
 | `attempts` | `integer` | NOT NULL DEFAULT 0 |
 | `last_error` | `text` | NULL |
-| Indeks | | Parsial `(id) WHERE processed_at IS NULL`; `(received_at)` untuk retensi |
+| Indeks | | Parsial `(id) WHERE processed_at IS NULL`; `(received_at)` untuk retensi; `(tenant_id, received_at)` untuk purge tenant (migrasi 0027) |
 
 Kebijakan RLS pada tabel ini: `omniseller_api` boleh `INSERT` dan `SELECT`; `omniseller_worker` boleh `UPDATE` kolom pemrosesan. Tidak ada predikat tenant.
 
@@ -1285,7 +1286,7 @@ Aturan pemetaan status marketplace ke status internal:
 Urutan komponen NestJS di proses `api`. NestJS selalu menjalankan middleware, lalu guard, lalu interceptor, lalu pipe, sehingga semua pemeriksaan identitas dan izin terjadi sebelum body divalidasi:
 
 1. `RequestIdMiddleware` (`common/context`): membaca `X-Request-Id` dari Cloudflare atau membuat ULID baru, menaruhnya di `AsyncLocalStorage` bersama `trace_id`. Setiap log di permintaan ini membawa `request_id`, lalu `tenant_id` dan aktor setelah langkah 2.
-2. `AuthGuard` (`modules/auth/auth.guard.ts`, guard global): route `@Public()` dilewati. Selain itu: membaca cookie `os_session`, memuat sesi dari Redis, memuat ulang pengguna, izin, dan cakupan dari basis data (perubahan peran berlaku di permintaan berikutnya, tanpa menunggu sesi habis), mencabut sesi bila pengguna tidak lagi `active`, menolak tenant `suspended` atau `closed` (403 `tenant.inactive`), menolak metode tulis pada tenant `closing` (403 `tenant.read_only`), mengambil token dari bucket per tenant (600 per menit, header `X-RateLimit-Remaining`), lalu membentuk `RequestContext`. `Authorization: Bearer` untuk mobile, API key, dan perangkat menyusul di guard yang sama.
+2. `AuthGuard` (`modules/auth/auth.guard.ts`, guard global): route `@Public()` dilewati. Selain itu: membaca cookie `os_session`, memuat sesi dari Redis, memuat ulang pengguna, izin, dan cakupan dari basis data (perubahan peran berlaku di permintaan berikutnya, tanpa menunggu sesi habis), mencabut sesi bila pengguna tidak lagi `active`, menolak tenant `suspended` atau `closed` (403 `tenant.inactive`); pada tenant `closing` (8.36) menolak pengguna tanpa `settings:billing` (403 `tenant.closing`) dan metode tulis kecuali route `@AllowWhileClosing()` (403 `tenant.read_only`), mengambil token dari bucket per tenant (600 per menit, header `X-RateLimit-Remaining`), lalu membentuk `RequestContext`. `Authorization: Bearer` untuk mobile, API key, dan perangkat menyusul di guard yang sama.
 3. `PermissionGuard` (guard global): memeriksa `@RequirePermission('order:accept')` terhadap izin di `RequestContext`. Cakupan toko dan gudang diperiksa di service terhadap `ctx.storeScope` dan `ctx.warehouseScope` saat sumber daya dimuat, karena id toko atau gudang sering baru diketahui dari baris itu; `ScopeGuard` generik ditambahkan bila pola ini berulang di modul pesanan dan stok.
 4. `AppValidationPipe` (`common/http/validation.ts`, pipe global): memvalidasi `params`, `query`, dan `body` dengan DTO `createZodDto`. Setiap parameter tervalidasi wajib bertipe DTO Zod (`strictSchemaDeclaration`); gagal validasi berarti 422 `validation.failed` dengan `errors[]`. Parameter dekorator kustom seperti `@Ctx()` dilewati karena isinya dibangun server.
 5. Controller memanggil service dengan `ctx` sebagai argumen pertama.
@@ -2614,7 +2615,7 @@ Nilai, barang, status, tanggal, catatan internal, dan riwayat pesanan tetap, seh
 
 **API dan ekspor.** `GET /v1/orders/{id}` membawa `buyerAnonymizedAt`; `pesanan.csv` menambah `data_pembeli_dianonimkan_pada`, dan `profil_bisnis.csv` menambah `masa_simpan_data_pembeli_bulan`.
 
-Belum termasuk: penutupan akun dan penghapusan data bisnis 30 hari setelahnya (PRD 12.1, Kebijakan Privasi), penghapusan `webhook_inbox` dan `outbox_event` lama (`retention.run`, 9.5), dan permintaan hak subjek data per pembeli lewat aplikasi.
+Belum termasuk: permintaan hak subjek data per pembeli lewat aplikasi. Penutupan akun dan penghapusan data bisnis ada di 8.36, penghapusan `webhook_inbox` dan `outbox_event` lama di 9.5 (`retention.run`).
 
 
 ### 8.35 Laporan kinerja tim
@@ -2642,6 +2643,43 @@ Riwayat `pick_list_printed` dan `packing_list_printed` ditulis worker saat dokum
 **Riwayat pesanan.** `GET /v1/orders/{id}` membawa `events[].actorName`: nama pengguna untuk aksi pengguna, null untuk marketplace dan sistem (L04 "siapa").
 
 Belum termasuk: picking lewat aplikasi gudang (menunggu aplikasi Android, ADR-032), laporan terjadwal lewat email (FR-RPT-05), dan rencana kapasitas dari menit per pesanan (FR-CMP-03).
+
+
+### 8.36 Penutupan akun dan penghapusan data bisnis
+
+Implementasi:
+- modul `closure`: `AccountClosureService` (api: `get`, `close`, `reopen`; worker: `remind`), `closure-plan.ts` (murni: `PURGE_AFTER_DAYS` 30, `PURGE_REMINDER_DAYS` 7, `confirmsName`), job `account.purge_reminder`;
+- modul `retention`: `TenantPurgeService` (job `tenant.purge`), `retention-plan.ts` (`PURGE_BATCH`, `PURGE_BUDGET_MS`, batas `retention.run`);
+- `drizzle/sql/16_tenant_purge.sql`: `tenant_kept_tables()`, `tenant_purge_order()`, `begin_tenant_purge`, `purge_tenant_step`, `finish_tenant_purge`; `audit_row`, `audit_log_immutable`, dan `audit_tenant` mengenali `app.purge_tenant`;
+- `scheduler/closure-scan.ts` (`account.closure_scan`), `scheduler/retention-run.ts` (`retention.run`), `scheduler/active-tenants.ts`;
+- modul pemilik: `TenantsService.closureIn | markClosingIn | reopenIn`, `StoresService.disconnectAllIn | revokeLinks`, `BillingService.closeIn`, `InvitationsService.revokeOpenIn`, `UsersService.idsIn | endSessions`, `FilesService.deleteAllObjects` (`FileStorage.deletePrefix`);
+- migrasi `0027_account_closure.sql`.
+
+PRD: 12.1 (penghapusan data tenant secara menyeluruh saat berhenti berlangganan); Syarat Layanan dan Kebijakan Privasi situs publik (dihapus dalam 30 hari setelah akun ditutup, kecuali yang wajib disimpan menurut hukum); layar L47 dan L54 (DOKUMEN-UI-UX).
+
+**Menutup.** `POST /v1/account-closure {businessName, password}` oleh pemegang `settings:billing`: nama bisnis diketik ulang (huruf besar dan spasi tidak berpengaruh) dan kata sandi pengguna itu sendiri (dibatasi seperti pemeriksaan ulang lain, `reauth:user`). Dalam satu transaksi:
+- `tenant.status = 'closing'`, `closing_at`, `closed_by`, `purge_after` = 30 hari kemudian; tercatat di log audit bisnis (`audit_tenant`);
+- semua toko marketplace diputus dengan data disimpan (`statusReason = 'account_closing'`, event `store.disconnected` seperti putus toko biasa): stok tidak lagi didorong, pesanan tidak lagi dibaca, stok pesanan terbuka dilepas. Saluran manual tetap;
+- langganan: tagihan yang menunggu dibatalkan (dan ditutup di Xendit), paket turun ke Starter seperti memilihnya di L45 (seketika dari uji coba atau periode yang belum dibayar, di akhir periode yang sudah dibayar); tanpa pengembalian dana;
+- undangan yang belum diterima dicabut; pengelola langganan mendapat notifikasi dalam aplikasi dan email (`account.closing`, selalu dikirim).
+Setelah commit, sesi semua pengguna lain berakhir; sesi pemegang `settings:billing` tetap.
+
+**Selama 30 hari.** Hanya pemegang `settings:billing` yang bisa masuk (login dan `AuthGuard` menolak yang lain dengan 403 `tenant.closing`). Mereka membaca semuanya, tetapi menulis hanya lewat route `@AllowWhileClosing()`: ekspor data (`POST /v1/exports`), buka kembali (`DELETE /v1/account-closure`), dan keluar. Pemindaian peringatan (legalitas, batas kirim, pesanan dan retur baru, tenggat retur) melewati bisnis yang tidak `active`. Web app menampilkan L54 menggantikan aplikasi.
+
+**Membuka kembali.** `DELETE /v1/account-closure` sebelum purge dimulai: status `active`, kolom penutupan dikosongkan. Toko tetap terputus (dihubungkan lagi di L40), paket tetap seperti setelah penutupan, undangan yang dicabut tidak kembali.
+
+**Pengingat.** `account.closure_scan` (setiap 10 menit) mengantrekan `account.purge_reminder` saat tinggal 7 hari; job mengirim sekali (`purge_reminded_at`), dan tidak mengirim bila akun sudah dibuka kembali.
+
+**Purge.** Setelah `purge_after`, `account.closure_scan` mengantrekan `tenant.purge` per bisnis dan slot. Job berjalan di worker sebagai role worker; semua hapus lewat fungsi `SECURITY DEFINER` yang menolak bisnis yang belum ditutup dan belum lewat tanggalnya:
+1. `begin_tenant_purge`: `status = 'closed'` (tidak ada lagi yang bisa masuk) dan event outbox bisnis itu yang belum terkirim dihapus; sesi semua penggunanya diakhiri;
+2. berkas tersimpan di `t/<tenant_id>/` dihapus (`FileStorage.deletePrefix`), sebelum barisnya;
+3. setiap tabel `tenant_purge_order()` dihapus 1.000 baris per pernyataan (`purge_tenant_step`), tabel yang mereferensikan lebih dulu, sehingga RESTRICT tidak pernah menahan. Urutannya dihitung dari katalog: tabel baru ikut sendiri, dan uji skema memeriksa cakupan, urutan, dan indeks `tenant_id` setiap tabel. Selama purge, `audit_row` dan `audit_tenant` tidak mencatat apa pun tentang bisnis itu, `audit_log_immutable` mengizinkan hapus log bisnis itu saja, dan `inventory_guard` mengizinkan hapus stok (`app.stock_write`);
+4. berkas dihapus sekali lagi (job lain mungkin menyimpan berkas di tengah jalan), lalu `finish_tenant_purge` memeriksa tidak ada baris tersisa dan menandai `purged_at`: baris `tenant` tetap sebagai pemilik tagihan dengan nama "Bisnis dihapus", slug `dihapus-<id>` (slug lama bebas lagi), `legal` dan `settings` kosong.
+Yang tetap: `invoice` dan `subscription` (`tenant_kept_tables()`), catatan pajak. Event outbox yang sudah terkirim hilang lewat `retention.run` paling lama 7 hari kemudian. Job berhenti setelah 45 detik dan pemindaian berikutnya melanjutkan. Log hanya berisi jumlah baris dan berkas.
+
+**Indeks.** Purge mencari baris per tabel lewat `tenant_id`: migrasi 0027 menambah indeks untuk `order_event`, `order_external_ref`, `order_problem`, `store_credential`, `sync_cursor`, dan `webhook_inbox`.
+
+Belum termasuk: penutupan akun oleh tim OmniSeller tanpa pemiliknya (CLI ops), dan ekspor otomatis yang dikirim ke pemilik saat ditutup (pemilik mengunduhnya sendiri di L54).
 
 ---
 
@@ -2807,7 +2845,8 @@ Diukur dengan proses sungguhan (api, worker, scheduler) terhadap Shopee tiruan: 
 | `store.connection_scan` | Setiap 5 menit | `system` untuk memilih, `worker` per tenant | Job `store.connection_check` untuk tenant dengan toko yang koneksinya terputus lebih dari 15 menit dan belum diumumkan, atau yang sudah pulih (FR-INT-08, 8.23; `scheduler/channel-scans.ts`) |
 | `partition.maintain` | Saat scheduler mulai dan setiap 6 jam | `system` | `maintain_partitions(now())`; pelepasan partisi kedaluwarsa menyusul bersama job arsip |
 | `retention.buyer_scan` | Setiap jam | `system` untuk memilih, `worker` per tenant | Job `retention.buyer_anonymize` (antrean `import`, id per bisnis dan jam) untuk bisnis yang punya pesanan melewati masa simpan data pembelinya, belum dianonimkan, dan tidak lagi ditahan untuk dikirim; semua status bisnis (8.34; `scheduler/retention-scan.ts`) |
-| `retention.run` | Harian 02.00 WIB | `system` | Menyusul: hapus `webhook_inbox` lebih dari 30 hari, `outbox_event` terkirim lebih dari 7 hari, ringkas `research_snapshot` (anonimisasi pembeli sudah lewat `retention.buyer_scan`) |
+| `retention.run` | Setiap jam | `system` | Hapus `webhook_inbox` yang diterima lebih dari 30 hari lalu (indeks `received_at`) dan `outbox_event` yang terkirim lebih dari 7 hari lalu (rentang id ULID), 5.000 baris per pernyataan selama paling lama 20 detik; event yang belum terkirim tidak pernah dihapus (`scheduler/retention-run.ts`). Ringkas `research_snapshot` menyusul bersama modul riset; anonimisasi pembeli lewat `retention.buyer_scan` |
+| `account.closure_scan` | Setiap 10 menit | `system` | Bisnis yang ditutup dan lewat `purge_after` (atau purge-nya terhenti): `tenant.purge` per bisnis dan slot; yang tinggal 7 hari: `account.purge_reminder` sekali per tanggal hapus (`scheduler/closure-scan.ts`, 8.36) |
 | `research.collect` | Setiap 6 jam per tautan pantauan | `worker` | Pengumpulan riset |
 | `billing.renewal_scan` | Setiap jam | `system` untuk memilih, `worker` per tenant | Job `billing.renew` untuk langganan yang periodenya berakhir dalam 7 hari atau sudah lewat, dan `billing.trial_start` untuk bisnis tanpa baris langganan (8.32; `scheduler/billing-scan.ts`). `usage_counter` tidak perlu ditutup (satu baris per bulan); reset `ai_budget` menyusul bersama modul AI |
 | `dlq.alert` | Setiap 5 menit | `system` (hanya Redis) | Alarm bila DLQ melewati ambang |
@@ -2912,6 +2951,7 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `GET/POST /v1/invitations`, `POST /v1/invitations/{id}/resend`, `DELETE /v1/invitations/{id}` | `settings:user` | Satu undangan terbuka per email; kirim ulang membatalkan tautan lama |
 | `GET /v1/audit-logs` | `audit:read` | Filter `entity_type` (beberapa dipisah koma), `entity_id`, `actor_id`, `from`, `to`; entri dengan nama pelaku, label, dan perubahan yang terbaca (8.28) |
 | `GET /v1/audit-logs/people` | `audit:read` | Pengguna bisnis untuk filter pelaku (8.28) |
+| `GET /v1/account-closure`, `POST /v1/account-closure`, `DELETE /v1/account-closure` | `settings:billing` | 8.36. Status penutupan, tanggal hapus, siapa yang menutup, tautan pencabutan izin di marketplace. `POST {businessName, password}` menutup akun (422 nama atau kata sandi salah); `DELETE` membuka kembali sebelum purge (409 `account.not_closing`), satu-satunya tulis selain ekspor dan keluar yang boleh saat akun ditutup |
 | `GET /v1/business-profile`, `PATCH /v1/business-profile` | `settings:billing` | 8.29. Nama dan zona waktu bisnis, alamat, telepon, NIB atau NIB dalam proses (paling lama 6 bulan), NPWP, PKP, masa simpan data pembeli (`buyerDataRetentionMonths`, 3 sampai 24, 8.34), dan dokumen dengan status berlakunya; `ETag`, `PATCH` dengan `If-Match` (`"0"` sebelum pertama disimpan) |
 | `GET /v1/business-profile/logo`, `PUT /v1/business-profile/logo`, `DELETE /v1/business-profile/logo` | `settings:billing` | Logo PNG, JPG, atau WebP paling besar 1 MB (base64); `GET` memberi berkasnya atau redirect R2 10 menit |
 | `POST /v1/business-documents`, `PATCH /v1/business-documents/{id}`, `DELETE /v1/business-documents/{id}`, `GET /v1/business-documents/{id}/file` | `settings:billing` | Dokumen legalitas: unggah PDF, JPG, atau PNG paling besar 5 MB (201); ubah judul, nomor, dan tanggal (tanggal berlaku baru memulai pengingat lagi); hapus (204); berkasnya |
@@ -3048,7 +3088,8 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `billing` | `subscription`, `invoice`, `usage_counter` (8.32). Paket lewat `TenantsService`; yang ditagih lewat `BusinessProfileService.billToIn`; PDF tagihan di api (`InvoicePdfService`); kuota diperiksa modul pemilik tabel lewat `common/plan-limits.ts`; `UsageMeterService.countIn` dipanggil `OrderIntakeService`; `taskIn` untuk dasbor, `exportSheets` untuk ekspor; Xendit hanya di worker (`BillingWorkerService`) dan callback di proses webhook | `billing.invoice_requested`, `billing.invoice_voided` | `tenant.created` | `billing.trial_start`, `billing.invoice_create`, `billing.invoice_expire`, `billing.invoice_callback`, `billing.renew` (antrean `billing`); di scheduler: `billing.renewal_scan` |
 | `reporting` | `daily_digest`. `DashboardService` (8.16), `SalesReportService` (8.20), dan `StaffReportService` (8.35) tidak menulis apa pun: angkanya dibaca lewat service modul pemilik dan view yang diekspornya. `DigestService` (worker) mengklaim `daily_digest` dan mengirim email lewat `EmailSender` | `digest.email_requested` | `digest.email_requested` | `digest.daily`, `digest.email` (antrean `notify`); menyusul `report.scheduled_email` |
 | `exports` | `data_export`. `ExportsService` (api) dan `ExportRenderService` (worker) membaca data lewat `exportSheets()` setiap modul pemilik dan menyimpan ZIP lewat `FilesService` (8.18) | `export.requested` | `export.requested` | `export.render` (antrean `export`) |
-| `retention` | Tidak punya tabel. Menganonimkan data pembeli yang melewati masa simpan bisnis (8.34: `BuyerDataRetentionService` lewat `BusinessProfileService.buyerDataRetentionIn`, `OrdersService.buyerDataDueIn | anonymizeBuyersIn`, `FulfillmentService.anonymizeIn`, `ReturnsService.anonymizeIn`). Menghapus data toko yang diputus tanpa menyimpan data (8.23) lewat service modul pemilik: `OrdersService` (`storeOrderIdsIn`, `deleteOrdersIn`), `FulfillmentService.deleteForOrdersIn`, `ListingsService.deleteStoreListingsIn`, `InventoryService.deleteStoreRulesIn`, `SyncLogService.deleteStoreLogIn`, `ListingCopyService.deleteStoreCopiesIn` dan `CategoriesService.deleteStoreCategoriesIn` (8.25), `StoresService.finishDataDeletionIn`. Hanya worker | | `store.data_deletion_requested` | `store.data_delete`, `retention.buyer_anonymize` (antrean `import`); di scheduler: `retention.buyer_scan`; menyusul `retention.run` (9.5) |
+| `closure` | Tidak punya tabel; penutupan dicatat di baris `tenant` lewat `TenantsService` (8.36). `AccountClosureService` (api: tutup, buka kembali; worker: pengingat) memakai `StoresService.disconnectAllIn`, `BillingService.closeIn`, `InvitationsService.revokeOpenIn`, `UsersService` (sesi), `NotificationInboxService` | | | `account.purge_reminder` (antrean `notify`) |
+| `retention` | Tidak punya tabel. Menghapus bisnis yang ditutup setelah `purge_after` (8.36: `TenantPurgeService`, fungsi SQL `tenant_purge_order`, `begin_tenant_purge`, `purge_tenant_step`, `finish_tenant_purge`, berkas lewat `FilesService.deleteAllObjects`). Menganonimkan data pembeli yang melewati masa simpan bisnis (8.34: `BuyerDataRetentionService` lewat `BusinessProfileService.buyerDataRetentionIn`, `OrdersService.buyerDataDueIn | anonymizeBuyersIn`, `FulfillmentService.anonymizeIn`, `ReturnsService.anonymizeIn`). Menghapus data toko yang diputus tanpa menyimpan data (8.23) lewat service modul pemilik: `OrdersService` (`storeOrderIdsIn`, `deleteOrdersIn`), `FulfillmentService.deleteForOrdersIn`, `ListingsService.deleteStoreListingsIn`, `InventoryService.deleteStoreRulesIn`, `SyncLogService.deleteStoreLogIn`, `ListingCopyService.deleteStoreCopiesIn` dan `CategoriesService.deleteStoreCategoriesIn` (8.25), `StoresService.finishDataDeletionIn`. Hanya worker | | `store.data_deletion_requested` | `store.data_delete`, `retention.buyer_anonymize`, `tenant.purge` (antrean `import`); di scheduler: `retention.buyer_scan`, `retention.run`, `account.closure_scan` (9.5) |
 | `ai` | `ai_route_config`, `ai_call_log`, `ai_budget` | `ai.budget_exhausted` | | `ai.*` |
 | `files` | `file_object`. `FilesService` (simpan, baca, unduh, hapus kedaluwarsa) di atas `FileStorage` (`r2` atau `local`) | | | `files.cleanup_expired` |
 | `audit` | `audit_log` (ditulis trigger `audit_row()`). `AuditService` (inti, diimpor katalog); `AuditLogService` di `audit-http.module.ts` membaca log untuk `GET /v1/audit-logs` dan menamai rujukannya lewat service modul pemilik (8.28) | | | `audit.export_monthly` |
@@ -3318,7 +3359,7 @@ pnpm test:all             # semuanya, sama dengan CI
 | Perlu memutar ulang satu webhook | `pnpm ops:webhook:replay --id <webhook_inbox.id>` mengenqueue ulang `webhook.process` dengan `jobId` yang sama (pesanan dibaca ulang dari marketplace, jadi pemutaran ulang aman); bila job lama masih tercatat selesai, tambahkan `--force` yang menambahkan suffix waktu |
 | Rollback rilis | 1) CodeDeploy: pilih revisi sebelumnya, atau otomatis oleh alarm. 2) Matikan feature flag terkait. 3) Migrasi tidak dibalik (expand and contract); bila migrasi menyebabkan masalah, tulis migrasi perbaikan |
 | Rotasi DEK tenant | `pnpm ops:crypto:rotate-dek --tenant <id>` mendekripsi dan mengenkripsi ulang semua `*_enc` tenant itu dalam batch, menaikkan `dek_version`; hanya dari proses `worker` |
-| Hapus tenant (permintaan resmi) | 1) `tenant.status = 'closing'` (baca saja 30 hari). 2) Ekspor penuh dan kirim ke owner. 3) `pnpm ops:tenant:purge --tenant <id> --confirm <slug>` dengan role `omniseller_system`, urutan dependensi dari `information_schema`, `app.stock_write` diaktifkan, `audit_log` diekspor sebelum dihapus |
+| Hapus tenant (permintaan resmi) | Pemilik menutup akun sendiri di Profil bisnis (8.36); bila ia tidak bisa masuk, pulihkan aksesnya dulu (atur ulang kata sandi). Selama 30 hari akun baca saja untuk pengelola langganan, yang masih bisa mengunduh ekspor penuh atau membuka kembali akun. Setelah itu `account.closure_scan` menjalankan `tenant.purge` sendiri; tidak ada langkah manual. Memeriksa hasilnya: `tenant.purged_at` terisi dan `SELECT table_name FROM tenant_purge_order()` tidak menyisakan baris tenant itu |
 | Basis data lambat | 1) `pg_stat_statements` 10 query teratas. 2) Cek partisi: query tanpa filter `id` pada tabel terpartisi memindai semua partisi. 3) Cek `idle in transaction`. 4) Bila laporan, pindahkan ke read replica |
 
 ---
@@ -3454,3 +3495,4 @@ Berkas `.env.example` adalah versi yang berlaku. Kunci dikelompokkan per peran p
 | 1.34 | 10 Oktober 2026 | Peran kustom dan fitur per paket (8.33 baru, PRD FR-USR-01 dan 14): `POST`, `PATCH`, `DELETE /v1/roles` dengan nama unik tanpa membedakan huruf, izin yang dimiliki pemanggil (lama dan baru), perubahan izin sebagai selisih, hapus bila tidak dipegang dan tidak ditawarkan undangan terbuka. Fitur paket `custom_roles` diperiksa `TenantsService.requireFeatureIn` saat membuat, mengubah, dan memberi peran kustom; pemegangnya tetap memegangnya setelah turun paket. `GET /v1/me` membawa `plan`, peran membawa `userCount`, ekspor `peran.csv`. Migrasi 0024: `invitation.role_id` SET NULL, CHECK panjang nama dan indeks unik `lower(name)` | Candra Syahputra |
 | 1.35 | 10 Oktober 2026 | Anonimisasi data pembeli (8.34 baru, PRD 12.1): masa simpan per bisnis 3 sampai 24 bulan (`business_profile.buyer_data_retention_months`, bawaan 24, diaudit), `retention.buyer_scan` setiap jam dan job `retention.buyer_anonymize` per bisnis: pesanan yang lewat masa simpan dan tidak lagi ditahan kehilangan nama, telepon, alamat (kecuali kota dan provinsi), catatan, dan id pembeli; keterangan pelacakan dikosongkan, alasan dan foto retur dihapus, label, dokumen, dan foto bukti kedaluwarsa. Snapshot marketplace kemudian tidak mengisinya lagi; pesanan manual yang sudah dianonimkan menolak data pembeli baru (409 `order.buyer_anonymized`). Migrasi 0025: kolom dan indeks parsial `order.buyer_anonymized_at`, trigger audit profil dibuat ulang | Candra Syahputra |
 | 1.36 | 10 Oktober 2026 | Laporan kinerja tim (8.35 baru, PRD FR-RPT-10, layar L33): `GET /v1/reports/staff` dan `/export` (`settings:user`, fitur paket `staff_report` mulai Growth) menghitung dari `order_event` per anggota dan per hari: pesanan diproses (sekali per pesanan), dikemas dan dengan scan, label, pick list, daftar kemas, serah terima, dan menit kemas per pesanan dengan scan (`seconds` baru di `POST /v1/packing/orders/{id}/complete`, di atas 30 menit tidak dihitung). Riwayat baru `pick_list_printed` dan `packing_list_printed` saat dokumen dibuat; riwayat pesanan membawa `actorName`. Migrasi 0026: indeks parsial aksi pengguna di `order_event` | Candra Syahputra |
+| 1.37 | 10 Oktober 2026 | Penutupan akun dan penghapusan data bisnis (8.36 baru, PRD 12.1): `GET`, `POST`, `DELETE /v1/account-closure` (`settings:billing`); menutup memutus toko, menurunkan paket ke Starter, mencabut undangan, dan mengakhiri sesi pengguna lain; 30 hari baca saja untuk pengelola langganan (ekspor dan buka kembali lewat `@AllowWhileClosing()`, yang lain 403 `tenant.closing`), pengingat 7 hari sebelumnya, lalu `tenant.purge` di worker lewat fungsi `SECURITY DEFINER` dengan urutan dari katalog, berkas `t/<tenant>/` ikut dihapus, tagihan dan langganan tetap. `retention.run` dibuat (9.5): `webhook_inbox` 30 hari, `outbox_event` terkirim 7 hari. Migrasi 0027: kolom penutupan di `tenant` dan indeks `tenant_id` untuk enam tabel; runbook 16.6 diperbarui | Candra Syahputra |

@@ -29,6 +29,7 @@ Langganan, tagihan, kuota paket, dan meteran pesanan (PRD 14 dan 15.1, DOKUMEN-T
 - `common/plan-limits.ts`: `limitReached` dan `planLimitReached` untuk modul pemilik tabel (identity, channel, inventory).
 
 ## Aturan
+- **Penutupan akun** (backend doc 8.36): `BillingService.closeIn` membatalkan tagihan yang menunggu (ditutup juga di Xendit) dan memindahkan ke Starter seperti `planChoice` (seketika dari uji coba atau periode belum dibayar, di akhir periode yang dibayar). Tagihan dan langganan bertahan setelah bisnis dihapus (`tenant_kept_tables()`): catatan pajak.
 - Satu langganan hidup per bisnis (`trialing`, `active`, `past_due`; indeks unik parsial). Pindah paket mengakhiri baris lama (`cancelled`) dan memulai baris baru; tagihan yang membayarnya ikut dipindah ke baris baru.
 - Naik paket berlaku saat dibayar, satu bulan sejak dibayar, dikurangi sisa periode berbayar (`credit_amount`, dihitung saat tagihan dibuat). Turun paket berlaku di akhir periode yang dibayar (`next_plan_id`). Uji coba: memilih Growth membuat tagihan bulan setelah uji coba. Tidak ada pengembalian dana.
 - Tagihan perpanjangan dibuat 7 hari sebelum periode berakhir, untuk paket berikutnya bila dijadwalkan. Dibayar lebih awal, periodenya menunggu sampai mulai; dibayar dalam tenggang, langsung berlaku. Belum dibayar saat periode berakhir: `past_due` 7 hari dengan paket tetap berlaku, lalu Starter.

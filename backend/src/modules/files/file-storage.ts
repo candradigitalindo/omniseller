@@ -1,7 +1,13 @@
 import { createReadStream } from "node:fs";
-import { copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, resolve, sep } from "node:path";
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { EnvFor } from "../../config/env.schema";
 
@@ -19,6 +25,8 @@ export interface FileStorage {
   putFile(key: string, path: string, mime: string): Promise<void>;
   get(key: string): Promise<Uint8Array>;
   delete(key: string): Promise<void>;
+  /** Every object under a prefix (`t/<tenant>/`: a closed business's purge, backend doc 8.36); how many went. */
+  deletePrefix(prefix: string): Promise<number>;
   /** A short-lived link the browser downloads from directly; null where the api serves the file itself. */
   signedUrl(key: string, opts: SignedUrlOptions): Promise<string | null>;
 }
@@ -64,6 +72,13 @@ export class LocalFileStorage implements FileStorage {
 
   async delete(key: string): Promise<void> {
     await rm(this.path(key), { force: true });
+  }
+
+  async deletePrefix(prefix: string): Promise<number> {
+    const dir = this.path(prefix.replace(/\/+$/, ""));
+    const files = await readdir(dir, { recursive: true, withFileTypes: true }).catch(() => []);
+    await rm(dir, { recursive: true, force: true });
+    return files.filter((f) => f.isFile()).length;
   }
 
   async signedUrl(): Promise<null> {
@@ -117,6 +132,24 @@ export class R2FileStorage implements FileStorage {
 
   async delete(key: string): Promise<void> {
     await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+  }
+
+  // one object at a time: DeleteObjects needs a checksum header R2 does not document (see the client above)
+  async deletePrefix(prefix: string): Promise<number> {
+    let deleted = 0;
+    let token: string | undefined;
+    do {
+      const page = await this.s3.send(
+        new ListObjectsV2Command({ Bucket: this.bucket, Prefix: prefix, ContinuationToken: token }),
+      );
+      for (const o of page.Contents ?? []) {
+        if (!o.Key) continue;
+        await this.delete(o.Key);
+        deleted++;
+      }
+      token = page.IsTruncated ? page.NextContinuationToken : undefined;
+    } while (token);
+    return deleted;
   }
 
   signedUrl(key: string, opts: SignedUrlOptions): Promise<string> {

@@ -95,6 +95,10 @@ REVOKE ALL ON FUNCTION auth_resolve_invitation(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION auth_resolve_password_reset(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION billing_resolve_invoice(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION maintain_partitions(timestamptz) FROM PUBLIC;
+REVOKE ALL ON FUNCTION audit_tenant() FROM PUBLIC;
+REVOKE ALL ON FUNCTION begin_tenant_purge(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION purge_tenant_step(text, text, integer) FROM PUBLIC;
+REVOKE ALL ON FUNCTION finish_tenant_purge(text) FROM PUBLIC;
 
 GRANT EXECUTE ON FUNCTION ensure_inventory(text, text, text, text) TO omniseller_api, omniseller_worker;
 GRANT EXECUTE ON FUNCTION apply_stock_movement(text, text, text, text, text, bigint, bigint, bigint, bigint, text, text, text, text, text) TO omniseller_api, omniseller_worker;
@@ -108,3 +112,7 @@ GRANT EXECUTE ON FUNCTION auth_resolve_invitation(text) TO omniseller_api;
 GRANT EXECUTE ON FUNCTION auth_resolve_password_reset(text) TO omniseller_api;
 GRANT EXECUTE ON FUNCTION billing_resolve_invoice(text) TO omniseller_api;
 GRANT EXECUTE ON FUNCTION maintain_partitions(timestamptz) TO omniseller_system;
+-- the worker's tenant.purge job (backend doc 8.36); each refuses a business not closed and past its date
+GRANT EXECUTE ON FUNCTION begin_tenant_purge(text) TO omniseller_worker;
+GRANT EXECUTE ON FUNCTION purge_tenant_step(text, text, integer) TO omniseller_worker;
+GRANT EXECUTE ON FUNCTION finish_tenant_purge(text) TO omniseller_worker;
