@@ -429,11 +429,27 @@ export interface paths {
     };
     get: operations["RolesController_list"];
     put?: never;
-    post?: never;
+    post: operations["RolesController_create"];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
+    trace?: never;
+  };
+  "/v1/roles/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: operations["RolesController_remove"];
+    options?: never;
+    head?: never;
+    patch: operations["RolesController_update"];
     trace?: never;
   };
   "/v1/permissions": {
@@ -3360,6 +3376,12 @@ export interface components {
         timezone: string;
         status: string;
       };
+      /** @description paket yang berlaku; fiturnya menentukan aksi yang ditawarkan, misalnya peran kustom */
+      plan: {
+        code: string;
+        name: string;
+        features: string[];
+      };
       /** @description izin efektif pengguna; klien menyembunyikan aksi yang tidak diizinkan */
       permissions: (
         | "order:read"
@@ -3560,11 +3582,112 @@ export interface components {
       items: {
         id: string;
         name: string;
+        /** @description peran bawaan: tidak bisa diubah atau dihapus */
         isSystem: boolean;
         description: string | null;
         permissions: string[];
+        /** @description pengguna yang memegang peran ini, termasuk yang dinonaktifkan */
+        userCount: number;
       }[];
       next_cursor: null;
+    };
+    CreateRoleDto: {
+      /** @description unik dalam bisnis, tanpa membedakan huruf besar dan kecil */
+      name: string;
+      description?: string | null;
+      /** @description kode izin; semuanya harus dimiliki pengguna yang membuat atau mengubah peran */
+      permissions: (
+        | "order:read"
+        | "order:accept"
+        | "order:cancel"
+        | "order:tag"
+        | "order:write"
+        | "shipment:arrange"
+        | "shipment:print"
+        | "shipment:pack"
+        | "shipment:handover"
+        | "return:respond"
+        | "return:receive"
+        | "inventory:read"
+        | "inventory:adjust"
+        | "inventory:count"
+        | "inventory:transfer"
+        | "catalog:read"
+        | "catalog:write"
+        | "catalog:publish"
+        | "catalog:map"
+        | "price:write"
+        | "promo:write"
+        | "finance:read"
+        | "finance:reconcile"
+        | "finance:export"
+        | "chat:read"
+        | "chat:write"
+        | "chat:assign"
+        | "report:read"
+        | "settings:store"
+        | "settings:warehouse"
+        | "settings:user"
+        | "settings:billing"
+        | "research:read"
+        | "research:write"
+        | "audit:read"
+        | "data:export"
+      )[];
+    };
+    RoleDto_Output: {
+      id: string;
+      name: string;
+      /** @description peran bawaan: tidak bisa diubah atau dihapus */
+      isSystem: boolean;
+      description: string | null;
+      permissions: string[];
+      /** @description pengguna yang memegang peran ini, termasuk yang dinonaktifkan */
+      userCount: number;
+    };
+    UpdateRoleDto: {
+      /** @description unik dalam bisnis, tanpa membedakan huruf besar dan kecil */
+      name?: string;
+      description?: string | null;
+      /** @description kode izin; semuanya harus dimiliki pengguna yang membuat atau mengubah peran */
+      permissions?: (
+        | "order:read"
+        | "order:accept"
+        | "order:cancel"
+        | "order:tag"
+        | "order:write"
+        | "shipment:arrange"
+        | "shipment:print"
+        | "shipment:pack"
+        | "shipment:handover"
+        | "return:respond"
+        | "return:receive"
+        | "inventory:read"
+        | "inventory:adjust"
+        | "inventory:count"
+        | "inventory:transfer"
+        | "catalog:read"
+        | "catalog:write"
+        | "catalog:publish"
+        | "catalog:map"
+        | "price:write"
+        | "promo:write"
+        | "finance:read"
+        | "finance:reconcile"
+        | "finance:export"
+        | "chat:read"
+        | "chat:write"
+        | "chat:assign"
+        | "report:read"
+        | "settings:store"
+        | "settings:warehouse"
+        | "settings:user"
+        | "settings:billing"
+        | "research:read"
+        | "research:write"
+        | "audit:read"
+        | "data:export"
+      )[];
     };
     PermissionListDto_Output: {
       items: {
@@ -9060,6 +9183,73 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["RoleListDto_Output"];
+        };
+      };
+    };
+  };
+  RolesController_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateRoleDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RoleDto_Output"];
+        };
+      };
+    };
+  };
+  RolesController_remove: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  RolesController_update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateRoleDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RoleDto_Output"];
         };
       };
     };

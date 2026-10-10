@@ -54,6 +54,8 @@ export function testMe(permissions: Permission[] = ALL_PERMISSIONS): Me {
       timezone: "Asia/Jakarta",
       status: "active",
     },
+    // a new business's trial of Growth
+    plan: { code: "growth", name: "Growth", features: ["custom_roles"] },
     permissions,
     roles: [{ id: "01JROLE0000000000000000000", name: "Pemilik" }],
     storeScope: null,

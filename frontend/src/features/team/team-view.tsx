@@ -1,7 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, MailPlus, MoreHorizontal, ShieldCheck, UsersRound } from "lucide-react";
+import { Check, MailPlus, MoreHorizontal, Pencil, Plus, ShieldCheck, Trash2, UsersRound } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -9,7 +10,7 @@ import { ChannelIcon } from "@/components/common/channel";
 import { Field, fieldProps } from "@/components/common/field";
 import { EmptyState, ErrorState, PageHeader, StatusPill } from "@/components/common/page";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -37,14 +38,20 @@ import { useUrlParams } from "@/hooks/use-url-params";
 import { api, unwrap } from "@/lib/api/client";
 import { ApiError, errorMessage } from "@/lib/api/errors";
 import { formatDateTime, formatRelative } from "@/lib/format";
-import { useCan, useSession, useTimeZone } from "@/lib/session";
+import { type Permission, useCan, useHasFeature, useSession, useTimeZone } from "@/lib/session";
 import {
+  copiedPermissions,
   emailProblem,
   grantableRoles,
   INVITATION_TONE,
   type Invitation,
+  isKnownModule,
+  orderedRoles,
+  type PermissionInfo,
   permissionMatrix,
   type Role,
+  roleBlock,
+  roleProblems,
   scopeBody,
   scopeSummary,
   USER_TONE,
@@ -56,6 +63,13 @@ const TABS = ["anggota", "undangan", "peran"] as const;
 function useRoles() {
   return useQuery({ queryKey: ["roles"], queryFn: () => unwrap(api.GET("/v1/roles")), staleTime: 5 * 60_000 });
 }
+function usePermissions() {
+  return useQuery({
+    queryKey: ["permissions"],
+    queryFn: () => unwrap(api.GET("/v1/permissions")),
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+}
 function useWarehouses() {
   return useQuery({
     queryKey: ["stock", "warehouses"],
@@ -66,8 +80,8 @@ function useWarehouses() {
 
 /**
  * L41 Tim dan Peran (DOKUMEN-UI-UX 14.8): who works in the business, with which roles and over which stores
- * and warehouses; invitations by email; what each role may do. Roles are built in (FR-USR-01); custom roles
- * come later.
+ * and warehouses; invitations by email; what each role may do. Built-in roles are the same everywhere;
+ * custom roles (FR-USR-01, backend doc 8.33) come with plans that have `custom_roles`.
  */
 export function TeamView() {
   const t = useTranslations("team");
@@ -107,7 +121,7 @@ export function TeamView() {
           <Invitations onInvite={() => setInviting(true)} />
         </TabsContent>
         <TabsContent value="peran">
-          <RolesMatrix />
+          <RolesTab />
         </TabsContent>
       </Tabs>
       {inviting ? <InviteDialog onClose={() => setInviting(false)} onDone={() => set({ tab: "undangan" })} /> : null}
@@ -363,9 +377,11 @@ function RolesDialog({ user, onClose }: { user: User; onClose: () => void }) {
   const me = useSession();
   const roles = useRoles();
   const queryClient = useQueryClient();
-  const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set(user.roles.map((r) => r.id)));
+  const customAllowed = useHasFeature("custom_roles");
+  const held = new Set(user.roles.map((r) => r.id));
+  const [chosen, setChosen] = useState<ReadonlySet<string>>(held);
   const [problem, setProblem] = useState<string | null>(null);
-  const allowed = new Set(grantableRoles(roles.data?.items ?? [], me.permissions).map((r) => r.id));
+  const blockOf = (r: Role) => roleBlock(r, { mine: me.permissions, customAllowed, held });
   const save = useMutation({
     mutationFn: () =>
       unwrap(api.PUT("/v1/users/{id}/roles", { params: { path: { id: user.id } }, body: { roleIds: [...chosen] } })),
@@ -385,7 +401,7 @@ function RolesDialog({ user, onClose }: { user: User; onClose: () => void }) {
         </DialogHeader>
         <fieldset className="grid gap-2">
           <legend className="sr-only">{t("colRoles")}</legend>
-          {(roles.data?.items ?? []).map((r) => (
+          {orderedRoles(roles.data?.items ?? []).map((r) => (
             <Label
               key={r.id}
               htmlFor={`role-${r.id}`}
@@ -395,7 +411,7 @@ function RolesDialog({ user, onClose }: { user: User; onClose: () => void }) {
                 id={`role-${r.id}`}
                 className="mt-0.5"
                 checked={chosen.has(r.id)}
-                disabled={!allowed.has(r.id)}
+                disabled={blockOf(r) !== null}
                 onCheckedChange={(on) =>
                   setChosen((x) => {
                     const next = new Set(x);
@@ -406,9 +422,16 @@ function RolesDialog({ user, onClose }: { user: User; onClose: () => void }) {
                 }
               />
               <span className="grid gap-0.5">
-                <span className="text-sm font-medium text-text-900">{r.name}</span>
+                <span className="flex flex-wrap items-center gap-2 text-sm font-medium text-text-900">
+                  {r.name}
+                  {r.isSystem ? null : <StatusPill tone="info">{t("customPill")}</StatusPill>}
+                </span>
                 <span className="text-[13px] text-text-500">
-                  {allowed.has(r.id) ? (r.description ?? "") : t("roleNotGrantable")}
+                  {blockOf(r) === "permissions"
+                    ? t("roleNotGrantable")
+                    : blockOf(r) === "plan"
+                      ? t("customNeedsPlan", { plan: me.plan.name })
+                      : (r.description ?? "")}
                 </span>
               </span>
             </Label>
@@ -550,7 +573,11 @@ function InviteDialog({ onClose, onDone }: { onClose: () => void; onDone: () => 
   const me = useSession();
   const roles = useRoles();
   const queryClient = useQueryClient();
-  const offered = grantableRoles(roles.data?.items ?? [], me.permissions);
+  const customAllowed = useHasFeature("custom_roles");
+  // a custom role goes to someone new only on a plan that has them
+  const offered = orderedRoles(grantableRoles(roles.data?.items ?? [], me.permissions)).filter(
+    (r) => r.isSystem || customAllowed,
+  );
   const [email, setEmail] = useState("");
   const [roleId, setRoleId] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -712,14 +739,16 @@ function Invitations({ onInvite }: { onInvite: () => void }) {
   );
 }
 
-function RolesMatrix() {
+/** The roles tab: the business's own roles, what every role may do, and the forms for custom roles. */
+function RolesTab() {
   const t = useTranslations("team");
+  const me = useSession();
+  const can = useCan();
+  const customAllowed = useHasFeature("custom_roles");
   const roles = useRoles();
-  const permissions = useQuery({
-    queryKey: ["permissions"],
-    queryFn: () => unwrap(api.GET("/v1/permissions")),
-    staleTime: Number.POSITIVE_INFINITY,
-  });
+  const permissions = usePermissions();
+  const [editing, setEditing] = useState<Role | "new" | null>(null);
+  const [deleting, setDeleting] = useState<Role | null>(null);
   if (roles.isPending || permissions.isPending) return <Skeleton className="h-64" />;
   if (roles.isError || permissions.isError) {
     return (
@@ -731,18 +760,333 @@ function RolesMatrix() {
       </Card>
     );
   }
-  const list: Role[] = roles.data.items;
-  const matrix = permissionMatrix(permissions.data.items, list);
+  const list = orderedRoles(roles.data.items);
+  const custom = list.filter((r) => !r.isSystem);
+  const mine = new Set<string>(me.permissions);
+  const manageable = (r: Role) => r.permissions.every((p) => mine.has(p));
+  return (
+    <div className="grid gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("customTitle")}</CardTitle>
+          <CardDescription>
+            {customAllowed ? t("customBody") : t("customLocked", { plan: me.plan.name })}
+            {!customAllowed && can("settings:billing") ? (
+              <>
+                {" "}
+                <Link href="/langganan" className="font-medium text-primary hover:underline">
+                  {t("seePlans")}
+                </Link>
+              </>
+            ) : null}
+          </CardDescription>
+          {customAllowed ? (
+            <CardAction>
+              <Button onClick={() => setEditing("new")}>
+                <Plus aria-hidden />
+                {t("newRole")}
+              </Button>
+            </CardAction>
+          ) : null}
+        </CardHeader>
+        <CardContent className="px-0">
+          {custom.length === 0 ? (
+            <p className="px-(--card-spacing) text-sm text-text-700">{t("customEmpty")}</p>
+          ) : (
+            <ul className="divide-y" aria-label={t("customTitle")}>
+              {custom.map((r) => (
+                <li
+                  key={r.id}
+                  className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 px-(--card-spacing) py-3"
+                >
+                  <div className="grid min-w-0 gap-0.5">
+                    <span className="font-medium text-text-900">{r.name}</span>
+                    {r.description ? <span className="text-[13px] text-text-700">{r.description}</span> : null}
+                    <span className="text-[13px] text-text-500">
+                      {t("roleSummary", { permissions: r.permissions.length, users: r.userCount })}
+                    </span>
+                  </div>
+                  {manageable(r) ? (
+                    <div className="flex gap-1">
+                      {customAllowed ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditing(r)}
+                          aria-label={t("editRoleFor", { name: r.name })}
+                        >
+                          <Pencil aria-hidden />
+                          {t("editRole")}
+                        </Button>
+                      ) : null}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-danger"
+                        onClick={() => setDeleting(r)}
+                        aria-label={t("deleteRoleFor", { name: r.name })}
+                      >
+                        <Trash2 aria-hidden />
+                        {t("deleteRole")}
+                      </Button>
+                    </div>
+                  ) : (
+                    <span className="text-[13px] text-text-500">{t("roleNotManageable")}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+      <RolesMatrix roles={list} permissions={permissions.data.items} />
+      {editing ? (
+        <RoleEditor
+          role={editing === "new" ? null : editing}
+          roles={list}
+          permissions={permissions.data.items}
+          onClose={() => setEditing(null)}
+        />
+      ) : null}
+      {deleting ? <DeleteRoleDialog role={deleting} onClose={() => setDeleting(null)} /> : null}
+    </div>
+  );
+}
+
+function ModuleName({ module }: { module: string }) {
+  const t = useTranslations("team");
+  return <>{isKnownModule(module) ? t(`module_${module}`) : module}</>;
+}
+
+/**
+ * A custom role's name, note, and permissions, grouped by module. Only permissions the user holds can be
+ * chosen (the api refuses the rest); "Salin izin dari" starts from another role.
+ */
+function RoleEditor({
+  role,
+  roles,
+  permissions,
+  onClose,
+}: {
+  role: Role | null;
+  roles: Role[];
+  permissions: PermissionInfo[];
+  onClose: () => void;
+}) {
+  const t = useTranslations("team");
+  const tCommon = useTranslations("common");
+  const me = useSession();
+  const queryClient = useQueryClient();
+  const mine = new Set<string>(me.permissions);
+  const [name, setName] = useState(role?.name ?? "");
+  const [description, setDescription] = useState(role?.description ?? "");
+  const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set(role?.permissions ?? []));
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const save = useMutation({
+    mutationFn: () => {
+      const body = {
+        name: name.trim(),
+        description: description.trim() || null,
+        permissions: [...chosen] as Permission[],
+      };
+      return role
+        ? unwrap(api.PATCH("/v1/roles/{id}", { params: { path: { id: role.id } }, body }))
+        : unwrap(api.POST("/v1/roles", { body }));
+    },
+    onSuccess: (saved) => {
+      toast.success(role ? t("roleSaved", { name: saved.name }) : t("roleCreated", { name: saved.name }));
+      void queryClient.invalidateQueries({ queryKey: ["roles"] });
+      // members show role names
+      void queryClient.invalidateQueries({ queryKey: ["users"] });
+      onClose();
+    },
+    onError: (e) => {
+      if (e instanceof ApiError && e.errors.length > 0)
+        setErrors(Object.fromEntries(e.errors.map((x) => [x.path, x.message])));
+      else setErrors({ root: errorMessage(e) });
+    },
+  });
+  const groups = permissionMatrix(permissions, []);
+  const others = roles.filter((r) => r.id !== role?.id);
+  const toggle = (code: string, on: boolean) =>
+    setChosen((x) => {
+      const next = new Set(x);
+      if (on) next.add(code);
+      else next.delete(code);
+      return next;
+    });
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[560px]">
+        <DialogHeader>
+          <DialogTitle>{role ? t("editRoleTitle", { name: role.name }) : t("createRoleTitle")}</DialogTitle>
+          <DialogDescription>
+            {role ? t("editRoleBody", { count: role.userCount }) : t("createRoleBody")}
+          </DialogDescription>
+        </DialogHeader>
+        <form
+          className="grid gap-4"
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault();
+            const p = roleProblems({ name, permissions: [...chosen] });
+            const found: Record<string, string> = {};
+            if (p.name) found.name = t(`roleName_${p.name}`);
+            if (p.permissions) found.permissions = t("permissions_required");
+            setErrors(found);
+            if (Object.keys(found).length === 0) save.mutate();
+          }}
+        >
+          <Field id="role-name" label={t("roleName")} error={errors.name}>
+            <Input
+              value={name}
+              autoComplete="off"
+              onChange={(e) => setName(e.target.value)}
+              {...fieldProps("role-name", errors.name)}
+            />
+          </Field>
+          <Field id="role-description" label={t("roleDescription")} error={errors.description}>
+            <Input
+              value={description}
+              autoComplete="off"
+              onChange={(e) => setDescription(e.target.value)}
+              {...fieldProps("role-description", errors.description)}
+            />
+          </Field>
+          {others.length > 0 ? (
+            <Field id="role-copy" label={t("copyFrom")}>
+              <Select
+                value=""
+                onValueChange={(id) => {
+                  const from = others.find((r) => r.id === id);
+                  if (from) setChosen(new Set(copiedPermissions(from, me.permissions)));
+                }}
+              >
+                <SelectTrigger id="role-copy" className="w-full">
+                  <SelectValue placeholder={t("copyFromNone")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {others.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          ) : null}
+          <fieldset className="grid gap-3" aria-describedby="role-permissions-count">
+            <legend className="mb-1 text-sm font-medium text-text-900">{t("permissionsLegend")}</legend>
+            <p id="role-permissions-count" className="text-[13px] text-text-500">
+              {t("permissionsChosen", { count: chosen.size })}
+            </p>
+            {groups.map((g) => (
+              <fieldset key={g.module} className="grid gap-1.5">
+                <legend className="mb-1.5 text-[13px] font-semibold text-text-700">
+                  <ModuleName module={g.module} />
+                </legend>
+                {g.rows.map((p) => {
+                  const held = mine.has(p.code);
+                  return (
+                    <Label
+                      key={p.code}
+                      htmlFor={`perm-${p.code}`}
+                      className="flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2 font-normal has-[[data-disabled]]:cursor-not-allowed has-[[data-disabled]]:opacity-60"
+                    >
+                      <Checkbox
+                        id={`perm-${p.code}`}
+                        className="mt-0.5"
+                        checked={chosen.has(p.code)}
+                        disabled={!held}
+                        onCheckedChange={(on) => toggle(p.code, on === true)}
+                      />
+                      <span className="grid gap-0.5">
+                        <span className="text-sm text-text-900">{p.description ?? p.code}</span>
+                        {held ? null : <span className="text-[13px] text-text-500">{t("permissionNotHeld")}</span>}
+                      </span>
+                    </Label>
+                  );
+                })}
+              </fieldset>
+            ))}
+          </fieldset>
+          {errors.permissions || errors.root ? (
+            <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2.5 text-sm text-danger">
+              {errors.permissions ?? errors.root}
+            </p>
+          ) : null}
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={onClose}>
+              {tCommon("cancel")}
+            </Button>
+            <Button type="submit" loading={save.isPending}>
+              {role ? tCommon("save") : t("createRole")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Deleting a custom role: only once nobody holds it; the api also waits for its open invitations. */
+function DeleteRoleDialog({ role, onClose }: { role: Role; onClose: () => void }) {
+  const t = useTranslations("team");
+  const tCommon = useTranslations("common");
+  const queryClient = useQueryClient();
+  const [problem, setProblem] = useState<string | null>(null);
+  const inUse = role.userCount > 0;
+  const remove = useMutation({
+    mutationFn: () => unwrap(api.DELETE("/v1/roles/{id}", { params: { path: { id: role.id } } })),
+    onSuccess: () => {
+      toast.success(t("roleDeleted", { name: role.name }));
+      void queryClient.invalidateQueries({ queryKey: ["roles"] });
+      onClose();
+    },
+    onError: (e) => setProblem(errorMessage(e)),
+  });
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-[440px]">
+        <DialogHeader>
+          <DialogTitle>{t("deleteRoleTitle", { name: role.name })}</DialogTitle>
+          <DialogDescription>
+            {inUse ? t("deleteRoleInUse", { count: role.userCount }) : t("deleteRoleBody")}
+          </DialogDescription>
+        </DialogHeader>
+        {problem ? (
+          <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2.5 text-sm text-danger">
+            {problem}
+          </p>
+        ) : null}
+        <DialogFooter>
+          <Button variant="secondary" onClick={onClose}>
+            {tCommon("cancel")}
+          </Button>
+          {inUse ? null : (
+            <Button variant="destructive" loading={remove.isPending} onClick={() => remove.mutate()}>
+              {t("deleteRoleConfirm")}
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RolesMatrix({ roles, permissions }: { roles: Role[]; permissions: PermissionInfo[] }) {
+  const t = useTranslations("team");
+  const matrix = permissionMatrix(permissions, roles);
   return (
     <div className="grid gap-3">
       <p className="text-sm text-text-700">{t("rolesNote")}</p>
       <Card className="gap-0 py-0">
         <div className="overflow-x-auto">
-          <Table>
+          <Table scrollLabel={t("matrixLabel")}>
             <TableHeader className="bg-surface-2">
               <TableRow>
                 <TableHead className="min-w-64">{t("colPermission")}</TableHead>
-                {list.map((r) => (
+                {roles.map((r) => (
                   <TableHead key={r.id} className="text-center whitespace-nowrap">
                     {r.name}
                   </TableHead>
@@ -753,10 +1097,10 @@ function RolesMatrix() {
               {matrix.flatMap((m) => [
                 <TableRow key={`m-${m.module}`} className="bg-surface-2/60">
                   <TableCell
-                    colSpan={list.length + 1}
+                    colSpan={roles.length + 1}
                     className="text-[13px] font-semibold tracking-wide text-text-700 uppercase"
                   >
-                    {m.module}
+                    <ModuleName module={m.module} />
                   </TableCell>
                 </TableRow>,
                 ...m.rows.map((row) => (
@@ -767,7 +1111,7 @@ function RolesMatrix() {
                         <span className="font-mono text-[12px] text-text-500">{row.code}</span>
                       </div>
                     </TableCell>
-                    {list.map((r) => (
+                    {roles.map((r) => (
                       <TableCell key={r.id} className="text-center">
                         {row.byRole[r.id] ? (
                           <>

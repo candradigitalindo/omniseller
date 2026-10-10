@@ -42,6 +42,7 @@
         "ordersPerMonth": 1000,
         "users": 2
       },
+      "extras": [],
       "support": "Email, hari kerja 09.00 sampai 18.00 WIB"
     },
     {
@@ -55,6 +56,9 @@
         "ordersPerMonth": 10000,
         "users": 10
       },
+      "extras": [
+        "Peran kustom"
+      ],
       "support": "Email dan WhatsApp bisnis, setiap hari 08.00 sampai 21.00 WIB"
     },
     {
@@ -68,6 +72,9 @@
         "ordersPerMonth": 100000,
         "users": null
       },
+      "extras": [
+        "Peran kustom"
+      ],
       "support": "Email, WhatsApp bisnis, pendamping akun, dan migrasi dikerjakan tim"
     }
   ]

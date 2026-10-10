@@ -60,6 +60,9 @@ export const meSchema = z.object({
     twoFactorEnabled: z.boolean().describe("verifikasi dua langkah aktif (backend doc 8.30)"),
   }),
   tenant: z.object({ id: ulidSchema, name: z.string(), slug: z.string(), timezone: z.string(), status: z.string() }),
+  plan: z
+    .object({ code: z.string(), name: z.string(), features: z.array(z.string()) })
+    .describe("paket yang berlaku; fiturnya menentukan aksi yang ditawarkan, misalnya peran kustom"),
   permissions: z
     .array(z.enum(PERMISSION_CODES))
     .describe("izin efektif pengguna; klien menyembunyikan aksi yang tidak diizinkan"),
@@ -79,6 +82,7 @@ export function meView(p: Principal): z.infer<typeof meSchema> {
       twoFactorEnabled: p.user.twoFactorEnabled,
     },
     tenant: p.tenant,
+    plan: p.plan,
     permissions: p.permissions.filter(isPermission),
     roles: p.roles,
     storeScope: p.storeScope,
@@ -147,12 +151,38 @@ export class SetScopesDto extends createZodDto(
 const roleSchema = z.object({
   id: ulidSchema,
   name: z.string(),
-  isSystem: z.boolean(),
+  isSystem: z.boolean().describe("peran bawaan: tidak bisa diubah atau dihapus"),
   description: z.string().nullable(),
   permissions: z.array(z.string()),
+  userCount: z.number().int().describe("pengguna yang memegang peran ini, termasuk yang dinonaktifkan"),
 });
+export class RoleDto extends createZodDto(roleSchema) {}
 export class RoleListDto extends createZodDto(z.object({ items: z.array(roleSchema), next_cursor: z.null() })) {}
 export const roleView = (r: RoleRow) => r;
+
+const roleName = z
+  .string()
+  .trim()
+  .min(1, "Nama peran wajib diisi.")
+  .max(40, "Nama peran paling panjang 40 karakter.")
+  .describe("unik dalam bisnis, tanpa membedakan huruf besar dan kecil");
+const roleDescription = z.string().trim().max(200, "Keterangan paling panjang 200 karakter.").nullable().optional();
+const rolePermissions = z
+  .array(z.enum(PERMISSION_CODES))
+  .min(1, "Pilih minimal satu izin.")
+  .describe("kode izin; semuanya harus dimiliki pengguna yang membuat atau mengubah peran");
+
+/** A custom role (backend doc 8.33), from plan Growth on. */
+export class CreateRoleDto extends createZodDto(
+  z.object({ name: roleName, description: roleDescription, permissions: rolePermissions }),
+) {}
+export class UpdateRoleDto extends createZodDto(
+  z
+    .object({ name: roleName.optional(), description: roleDescription, permissions: rolePermissions.optional() })
+    .refine((o) => o.name !== undefined || o.description !== undefined || o.permissions !== undefined, {
+      message: "Tidak ada yang diubah.",
+    }),
+) {}
 
 export class PermissionListDto extends createZodDto(
   z.object({

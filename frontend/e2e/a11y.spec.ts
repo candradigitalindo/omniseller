@@ -22,6 +22,7 @@ const PAGES = [
   "/stok/gudang",
   "/integrasi",
   "/tim",
+  "/tim?tab=peran",
   "/printer",
   "/notifikasi",
   "/migrasi",

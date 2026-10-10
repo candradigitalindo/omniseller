@@ -55,6 +55,7 @@ pnpm test:int            # needs TEST_PG_ADMIN_URL + TEST_REDIS_URL, or Docker f
 - `src/realtime/`: `RealtimeGateway` (Socket.IO on the api's HTTP server, Redis adapter, device-token handshake) and `REALTIME` (Redis emitter every process uses: `toDevice`, `disconnectDevice`)
 - `src/modules/fulfillment/`: `print.service.ts` (print jobs and the agent's routes), `print-agents.service.ts` (pairing, printers, revoking, test page), `scan.service.ts` (`orderIn`: the order behind a scanned order or tracking number), `packing.service.ts`, `handover.service.ts`, and their pure rules in `scan-plan.ts`; `src/modules/identity/devices.service.ts`: device rows and tokens
 - `src/common/cost-visibility.ts`: `seesCost(ctx)`, who may see cost prices
+- `src/common/plan-features.ts` with `TenantsService.requireFeatureIn`: what a plan unlocks beyond its quotas (`custom_roles` now); `src/modules/identity/roles.service.ts`: custom roles (backend doc 8.33)
 - `src/modules/billing/`: subscriptions, invoices paid through Xendit, plan quotas, and the monthly order meter (backend doc 8.32): `BillingService` (plan choices, callbacks, renewals), `UsageMeterService` (called by `OrderIntakeService`), `BillingWorkerService` and `xendit.client.ts` (worker only), `XenditWebhookService` (webhook process); pure rules in `billing-plan.ts`; `InvoicePdfService` (api): invoice PDFs (`invoice-document.ts` what they say, `invoice-pdf.ts` drawing); `src/common/plan-limits.ts` for quota checks in the owning modules; `test/setup/mock-xendit.ts`: a fake Xendit Invoice API with a payment page; `pnpm mock:xendit` runs it as a process whose "Bayar (simulasi)" button sends the paid callback to the webhook process (CI e2e, smoke runs)
 - `src/modules/returns/`: buyers' returns, refunds, and cancellation requests, and parcels of orders cancelled after shipping (RTO): `ReturnsService` (lists, decisions, evidence photos, receipts into stock or quarantine), `ReturnSyncService` (worker: pulls, decisions, sending them, RTO), `ReturnAlertsService`, pure rules in `return-plan.ts`; connector part `returns`; `test/setup/mock-returns.ts`: the fake marketplaces' return APIs
 
@@ -145,6 +146,8 @@ NestJS injection always uses explicit `@Inject(TOKEN)`; do not rely on construct
 - `BillingWebhookModule` is registered before `WebhookHttpModule`: Express matches routes in order, and `POST /webhooks/{channel}` would otherwise take `/webhooks/xendit` (422 for an unknown channel).
 - The billing scan's job id is per hour (`billing.renew|<tenant>|h<slot>`): a second scan in the same hour is dropped by BullMQ as a duplicate. A script that scans twice passes a later `now` to `scanBillingRenewals`.
 - A paid invoice's PDF prints `invoice.bill_to`: the business's name, address, and NPWP copied in the transaction that records the payment (`applyCallback`). Other invoices print the profile as it is (`BusinessProfileService.billToIn`). Never copy it again later: a receipt must not change when the profile does. `bill_to` stays out of the audit log; the profile is audited itself.
+- A plan feature (`plan.features`) is checked by the module that owns the feature, in the writing transaction: `TenantsService.requireFeatureIn(tx, ctx, feature)`. What was made while the plan had it keeps working after a move down; it only cannot be made, changed, or handed to someone new (a custom role stays with whoever holds it). Add a feature to `PLAN_FEATURES` and to the seed together.
+- Nobody gives a permission they lack: a custom role's permissions, the old ones and the new ones, must all be the caller's (`RolesService`), and giving or inviting with a role checks every permission of it. Role changes reach holders on their next request, because `loadPrincipal` reads them on every request; never cache permissions in the session.
 - `ensure_trigger` (`drizzle/sql`) only creates a trigger that is missing, so editing a trigger's definition in `20_triggers.sql` changes nothing on databases that already have it. Drop the trigger in a migration (0013, 0023) and the repeatable file creates the new one.
 
 - `nestjs-zod@5.5.0` is patched (`patches/nestjs-zod@5.5.0.patch`): it wrote nullable fields as `type: ["string", "null"]` with one type's keywords, which generated clients misread; the patch turns them into `anyOf`. Upgrading nestjs-zod means redoing or dropping the patch; `test/tenant-isolation/isolation.int.spec.ts` checks the shape.
@@ -159,10 +162,12 @@ NestJS injection always uses explicit `@Inject(TOKEN)`; do not rely on construct
 - Buyer data never goes to `console`, `localStorage`, or URLs.
 - Seller actions on a read-only store's orders and returns are refused (409 `store.read_only`): screens hide them with `useStores().readOnly(storeId)` and say where to act instead.
 - Scans go through `ScanBuffer` (one request per code with its quantity): a request per scanned unit spends the business's 600 requests a minute.
+- What the plan in force lacks is hidden with `useHasFeature("custom_roles")` (`GET /v1/me` `plan.features`); the api refuses it anyway (422 `billing.feature_unavailable`).
+- A table without links or buttons that may scroll sideways on a phone takes `<Table scrollLabel="...">`, so the keyboard can reach and scroll it (axe `scrollable-region-focusable`).
 
 ## Public site (`website/`)
 - Read `website/README.md`. Business details live only in `site.json`; `[ISI: ...]` marks what the business must fill in, and `--strict` refuses to build while any is left.
-- Only features the app has today: the site is a promise. Plan prices and quotas in `site.json` must equal the seed in `backend/drizzle/sql/90_seeds.sql` (a test compares them); change both together.
+- Only features the app has today: the site is a promise. Plan prices and quotas in `site.json` must equal the seed in `backend/drizzle/sql/90_seeds.sql`, and a plan's `extras` the seeded features the backend enforces (`PLAN_FEATURES`); a test compares them, so change them together.
 - No scripts, fonts, or images from other sites; "Tokopedia & Shop", never TikTok; literal `&` in templates is `&amp;`. Tests check all three.
 
 ## Definition of done

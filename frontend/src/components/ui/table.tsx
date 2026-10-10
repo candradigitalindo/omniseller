@@ -3,7 +3,25 @@
 import { cn } from "cn";
 import type * as React from "react";
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+/**
+ * `scrollLabel`: for a table without links or buttons that can scroll sideways (a matrix on a phone). Its
+ * container becomes a named region the keyboard can focus and scroll (WCAG 2.1.1; axe
+ * `scrollable-region-focusable`); tables with controls are reachable through them already.
+ */
+function Table({ className, scrollLabel, ...props }: React.ComponentProps<"table"> & { scrollLabel?: string }) {
+  if (scrollLabel) {
+    return (
+      <section
+        data-slot="table-container"
+        aria-label={scrollLabel}
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrolling region must take focus to be scrolled by keyboard
+        tabIndex={0}
+        className="relative w-full overflow-x-auto focus-visible:outline-2 focus-visible:outline-primary"
+      >
+        <table data-slot="table" className={cn("w-full caption-bottom text-sm", className)} {...props} />
+      </section>
+    );
+  }
   return (
     <div data-slot="table-container" className="relative w-full overflow-x-auto">
       <table data-slot="table" className={cn("w-full caption-bottom text-sm", className)} {...props} />

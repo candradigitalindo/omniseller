@@ -43,7 +43,7 @@ export default {
   body: (site) => html`<section class="section page-head">
   <div class="wrap">
     <h1>Harga</h1>
-    <p class="lead">Semua fitur inti ada di setiap paket. Paket membedakan jumlah toko, gudang, pesanan, pengguna, dan layanan dukungan.</p>
+    <p class="lead">Semua fitur inti ada di setiap paket. Paket membedakan jumlah toko, gudang, pesanan, pengguna, fitur tambahan, dan layanan dukungan.</p>
   </div>
 </section>
 
@@ -54,7 +54,9 @@ export default {
         <h2 id="paket-${p.code}">${p.name}</h2>
         <p class="muted">${p.audience}</p>
         <p class="price">${rupiah(p.priceMonthly)}${p.priceMonthly > 0 ? html`<span> per bulan</span>` : ""}</p>
-        <ul class="ticks">${limitLines(p.limits).map((l) => html`<li>${l}</li>`)}<li>Semua fitur inti</li></ul>
+        <ul class="ticks">${limitLines(p.limits).map((l) => html`<li>${l}</li>`)}<li>Semua fitur inti</li>${p.extras.map(
+          (e) => html`<li>${e}</li>`,
+        )}</ul>
         <p class="support"><strong>Dukungan:</strong> ${p.support}</p>
         <a class="button${p.code === "growth" ? "" : " ghost"}" href="${appLink(site, "/daftar")}">${
           p.priceMonthly === 0 ? "Mulai gratis" : `Coba gratis ${site.pricing.trialDays} hari`

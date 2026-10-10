@@ -44,6 +44,34 @@ export function emailProblem(value: string): "required" | "email" | null {
   return EMAIL.test(v) ? null : "email";
 }
 
+/** Modules of the permission catalogue in the order screens list them, each with its label (`team.module_*`). */
+export const PERMISSION_MODULES = [
+  "order",
+  "shipment",
+  "return",
+  "inventory",
+  "catalog",
+  "price",
+  "promo",
+  "finance",
+  "chat",
+  "report",
+  "settings",
+  "research",
+  "audit",
+  "data",
+] as const;
+export type PermissionModule = (typeof PERMISSION_MODULES)[number];
+
+export function isKnownModule(module: string): module is PermissionModule {
+  return (PERMISSION_MODULES as readonly string[]).includes(module);
+}
+
+const moduleRank = (module: string) => {
+  const i = (PERMISSION_MODULES as readonly string[]).indexOf(module);
+  return i < 0 ? PERMISSION_MODULES.length : i;
+};
+
 export interface MatrixModule {
   module: string;
   rows: { code: string; description: string | null; byRole: Record<string, boolean> }[];
@@ -61,7 +89,47 @@ export function permissionMatrix(permissions: readonly PermissionInfo[], roles: 
     });
     modules.set(p.module, m);
   }
-  return [...modules.values()];
+  // known modules in the screen's order, others after them as they came (stable sort)
+  return [...modules.values()].sort((a, b) => moduleRank(a.module) - moduleRank(b.module));
+}
+
+/** Built-in roles first, then the business's own (backend doc 8.33), each group as the api listed it. */
+export function orderedRoles<R extends Pick<Role, "isSystem">>(roles: readonly R[]): R[] {
+  return [...roles.filter((r) => r.isSystem), ...roles.filter((r) => !r.isSystem)];
+}
+
+/** What a custom role would start with when copied from another: only what the user may give. */
+export function copiedPermissions(from: Pick<Role, "permissions">, mine: readonly string[]): string[] {
+  const held = new Set(mine);
+  return from.permissions.filter((p) => held.has(p));
+}
+
+export const ROLE_NAME_MAX = 40;
+
+/** A custom role's form, checked as the api does before sending. */
+export function roleProblems(input: { name: string; permissions: readonly string[] }): {
+  name?: "required" | "tooLong";
+  permissions?: "required";
+} {
+  const name = input.name.trim();
+  return {
+    ...(name === "" ? { name: "required" as const } : name.length > ROLE_NAME_MAX ? { name: "tooLong" as const } : {}),
+    ...(input.permissions.length === 0 ? { permissions: "required" as const } : {}),
+  };
+}
+
+/**
+ * Whether a role may be given to this user here: every permission is the giver's, and a custom role needs a
+ * plan with `custom_roles` unless the user already holds it (it stays theirs after a move down).
+ */
+export function roleBlock(
+  role: Pick<Role, "isSystem" | "permissions" | "id">,
+  opts: { mine: readonly string[]; customAllowed: boolean; held: ReadonlySet<string> },
+): "permissions" | "plan" | null {
+  const held = new Set(opts.mine);
+  if (!role.permissions.every((p) => held.has(p))) return "permissions";
+  if (!role.isSystem && !opts.customAllowed && !opts.held.has(role.id)) return "plan";
+  return null;
 }
 
 /**

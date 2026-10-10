@@ -86,7 +86,8 @@ export const userWarehouseScope = pgTable("user_warehouse_scope", {
 export const invitation = pgTable("invitation", {
   ...baseColumns(),
   email: citext("email").notNull(),
-  roleId: ulid("role_id").notNull(),
+  /** NULL only once accepted or revoked and the custom role it offered was deleted (migration 0024). */
+  roleId: ulid("role_id"),
   invitedBy: ulid("invited_by"),
   /** Set by the job that sends the email (migration 0002); NULL until the first send. */
   tokenHash: text("token_hash"),

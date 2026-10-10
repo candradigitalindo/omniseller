@@ -8,6 +8,7 @@ import type { AuthedRequest } from "../../common/http/request";
 import {
   ChangePasswordDto,
   CreateInvitationDto,
+  CreateRoleDto,
   IdParamDto,
   InvitationDto,
   InvitationPageDto,
@@ -17,9 +18,11 @@ import {
   PageQueryDto,
   PermissionListDto,
   RevokedDto,
+  RoleDto,
   RoleListDto,
   SetRolesDto,
   SetScopesDto,
+  UpdateRoleDto,
   UpdateUserDto,
   UserDto,
   UserPageDto,
@@ -128,6 +131,29 @@ export class RolesController {
   @ZodResponse({ type: RoleListDto })
   async list(@Ctx() ctx: RequestContext) {
     return { items: await this.roles.list(ctx), next_cursor: null };
+  }
+
+  /** A custom role (backend doc 8.33): from plan Growth on, with permissions the caller holds. */
+  @Post("roles")
+  @Isolation("self")
+  @ZodResponse({ status: 201, type: RoleDto })
+  async create(@Ctx() ctx: RequestContext, @Body() body: CreateRoleDto) {
+    return this.roles.create(ctx, body);
+  }
+
+  @Patch("roles/:id")
+  @Isolation({ fixture: "role" })
+  @ZodResponse({ type: RoleDto })
+  async update(@Ctx() ctx: RequestContext, @Param() p: IdParamDto, @Body() body: UpdateRoleDto) {
+    return this.roles.update(ctx, p.id, body);
+  }
+
+  /** Once nobody holds it and no open invitation offers it; on any plan. */
+  @Delete("roles/:id")
+  @HttpCode(204)
+  @Isolation({ fixture: "role" })
+  async remove(@Ctx() ctx: RequestContext, @Param() p: IdParamDto): Promise<void> {
+    await this.roles.remove(ctx, p.id);
   }
 
   /** The permission catalogue is global reference data. */

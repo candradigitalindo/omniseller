@@ -44,3 +44,53 @@ test("invites a team member and exports all data", async ({ page, business }) =>
   const zip = await page.request.get((await download.getAttribute("href")) ?? "");
   expect(zip.headers()["content-type"]).toContain("application/zip");
 });
+
+test("makes a custom role on the Growth trial, invites with it, and deletes it once nothing needs it", async ({
+  page,
+  business,
+}) => {
+  void business;
+  const name = `Packer ${tag()}`;
+  const email = `packer-${tag().toLowerCase()}@example.test`;
+  await page.goto("/tim?tab=peran");
+  await page.getByRole("button", { name: "Buat peran" }).click();
+  const dialog = page.getByRole("dialog", { name: "Buat peran" });
+  await dialog.getByLabel("Nama peran").fill(name);
+  // Gudang's nine permissions, less the courier handover
+  await dialog.getByRole("combobox", { name: "Salin izin dari" }).click();
+  await page.getByRole("option", { name: "Gudang" }).click();
+  await dialog.getByRole("checkbox", { name: /Serah terima kurir/ }).click();
+  await expect(dialog.getByText("8 izin dipilih")).toBeVisible();
+  await dialog.getByRole("button", { name: "Buat peran" }).click();
+  const custom = page.getByRole("list", { name: "Peran kustom" });
+  await expect(custom.getByText(name)).toBeVisible();
+  await expect(custom.getByText("8 izin · belum ada pemegang")).toBeVisible();
+  await expect(page.getByRole("columnheader", { name })).toBeVisible();
+
+  await page.getByRole("button", { name: "Undang anggota" }).click();
+  const invite = page.getByRole("dialog", { name: "Undang anggota" });
+  await invite.getByLabel("Email").fill(email);
+  await invite.getByRole("combobox", { name: "Peran" }).click();
+  await page.getByRole("option", { name }).click();
+  await invite.getByRole("button", { name: "Kirim undangan" }).click();
+  await expect(page.getByText(email, { exact: true })).toBeVisible();
+
+  // the open invitation still offers it
+  await page.getByRole("tab", { name: "Peran" }).click();
+  await page.getByRole("button", { name: `Hapus peran ${name}` }).click();
+  const refused = page.getByRole("dialog", { name: `Hapus peran ${name}?` });
+  await refused.getByRole("button", { name: "Hapus peran" }).click();
+  await expect(refused.getByRole("alert")).toContainText("1 undangan terbuka");
+  await refused.getByRole("button", { name: "Batal" }).click();
+
+  await page.getByRole("tab", { name: "Undangan" }).click();
+  await page.getByRole("button", { name: "Batalkan" }).click();
+  await expect(page.getByText(email, { exact: true })).toHaveCount(0);
+  await page.getByRole("tab", { name: "Peran" }).click();
+  await page.getByRole("button", { name: `Hapus peran ${name}` }).click();
+  await page
+    .getByRole("dialog", { name: `Hapus peran ${name}?` })
+    .getByRole("button", { name: "Hapus peran" })
+    .click();
+  await expect(page.getByText("Belum ada peran kustom.")).toBeVisible();
+});

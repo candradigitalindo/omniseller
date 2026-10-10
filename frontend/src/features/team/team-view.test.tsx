@@ -13,6 +13,7 @@ const OWNER_ROLE = {
   isSystem: true,
   description: "Semua izin",
   permissions: ["order:read", "settings:billing"],
+  userCount: 1,
 };
 const WAREHOUSE_ROLE = {
   id: "R-GUDANG",
@@ -20,7 +21,26 @@ const WAREHOUSE_ROLE = {
   isSystem: true,
   description: "Kemas dan kirim",
   permissions: ["order:read", "shipment:pack"],
+  userCount: 2,
 };
+/** The business's own roles (backend doc 8.33): one in use, one not. */
+const PACKER_ROLE = {
+  id: "R-PACKER",
+  name: "Packer Malam",
+  isSystem: false,
+  description: "Shift malam",
+  permissions: ["shipment:pack"],
+  userCount: 1,
+};
+const ARCHIVE_ROLE = {
+  id: "R-ARSIP",
+  name: "Arsip",
+  isSystem: false,
+  description: null,
+  permissions: ["order:read"],
+  userCount: 0,
+};
+const STARTER = { code: "starter", name: "Starter", features: [] };
 
 function api() {
   return mockApi({
@@ -55,7 +75,10 @@ function api() {
           name: "Sari Dewi",
           email: "sari.dewi@example.test",
           status: "active",
-          roles: [{ id: "R-GUDANG", name: "Gudang" }],
+          roles: [
+            { id: "R-GUDANG", name: "Gudang" },
+            { id: "R-PACKER", name: "Packer Malam" },
+          ],
           storeIds: null,
           warehouseIds: null,
           lastLoginAt: "2026-10-05T00:00:00.000Z",
@@ -77,14 +100,22 @@ function api() {
         { id: "W2", name: "Gudang Surabaya" },
       ],
     }),
-    "GET /v1/roles": () => ({ items: [OWNER_ROLE, WAREHOUSE_ROLE], next_cursor: null }),
+    // as the api lists them: by name
+    "GET /v1/roles": () => ({
+      items: [ARCHIVE_ROLE, WAREHOUSE_ROLE, PACKER_ROLE, OWNER_ROLE],
+      next_cursor: null,
+    }),
     "GET /v1/permissions": () => ({
       items: [
-        { code: "order:read", module: "Pesanan", description: "Lihat pesanan" },
-        { code: "shipment:pack", module: "Pengiriman", description: "Kemas pesanan" },
+        { code: "order:read", module: "order", description: "Lihat pesanan" },
+        { code: "settings:billing", module: "settings", description: "Kelola langganan dan profil bisnis" },
+        { code: "shipment:pack", module: "shipment", description: "Kemas pesanan" },
       ],
       next_cursor: null,
     }),
+    "POST /v1/roles": (c) => ({ ...(c.body as object), id: "R-BARU", isSystem: false, userCount: 0 }),
+    "PATCH /v1/roles/R-PACKER": (c) => ({ ...PACKER_ROLE, ...(c.body as object) }),
+    "DELETE /v1/roles/R-ARSIP": () => undefined,
     [`PATCH /v1/users/${BUDI}`]: (c) => ({
       id: BUDI,
       name: "Budi Santoso",
@@ -261,13 +292,145 @@ describe("TeamView (L41)", () => {
     await waitFor(() => expect(calls.some((c) => c.method === "DELETE")).toBe(true));
   });
 
-  it("shows which role holds which permission", async () => {
+  it("shows which role holds which permission, built-in roles first, by module", async () => {
     setUrl("/tim?tab=peran");
     api();
     renderApp(<TeamView />);
     const row = (await screen.findByText("Kemas pesanan")).closest("tr") as HTMLElement;
     expect(within(row).getByText("Gudang: ya")).toBeInTheDocument();
     expect(within(row).getByText("Pemilik: tidak")).toBeInTheDocument();
+    expect(within(row).getByText("Packer Malam: ya")).toBeInTheDocument();
+    const table = row.closest("table") as HTMLElement;
+    // it can scroll sideways on a phone, so the keyboard can reach it
+    expect(screen.getByRole("region", { name: "Izin setiap peran" })).toHaveAttribute("tabindex", "0");
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((h) => h.textContent),
+    ).toEqual(["Izin", "Gudang", "Pemilik", "Arsip", "Packer Malam"]);
+    // modules by their names, in the screen's order
+    expect(
+      within(table)
+        .getAllByText(/^(Pesanan|Pengiriman|Pengaturan)$/)
+        .map((c) => c.textContent),
+    ).toEqual(["Pesanan", "Pengiriman", "Pengaturan"]);
+  });
+
+  it("makes a custom role from chosen permissions, starting from another role", async () => {
+    setUrl("/tim?tab=peran");
+    const calls = api();
+    const user = userEvent.setup();
+    // a team lead without settings:billing
+    renderApp(<TeamView />, { me: testMe(["settings:user", "order:read", "shipment:pack"]) });
+    const custom = await screen.findByRole("list", { name: "Peran kustom" });
+    expect(within(custom).getByText("Packer Malam")).toBeInTheDocument();
+    expect(within(custom).getByText("1 izin · 1 pemegang")).toBeInTheDocument();
+    expect(within(custom).getByText("1 izin · belum ada pemegang")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Buat peran" }));
+    const dialog = await screen.findByRole("dialog", { name: "Buat peran" });
+    await user.click(within(dialog).getByRole("button", { name: "Buat peran" }));
+    expect(
+      within(dialog)
+        .getAllByRole("alert")
+        .map((a) => a.textContent),
+    ).toEqual(["Isi nama peran.", "Pilih minimal satu izin."]);
+    expect(calls.filter((c) => c.method === "POST" && c.path === "/v1/roles")).toHaveLength(0);
+
+    await user.type(within(dialog).getByLabelText("Nama peran"), "  Kasir Toko ");
+    // what they do not hold cannot be given
+    const billing = within(dialog).getByRole("checkbox", { name: /Kelola langganan dan profil bisnis/ });
+    expect(billing).toBeDisabled();
+    expect(within(dialog).getByText("Anda tidak memegang izin ini.")).toBeInTheDocument();
+    // copied from the owner: only what they may give comes along
+    await user.click(within(dialog).getByRole("combobox", { name: "Salin izin dari" }));
+    await user.click(await screen.findByRole("option", { name: "Pemilik" }));
+    expect(within(dialog).getByRole("checkbox", { name: /Lihat pesanan/ })).toBeChecked();
+    expect(billing).not.toBeChecked();
+    await user.click(within(dialog).getByRole("checkbox", { name: /Kemas pesanan/ }));
+    expect(within(dialog).getByText("2 izin dipilih")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Buat peran" }));
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === "POST" && c.path === "/v1/roles")?.body).toEqual({
+        name: "Kasir Toko",
+        description: null,
+        permissions: ["order:read", "shipment:pack"],
+      }),
+    );
+    expect(await screen.findByText("Peran Kasir Toko dibuat.")).toBeInTheDocument();
+  });
+
+  it("changes a custom role, and deletes one only when nobody holds it", async () => {
+    setUrl("/tim?tab=peran");
+    const calls = api();
+    const user = userEvent.setup();
+    renderApp(<TeamView />);
+    await user.click(await screen.findByRole("button", { name: "Ubah peran Packer Malam" }));
+    const edit = await screen.findByRole("dialog", { name: "Ubah peran Packer Malam" });
+    expect(edit).toHaveTextContent("Perubahan berlaku bagi 1 pemegangnya pada permintaan berikutnya");
+    expect(within(edit).getByLabelText("Nama peran")).toHaveValue("Packer Malam");
+    expect(within(edit).getByRole("checkbox", { name: /Kemas pesanan/ })).toBeChecked();
+    await user.click(within(edit).getByRole("checkbox", { name: /Lihat pesanan/ }));
+    await user.clear(within(edit).getByLabelText("Keterangan (opsional)"));
+    await user.click(within(edit).getByRole("button", { name: "Simpan" }));
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === "PATCH" && c.path === "/v1/roles/R-PACKER")?.body).toEqual({
+        name: "Packer Malam",
+        description: null,
+        permissions: ["shipment:pack", "order:read"],
+      }),
+    );
+    expect(await screen.findByText("Peran Packer Malam disimpan.")).toBeInTheDocument();
+
+    // still held: it says so and offers nothing to confirm
+    await user.click(screen.getByRole("button", { name: "Hapus peran Packer Malam" }));
+    const held = await screen.findByRole("dialog", { name: "Hapus peran Packer Malam?" });
+    expect(held).toHaveTextContent("Peran ini masih dipakai 1 pengguna. Ganti peran mereka dulu di tab Anggota.");
+    expect(within(held).queryByRole("button", { name: "Hapus peran" })).not.toBeInTheDocument();
+    await user.click(within(held).getByRole("button", { name: "Batal" }));
+
+    await user.click(screen.getByRole("button", { name: "Hapus peran Arsip" }));
+    const unused = await screen.findByRole("dialog", { name: "Hapus peran Arsip?" });
+    await user.click(within(unused).getByRole("button", { name: "Hapus peran" }));
+    await waitFor(() => expect(calls.some((c) => c.method === "DELETE" && c.path === "/v1/roles/R-ARSIP")).toBe(true));
+    expect(await screen.findByText("Peran Arsip dihapus.")).toBeInTheDocument();
+  });
+
+  it("on a plan without custom roles: nothing made, changed, or handed out, but they can still go", async () => {
+    setUrl("/tim?tab=peran");
+    api();
+    const user = userEvent.setup();
+    renderApp(<TeamView />, { me: { ...testMe(), plan: STARTER } });
+    expect(await screen.findByText(/^Paket Starter tidak termasuk peran kustom\./)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Lihat paket" })).toHaveAttribute("href", "/langganan");
+    expect(screen.queryByRole("button", { name: "Buat peran" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Ubah peran Packer Malam" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Hapus peran Arsip" })).toBeInTheDocument();
+
+    // members: a custom role stays with whoever holds it, and goes to nobody new
+    await user.click(screen.getByRole("tab", { name: "Anggota" }));
+    await openActions(user, "Budi Santoso");
+    await user.click(await screen.findByRole("menuitem", { name: "Ubah peran" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("checkbox", { name: /Packer Malam/ })).toBeDisabled();
+    expect(within(dialog).getAllByText("Peran kustom tidak termasuk paket Starter.")).toHaveLength(2);
+    expect(within(dialog).getByRole("checkbox", { name: /Gudang/ })).toBeEnabled();
+    await user.click(within(dialog).getByRole("button", { name: "Batal" }));
+
+    await user.click(screen.getByRole("button", { name: "Undang anggota" }));
+    const invite = await screen.findByRole("dialog", { name: "Undang anggota" });
+    await user.click(within(invite).getByRole("combobox", { name: "Peran" }));
+    expect((await screen.findAllByRole("option")).map((o) => o.textContent)).toEqual(["Gudang", "Pemilik"]);
+  });
+
+  it("keeps a custom role a member already holds when the plan has none", async () => {
+    api();
+    const user = userEvent.setup();
+    renderApp(<TeamView />, { me: { ...testMe(), plan: STARTER } });
+    await openActions(user, "Sari Dewi");
+    await user.click(await screen.findByRole("menuitem", { name: "Ubah peran" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("checkbox", { name: /Packer Malam/ })).toBeChecked();
+    expect(within(dialog).getByRole("checkbox", { name: /Packer Malam/ })).toBeEnabled();
   });
 
   it("is closed to users who may not manage the team", () => {

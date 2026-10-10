@@ -18,13 +18,17 @@ Tenant (bisnis), pengguna, peran bawaan, cakupan toko dan gudang, serta undangan
 - `UsersService.namesIn(tx)`: nama semua pengguna, termasuk yang dinonaktifkan (kolom pelaku di ekspor data).
 - `UsersService.countSeatsIn(tx)`: pengguna yang tidak dinonaktifkan ditambah undangan terbuka, terhadap kuota pengguna paket; `billingContactIn(tx)`: pengguna aktif tertua yang memegang `settings:billing`, penerima tagihan Xendit.
 - `TenantsService.timezone(ctx)`, `TenantsService.profile(ctx)`: zona waktu bisnis (arti "hari ini" di dasbor) dan nama bisnis.
-- `RolesService.list | permissions(ctx)`.
+- `RolesService.list | permissions(ctx)`; peran kustom (backend doc 8.33): `create | update | remove(ctx, ...)` dan `exportSheets` (`peran.csv`). Error: `role.not_found`, `role.system`, `role.name_taken`, `role.in_use`, `role.privilege_escalation`, `billing.feature_unavailable`.
+- `TenantsService.requireFeatureIn(tx, ctx, feature)`: menolak (422 `billing.feature_unavailable`) bila paket yang berlaku tidak punya fitur itu (`common/plan-features.ts`), dengan paket termurah yang punya; dipakai modul pemilik fitur di transaksi yang menulis.
+- `GET /v1/me` membawa `plan` (kode, nama, fitur) dari `loadPrincipal`, agar web app menyembunyikan yang tidak termasuk paket.
 - `InvitationsService.invite | resend | revoke | list(ctx, ...)`, `inspect(token)`, `accept(token, input)`, `send(ctx, invitationId)` (job). Error: `user.email_taken`, `invitation.already_open`, `invitation.not_found`, `invitation.invalid`, `billing.limit_reached` (undangan baru melebihi kuota pengguna paket: undangan terbuka ikut dihitung).
 - `PreTenantLookup`: pembungkus fungsi `SECURITY DEFINER` (`auth_login_candidates`, `auth_resolve_invitation`, `auth_resolve_password_reset`, `auth_resolve_device`), satu-satunya bacaan di luar `withTenantTx` (backend doc 7.5).
 - `DevicesService` (backend doc 8.24): `createIn` (token 256 bit sekali tampil, hanya hash yang disimpan), `getIn`, `activeIn`, `updateIn`, `revokeIn`, `reportIn` (versi dan printer laporan agen), dan `authenticate(token)` untuk `AuthGuard` dan `RealtimeGateway`: token tidak dikenal atau dicabut memberi null, `last_seen_at` ditulis paling sering 30 detik sekali. `isOnline`: melapor dalam 2 menit terakhir. Aturan agen cetak (gudang, antrean, cabut) ada di `fulfillment` (`PrintAgentsService`).
 
 ## Aturan
-- Pengguna hanya bisa memberi peran (atau mengundang dengan peran) yang seluruh izinnya ia miliki sendiri.
+- Pengguna hanya bisa memberi peran (atau mengundang dengan peran) yang seluruh izinnya ia miliki sendiri. Membuat peran kustom butuh semua izinnya; mengubahnya butuh semua izin lama dan barunya; menghapusnya butuh semua izinnya.
+- Peran kustom (`is_system` false) dibuat, diubah, dan diberikan ke orang baru hanya di paket dengan fitur `custom_roles`; yang sudah memegangnya tetap memegangnya setelah turun paket, dan peran itu bisa dihapus di paket apa pun begitu tidak dipegang siapa pun dan tidak ditawarkan undangan terbuka. Peran bawaan tidak pernah berubah. Nama peran unik tanpa membedakan huruf (indeks `lower(name)`).
+- Izin peran disimpan sebagai selisih (`setRolePermissions`): log audit `role_permission` hanya mencatat izin yang ditambah atau dicabut.
 - Tenant selalu punya minimal satu Owner aktif; pengguna tidak bisa menonaktifkan dirinya sendiri.
 - Menonaktifkan pengguna dan mengganti kata sandi mencabut sesi di Redis.
 - Mematikan 2FA anggota hanya untuk anggota lain yang izinnya tidak lebih luas dari pemanggil. Trigger audit `user` mencatat `status` dan `totp_enabled`, tanpa hash sandi, rahasia, kode cadangan, dan catatan login.
@@ -45,6 +49,7 @@ Tenant (bisnis), pengguna, peran bawaan, cakupan toko dan gudang, serta undangan
 | PUT | `/v1/users/{id}/roles`, `/v1/users/{id}/scopes` | `settings:user` |
 | POST | `/v1/users/{id}/sessions/revoke`, `/v1/users/{id}/two-factor/reset` | `settings:user` |
 | GET | `/v1/roles`, `/v1/permissions` | `settings:user` |
+| POST, PATCH, DELETE | `/v1/roles`, `/v1/roles/{id}` (peran kustom; POST 201, DELETE 204) | `settings:user` |
 | GET, POST | `/v1/invitations` | `settings:user` |
 | POST | `/v1/invitations/{id}/resend` | `settings:user` |
 | DELETE | `/v1/invitations/{id}` | `settings:user` |

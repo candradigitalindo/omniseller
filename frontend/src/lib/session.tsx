@@ -47,6 +47,14 @@ export function useCan(): (permission: Permission) => boolean {
   return (permission) => canIn(me, permission);
 }
 
+/**
+ * What the plan in force unlocks beyond its quotas (`plan.features`, backend doc 8.32), such as
+ * `custom_roles`. Screens offer only what the plan has; the api refuses the rest (422).
+ */
+export function useHasFeature(feature: string): boolean {
+  return useSession().plan.features.includes(feature);
+}
+
 /** The business's time zone (`Asia/Jakarta` unless the owner changed it); dates on screen use it (PRD 13.2). */
 export function useTimeZone(): string {
   return useSession().tenant.timezone;

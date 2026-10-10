@@ -40,7 +40,7 @@ Isi kolom website dengan alamat situs ini. Saat aktivasi akun Live, Xendit memer
 
 - Semua `[ISI: ...]` terisi dengan data badan usaha yang sebenarnya.
 - Ketiga kebijakan ditinjau konsultan hukum (PRD 12.7). Angka di `site.json` bagian `legal` (batas pengajuan dan waktu proses pengembalian dana, penghapusan data setelah akun ditutup) adalah usulan yang harus Anda setujui.
-- Harga paket sama dengan seed backend (`backend/drizzle/sql/90_seeds.sql`); uji memeriksanya. Harga Business masih usulan sampai validasi pilot (PRD 14).
+- Harga, kuota, dan fitur tambahan paket (`extras`) sama dengan seed backend (`backend/drizzle/sql/90_seeds.sql`); `extras` hanya memuat fitur yang benar-benar dibatasi backend (`PLAN_FEATURES` di `backend/src/common/plan-features.ts`, sekarang peran kustom). Uji memeriksa keduanya. Harga Business masih usulan sampai validasi pilot (PRD 14).
 - `pricing.taxNote` menyatakan perlakuan PPN yang benar untuk badan usaha Anda.
 - Kebijakan Privasi menjanjikan anonimisasi data pembeli paling lama 2 tahun setelah pesanan (PRD 12.1). Job anonimisasinya belum dibuat (backend doc 9.5) dan harus ada sebelum rilis publik.
 - Daftar sub-prosesor di Kebijakan Privasi sesuai layanan yang benar-benar dipakai saat terbit.

@@ -17,6 +17,7 @@ import { StoresService } from "../channel/stores.service";
 import { FilesService } from "../files/files.service";
 import { FulfillmentService } from "../fulfillment/fulfillment.service";
 import { HandoverService } from "../fulfillment/handover.service";
+import { RolesService } from "../identity/roles.service";
 import { TenantsService } from "../identity/tenants.service";
 import { UsersService } from "../identity/users.service";
 import { InventoryService } from "../inventory/inventory.service";
@@ -58,6 +59,7 @@ export class ExportRenderService {
     @Inject(FilesService) private readonly files: FilesService,
     @Inject(TenantsService) private readonly tenants: TenantsService,
     @Inject(UsersService) private readonly users: UsersService,
+    @Inject(RolesService) private readonly roles: RolesService,
     @Inject(StoresService) private readonly stores: StoresService,
     @Inject(WarehousesService) private readonly warehouses: WarehousesService,
     @Inject(ProductTransferService) private readonly products: ProductTransferService,
@@ -80,6 +82,7 @@ export class ExportRenderService {
   sheets(): ExportSheet[] {
     return [
       ...this.business.exportSheets(),
+      ...this.roles.exportSheets(),
       ...this.billing.exportSheets(),
       ...this.stores.exportSheets(),
       ...this.warehouses.exportSheets(),

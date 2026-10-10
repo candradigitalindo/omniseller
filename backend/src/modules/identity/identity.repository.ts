@@ -22,6 +22,8 @@ export interface RoleRow {
   isSystem: boolean;
   description: string | null;
   permissions: string[];
+  /** People holding it, disabled ones included. */
+  userCount: number;
 }
 
 export interface UserView {
@@ -42,6 +44,8 @@ export interface UserView {
 export interface Principal {
   user: { id: string; name: string; email: string; locale: "id" | "en"; status: string; twoFactorEnabled: boolean };
   tenant: { id: string; name: string; slug: string; timezone: string; status: string };
+  /** The plan in force (backend doc 8.32): its features decide what the web app offers. */
+  plan: { code: string; name: string; features: string[] };
   permissions: string[];
   roles: { id: string; name: string }[];
   storeScope: string[] | null;
@@ -70,6 +74,7 @@ const permissionsOfUser = sql<string[]>`coalesce((
 const permissionsOfRole = sql<string[]>`coalesce((
     SELECT array_agg(p.code ORDER BY p.code) FROM role_permission rp
       JOIN permission p ON p.id = rp.permission_id WHERE rp.role_id = ${ROLE_ID}), '{}')`;
+const usersOfRole = sql<number>`(SELECT count(*)::int FROM user_role ur WHERE ur.role_id = ${ROLE_ID})`;
 
 /**
  * Queries of the identity module (tenant, user, role, invitation). No business rules, no transactions:
@@ -163,11 +168,70 @@ export class IdentityRepository {
         isSystem: role.isSystem,
         description: role.description,
         permissions: permissionsOfRole,
+        userCount: usersOfRole,
       })
       .from(role)
       .where(ids ? inArray(role.id, ids) : undefined)
       .orderBy(role.name);
     return rows;
+  }
+
+  /** Locks a role for a change; undefined when it is not the caller's business's. */
+  async lockRole(tx: Tx, id: string): Promise<{ id: string } | undefined> {
+    const [row] = await tx.select({ id: role.id }).from(role).where(eq(role.id, id)).for("update");
+    return row;
+  }
+
+  /** Whether another role of the business has this name, whatever its case. */
+  async roleNameTaken(tx: Tx, name: string, exceptId?: string): Promise<boolean> {
+    const [row] = await tx
+      .select({ id: role.id })
+      .from(role)
+      .where(and(sql`lower(${role.name}) = lower(${name})`, exceptId ? ne(role.id, exceptId) : undefined))
+      .limit(1);
+    return !!row;
+  }
+
+  async updateRole(tx: Tx, id: string, patch: { name?: string; description?: string | null }): Promise<void> {
+    if (Object.keys(patch).length > 0) await tx.update(role).set(patch).where(eq(role.id, id));
+  }
+
+  /** Makes a role's permissions exactly these, touching only what changes (the audit log shows the change). */
+  async setRolePermissions(tx: Tx, tenantId: string, roleId: string, permissionIds: string[], newId: () => string) {
+    const held = await tx
+      .select({ id: rolePermission.id, permissionId: rolePermission.permissionId })
+      .from(rolePermission)
+      .where(eq(rolePermission.roleId, roleId));
+    const wanted = new Set(permissionIds);
+    const gone = held.filter((h) => !wanted.has(h.permissionId)).map((h) => h.id);
+    if (gone.length > 0) await tx.delete(rolePermission).where(inArray(rolePermission.id, gone));
+    const have = new Set(held.map((h) => h.permissionId));
+    const added = permissionIds.filter((p) => !have.has(p));
+    if (added.length > 0) {
+      await tx
+        .insert(rolePermission)
+        .values(added.map((permissionId) => ({ id: newId(), tenantId, roleId, permissionId })));
+    }
+  }
+
+  /** Who still depends on a role: people holding it, and invitations not yet accepted or revoked. */
+  async roleUsage(tx: Tx, id: string): Promise<{ users: number; invitations: number }> {
+    const [u] = await tx.select({ n: sql<number>`count(*)::int` }).from(userRole).where(eq(userRole.roleId, id));
+    const [i] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(invitation)
+      .where(and(eq(invitation.roleId, id), isNull(invitation.acceptedAt), isNull(invitation.revokedAt)));
+    return { users: u?.n ?? 0, invitations: i?.n ?? 0 };
+  }
+
+  /** Its permissions go with it (CASCADE); closed invitations keep their row without it (SET NULL). */
+  async deleteRole(tx: Tx, id: string): Promise<void> {
+    await tx.delete(role).where(eq(role.id, id));
+  }
+
+  async userRoleIds(tx: Tx, userId: string): Promise<string[]> {
+    const rows = await tx.select({ roleId: userRole.roleId }).from(userRole).where(eq(userRole.userId, userId));
+    return rows.map((r) => r.roleId);
   }
 
   async roleByName(tx: Tx, name: string) {
@@ -387,6 +451,9 @@ export class IdentityRepository {
         tenantSlug: tenant.slug,
         tenantTimezone: tenant.timezone,
         tenantStatus: tenant.status,
+        planCode: plan.code,
+        planName: plan.name,
+        planFeatures: plan.features,
         roles: rolesOfUser,
         permissions: permissionsOfUser,
         storeScope: storeScopeOfUser,
@@ -394,6 +461,7 @@ export class IdentityRepository {
       })
       .from(user)
       .innerJoin(tenant, eq(tenant.id, user.tenantId))
+      .innerJoin(plan, eq(plan.id, tenant.planId))
       .where(eq(user.id, userId));
     if (!row) return undefined;
     return {
@@ -412,6 +480,7 @@ export class IdentityRepository {
         timezone: row.tenantTimezone,
         status: row.tenantStatus,
       },
+      plan: { code: row.planCode, name: row.planName, features: row.planFeatures },
       permissions: row.permissions,
       roles: row.roles,
       storeScope: row.storeScope,
@@ -434,7 +503,8 @@ export class IdentityRepository {
       .select({
         id: invitation.id,
         email: invitation.email,
-        roleId: invitation.roleId,
+        // the role's own id: the inner join leaves out invitations whose custom role was deleted
+        roleId: role.id,
         roleName: role.name,
         invitedBy: invitation.invitedBy,
         expiresAt: invitation.expiresAt,

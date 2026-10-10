@@ -814,6 +814,105 @@
         "x-isolation": {
           "fixture": "role"
         }
+      },
+      "post": {
+        "operationId": "RolesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "roles"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/roles/{id}": {
+      "patch": {
+        "operationId": "RolesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "roles"
+        ],
+        "x-isolation": {
+          "fixture": "role"
+        }
+      },
+      "delete": {
+        "operationId": "RolesController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "roles"
+        ],
+        "x-isolation": {
+          "fixture": "role"
+        }
       }
     },
     "/v1/permissions": {
@@ -9719,6 +9818,30 @@
             ],
             "additionalProperties": false
           },
+          "plan": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "features": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "code",
+              "name",
+              "features"
+            ],
+            "additionalProperties": false,
+            "description": "paket yang berlaku; fiturnya menentukan aksi yang ditawarkan, misalnya peran kustom"
+          },
           "permissions": {
             "type": "array",
             "items": {
@@ -9816,6 +9939,7 @@
         "required": [
           "user",
           "tenant",
+          "plan",
           "permissions",
           "roles",
           "storeScope",
@@ -10508,7 +10632,8 @@
                   "type": "string"
                 },
                 "isSystem": {
-                  "type": "boolean"
+                  "type": "boolean",
+                  "description": "peran bawaan: tidak bisa diubah atau dihapus"
                 },
                 "description": {
                   "type": [
@@ -10521,6 +10646,12 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "userCount": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "pengguna yang memegang peran ini, termasuk yang dinonaktifkan"
                 }
               },
               "required": [
@@ -10528,7 +10659,8 @@
                 "name",
                 "isSystem",
                 "description",
-                "permissions"
+                "permissions",
+                "userCount"
               ],
               "additionalProperties": false
             }
@@ -10542,6 +10674,193 @@
           "next_cursor"
         ],
         "additionalProperties": false
+      },
+      "CreateRoleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40,
+            "description": "unik dalam bisnis, tanpa membedakan huruf besar dan kecil"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "permissions": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "order:read",
+                "order:accept",
+                "order:cancel",
+                "order:tag",
+                "order:write",
+                "shipment:arrange",
+                "shipment:print",
+                "shipment:pack",
+                "shipment:handover",
+                "return:respond",
+                "return:receive",
+                "inventory:read",
+                "inventory:adjust",
+                "inventory:count",
+                "inventory:transfer",
+                "catalog:read",
+                "catalog:write",
+                "catalog:publish",
+                "catalog:map",
+                "price:write",
+                "promo:write",
+                "finance:read",
+                "finance:reconcile",
+                "finance:export",
+                "chat:read",
+                "chat:write",
+                "chat:assign",
+                "report:read",
+                "settings:store",
+                "settings:warehouse",
+                "settings:user",
+                "settings:billing",
+                "research:read",
+                "research:write",
+                "audit:read",
+                "data:export"
+              ]
+            },
+            "description": "kode izin; semuanya harus dimiliki pengguna yang membuat atau mengubah peran"
+          }
+        },
+        "required": [
+          "name",
+          "permissions"
+        ]
+      },
+      "RoleDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "isSystem": {
+            "type": "boolean",
+            "description": "peran bawaan: tidak bisa diubah atau dihapus"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "userCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "pengguna yang memegang peran ini, termasuk yang dinonaktifkan"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "isSystem",
+          "description",
+          "permissions",
+          "userCount"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateRoleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40,
+            "description": "unik dalam bisnis, tanpa membedakan huruf besar dan kecil"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "permissions": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "order:read",
+                "order:accept",
+                "order:cancel",
+                "order:tag",
+                "order:write",
+                "shipment:arrange",
+                "shipment:print",
+                "shipment:pack",
+                "shipment:handover",
+                "return:respond",
+                "return:receive",
+                "inventory:read",
+                "inventory:adjust",
+                "inventory:count",
+                "inventory:transfer",
+                "catalog:read",
+                "catalog:write",
+                "catalog:publish",
+                "catalog:map",
+                "price:write",
+                "promo:write",
+                "finance:read",
+                "finance:reconcile",
+                "finance:export",
+                "chat:read",
+                "chat:write",
+                "chat:assign",
+                "report:read",
+                "settings:store",
+                "settings:warehouse",
+                "settings:user",
+                "settings:billing",
+                "research:read",
+                "research:write",
+                "audit:read",
+                "data:export"
+              ]
+            },
+            "description": "kode izin; semuanya harus dimiliki pengguna yang membuat atau mengubah peran"
+          }
+        }
       },
       "PermissionListDto_Output": {
         "type": "object",

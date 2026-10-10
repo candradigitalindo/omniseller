@@ -86,6 +86,8 @@ CI (`.github/workflows/ci.yml`) menjalankan hal yang sama terhadap stack yang di
 - Halaman pembayaran Xendit mengembalikan penjual ke `/langganan?bayar=sukses` atau `?bayar=gagal`. Parameter itu hanya dibaca sekali (toast) lalu dihapus dari alamat dengan `router.replace`; status paket sendiri datang dari api setelah callback Xendit, jadi halaman memuat ulang `GET /v1/billing/subscription` setiap 5 detik selama ada tagihan yang menunggu, dan tidak pernah menyimpulkan "lunas" dari parameter URL.
 
 - `API_ORIGIN` dibaca saat `next build`: rewrites masuk ke hasil build. Build untuk smoke lokal dengan `API_ORIGIN=... pnpm build`.
+- Fitur paket: `useHasFeature("custom_roles")` (`src/lib/session.tsx`) membaca `plan.features` dari `GET /v1/me`. Layar menyembunyikan yang tidak termasuk paket dan menjelaskan alasannya (tab Peran di `/tim`); api tetap menolaknya (422 `billing.feature_unavailable`).
+- Tabel tanpa tautan atau tombol yang bisa tergeser ke samping di ponsel (matriks izin) memakai `<Table scrollLabel="...">`: wadahnya menjadi region berlabel yang bisa difokus dan digeser dengan keyboard.
 - `NEXT_PUBLIC_SITE_URL` (opsional, juga saat build): alamat situs publik `website/`. Persetujuan di halaman Daftar lalu menautkan Syarat Layanan dan Kebijakan Privasi di sana (`siteUrl` di `src/lib/site.ts`); tanpa alamat itu dokumennya hanya disebut.
 - Header tabel `sticky` di dalam kontainer `overflow-x-auto` tidak menempel ke halaman; ia bergeser sebesar `top` dan menutupi baris pertama.
 - openapi-fetch membaca respons `default` sebagai error, sehingga data bertipe `never`. Backend menamai status sukses setiap operasi (`nameSuccessStatuses`); jangan menambal tipe di sini.

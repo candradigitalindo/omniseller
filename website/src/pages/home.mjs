@@ -33,7 +33,7 @@ const FEATURES = [
   },
   {
     title: "Tim dan keamanan",
-    text: "Atur hak akses per toko dan per gudang, aktifkan verifikasi dua langkah, dan lihat log audit untuk setiap perubahan penting.",
+    text: "Atur hak akses per toko dan per gudang, susun peran sendiri mulai paket Growth, aktifkan verifikasi dua langkah, dan lihat log audit untuk setiap perubahan penting.",
   },
   {
     title: "Pindah dari aplikasi lain",

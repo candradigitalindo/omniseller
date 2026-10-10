@@ -3,6 +3,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { newId, SYSTEM_ROLES } from "@omniseller/shared";
 import { type RequestContext, systemContext } from "../../common/context/request-context";
 import { findPgError } from "../../common/errors/problem";
+import { cheapestWith, hasFeature, type PlanFeature, planFeatureUnavailable } from "../../common/plan-features";
 import { hashPassword } from "../../common/security/password";
 import type { DbHandle, Tx } from "../../db/client";
 import type { PlanLimits } from "../../db/schema";
@@ -90,6 +91,16 @@ export class TenantsService {
     const plan = (await this.listPlansIn(tx)).find((p) => p.id === t?.planId);
     if (!plan) throw new Error(`tenant ${ctx.tenantId} has no plan`);
     return plan;
+  }
+
+  /**
+   * Refuses (422 `billing.feature_unavailable`) when the plan in force lacks a feature, naming the
+   * cheapest plan on offer that has it (backend doc 8.32). In the transaction that writes.
+   */
+  async requireFeatureIn(tx: Tx, ctx: RequestContext, feature: PlanFeature): Promise<void> {
+    const plan = await this.planIn(tx, ctx);
+    if (hasFeature(plan, feature)) return;
+    throw planFeatureUnavailable(feature, plan, cheapestWith(feature, await this.listPlansIn(tx)));
   }
 
   /** Every plan, cheapest first; `active` false for plans no longer offered. */

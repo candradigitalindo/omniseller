@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { emailProblem, grantableRoles, permissionMatrix, type Role, scopeBody, scopeSummary } from "./team-meta";
+import {
+  copiedPermissions,
+  emailProblem,
+  grantableRoles,
+  orderedRoles,
+  permissionMatrix,
+  type Role,
+  roleBlock,
+  roleProblems,
+  scopeBody,
+  scopeSummary,
+} from "./team-meta";
 
 const role = (id: string, permissions: string[]): Role => ({
   id,
@@ -7,6 +18,7 @@ const role = (id: string, permissions: string[]): Role => ({
   isSystem: true,
   description: null,
   permissions,
+  userCount: 0,
 });
 
 describe("team rules", () => {
@@ -53,5 +65,53 @@ describe("team rules", () => {
       ["Stok", ["inventory:read"]],
     ]);
     expect(matrix[0]?.rows[1]?.byRole).toEqual({ Admin: true, Viewer: false });
+  });
+
+  it("lists modules in the screen's order, unknown ones last", () => {
+    const matrix = permissionMatrix(
+      [
+        { code: "audit:read", module: "audit", description: null },
+        { code: "x:y", module: "x", description: null },
+        { code: "order:read", module: "order", description: null },
+        { code: "inventory:read", module: "inventory", description: null },
+      ],
+      [],
+    );
+    expect(matrix.map((m) => m.module)).toEqual(["order", "inventory", "audit", "x"]);
+  });
+
+  it("puts built-in roles before the business's own", () => {
+    const custom = { ...role("Arsip", []), isSystem: false };
+    expect(orderedRoles([custom, role("Gudang", []), role("Owner", [])]).map((r) => r.id)).toEqual([
+      "Gudang",
+      "Owner",
+      "Arsip",
+    ]);
+  });
+
+  it("copies only the permissions the user may give", () => {
+    expect(copiedPermissions(role("Owner", ["order:read", "settings:billing"]), ["order:read"])).toEqual([
+      "order:read",
+    ]);
+  });
+
+  it("checks a custom role's name and permissions as the api does", () => {
+    expect(roleProblems({ name: "  ", permissions: [] })).toEqual({ name: "required", permissions: "required" });
+    expect(roleProblems({ name: "x".repeat(41), permissions: ["order:read"] })).toEqual({ name: "tooLong" });
+    expect(roleProblems({ name: ` ${"x".repeat(40)} `, permissions: ["order:read"] })).toEqual({});
+  });
+
+  it("gives a custom role only on a plan that has them, unless the user already holds it", () => {
+    const custom = { ...role("Packer", ["shipment:pack"]), isSystem: false };
+    const mine = ["shipment:pack", "order:read"];
+    const none = new Set<string>();
+    expect(roleBlock(custom, { mine, customAllowed: true, held: none })).toBeNull();
+    expect(roleBlock(custom, { mine, customAllowed: false, held: none })).toBe("plan");
+    expect(roleBlock(custom, { mine, customAllowed: false, held: new Set(["Packer"]) })).toBeNull();
+    expect(roleBlock(role("Gudang", ["order:read"]), { mine, customAllowed: false, held: none })).toBeNull();
+    // missing permissions come first
+    expect(roleBlock({ ...custom, permissions: ["finance:read"] }, { mine, customAllowed: false, held: none })).toBe(
+      "permissions",
+    );
   });
 });

@@ -341,6 +341,7 @@ export async function signup(
 export interface MeBody {
   user: { id: string; name: string; email: string };
   tenant: { id: string; slug: string; name: string };
+  plan: { code: string; name: string; features: string[] };
   permissions: string[];
   roles: { id: string; name: string }[];
   storeScope: string[] | null;

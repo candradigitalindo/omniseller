@@ -57,6 +57,8 @@ const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: s
   UsersController_revokeSessions: () => ({}),
   UsersController_resetTwoFactor: () => ({}),
   InvitationsController_create: ({ a: ids }) => ({ email: uniqueEmail("x"), roleId: ids.role! }),
+  RolesController_update: () => ({ name: "Penyusup" }),
+  RolesController_remove: () => ({}),
   InvitationsController_resend: () => ({}),
   InvitationsController_revoke: () => ({}),
   StoreAuthorizationsController_start: ({ a: ids }) => ({ channel: "shopee", storeId: ids.store! }),

@@ -93,22 +93,34 @@ test("loads nothing from other sites: no scripts, fonts, or trackers", () => {
   assert.doesNotMatch(read(out, "style.css"), /url\(|@import/);
 });
 
-test("prices and quotas are the plans the backend seeds", () => {
+test("prices, quotas, and extra features are the plans the backend seeds and enforces", () => {
   const seed = readFileSync(join(ROOT, "../backend/drizzle/sql/90_seeds.sql"), "utf8");
+  // the features the backend checks, with the names it gives them (backend doc 8.33)
+  const enforced = new Map(
+    [
+      ...(/export const PLAN_FEATURES = \{([^}]*)\}/.exec(
+        readFileSync(join(ROOT, "../backend/src/common/plan-features.ts"), "utf8"),
+      )?.[1] ?? "").matchAll(/(\w+): "([^"]+)"/g),
+    ].map((m) => [m[1], m[2]]),
+  );
+  assert.ok(enforced.size > 0);
   const rows = [
-    ...seed.matchAll(/\(gen_ulid\(\), '(\w+)', '([^']+)',\s*'(\{[^']*\})',\s*'\{[^']*\}', (\d+)\)/g),
+    ...seed.matchAll(/\(gen_ulid\(\), '(\w+)', '([^']+)',\s*'(\{[^']*\})',\s*'\{([^']*)\}', (\d+)\)/g),
   ].map((m) => {
     const l = JSON.parse(m[3]);
+    const features = m[4].split(",").map((f) => f.trim());
     return {
       code: m[1],
       name: m[2],
-      priceMonthly: Number(m[4]),
+      priceMonthly: Number(m[5]),
       limits: { stores: l.stores, warehouses: l.warehouses, ordersPerMonth: l.orders_per_month, users: l.users },
+      // only what the backend enforces is promised; the rest of the seed list is not built yet
+      extras: features.filter((f) => enforced.has(f)).map((f) => enforced.get(f)),
     };
   });
   assert.equal(rows.length, 3);
   assert.deepEqual(
-    real.plans.map(({ code, name, priceMonthly, limits }) => ({ code, name, priceMonthly, limits })),
+    real.plans.map(({ code, name, priceMonthly, limits, extras }) => ({ code, name, priceMonthly, limits, extras })),
     rows,
   );
   assert.deepEqual(filled.plans, real.plans);
@@ -134,6 +146,7 @@ test("the pricing page states each plan's price, quotas, trial, and grace days",
     "10.000 pesanan per bulan",
     "100.000 pesanan per bulan",
     "Toko marketplace tidak dibatasi",
+    "Peran kustom",
     "uji coba 14 hari",
     "paket tetap aktif 7 hari",
     "Harga sudah termasuk PPN.",
