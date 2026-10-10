@@ -206,3 +206,19 @@ export function pickupAhead(o: DeadlineFields): { at: string; state: "ok" | "war
 export function missedPickup(o: DeadlineFields): string | null {
   return o.internalSla?.state === "missed" && o.internalShipByAt ? o.internalShipByAt : null;
 }
+
+export const AUTO_ACTIONS = ["warehouse", "tags", "accept", "arrange"] as const;
+export type AutoAction = (typeof AUTO_ACTIONS)[number];
+
+/**
+ * What an automatic rule could not do to the order (backend doc 8.37), from its `auto_processed` history
+ * entry: the action and the reason the button would have given.
+ */
+export function autoRefusals(payload: Record<string, unknown>): { action: AutoAction; message: string }[] {
+  const list: unknown[] = Array.isArray(payload.refused) ? payload.refused : [];
+  return list.flatMap((r) => {
+    const x = (r ?? {}) as { action?: unknown; message?: unknown };
+    const action = AUTO_ACTIONS.find((a) => a === x.action);
+    return action && typeof x.message === "string" ? [{ action, message: x.message }] : [];
+  });
+}

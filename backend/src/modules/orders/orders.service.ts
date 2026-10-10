@@ -16,7 +16,7 @@ import { channelDisplayName, isManualChannel, StoresService } from "../channel/s
 import { TenantsService } from "../identity/tenants.service";
 import { UsersService } from "../identity/users.service";
 import { InventoryService } from "../inventory/inventory.service";
-import { OrderIntakeService } from "./order-intake.service";
+import { actorOf, OrderIntakeService } from "./order-intake.service";
 import { MANUAL_CANCEL_REASONS, MOVABLE, SLA_WARNING_MS, warehouseFixed } from "./order-plan";
 import {
   cancelReasonInvalid,
@@ -49,6 +49,9 @@ export interface OrderView {
   problems: OrderProblemRow[];
   tags: OrderTagRef[];
 }
+
+/** The history entry of an automatic rule's run (backend doc 8.37); one per order. */
+export const AUTO_PROCESSED = "auto_processed";
 
 export interface ActionResult {
   id: string;
@@ -531,7 +534,7 @@ export class OrdersService {
         throw orderWarehouseNotFound("warehouseId");
       }
       if (warehouseId === o.warehouseId) return;
-      await this.intake.moveWarehouseIn(tx, ctx, o, warehouseId, { type: "user", id: ctx.actor.id });
+      await this.intake.moveWarehouseIn(tx, ctx, o, warehouseId, actorOf(ctx));
     });
   }
 
@@ -561,7 +564,7 @@ export class OrdersService {
             return { id, ok: false, code: "order.not_found", message: "Pesanan tidak ditemukan." };
           const why = await this.stepRefusalIn(tx, o, from);
           if (why) return { id, ok: false, ...why };
-          await this.intake.stepIn(tx, ctx, o, [{ to, via: "any" }], { type: "user", id: ctx.actor.id });
+          await this.intake.stepIn(tx, ctx, o, [{ to, via: "any" }], actorOf(ctx));
           return { id, ok: true };
         }),
       );
@@ -596,6 +599,28 @@ export class OrdersService {
     return null;
   }
 
+  /**
+   * A new order the automatic rules may act on (backend doc 8.37), with its open lines: a marketplace
+   * order the seller ships, still new (an order with an open problem is not), in a live store that works,
+   * and not acted on by a rule before. Null otherwise.
+   */
+  async autoCandidateIn(
+    tx: Tx,
+    orderId: string,
+  ): Promise<{ order: OrderRow; lines: { skuSnapshot: string; sku: string | null; units: number }[] } | null> {
+    const o = await this.repo.get(tx, orderId);
+    if (o?.status !== "new" || o.fulfillmentMode !== "seller" || isManualChannel(o.channel)) return null;
+    const store = (await this.stores.stockTargetsIn(tx, [o.storeId])).get(o.storeId);
+    if (!store?.usable || store.store.syncMode !== "live") return null;
+    if (await this.repo.hasEvent(tx, orderId, AUTO_PROCESSED)) return null;
+    return { order: o, lines: await this.repo.openLines(tx, orderId) };
+  }
+
+  /** What a rule did to the order, in its history, by the system (L04 "otomatis"). */
+  async recordAutoRunIn(tx: Tx, ctx: RequestContext, orderId: string, run: Record<string, unknown>): Promise<void> {
+    await this.intake.recordIn(tx, ctx, orderId, AUTO_PROCESSED, actorOf(ctx), run);
+  }
+
   /** Why "Tandai dikemas" would refuse this order now (packing by scan shows it before scanning items). */
   packRefusalIn(tx: Tx, o: OrderRow): Promise<{ code: string; message: string } | null> {
     return this.stepRefusalIn(tx, o, "ready_to_pack");
@@ -608,7 +633,7 @@ export class OrdersService {
   async packIn(tx: Tx, ctx: RequestContext, o: OrderRow, payload: Record<string, unknown>): Promise<OrderRow> {
     const why = await this.stepRefusalIn(tx, o, "ready_to_pack");
     if (why) throw new ConflictError(why.code, why.message);
-    return this.intake.stepIn(tx, ctx, o, [{ to: "packed", via: "any" }], { type: "user", id: ctx.actor.id }, payload);
+    return this.intake.stepIn(tx, ctx, o, [{ to: "packed", via: "any" }], actorOf(ctx), payload);
   }
 
   /** "Terima pesanan": new to ready to pack. */

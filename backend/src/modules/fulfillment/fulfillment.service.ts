@@ -12,7 +12,7 @@ import { isManualChannel, StoresService } from "../channel/stores.service";
 import { FilesService } from "../files/files.service";
 import { variantNotFound } from "../inventory/inventory.errors";
 import { InventoryService } from "../inventory/inventory.service";
-import { OrderIntakeService } from "../orders/order-intake.service";
+import { actorOf, OrderIntakeService } from "../orders/order-intake.service";
 import { type ActionResult, OrdersService, orderStatusLabel } from "../orders/orders.service";
 import { documentNotFound, trackingManual, trackingNotShipped } from "./fulfillment.errors";
 import {
@@ -151,7 +151,7 @@ export class FulfillmentService {
             shipmentId = row.id;
           }
           queued.push(shipmentId!);
-          await this.intake.recordIn(tx, ctx, id, "shipment_requested", { type: "user", id: ctx.actor.id }, { method });
+          await this.intake.recordIn(tx, ctx, id, "shipment_requested", actorOf(ctx), { method });
           results.set(id, { id, ok: true });
         }
         if (queued.length > 0) {

@@ -25,12 +25,14 @@ import {
   Users,
   UsersRound,
   Warehouse,
+  Zap,
 } from "lucide-react";
 import type { Permission } from "@/lib/session";
 
 type NavKey =
   | "overview"
   | "orders"
+  | "orderRules"
   | "shipping"
   | "returns"
   | "products"
@@ -84,6 +86,8 @@ export const NAV: readonly NavGroup[] = [
     key: "groupSales",
     items: [
       { key: "orders", href: "/pesanan", icon: ShoppingBag, permission: "order:read", ready: true },
+      // L55: rules that process new orders (backend doc 8.37), for whoever accepts orders
+      { key: "orderRules", href: "/pesanan/aturan", icon: Zap, permission: "order:accept", ready: true },
       {
         key: "shipping",
         href: "/pengiriman",

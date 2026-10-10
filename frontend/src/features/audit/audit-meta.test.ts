@@ -8,6 +8,7 @@ import {
   groupEntries,
   periodFrom,
   plainValue,
+  rulePhrases,
   shownChanges,
   TITLE_KEYS,
   titleKey,
@@ -127,6 +128,59 @@ describe("what an entry says", () => {
     );
     expect(weekValue([1, 2, 3], "tutup")).toBeNull();
     expect(AUDIT_KINDS.stores).toContain("courier_cutoff");
+  });
+
+  it("words an automatic rule's conditions and actions, counting what it names (backend doc 8.37)", () => {
+    expect(
+      rulePhrases("conditions", {
+        storeIds: ["S1", "S2"],
+        couriers: ["SPX"],
+        warehouseIds: [],
+        skus: ["KAOS-M"],
+        items: "single",
+        minTotal: 50_000,
+        maxTotal: null,
+        withinOperatingHours: true,
+      }),
+    ).toEqual([
+      { key: "rule_stores", values: { count: 2 } },
+      { key: "rule_couriers", values: { names: "SPX" } },
+      { key: "rule_skus", values: { skus: "KAOS-M" } },
+      { key: "rule_items_single", values: {} },
+      { key: "rule_min", values: { min: 50_000 } },
+      { key: "rule_hours", values: {} },
+    ]);
+    expect(rulePhrases("conditions", { items: "any" })).toEqual([{ key: "rule_any", values: {} }]);
+    expect(rulePhrases("actions", { warehouseId: "W1", tagIds: ["T1"], accept: true, arrange: "pickup" })).toEqual([
+      { key: "rule_moveWarehouse", values: {} },
+      { key: "rule_tags", values: { count: 1 } },
+      { key: "rule_pickup", values: {} },
+    ]);
+    expect(rulePhrases("actions", { accept: true, arrange: null })).toEqual([{ key: "rule_accept", values: {} }]);
+    expect(rulePhrases("actions", {})).toEqual([{ key: "rule_nothing", values: {} }]);
+    expect(rulePhrases("schedule", {})).toBeNull();
+    expect(AUDIT_KINDS.orders).toContain("order_rule");
+    expect(titleKey(entry({ entityType: "order_rule", change: "updated" }))).toBe("order_rule_updated");
+    for (const key of [
+      "rule_any",
+      "rule_stores",
+      "rule_couriers",
+      "rule_warehouses",
+      "rule_skus",
+      "rule_items_single",
+      "rule_items_multiple",
+      "rule_min",
+      "rule_max",
+      "rule_hours",
+      "rule_moveWarehouse",
+      "rule_tags",
+      "rule_accept",
+      "rule_pickup",
+      "rule_dropoff",
+      "rule_nothing",
+    ]) {
+      expect(messages.audit).toHaveProperty(key);
+    }
   });
 
   it("names what happened to a subscription and its invoices (backend doc 8.32)", () => {

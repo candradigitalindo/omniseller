@@ -1,3 +1,4 @@
+import { AUTOMATION_JOBS } from "../modules/automation/automation.jobs";
 import { BILLING_JOBS } from "../modules/billing/billing.jobs";
 import { BUSINESS_JOBS } from "../modules/business/business.jobs";
 import { CATALOG_JOBS } from "../modules/catalog/catalog.jobs";
@@ -67,6 +68,7 @@ export const JOB_DEFINITIONS: readonly JobDef[] = [
   ...LISTING_COPY_JOBS,
   ...INVENTORY_JOBS,
   ...ORDER_JOBS,
+  ...AUTOMATION_JOBS,
   ...FULFILLMENT_JOBS,
   ...RETURN_JOBS,
   ...EXPORT_JOBS,

@@ -58,6 +58,7 @@
         "users": 10
       },
       "extras": [
+        "Aturan proses otomatis",
         "Laporan kinerja staf",
         "Peran kustom"
       ],
@@ -75,6 +76,7 @@
         "users": null
       },
       "extras": [
+        "Aturan proses otomatis",
         "Laporan kinerja staf",
         "Peran kustom"
       ],

@@ -2244,6 +2244,54 @@ export interface paths {
     patch: operations["TagsController_update"];
     trace?: never;
   };
+  "/v1/order-rules": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["OrderRulesController_list"];
+    put?: never;
+    post: operations["OrderRulesController_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/order-rules/priority": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: operations["OrderRulesController_reorder"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/order-rules/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: operations["OrderRulesController_remove"];
+    options?: never;
+    head?: never;
+    patch: operations["OrderRulesController_update"];
+    trace?: never;
+  };
   "/v1/files/{id}/download": {
     parameters: {
       query?: never;
@@ -6715,6 +6763,145 @@ export interface components {
     UpdateTagDto: {
       name?: string;
       color?: string | null;
+    };
+    OrderRuleListDto_Output: {
+      items: {
+        id: string;
+        name: string;
+        /** @description 1 diperiksa lebih dulu */
+        priority: number;
+        active: boolean;
+        conditions: {
+          storeIds: string[];
+          couriers: string[];
+          warehouseIds: string[];
+          skus: string[];
+          /** @enum {string} */
+          items: "any" | "single" | "multiple";
+          minTotal: number | null;
+          maxTotal: number | null;
+          withinOperatingHours: boolean;
+        };
+        actions: {
+          warehouseId: string | null;
+          tagIds: string[];
+          accept: boolean;
+          arrange: ("pickup" | "dropoff") | null;
+        };
+        /** Format: date-time */
+        createdAt: string;
+        /** Format: date-time */
+        updatedAt: string;
+        rowVersion: number;
+      }[];
+      next_cursor: null;
+    };
+    CreateOrderRuleDto: {
+      name: string;
+      active?: boolean;
+      /** @description semua kondisi harus terpenuhi; yang kosong berarti apa saja */
+      conditions?: {
+        /** @description toko marketplace; kosong berarti semua toko */
+        storeIds?: string[];
+        /** @description nama kurir seperti di marketplace, misalnya J&T Express; kosong berarti semua kurir */
+        couriers?: string[];
+        /** @description gudang asal pesanan; kosong berarti semua gudang */
+        warehouseIds?: string[];
+        /** @description pesanan yang memuat salah satu SKU ini (SKU produk atau SKU di marketplace) */
+        skus?: string[];
+        /**
+         * @description jenis paket: single tepat satu barang, multiple dua barang atau lebih
+         * @enum {string}
+         */
+        items?: "any" | "single" | "multiple";
+        /** @description total pesanan paling sedikit, rupiah */
+        minTotal?: number | null;
+        /** @description total pesanan paling banyak, rupiah */
+        maxTotal?: number | null;
+        /** @description hanya selama jam operasional bisnis (L43) */
+        withinOperatingHours?: boolean;
+      };
+      /** @description dijalankan berurutan: gudang, tag, terima, atur pengiriman */
+      actions: {
+        /** @description pindahkan pesanan ke gudang ini */
+        warehouseId?: string | null;
+        /** @description beri tag ini */
+        tagIds?: string[];
+        /** @description terima pesanan */
+        accept?: boolean;
+        /** @description atur pengiriman dengan pickup atau drop-off; pesanan diterima sekaligus */
+        arrange?: ("pickup" | "dropoff") | null;
+      };
+    };
+    OrderRuleDto_Output: {
+      id: string;
+      name: string;
+      /** @description 1 diperiksa lebih dulu */
+      priority: number;
+      active: boolean;
+      conditions: {
+        storeIds: string[];
+        couriers: string[];
+        warehouseIds: string[];
+        skus: string[];
+        /** @enum {string} */
+        items: "any" | "single" | "multiple";
+        minTotal: number | null;
+        maxTotal: number | null;
+        withinOperatingHours: boolean;
+      };
+      actions: {
+        warehouseId: string | null;
+        tagIds: string[];
+        accept: boolean;
+        arrange: ("pickup" | "dropoff") | null;
+      };
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+      rowVersion: number;
+    };
+    ReorderOrderRulesDto: {
+      /** @description semua aturan yang Anda kelola, yang diperiksa lebih dulu di depan */
+      ids: string[];
+    };
+    UpdateOrderRuleDto: {
+      name?: string;
+      active?: boolean;
+      /** @description menggantikan semua kondisi */
+      conditions?: {
+        /** @description toko marketplace; kosong berarti semua toko */
+        storeIds?: string[];
+        /** @description nama kurir seperti di marketplace, misalnya J&T Express; kosong berarti semua kurir */
+        couriers?: string[];
+        /** @description gudang asal pesanan; kosong berarti semua gudang */
+        warehouseIds?: string[];
+        /** @description pesanan yang memuat salah satu SKU ini (SKU produk atau SKU di marketplace) */
+        skus?: string[];
+        /**
+         * @description jenis paket: single tepat satu barang, multiple dua barang atau lebih
+         * @enum {string}
+         */
+        items?: "any" | "single" | "multiple";
+        /** @description total pesanan paling sedikit, rupiah */
+        minTotal?: number | null;
+        /** @description total pesanan paling banyak, rupiah */
+        maxTotal?: number | null;
+        /** @description hanya selama jam operasional bisnis (L43) */
+        withinOperatingHours?: boolean;
+      };
+      /** @description menggantikan semua tindakan */
+      actions?: {
+        /** @description pindahkan pesanan ke gudang ini */
+        warehouseId?: string | null;
+        /** @description beri tag ini */
+        tagIds?: string[];
+        /** @description terima pesanan */
+        accept?: boolean;
+        /** @description atur pengiriman dengan pickup atau drop-off; pesanan diterima sekaligus */
+        arrange?: ("pickup" | "dropoff") | null;
+      };
     };
     ArrangeShipmentsDto: {
       orderIds: string[];
@@ -12697,6 +12884,115 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["TagDto_Output"];
+        };
+      };
+    };
+  };
+  OrderRulesController_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OrderRuleListDto_Output"];
+        };
+      };
+    };
+  };
+  OrderRulesController_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateOrderRuleDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OrderRuleDto_Output"];
+        };
+      };
+    };
+  };
+  OrderRulesController_reorder: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReorderOrderRulesDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OrderRuleListDto_Output"];
+        };
+      };
+    };
+  };
+  OrderRulesController_remove: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  OrderRulesController_update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateOrderRuleDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OrderRuleDto_Output"];
         };
       };
     };

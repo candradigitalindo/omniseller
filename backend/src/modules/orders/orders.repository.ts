@@ -282,6 +282,30 @@ export class OrdersRepository {
     return tx.select().from(orderEvent).where(eq(orderEvent.orderId, orderId)).orderBy(asc(orderEvent.id));
   }
 
+  /** Whether the order's history has an entry of this type. */
+  async hasEvent(tx: Tx, orderId: string, type: string): Promise<boolean> {
+    const [r] = await tx
+      .select({ id: orderEvent.id })
+      .from(orderEvent)
+      .where(and(eq(orderEvent.orderId, orderId), eq(orderEvent.type, type)))
+      .limit(1);
+    return !!r;
+  }
+
+  /** One order's open lines with their product's SKU when the listing is mapped (automatic rules). */
+  async openLines(tx: Tx, orderId: string): Promise<{ skuSnapshot: string; sku: string | null; units: number }[]> {
+    return tx
+      .select({
+        skuSnapshot: orderItem.skuSnapshot,
+        sku: catalogVariantV.sku,
+        units: sql<number>`(${orderItem.qty} - ${orderItem.cancelledQty})::int`,
+      })
+      .from(orderItem)
+      .leftJoin(catalogVariantV, eq(catalogVariantV.variantId, orderItem.variantId))
+      .where(and(eq(orderItem.orderId, orderId), sql`${orderItem.qty} > ${orderItem.cancelledQty}`))
+      .orderBy(asc(orderItem.id));
+  }
+
   /**
    * Seller orders still to ship whose ship-by alert is due (FR-SHP-10): 6 hours or less left without an
    * alert, or past the deadline without the overdue one. Locked, skipping rows another scan holds.

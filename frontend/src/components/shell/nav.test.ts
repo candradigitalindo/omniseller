@@ -70,6 +70,12 @@ describe("sidebar (DOKUMEN-UI-UX 7.1)", () => {
         .find((g) => g.key === "groupSettings")
         ?.items.map((i) => i.key),
     ).toEqual(["team", "printers", "notifications", "dataExport"]);
+    // automatic order rules belong to whoever accepts orders (backend doc 8.37)
+    expect(
+      visibleNav(holding("order:read", "order:accept"))
+        .find((g) => g.key === "groupSales")
+        ?.items.map((i) => i.key),
+    ).toEqual(["orders", "orderRules", "returns"]);
     // courier cut-offs and operating hours belong to whoever manages the warehouses
     expect(
       visibleNav(holding("settings:warehouse"))

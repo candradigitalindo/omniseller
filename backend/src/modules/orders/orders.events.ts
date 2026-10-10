@@ -16,6 +16,16 @@ export const orderPullRequested = defineEvent({
   }),
 });
 
+/**
+ * A marketplace order became the seller's to process (`new`, as it arrived or once paid), after the store's
+ * first import: the automatic rules look at it (FR-ORD-19, backend doc 8.37). The same moment as `notify_new`.
+ */
+export const orderNewArrived = defineEvent({
+  type: "order.new_arrived",
+  aggregate: "order",
+  schema: z.object({ orderId: ulidSchema }),
+});
+
 /** The seller cancels an order at the marketplace (FR-ORD-13). */
 export const orderCancelRequested = defineEvent({
   type: "order.cancel_requested",

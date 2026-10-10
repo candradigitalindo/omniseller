@@ -88,7 +88,7 @@ DO $$
 DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY['role', 'role_permission', 'user_role', 'user_store_scope', 'user_warehouse_scope',
-                           'channel_warehouse', 'stock_allocation_rule', 'warehouse']
+                           'channel_warehouse', 'stock_allocation_rule', 'warehouse', 'order_rule']
   LOOP
     PERFORM ensure_trigger(t::regclass, 'audit_trg',
       format('CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OR DELETE ON %I FOR EACH ROW EXECUTE FUNCTION audit_row()', t));

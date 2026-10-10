@@ -6667,6 +6667,165 @@
         }
       }
     },
+    "/v1/order-rules": {
+      "get": {
+        "operationId": "OrderRulesController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderRuleListDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "order-rules"
+        ],
+        "x-isolation": {
+          "fixture": "order_rule"
+        }
+      },
+      "post": {
+        "operationId": "OrderRulesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrderRuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderRuleDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "order-rules"
+        ],
+        "x-isolation": {
+          "fixture": "store"
+        }
+      }
+    },
+    "/v1/order-rules/priority": {
+      "put": {
+        "operationId": "OrderRulesController_reorder",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderOrderRulesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderRuleListDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "order-rules"
+        ],
+        "x-isolation": {
+          "fixture": "order_rule"
+        }
+      }
+    },
+    "/v1/order-rules/{id}": {
+      "patch": {
+        "operationId": "OrderRulesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrderRuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderRuleDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "order-rules"
+        ],
+        "x-isolation": {
+          "fixture": "order_rule"
+        }
+      },
+      "delete": {
+        "operationId": "OrderRulesController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "order-rules"
+        ],
+        "x-isolation": {
+          "fixture": "order_rule"
+        }
+      }
+    },
     "/v1/files/{id}/download": {
       "get": {
         "operationId": "FilesController_download",
@@ -25985,6 +26144,656 @@
                 "type": "null"
               }
             ]
+          }
+        }
+      },
+      "OrderRuleListDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "priority": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "1 diperiksa lebih dulu"
+                },
+                "active": {
+                  "type": "boolean"
+                },
+                "conditions": {
+                  "type": "object",
+                  "properties": {
+                    "storeIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "couriers": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "warehouseIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "skus": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "any",
+                        "single",
+                        "multiple"
+                      ]
+                    },
+                    "minTotal": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "maxTotal": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "withinOperatingHours": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "storeIds",
+                    "couriers",
+                    "warehouseIds",
+                    "skus",
+                    "items",
+                    "minTotal",
+                    "maxTotal",
+                    "withinOperatingHours"
+                  ],
+                  "additionalProperties": false
+                },
+                "actions": {
+                  "type": "object",
+                  "properties": {
+                    "warehouseId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "tagIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "accept": {
+                      "type": "boolean"
+                    },
+                    "arrange": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "pickup",
+                            "dropoff"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "warehouseId",
+                    "tagIds",
+                    "accept",
+                    "arrange"
+                  ],
+                  "additionalProperties": false
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "rowVersion": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "priority",
+                "active",
+                "conditions",
+                "actions",
+                "createdAt",
+                "updatedAt",
+                "rowVersion"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "next_cursor": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "CreateOrderRuleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "conditions": {
+            "type": "object",
+            "properties": {
+              "storeIds": {
+                "description": "toko marketplace; kosong berarti semua toko",
+                "maxItems": 50,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                }
+              },
+              "couriers": {
+                "description": "nama kurir seperti di marketplace, misalnya J&T Express; kosong berarti semua kurir",
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60
+                }
+              },
+              "warehouseIds": {
+                "description": "gudang asal pesanan; kosong berarti semua gudang",
+                "maxItems": 50,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                }
+              },
+              "skus": {
+                "description": "pesanan yang memuat salah satu SKU ini (SKU produk atau SKU di marketplace)",
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                }
+              },
+              "items": {
+                "description": "jenis paket: single tepat satu barang, multiple dua barang atau lebih",
+                "type": "string",
+                "enum": [
+                  "any",
+                  "single",
+                  "multiple"
+                ]
+              },
+              "minTotal": {
+                "description": "total pesanan paling sedikit, rupiah",
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "maxTotal": {
+                "description": "total pesanan paling banyak, rupiah",
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "withinOperatingHours": {
+                "description": "hanya selama jam operasional bisnis (L43)",
+                "type": "boolean"
+              }
+            },
+            "description": "semua kondisi harus terpenuhi; yang kosong berarti apa saja"
+          },
+          "actions": {
+            "type": "object",
+            "properties": {
+              "warehouseId": {
+                "description": "pindahkan pesanan ke gudang ini",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "tagIds": {
+                "description": "beri tag ini",
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                }
+              },
+              "accept": {
+                "description": "terima pesanan",
+                "type": "boolean"
+              },
+              "arrange": {
+                "description": "atur pengiriman dengan pickup atau drop-off; pesanan diterima sekaligus",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "pickup",
+                      "dropoff"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "description": "dijalankan berurutan: gudang, tag, terima, atur pengiriman"
+          }
+        },
+        "required": [
+          "name",
+          "actions"
+        ]
+      },
+      "OrderRuleDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "1 diperiksa lebih dulu"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "conditions": {
+            "type": "object",
+            "properties": {
+              "storeIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "couriers": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "warehouseIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "skus": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "items": {
+                "type": "string",
+                "enum": [
+                  "any",
+                  "single",
+                  "multiple"
+                ]
+              },
+              "minTotal": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "maxTotal": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "withinOperatingHours": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "storeIds",
+              "couriers",
+              "warehouseIds",
+              "skus",
+              "items",
+              "minTotal",
+              "maxTotal",
+              "withinOperatingHours"
+            ],
+            "additionalProperties": false
+          },
+          "actions": {
+            "type": "object",
+            "properties": {
+              "warehouseId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "tagIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "accept": {
+                "type": "boolean"
+              },
+              "arrange": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "pickup",
+                      "dropoff"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "warehouseId",
+              "tagIds",
+              "accept",
+              "arrange"
+            ],
+            "additionalProperties": false
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "rowVersion": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "priority",
+          "active",
+          "conditions",
+          "actions",
+          "createdAt",
+          "updatedAt",
+          "rowVersion"
+        ],
+        "additionalProperties": false
+      },
+      "ReorderOrderRulesDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "minItems": 1,
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+            },
+            "description": "semua aturan yang Anda kelola, yang diperiksa lebih dulu di depan"
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "UpdateOrderRuleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "conditions": {
+            "description": "menggantikan semua kondisi",
+            "type": "object",
+            "properties": {
+              "storeIds": {
+                "description": "toko marketplace; kosong berarti semua toko",
+                "maxItems": 50,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                }
+              },
+              "couriers": {
+                "description": "nama kurir seperti di marketplace, misalnya J&T Express; kosong berarti semua kurir",
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60
+                }
+              },
+              "warehouseIds": {
+                "description": "gudang asal pesanan; kosong berarti semua gudang",
+                "maxItems": 50,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                }
+              },
+              "skus": {
+                "description": "pesanan yang memuat salah satu SKU ini (SKU produk atau SKU di marketplace)",
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                }
+              },
+              "items": {
+                "description": "jenis paket: single tepat satu barang, multiple dua barang atau lebih",
+                "type": "string",
+                "enum": [
+                  "any",
+                  "single",
+                  "multiple"
+                ]
+              },
+              "minTotal": {
+                "description": "total pesanan paling sedikit, rupiah",
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "maxTotal": {
+                "description": "total pesanan paling banyak, rupiah",
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "withinOperatingHours": {
+                "description": "hanya selama jam operasional bisnis (L43)",
+                "type": "boolean"
+              }
+            }
+          },
+          "actions": {
+            "description": "menggantikan semua tindakan",
+            "type": "object",
+            "properties": {
+              "warehouseId": {
+                "description": "pindahkan pesanan ke gudang ini",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "tagIds": {
+                "description": "beri tag ini",
+                "maxItems": 10,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                }
+              },
+              "accept": {
+                "description": "terima pesanan",
+                "type": "boolean"
+              },
+              "arrange": {
+                "description": "atur pengiriman dengan pickup atau drop-off; pesanan diterima sekaligus",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "pickup",
+                      "dropoff"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
           }
         }
       },

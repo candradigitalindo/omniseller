@@ -9,6 +9,7 @@ import type { Env } from "./config/env.schema";
 import { InfraModule } from "./infra/infra.module";
 import { AuditHttpModule } from "./modules/audit/audit-http.module";
 import { AuthHttpModule, AuthModule } from "./modules/auth/auth.module";
+import { AutomationHttpModule, AutomationModule } from "./modules/automation/automation.module";
 import {
   BillingHttpModule,
   BillingModule,
@@ -112,6 +113,7 @@ export class AppModule {
             CatalogHttpModule,
             ListingCopyHttpModule,
             OrdersHttpModule,
+            AutomationHttpModule,
             FilesModule.forEnv(env),
             FilesHttpModule,
             FulfillmentHttpModule,
@@ -163,6 +165,7 @@ export class AppModule {
             FilesModule.forEnv(env),
             FulfillmentModule,
             FulfillmentWorkerModule,
+            AutomationModule,
             ReturnsModule,
             ReturnsWorkerModule,
             ExportsWorkerModule,

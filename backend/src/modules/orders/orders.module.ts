@@ -25,6 +25,7 @@ const SERVICES = [
   OrderIntakeService,
   OrdersService,
   ManualOrdersService,
+  TagsService,
 ];
 
 /** Orders (api and worker): the queue, one order, seller actions, and marketplace intake (metered by billing). */
@@ -46,7 +47,6 @@ export class OrdersWorkerModule {}
 /** Api only: the order endpoints, manual orders' among them (FR-ORD-09), and tags (FR-ORD-04). */
 @Module({
   imports: [OrdersModule, ChannelModule, InventoryModule, IdentityModule],
-  providers: [TagsService],
   controllers: [OrdersController, TagsController],
 })
 export class OrdersHttpModule {}

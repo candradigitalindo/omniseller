@@ -55,7 +55,7 @@ export function testMe(permissions: Permission[] = ALL_PERMISSIONS): Me {
       status: "active",
     },
     // a new business's trial of Growth
-    plan: { code: "growth", name: "Growth", features: ["staff_report", "custom_roles"] },
+    plan: { code: "growth", name: "Growth", features: ["auto_process", "staff_report", "custom_roles"] },
     permissions,
     roles: [{ id: "01JROLE0000000000000000000", name: "Pemilik" }],
     storeScope: null,

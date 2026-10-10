@@ -1,9 +1,10 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { newId } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
-import type { DbHandle } from "../../db/client";
+import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
+import { actorOf } from "./order-intake.service";
 import { tagDuplicate, tagLimit, tagNotFound, tagsUnknown } from "./orders.errors";
 import { OrdersRepository } from "./orders.repository";
 import { OrdersService } from "./orders.service";
@@ -33,6 +34,11 @@ export class TagsService {
 
   list(ctx: RequestContext): Promise<(TagRow & { orders: number })[]> {
     return withTenantTx(this.db, ctx, (tx) => this.repo.list(tx));
+  }
+
+  /** Tags of these ids that still exist, in the caller's transaction (automatic rules, backend doc 8.37). */
+  liveIn(tx: Tx, ids: string[]): Promise<TagRow[]> {
+    return this.repo.byIds(tx, [...new Set(ids)]);
   }
 
   async create(ctx: RequestContext, input: { name: string; color?: string | null | undefined }): Promise<TagRow> {
@@ -101,6 +107,7 @@ export class TagsService {
       );
       const names = (pairs: { orderId: string; tagId: string }[], orderId: string) =>
         pairs.filter((p) => p.orderId === orderId).map((p) => found.get(p.tagId)!.name);
+      const actor = actorOf(ctx);
       await this.orderRepo.insertEvents(
         tx,
         orderIds
@@ -111,8 +118,8 @@ export class TagsService {
             tenantId: ctx.tenantId,
             orderId: c.orderId,
             type: "tags_changed",
-            actorType: "user" as const,
-            actorId: ctx.actor.id,
+            actorType: actor.type,
+            actorId: actor.id,
             payload: { added: c.added, removed: c.removed },
           })),
       );

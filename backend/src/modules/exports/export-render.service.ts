@@ -8,6 +8,7 @@ import type { ExportLookups, ExportSheet } from "../../common/export-sheet";
 import type { DbHandle } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
+import { OrderRulesService } from "../automation/order-rules.service";
 import { BillingService } from "../billing/billing.service";
 import { BusinessProfileService } from "../business/business-profile.service";
 import { CourierCalendarService } from "../campaign/courier-calendar.service";
@@ -76,6 +77,7 @@ export class ExportRenderService {
     @Inject(BusinessProfileService) private readonly business: BusinessProfileService,
     @Inject(CourierCalendarService) private readonly courierCalendar: CourierCalendarService,
     @Inject(BillingService) private readonly billing: BillingService,
+    @Inject(OrderRulesService) private readonly orderRules: OrderRulesService,
   ) {}
 
   /** Every sheet, in ZIP order: the business's setup, the catalog, stock, then orders. */
@@ -94,6 +96,7 @@ export class ExportRenderService {
       ...this.stockCounts.exportSheets(),
       ...this.stockTransfers.exportSheets(),
       ...this.orders.exportSheets(),
+      ...this.orderRules.exportSheets(),
       ...this.fulfillment.exportSheets(),
       ...this.handovers.exportSheets(),
       ...this.returns.exportSheets(),

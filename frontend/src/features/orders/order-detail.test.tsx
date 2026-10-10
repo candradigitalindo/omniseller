@@ -100,6 +100,18 @@ describe("OrderDetailSheet", () => {
         order({
           events: [
             event("created", { actorType: "marketplace", actorId: null, actorName: null }),
+            // an automatic rule (backend doc 8.37): its name, and what it could not do with the reason
+            event("auto_processed", {
+              actorType: "system",
+              actorId: null,
+              actorName: null,
+              payload: {
+                ruleId: "01JRULE0000000000000000001",
+                rule: "SPX satuan",
+                done: ["tags"],
+                refused: [{ action: "arrange", code: "store.read_only", message: "Toko masih mode baca saja." }],
+              },
+            }),
             event("shipment_requested", { actorName: "Rina Wulandari" }),
             event("pick_list_printed"),
             event("status_changed", { fromStatus: "ready_to_pack", toStatus: "packed" }),
@@ -128,8 +140,12 @@ describe("OrderDetailSheet", () => {
       ["Status: Siap Dikemas → Dikemas", "oleh Budi Santoso"],
       ["Masuk pick list yang dicetak", "oleh Budi Santoso"],
       ["Atur kirim diminta", "oleh Rina Wulandari"],
+      ['Diproses aturan otomatis "SPX satuan"', "otomatis"],
       ["Pesanan masuk", "dari marketplace"],
     ]);
+    expect(
+      within(history).getByText("Tidak dijalankan: atur pengiriman (Toko masih mode baca saja.)"),
+    ).toBeInTheDocument();
   });
 
   it("offers no seller step for a store still in parallel mode", async () => {

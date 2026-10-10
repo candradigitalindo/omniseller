@@ -10,6 +10,7 @@ Bagian pertama modul kampanye (PRD 6.14): cut-off kurir per gudang, hari libur k
 ## Service publik
 - `CourierCalendarService` (api dan worker):
   - `calendarIn(tx, ctx)`: apa yang dipakai menghitung batas internal (cut-off aktif, libur dari 60 hari lalu sampai 32 hari ke depan, minggu biasa, periode khusus); `null` bila bisnis tidak punya cut-off aktif.
+  - `businessHoursIn(tx, ctx)`: jam operasional bisnis (zona waktu, minggu biasa, periode khusus) untuk aturan otomatis yang hanya berjalan selama jam buka (modul automation, backend doc 8.37); `null` bila tidak ada jam yang diatur.
   - `cutoffs | addCutoff | updateCutoff (If-Match) | removeCutoff`, `holidays | addHoliday | removeHoliday`, `hours | setWeek | removeWeek | addPeriod | updatePeriod | removePeriod`, `exportSheets`.
   - Error: `courier_cutoff.not_found`, `courier_cutoff.duplicate`, `courier_holiday.not_found`, `courier_holiday.duplicate`, `operating_hours.not_found`, `operating_hours.overlap`, validasi `warehouseId`, `schedule`, `to`, `row.stale`.
 - `cutoff-plan.ts` (murni): `sameCourier`, `cutoffFor`, `hoursOn`, `internalDeadline`, `internalSlaOf`, `weekProblem`, `addDays`, `weekdayOf`, `minutesOf`.

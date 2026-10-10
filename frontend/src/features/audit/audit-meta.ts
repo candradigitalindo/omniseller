@@ -10,7 +10,7 @@ export type AuditChange = AuditEntry["changes"][number];
 export const AUDIT_KINDS = {
   catalog: ["product", "variant", "channel_listing", "listing_copy", "listing_draft"],
   stock: ["stock_movement", "stock_count", "stock_transfer", "stock_allocation_rule"],
-  orders: ["order_event", "return_request", "handover"],
+  orders: ["order_event", "order_rule", "return_request", "handover"],
   access: ["user", "user_role", "user_store_scope", "user_warehouse_scope", "role", "role_permission"],
   stores: ["store", "channel_warehouse", "warehouse", "device", "courier_cutoff", "courier_holiday", "operating_hours"],
   data: ["data_export", "migration_job", "store_cutover"],
@@ -134,6 +134,9 @@ export const TITLE_KEYS = [
   "operating_hours_created",
   "operating_hours_updated",
   "operating_hours_deleted",
+  "order_rule_created",
+  "order_rule_updated",
+  "order_rule_deleted",
   "business_profile_created",
   "business_profile_updated",
   "business_document_created",
@@ -262,6 +265,8 @@ export const AUDIT_FIELDS = [
   "paidAmount",
   "paymentMethod",
   "paymentChannel",
+  "conditions",
+  "actions",
 ] as const;
 export type AuditFieldName = (typeof AUDIT_FIELDS)[number];
 
@@ -439,6 +444,54 @@ export function weekValue(value: unknown, closed: string): string | null {
     } else return null;
   }
   return parts.join(", ");
+}
+
+/** Phrases of an automatic rule (backend doc 8.37) under `audit.rule_*`; ids are counted, not named. */
+export type RuleWord =
+  | "rule_any"
+  | "rule_stores"
+  | "rule_couriers"
+  | "rule_warehouses"
+  | "rule_skus"
+  | "rule_items_single"
+  | "rule_items_multiple"
+  | "rule_min"
+  | "rule_max"
+  | "rule_hours"
+  | "rule_moveWarehouse"
+  | "rule_tags"
+  | "rule_accept"
+  | "rule_pickup"
+  | "rule_dropoff"
+  | "rule_nothing";
+
+/** An automatic rule's `conditions` or `actions` as the log words them; null for anything else. */
+export function rulePhrases(
+  field: string,
+  value: unknown,
+): { key: RuleWord; values: Record<string, string | number> }[] | null {
+  if ((field !== "conditions" && field !== "actions") || !value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  const list = (x: unknown) => (Array.isArray(x) ? x.filter((i): i is string => typeof i === "string") : []);
+  const out: { key: RuleWord; values: Record<string, string | number> }[] = [];
+  if (field === "conditions") {
+    if (list(v.storeIds).length) out.push({ key: "rule_stores", values: { count: list(v.storeIds).length } });
+    if (list(v.couriers).length) out.push({ key: "rule_couriers", values: { names: list(v.couriers).join(", ") } });
+    if (list(v.warehouseIds).length) {
+      out.push({ key: "rule_warehouses", values: { count: list(v.warehouseIds).length } });
+    }
+    if (list(v.skus).length) out.push({ key: "rule_skus", values: { skus: list(v.skus).join(", ") } });
+    if (v.items === "single" || v.items === "multiple") out.push({ key: `rule_items_${v.items}`, values: {} });
+    if (typeof v.minTotal === "number") out.push({ key: "rule_min", values: { min: v.minTotal } });
+    if (typeof v.maxTotal === "number") out.push({ key: "rule_max", values: { max: v.maxTotal } });
+    if (v.withinOperatingHours === true) out.push({ key: "rule_hours", values: {} });
+    return out.length > 0 ? out : [{ key: "rule_any", values: {} }];
+  }
+  if (typeof v.warehouseId === "string") out.push({ key: "rule_moveWarehouse", values: {} });
+  if (list(v.tagIds).length) out.push({ key: "rule_tags", values: { count: list(v.tagIds).length } });
+  if (v.arrange === "pickup" || v.arrange === "dropoff") out.push({ key: `rule_${v.arrange}`, values: {} });
+  else if (v.accept === true) out.push({ key: "rule_accept", values: {} });
+  return out.length > 0 ? out : [{ key: "rule_nothing", values: {} }];
 }
 
 const ADDRESS_PARTS = ["line1", "district", "city", "province", "postalCode"];

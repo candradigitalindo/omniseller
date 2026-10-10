@@ -65,6 +65,13 @@ const checkWeek = (week: WeekSchedule) => {
   const problem = weekProblem(week);
   if (problem) throw weekInvalid(WEEK_MESSAGES[problem] ?? problem);
 };
+/** The default week and the special periods of `operating_hours` rows. */
+const weekAndPeriods = (hours: OperatingHoursRow[]): Pick<CourierCalendarInput, "week" | "periods"> => ({
+  week: hours.find((h) => h.isDefault)?.schedule ?? null,
+  periods: hours
+    .filter((h) => !h.isDefault && h.validFrom && h.validTo)
+    .map((h) => ({ from: h.validFrom!, to: h.validTo!, schedule: h.schedule })),
+});
 /** "J&T  Express " typed as "J&T Express". */
 const cleanName = (name: string) => name.trim().replace(/\s+/g, " ");
 const sortDays = (days: number[]) => [...new Set(days)].sort((a, b) => a - b);
@@ -95,8 +102,6 @@ export class CourierCalendarService {
     const { timezone } = await this.tenants.profileIn(tx, ctx);
     const today = localDate(timezone, new Date());
     const holidays = await this.repo.holidays(tx, addDays(today, -HOLIDAYS_BACK), addDays(today, SEARCH_DAYS + 1));
-    const hours = await this.repo.hours(tx);
-    const week = hours.find((h) => h.isDefault);
     return {
       timezone,
       cutoffs: cutoffs.map((c) => ({
@@ -106,11 +111,22 @@ export class CourierCalendarService {
         days: c.daysOfWeek,
       })),
       holidays: holidays.map((h) => ({ date: h.holidayDate, courier: h.courier })),
-      week: week?.schedule ?? null,
-      periods: hours
-        .filter((h) => !h.isDefault && h.validFrom && h.validTo)
-        .map((h) => ({ from: h.validFrom!, to: h.validTo!, schedule: h.schedule })),
+      ...weekAndPeriods(await this.repo.hours(tx)),
     };
+  }
+
+  /**
+   * The business's operating hours in the caller's transaction, for automatic order rules that act only
+   * while it is open (FR-CMP-06, backend doc 8.37); null when it set none.
+   */
+  async businessHoursIn(
+    tx: Tx,
+    ctx: RequestContext,
+  ): Promise<Pick<CourierCalendarInput, "timezone" | "week" | "periods"> | null> {
+    const hours = await this.repo.hours(tx);
+    if (hours.length === 0) return null;
+    const { timezone } = await this.tenants.profileIn(tx, ctx);
+    return { timezone, ...weekAndPeriods(hours) };
   }
 
   // ---- cut-offs ----

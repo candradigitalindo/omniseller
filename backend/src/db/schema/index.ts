@@ -1,4 +1,5 @@
 export * from "./audit";
+export * from "./automation";
 export * from "./billing";
 export * from "./business";
 export * from "./campaign";

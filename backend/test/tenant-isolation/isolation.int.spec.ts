@@ -59,6 +59,14 @@ const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: s
   InvitationsController_create: ({ a: ids }) => ({ email: uniqueEmail("x"), roleId: ids.role! }),
   RolesController_update: () => ({ name: "Penyusup" }),
   RolesController_remove: () => ({}),
+  OrderRulesController_create: ({ a: ids }) => ({
+    name: "Penyusup",
+    conditions: { storeIds: [ids.store!] },
+    actions: { tagIds: [ids.tag!] },
+  }),
+  OrderRulesController_reorder: ({ a: ids }) => ({ ids: [ids.order_rule!] }),
+  OrderRulesController_update: () => ({ name: "Penyusup", active: false }),
+  OrderRulesController_remove: () => ({}),
   InvitationsController_resend: () => ({}),
   InvitationsController_revoke: () => ({}),
   StoreAuthorizationsController_start: ({ a: ids }) => ({ channel: "shopee", storeId: ids.store! }),
@@ -437,6 +445,14 @@ beforeAll(async () => {
   expect(tag.status).toBe(201);
   fixtures.tag = { id: tag.body.id };
   expect((await a.c.post("/v1/orders/tags", { orderIds: [fixtures.order!.id], add: [tag.body.id] })).status).toBe(200);
+  // a rule of tenant A that tags its Shopee orders (backend doc 8.37)
+  const orderRule = await a.c.post("/v1/order-rules", {
+    name: "Tag Toko Utama",
+    conditions: { storeIds: [fixtures.store!.id] },
+    actions: { tagIds: [tag.body.id] },
+  });
+  expect(orderRule.status, JSON.stringify(orderRule.body)).toBe(201);
+  fixtures.order_rule = { id: orderRule.body.id };
   const started = await a.c.post("/v1/store-authorizations", { channel: "shopee" });
   expect(started.status).toBe(201);
   fixtures.store_authorization = { id: started.body.id };
@@ -608,6 +624,9 @@ describe("tenant isolation generated from openapi.json", () => {
     expect(order.tags).toEqual([{ id: fixtures.tag!.id, name: "Prioritas A", color: "#1E6B8C" }]);
     expect((await a.c.get("/v1/tags")).body.items).toEqual([
       { id: fixtures.tag!.id, name: "Prioritas A", color: "#1E6B8C", orders: 1 },
+    ]);
+    expect((await a.c.get("/v1/order-rules")).body.items).toMatchObject([
+      { id: fixtures.order_rule!.id, name: "Tag Toko Utama", active: true, priority: 1 },
     ]);
     expect((await a.c.get(`/v1/warehouses/${fixtures.warehouse!.id}`)).body).toMatchObject({
       name: "Gudang Utama",

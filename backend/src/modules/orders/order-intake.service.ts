@@ -28,6 +28,7 @@ import {
 import {
   orderCancelledAfterShipping,
   orderCancelRequestChanged,
+  orderNewArrived,
   orderReturnStarted,
   orderStatusChanged,
 } from "./orders.events";
@@ -48,6 +49,14 @@ interface Placement {
 }
 
 export type Actor = { type: "marketplace" | "user" | "system"; id: string | null };
+
+/**
+ * Who acts for a request in the order history: its user, or the system for a job working for the business
+ * (automatic rules, backend doc 8.37), whose context names no user.
+ */
+export function actorOf(ctx: RequestContext): Actor {
+  return ctx.actor.type === "user" ? { type: "user", id: ctx.actor.id } : { type: "system", id: null };
+}
 
 const MARKETPLACE: Actor = { type: "marketplace", id: null };
 /** History entries per insert: a few parameters each, well under Postgres's 65,535 per statement. */
@@ -153,19 +162,19 @@ export class OrderIntakeService {
     let current = o;
     for (const step of steps) {
       const at = new Date();
+      // paid now: a new order for the seller (FR-NTF-01); manual orders were typed in by the team
+      const arrives =
+        step.to === "new" &&
+        current.status === "unpaid" &&
+        current.fulfillmentMode === "seller" &&
+        current.channel !== "manual";
       const patch = {
         status: step.to,
         ...(step.to === "completed" && !current.completedAt ? { completedAt: at } : {}),
         ...(step.to === "cancelled" && !current.cancelledAt ? { cancelledAt: at } : {}),
         ...(step.to === "shipped" && !current.shippedAt ? { shippedAt: at } : {}),
         ...(step.to === "delivered" && !current.deliveredAt ? { deliveredAt: at } : {}),
-        // paid now: a new order for the seller (FR-NTF-01); manual orders were typed in by the team
-        ...(step.to === "new" &&
-        current.status === "unpaid" &&
-        current.fulfillmentMode === "seller" &&
-        current.channel !== "manual"
-          ? { notifyNew: true }
-          : {}),
+        ...(arrives ? { notifyNew: true } : {}),
       };
       const write = () => this.repo.update(tx, current.id, patch);
       if (step.via === "marketplace" || actor.type === "marketplace") await withStatusSource(tx, "marketplace", write);
@@ -182,6 +191,8 @@ export class OrderIntakeService {
         { orderId: current.id, from: current.status, to: step.to, actorType: actor.type, actorId: actor.id },
         current.id,
       );
+      // the automatic rules look at it (FR-ORD-19, backend doc 8.37)
+      if (arrives) await this.outbox.enqueue(tx, ctx, orderNewArrived, { orderId: current.id }, current.id);
       // the returns module follows (backend doc 8.26): a return the marketplace started is read at once,
       // and the parcel of an order cancelled after it shipped is expected back
       if (step.to === "return_in_progress" && actor.type === "marketplace") {
@@ -396,6 +407,8 @@ export class OrderIntakeService {
           for (const [line, place] of placements) placements.set(line, { ...place, warehouseId: a.warehouseId });
         }
       }
+      // the 90-day import is history, not news: only orders after it are announced (FR-NTF-01)
+      const arrives = fulfillment === "seller" && status === "new" && store.lastOrderSyncAt !== null;
       await this.repo.insertOrder(tx, {
         id,
         tenantId: ctx.tenantId,
@@ -408,12 +421,13 @@ export class OrderIntakeService {
         warehouseId: allocation?.warehouseId ?? orderPlace.warehouseId,
         orderedAt: snap.createdAt,
         completedAt: status === "completed" ? snap.updatedAt : null,
-        // the 90-day import is history, not news: only orders after it are announced (FR-NTF-01)
-        notifyNew: fulfillment === "seller" && status === "new" && store.lastOrderSyncAt !== null,
+        notifyNew: arrives,
         source: meta.source,
         rawPayloadRef: meta.rawRef ?? null,
         ...fields,
       });
+      // the automatic rules look at it (FR-ORD-19, backend doc 8.37)
+      if (arrives) await this.outbox.enqueue(tx, ctx, orderNewArrived, { orderId: id }, id);
       // every order counts towards the month's quota (backend doc 8.32); none is refused for it
       await this.usage.countIn(tx, ctx, "orders", snap.createdAt);
       await this.repo.insertRef(tx, {

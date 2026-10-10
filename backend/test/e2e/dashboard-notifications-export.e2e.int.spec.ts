@@ -582,6 +582,7 @@ describe("full data export (FR-MIG-09) and the audit of sensitive actions (FR-US
       "transfer_stok_baris.csv",
       "pesanan.csv",
       "item_pesanan.csv",
+      "aturan_otomatis.csv",
       "pengiriman.csv",
       "serah_terima.csv",
       "retur.csv",

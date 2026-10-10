@@ -38,6 +38,7 @@ import {
   periodFrom,
   periodOf,
   plainValue,
+  rulePhrases,
   shownChanges,
   titleKey,
   valueKey,
@@ -297,6 +298,19 @@ function useValueText() {
     if (field === "daysOfWeek") return daysValue(value) ?? plainValue(value);
     if (field === "cutoffTime" && typeof value === "string") return value.slice(0, 5).replace(":", ".");
     if (field === "schedule") return weekValue(value, t("closedDay")) ?? plainValue(value);
+    // an automatic rule's conditions and actions (backend doc 8.37) as short phrases
+    const rule = entityType === "order_rule" ? rulePhrases(field, value) : null;
+    if (rule) {
+      return rule
+        .map((p) =>
+          t(p.key, {
+            ...p.values,
+            ...(typeof p.values.min === "number" ? { min: formatRupiah(p.values.min) } : {}),
+            ...(typeof p.values.max === "number" ? { max: formatRupiah(p.values.max) } : {}),
+          }),
+        )
+        .join(" · ");
+    }
     if (typeof value === "number") {
       if (MONEY_FIELDS.has(field)) return formatRupiah(value);
       if (DELTA_FIELDS.has(field) && value > 0) return `+${formatNumber(value)}`;

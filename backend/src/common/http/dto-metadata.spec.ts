@@ -4,6 +4,7 @@ import { RouteParamtypes } from "@nestjs/common/enums/route-paramtypes.enum";
 import { describe, expect, it } from "vitest";
 import { AuditController } from "../../modules/audit/audit.controller";
 import { AuthController } from "../../modules/auth/auth.controller";
+import { OrderRulesController } from "../../modules/automation/automation.controller";
 import { ListingsController, ProductsController } from "../../modules/catalog/catalog.controllers";
 import {
   ChannelsController,
@@ -91,6 +92,7 @@ const CONTROLLERS = [
   ReturnsController,
   StockCountsController,
   StockTransfersController,
+  OrderRulesController,
 ];
 
 /** Same test nestjs-zod's pipe applies (its helper is not exported from the package root). */

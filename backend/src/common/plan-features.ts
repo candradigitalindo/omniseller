@@ -6,7 +6,11 @@ import { UnprocessableError } from "./errors/domain-errors";
  * as quotas are checked. What a business made while its plan had a feature stays usable after it moves
  * down; it only cannot be made, changed, or handed to someone new.
  */
-export const PLAN_FEATURES = { staff_report: "Laporan kinerja staf", custom_roles: "Peran kustom" } as const;
+export const PLAN_FEATURES = {
+  auto_process: "Aturan proses otomatis",
+  staff_report: "Laporan kinerja staf",
+  custom_roles: "Peran kustom",
+} as const;
 export type PlanFeature = keyof typeof PLAN_FEATURES;
 
 interface PlanLike {

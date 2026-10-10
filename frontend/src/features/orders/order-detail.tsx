@@ -57,6 +57,7 @@ import { DeadlinePill } from "./deadline-pill";
 import {
   ARRANGEABLE,
   addressLines,
+  autoRefusals,
   canCancel,
   MOVABLE,
   ORDER_STEPS,
@@ -363,6 +364,15 @@ function OrderDetailContent({ order: o }: { order: OrderDetail }) {
             {[...o.events].reverse().map((e) => (
               <li key={e.id} className="grid gap-0.5 border-l-2 border-border pl-3">
                 <span className="text-sm text-text-900">{eventText(e, t)}</span>
+                {e.type === "auto_processed" && autoRefusals(e.payload).length > 0 ? (
+                  <span className="text-[13px] text-text-700">
+                    {t("event_auto_refused", {
+                      reasons: autoRefusals(e.payload)
+                        .map((r) => `${t(`auto_action_${r.action}`)} (${r.message})`)
+                        .join("; "),
+                    })}
+                  </span>
+                ) : null}
                 <span className="text-[13px] text-text-500">
                   {formatDateTime(e.createdAt, tz)} ·{" "}
                   {e.actorName
@@ -1107,6 +1117,9 @@ function eventText(e: OrderEvent, t: ReturnType<typeof useTranslations<"orders">
     case "problem_added":
     case "problem_resolved":
       return t(`event_${e.type}`, { problem: code && isProblemCode(code) ? t(`problem_${code}`) : (code ?? "—") });
+    // an automatic rule acted (backend doc 8.37); its steps follow as their own entries
+    case "auto_processed":
+      return t("event_auto_processed", { rule: typeof e.payload.rule === "string" ? e.payload.rule : "—" });
     default:
       return isNamedEvent(e.type)
         ? t(`event_${e.type}`)

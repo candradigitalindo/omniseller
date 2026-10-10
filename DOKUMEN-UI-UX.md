@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.24 |
+| Versi dokumen | 1.25 |
 | Tanggal | 10 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
@@ -223,6 +223,7 @@ Item diberi nama sehari-hari. Kolom "Fase" mengikuti roadmap PRD; item fase lanj
 | **Beranda** | Ringkasan | `layout-dashboard` | semua | 1 |
 | | Tugas Hari Ini | `list-checks` | semua | 1 |
 | **Penjualan** | Pesanan | `shopping-bag` | `order:read` | 1 |
+| | Aturan Otomatis | `zap` | `order:accept` | 2 |
 | | Pengiriman (Ambil & Kemas, Cetak Label, Serah Terima, Lacak) | `truck` | `shipment:*` | 1 |
 | | Retur & Batal | `rotate-ccw` | `order:read` | 2 |
 | | Chat Pembeli | `message-square` | `chat:read` | 2 |
@@ -555,6 +556,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
   - "Perbarui" di samping "Lacak paket" meminta pelacakan dibaca ulang (paling sering sekali per 10 menit per pesanan) untuk pesanan marketplace yang dikirim penjual dan sudah dikirim.
   - Baris "Pickup kurir" dengan waktu cut-off dan pil hitung mundurnya tampil di atas "Batas kirim" marketplace bila pesanan punya batas internal (L43).
   - Riwayat menyebut siapa: "oleh Budi Santoso" untuk aksi anggota tim, "dari marketplace", atau "otomatis". Setiap langkah punya nama: "Atur kirim diminta", "Label dicetak", "Masuk pick list yang dicetak", "Daftar kemas dicetak", "Diserahkan ke kurir", "Barang retur diterima", dan lainnya; yang belum dikenal tetap "Pesanan diperbarui".
+  - Pesanan yang diproses aturan otomatis (L55) mendapat entri 'Diproses aturan otomatis "SPX satuan"' oleh "otomatis", di atas langkah-langkah yang dikerjakannya (juga "otomatis"). Yang ditolak tertulis di bawahnya dengan alasannya, misalnya "Tidak dijalankan: atur pengiriman (Toko masih mode baca saja ...)".
   - Pesanan yang data pembelinya sudah dianonimkan (masa simpan di L47) menampilkan "Data pembeli dianonimkan 10 Okt 2026 sesuai masa simpan data pembeli." di tempat penerima, diikuti kota dan provinsi yang tersisa; event pelacakan tanpa keterangan bertuliskan "Keterangan dihapus bersama data pembeli". Kolom pembeli di daftar pesanan berisi "—".
 - **Prompt untuk AI**: "Panel samping detail pesanan selebar 420 px di kanan daftar. Judul 'SP-2609-88123' dengan pil biru 'Baru' dan ikon Shopee. Stepper mendatar empat langkah dengan langkah pertama aktif. Kartu 'Item (3)' berisi gambar produk 56 px, nama, varian 'Hitam, L', SKU mono 'KAOS-POLOS-HTM-L', 'x2', harga. Kartu 'Pengiriman': J&T Express Reguler, resi belum ada, batas kirim '30 Sep, 15.00 (2 jam lagi)' pil kuning, alamat pembeli. Kartu 'Pembayaran' dengan baris subtotal, voucher penjual, ongkir, total tebal, dan 'Perkiraan laba Rp 62.000' hijau. Kartu 'Masalah' merah muda: 'Stok Kaos Polos Hitam L di Gudang Jakarta tinggal 1, butuh 2' dengan tombol 'Pindahkan dari gudang lain' dan 'Tambah stok'. Footer lengket dengan tombol utama 'Terima pesanan' dan menu titik tiga."
 
@@ -928,6 +930,16 @@ Tiga minggu sebelum: notifikasi "Rencanakan 11.11" mengarah ke L37. Pengguna mel
 - **Ponsel**: lebar penuh dengan tepi 16 px; tombol membungkus ke baris berikutnya.
 - **Prompt untuk AI**: "Halaman penuh pada latar abu muda, kolom tengah 720 px. Kartu putih bertepi merah tipis: ikon peringatan merah, judul 'Akun Toko Rina sedang ditutup', kalimat 'Seluruh data bisnis akan dihapus pada 9 Nov 2026 (30 hari lagi).', daftar tiga butir 'Selama masa ini', tombol sekunder 'Cabut di Shopee' dengan ikon tautan luar, tombol utama 'Buka kembali akun' dan sekunder 'Keluar'. Di bawah: bagian 'Ekspor Data' dengan tombol 'Buat ekspor' dan kartu ekspor 'Siap · 14 berkas · 2,3 MB' dengan tombol 'Unduh'."
 
+#### L55 Aturan Otomatis
+
+- **Tujuan**: pesanan baru yang rutin diproses sendiri dalam hitungan detik setelah masuk (PRD FR-ORD-19, backend doc 8.37), sehingga tim hanya menangani yang perlu dilihat orang.
+- **Isi**: halaman `/pesanan/aturan` dari sidebar Penjualan, untuk pemegang `order:accept`. Judul "Aturan Otomatis" dengan tombol "Buat aturan". Daftar kartu bernomor sesuai urutan diperiksa: nama aturan (pil "Mati" bila dimatikan), baris "Jika:" berisi kondisi sebagai frasa pendek dipisah titik tengah ("toko Toko Shopee · kurir SPX · 1 barang · total paling sedikit Rp 50.000 · selama jam operasional", atau "semua pesanan baru"), baris "Maka:" berisi tindakan berurutan dengan panah ("pindah ke Gudang Surabaya → beri tag Kilat → terima dan atur pickup"). Di kanan setiap kartu: sakelar aktif, panah naik dan turun urutan, ubah, dan hapus. Di bawah daftar satu paragraf cara kerjanya: diperiksa dari atas, hanya aturan pertama yang cocok dan sekali per pesanan, pesanan bermasalah, toko mode uji, dan pesanan yang dikirim marketplace dilewati, tercatat di riwayat sebagai otomatis.
+- **Dialog aturan**: nama; bagian "Jika pesanan baru" (semua harus terpenuhi, kosong berarti apa saja): toko marketplace sebagai kotak centang (toko mode uji diberi keterangan "mode uji, belum berjalan"; saluran manual tidak ditawarkan), kurir sebagai teks dipisah koma dengan saran kurir dari pesanan, gudang asal (bila ada dua gudang atau lebih), SKU dipisah koma atau baris, jenis paket ("Semua", "1 barang", "2 barang atau lebih"), total paling sedikit dan paling banyak dalam rupiah ("Rp 150.000" atau "150000"), dan sakelar "Hanya selama jam operasional" dengan tautan ke L43. Bagian "Maka lakukan": pindahkan ke gudang ("Tidak dipindah" atau gudang), beri tag (kotak centang; tanpa izin `order:tag` tidak tampil), dan proses pesanan ("Tidak diproses", "Terima pesanan", serta "Terima dan atur pickup" dan "Terima dan atur drop-off" bagi pemegang `shipment:arrange`). Sakelar "Aturan aktif". Kesalahan dari api tampil di bawah isian yang dimaksud; yang lain di dekat tombol Simpan.
+- **Aksi utama**: "Buat aturan". Sakelar dan urutan langsung tersimpan dengan toast ("Aturan Pesanan besar aktif."); hapus meminta konfirmasi ("Pesanan yang sudah diproses tidak berubah.").
+- **Keadaan khusus**: kosong: "Belum ada aturan" dengan contoh dan tombol. Paket tanpa fitur (Starter) dan belum ada aturan: kartu "Tersedia mulai paket Growth" dengan tautan "Lihat paket" bagi pengelola langganan. Paket tanpa fitur tetapi ada aturan dari masa uji coba: banner kuning "Aturan di bawah sedang berhenti..." dan daftar tanpa sakelar, urutan, dan ubah; hapus tetap ada. Pengguna dengan cakupan toko hanya melihat dan mengelola aturan untuk tokonya.
+- **Ponsel**: kartu lebar penuh, tombol aksi turun ke baris berikutnya; dialog bergulir di dalam layar.
+- **Prompt untuk AI**: "Halaman 'Aturan Otomatis' dengan tombol utama 'Buat aturan' di kanan judul. Tiga kartu putih bernomor bulat biru: '1 SPX satuan' dengan baris 'Jika: toko Toko Shopee · kurir SPX · 1 barang' dan 'Maka: beri tag Kilat → terima dan atur pickup', di kanan sakelar aktif, panah naik dan turun, ikon pensil dan tempat sampah; '2 Pesanan besar' berlatar abu dengan pil 'Mati', 'Jika: total paling sedikit Rp 500.000', 'Maka: pindah ke Gudang Surabaya'. Di bawah paragraf kecil abu tentang cara aturan diperiksa. Dialog 'Aturan baru' dua bagian berbingkai: 'Jika pesanan baru' dengan kotak centang toko, isian kurir, SKU, pilihan segmented jenis paket, dua isian total rupiah, sakelar jam operasional; 'Maka lakukan' dengan pilihan gudang, kotak centang tag, dan empat pilihan proses dalam kotak bertepi."
+
 ---
 
 ## 16. Aplikasi Mobile, Agen Cetak, dan Ekstensi
@@ -1090,3 +1102,4 @@ Sebelum layar dinyatakan selesai:
 | 1.22 | 10 Oktober 2026 | L47 kartu "Data pembeli" (masa simpan 3 sampai 24 bulan, konfirmasi saat dipersingkat); L04 catatan data pembeli yang sudah dianonimkan dan keterangan pelacakan yang dihapus | Candra Syahputra |
 | 1.23 | 10 Oktober 2026 | L33 Kinerja Tim di web app (periode, empat angka tim, per anggota dengan avatar inisial dan bar, per hari untuk tim atau satu anggota, arti angka, CSV, terkunci di Starter); L06 mengukur waktu kemas per pesanan; L04 riwayat menyebut nama pelaku dan nama setiap langkah | Candra Syahputra |
 | 1.24 | 10 Oktober 2026 | L47 kartu "Tutup akun bisnis" dengan dialog nama bisnis dan kata sandi; L54 Akun Ditutup baru (tanggal hapus, siapa yang menutup, yang berhenti, cabut izin marketplace, ekspor data, buka kembali); L49 pesan untuk anggota bisnis yang sedang ditutup; L41a judul penutupan dan pembukaan kembali | Candra Syahputra |
+| 1.25 | 10 Oktober 2026 | L55 Aturan Otomatis baru (daftar urut diperiksa dengan kalimat Jika dan Maka, sakelar, urutan, dialog kondisi dan tindakan, keadaan Starter dan cakupan toko); sidebar 7.1 Penjualan mendapat "Aturan Otomatis" untuk `order:accept`; L04 riwayat entri aturan otomatis dengan yang ditolak | Candra Syahputra |

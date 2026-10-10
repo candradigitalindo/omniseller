@@ -6,6 +6,7 @@ const PAGES = [
   "/",
   "/pesanan",
   "/pesanan/baru",
+  "/pesanan/aturan",
   "/pengiriman",
   "/pengiriman?tab=label",
   "/pengiriman?tab=serah-terima",
