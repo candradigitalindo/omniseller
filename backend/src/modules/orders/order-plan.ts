@@ -25,6 +25,26 @@ export const SHIPPED_STATUSES: ReadonlySet<OrderStatus> = new Set([
   "return_in_progress",
   "returned",
 ]);
+/**
+ * What a marketplace snapshot writes about the buyer: name, username, phone, address, note, and the
+ * marketplace's buyer id. Once an order's buyer data is anonymized (backend doc 8.34) a later snapshot
+ * leaves them out, so they never come back.
+ */
+export const BUYER_DATA_FIELDS = [
+  "buyerNote",
+  "externalBuyerId",
+  "buyerUsername",
+  "buyerName",
+  "buyerPhone",
+  "shippingAddress",
+] as const;
+
+export function withoutBuyerData<T extends object>(fields: T): T {
+  const out = { ...fields } as Record<string, unknown>;
+  for (const f of BUYER_DATA_FIELDS) delete out[f];
+  return out as T;
+}
+
 /** Statuses the seller still has to act on before the ship-by deadline. */
 export const TO_SHIP_STATUSES: ReadonlySet<OrderStatus> = new Set([
   "new",

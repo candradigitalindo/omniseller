@@ -9,6 +9,14 @@ import { ErrorState, PageHeader } from "@/components/common/page";
 import { Segmented } from "@/components/common/segmented";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -30,6 +38,7 @@ import {
   type ProfileField,
   patchOf,
   problemsOf,
+  retentionChoices,
   TIMEZONES,
 } from "./business-meta";
 import { DocumentsCard } from "./documents-card";
@@ -124,9 +133,12 @@ const FIELD_IDS: Record<ProfileField, string> = {
 
 function ProfileForm({ profile: p }: { profile: BusinessProfile }) {
   const t = useTranslations("business");
+  const tCommon = useTranslations("common");
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<ProfileDraft>(() => draftOf(p));
   const [tried, setTried] = useState(false);
+  // a shorter retention anonymizes old orders within the hour, for good: asked first
+  const [confirming, setConfirming] = useState(false);
   const [server, setServer] = useState<Partial<Record<string, string>>>({});
   const set = (patch: Partial<ProfileDraft>) => setDraft((d) => ({ ...d, ...patch }));
   const problems = problemsOf(draft, p.today);
@@ -187,7 +199,10 @@ function ProfileForm({ profile: p }: { profile: BusinessProfile }) {
         e.preventDefault();
         setTried(true);
         setServer({});
-        if (Object.keys(problems).length === 0 && changed) save.mutate();
+        if (Object.keys(problems).length > 0 || !changed) return;
+        const months = patch.buyerDataRetentionMonths;
+        if (months !== undefined && months < p.buyerDataRetentionMonths) setConfirming(true);
+        else save.mutate();
       }}
     >
       <Card>
@@ -370,12 +385,58 @@ function ProfileForm({ profile: p }: { profile: BusinessProfile }) {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <h2>{t("buyerDataTitle")}</h2>
+          </CardTitle>
+          <CardDescription>{t("buyerDataBody")}</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-1.5">
+          <span className="text-sm font-medium text-text-700">{t("buyerDataRetention")}</span>
+          <Segmented<string>
+            value={String(draft.buyerDataRetentionMonths)}
+            options={retentionChoices(p.buyerDataRetentionMonths).map((m) => ({
+              value: String(m),
+              label: t("months", { count: m }),
+            }))}
+            onChange={(v) => set({ buyerDataRetentionMonths: Number(v) })}
+            label={t("buyerDataRetention")}
+            block
+          />
+          <p className="text-[13px] text-text-500">{t("buyerDataHint")}</p>
+        </CardContent>
+      </Card>
+
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={!changed} loading={save.isPending}>
           {t("save")}
         </Button>
         {changed ? <span className="text-[13px] text-text-500">{t("unsaved")}</span> : null}
       </div>
+      <Dialog open={confirming} onOpenChange={setConfirming}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>{t("shortenTitle")}</DialogTitle>
+            <DialogDescription>{t("shortenBody", { months: draft.buyerDataRetentionMonths })}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={() => setConfirming(false)}>
+              {tCommon("cancel")}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                setConfirming(false);
+                save.mutate();
+              }}
+            >
+              {t("shortenConfirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </form>
   );
 }

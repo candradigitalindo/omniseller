@@ -3813,6 +3813,8 @@ export interface components {
       nibDaysLeft: number | null;
       npwp: string | null;
       pkp: boolean;
+      /** @description bulan setelah pesanan, data pribadi pembeli dianonimkan (backend doc 8.34) */
+      buyerDataRetentionMonths: number;
       documents: {
         id: string;
         /** @enum {string} */
@@ -3857,6 +3859,8 @@ export interface components {
       npwp?: string | null;
       /** @description terdaftar sebagai Pengusaha Kena Pajak */
       pkp?: boolean;
+      /** @description bulan setelah pesanan, data pribadi pembeli dianonimkan (3 sampai 24) */
+      buyerDataRetentionMonths?: number;
     };
     SetLogoDto: {
       /** @description PNG, JPG, atau WebP, base64, paling besar 1 MB */
@@ -6499,6 +6503,8 @@ export interface components {
       /** @description alamat dan telepon pembeli disembunyikan untuk peran ini */
       addressHidden: boolean;
       buyerNote: string | null;
+      /** @description kapan data pribadi pembeli dianonimkan sesuai masa simpan bisnis (backend doc 8.34); null bila masih disimpan */
+      buyerAnonymizedAt: string | null;
       internalNote: string | null;
       subtotal: number;
       discountTotal: number;

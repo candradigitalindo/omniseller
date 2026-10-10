@@ -132,6 +132,11 @@ test("trial, grace, and renewal days are the backend's own", () => {
   assert.equal(real.pricing.trialDays, constant("TRIAL_DAYS"));
   assert.equal(real.pricing.graceDays, constant("GRACE_DAYS"));
   assert.equal(real.pricing.renewalNoticeDays, constant("RENEWAL_NOTICE_DAYS"));
+  // the longest the business may keep buyer data is what the privacy policy promises (backend doc 8.34)
+  const business = readFileSync(join(ROOT, "../backend/src/modules/business/business-plan.ts"), "utf8");
+  const months = Number(/export const DEFAULT_BUYER_DATA_RETENTION_MONTHS = (\d+);/.exec(business)?.[1]);
+  assert.equal(real.legal.buyerDataMonths, months);
+  assert.equal(filled.legal.buyerDataMonths, months);
   assert.deepEqual(filled.pricing, { ...real.pricing, taxNote: filled.pricing.taxNote });
 });
 
@@ -181,6 +186,7 @@ test("the pages carry the business's own figures, never ones written into them",
       refundReviewDays: 4,
       refundPayoutDays: 9,
       deletionDays: 60,
+      buyerDataMonths: 13,
     },
   };
   const { out } = built(site);
@@ -204,6 +210,7 @@ test("the pages carry the business's own figures, never ones written into them",
   assert.ok(privacy.includes(`mailto:${filled.contact.privacyEmail}`));
   assert.ok(privacy.includes("dihapus dalam 60 hari"));
   assert.ok(privacy.includes("paling lambat 15 hari sebelum berlaku"));
+  assert.ok(privacy.includes("paling lama 13 bulan setelah pesanan dibuat"));
   for (const html of [refund, terms, pricing, privacy]) assert.doesNotMatch(html, /\b(14|30|7) hari\b/);
 });
 

@@ -72,7 +72,7 @@ export default {
           title: "Berapa lama data disimpan",
           body: html`<ul>
 <li>Data akun dan bisnis disimpan selama akun aktif, lalu dihapus dalam ${site.legal.deletionDays} hari setelah akun ditutup, kecuali yang wajib disimpan menurut hukum.</li>
-<li>Data pembeli disimpan selama diperlukan untuk pesanan, retur, dan pencatatan, lalu dianonimkan paling lama 2 tahun setelah pesanan. Saat Anda memutus toko tanpa menyimpan datanya, data toko itu dihapus.</li>
+<li>Data pembeli (nama, telepon, alamat, catatan, alasan dan foto retur, serta keterangan pelacakan paket) disimpan selama diperlukan untuk pesanan, retur, dan pencatatan, lalu dianonimkan otomatis paling lama ${site.legal.buyerDataMonths} bulan setelah pesanan dibuat, atau lebih cepat bila Anda memilih masa yang lebih pendek di Profil bisnis. Pesanan yang belum dikirim menunggu sampai dikirim atau dibatalkan. Nilai, barang, tanggal, kota, dan provinsi pesanan tetap tersimpan. Saat Anda memutus toko tanpa menyimpan datanya, data toko itu dihapus.</li>
 <li>Tagihan dan catatan perpajakan disimpan selama diwajibkan peraturan perpajakan.</li>
 </ul>`,
         },

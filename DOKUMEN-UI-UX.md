@@ -2,7 +2,7 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.21 |
+| Versi dokumen | 1.22 |
 | Tanggal | 10 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
@@ -554,6 +554,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
   - Kartu Pengiriman menampilkan gudang pengirim dengan tautan "Pindah". "Pindah gudang" juga ada di menu titik tiga dan di kartu Masalah untuk stok yang kurang. Pindah hanya ditawarkan untuk pesanan yang belum dikemas, tidak ditetapkan marketplace, dari toko yang sudah pindah sepenuhnya, dan bila ada gudang lain. Reservasi ikut pindah; stok tercatat yang kurang di gudang tujuan membuat pesanan bermasalah (stok yang belum pernah ditetapkan tidak dihitung, ADR-036).
   - "Perbarui" di samping "Lacak paket" meminta pelacakan dibaca ulang (paling sering sekali per 10 menit per pesanan) untuk pesanan marketplace yang dikirim penjual dan sudah dikirim.
   - Baris "Pickup kurir" dengan waktu cut-off dan pil hitung mundurnya tampil di atas "Batas kirim" marketplace bila pesanan punya batas internal (L43).
+  - Pesanan yang data pembelinya sudah dianonimkan (masa simpan di L47) menampilkan "Data pembeli dianonimkan 10 Okt 2026 sesuai masa simpan data pembeli." di tempat penerima, diikuti kota dan provinsi yang tersisa; event pelacakan tanpa keterangan bertuliskan "Keterangan dihapus bersama data pembeli". Kolom pembeli di daftar pesanan berisi "—".
 - **Prompt untuk AI**: "Panel samping detail pesanan selebar 420 px di kanan daftar. Judul 'SP-2609-88123' dengan pil biru 'Baru' dan ikon Shopee. Stepper mendatar empat langkah dengan langkah pertama aktif. Kartu 'Item (3)' berisi gambar produk 56 px, nama, varian 'Hitam, L', SKU mono 'KAOS-POLOS-HTM-L', 'x2', harga. Kartu 'Pengiriman': J&T Express Reguler, resi belum ada, batas kirim '30 Sep, 15.00 (2 jam lagi)' pil kuning, alamat pembeli. Kartu 'Pembayaran' dengan baris subtotal, voucher penjual, ongkir, total tebal, dan 'Perkiraan laba Rp 62.000' hijau. Kartu 'Masalah' merah muda: 'Stok Kaos Polos Hitam L di Gudang Jakarta tinggal 1, butuh 2' dengan tombol 'Pindahkan dari gudang lain' dan 'Tambah stok'. Footer lengket dengan tombol utama 'Terima pesanan' dan menu titik tiga."
 
 #### L04a Pesanan Manual Baru
@@ -828,6 +829,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
   - banner NIB di atas: kuning bila NIB belum diisi, hitung mundur bila sedang diurus ("NIB sedang diurus sejak 20 Apr 2026. Batasnya 20 Okt 2026 (13 hari lagi)"), merah bila batas 6 bulan sudah lewat. Banner hilang begitu NIB tersimpan;
   - kartu "Profil usaha": nama bisnis (juga nama di menu profil), alamat dengan provinsi dari daftar, telepon, zona waktu WIB, WITA, atau WIT (menentukan hari di laporan dan pengingat), mata uang Rupiah tetap;
   - kartu "Legalitas usaha": NIB dengan pilihan Sudah punya, Sedang diurus (dengan tanggal mulai diurus), atau Belum punya; NPWP 15 angka tampil dengan titik seperti di kartunya (`12.345.678.9-012.000`), NPWP 16 angka apa adanya; sakelar PKP dengan keterangan batas omzet. Nomor boleh diketik dengan titik atau spasi. Kesalahan disebut di field-nya sebelum dikirim. "Simpan perubahan" aktif hanya bila ada perubahan, dan hanya yang berubah yang dikirim;
+  - kartu "Data pembeli": "Simpan data pembeli selama" 3, 6, 12, atau 24 bulan (bawaan 24, paling lama menurut Kebijakan Privasi; nilai lain yang diatur lewat API ikut tampil), dengan penjelasan apa yang dianonimkan dan apa yang tetap. Menyimpan masa yang lebih pendek meminta konfirmasi "Persingkat masa simpan data pembeli?" karena data pesanan lama dianonimkan dalam satu jam dan tidak bisa dikembalikan; memperpanjang tidak bertanya;
   - kartu Logo: unggah, ganti, dan hapus (PNG, JPG, atau WebP, paling besar 1 MB). Mengganti logo tidak menghapus isian formulir yang belum disimpan;
   - kartu "Dokumen legalitas": setiap dokumen dengan jenis, nomor, tanggal terbit, nama berkas, dan pil masa berlaku (Berlaku seterusnya, Berlaku sampai, kuning "Habis dalam 9 hari", merah "Habis berlaku 1 Okt 2026"); "Lihat" membuka berkasnya di tab baru, "Ubah" untuk dokumen yang diperpanjang (tanggal berlaku baru memulai pengingat lagi), "Hapus" setelah konfirmasi. Dialog "Unggah dokumen": jenis, nama (wajib untuk Dokumen lain), nomor, tanggal terbit, berlaku sampai atau "Berlaku seterusnya", dan berkas PDF, JPG, atau PNG paling besar 5 MB;
   - pengingat 30 hari dan 7 hari sebelum habis, lalu setelah lewat, datang di lonceng dan email (selalu dikirim) dan membuka halaman ini. Dasbor L01 menampilkan tugas NIB dan dokumen yang habis. Log Audit L41a punya jenis "Profil dan legalitas usaha"; logo dan berkas tampil sebagai ditambahkan, diganti, atau dihapus.
@@ -1065,3 +1067,4 @@ Sebelum layar dinyatakan selesai:
 | 1.19 | 8 Oktober 2026 | L45: unduh PDF setiap tagihan (nama, alamat, dan NPWP bisnis dari L47; yang lunas memuat data saat dibayar) dan petunjuk asal datanya dengan tautan ke Profil bisnis | Candra Syahputra |
 | 1.20 | 8 Oktober 2026 | L53 Situs publik baru (beranda, harga, kontak, tiga kebijakan); L49 persetujuan di Daftar menautkan Syarat Layanan dan Kebijakan Privasi di situs itu | Candra Syahputra |
 | 1.21 | 10 Oktober 2026 | L41 peran kustom di web app: kartu "Peran kustom" dengan buat, ubah, dan hapus; dialog peran dengan izin per modul, "Salin izin dari", dan izin yang tidak dimiliki nonaktif; matriks izin dengan nama modul dan peran kustom, bisa difokus keyboard saat digeser; keadaan paket tanpa peran kustom di tab Peran, dialog "Ubah peran", dan undangan | Candra Syahputra |
+| 1.22 | 10 Oktober 2026 | L47 kartu "Data pembeli" (masa simpan 3 sampai 24 bulan, konfirmasi saat dipersingkat); L04 catatan data pembeli yang sudah dianonimkan dan keterangan pelacakan yang dihapus | Candra Syahputra |

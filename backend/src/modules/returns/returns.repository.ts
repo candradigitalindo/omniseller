@@ -362,6 +362,29 @@ export class ReturnsRepository {
     if (ids.length > 0) await tx.update(returnRequest).set({ dueAlertedAt: at }).where(inArray(returnRequest.id, ids));
   }
 
+  /**
+   * The buyer's part of these orders' requests emptied (backend doc 8.34): the reason they wrote and their
+   * photos, and the seller's photos (which may show the parcel's label). Returns the seller photos' files.
+   */
+  async clearBuyerData(tx: Tx, orderIds: string[]): Promise<string[]> {
+    if (orderIds.length === 0) return [];
+    const rows = await tx
+      .select({ id: returnRequest.id, sellerEvidence: returnRequest.sellerEvidence })
+      .from(returnRequest)
+      .where(inArray(returnRequest.orderId, orderIds));
+    if (rows.length === 0) return [];
+    await tx
+      .update(returnRequest)
+      .set({ reason: null, evidence: [], sellerEvidence: [] })
+      .where(
+        inArray(
+          returnRequest.id,
+          rows.map((r) => r.id),
+        ),
+      );
+    return rows.flatMap((r) => r.sellerEvidence.map((f) => f.fileId));
+  }
+
   /** FR-INT-07: a batch of a store's requests, their items with them (cascade). */
   async deleteStoreRequests(tx: Tx, storeId: string, limit: number): Promise<number> {
     const rows = await tx

@@ -232,6 +232,7 @@ export const AUDIT_ENTITIES: Record<string, EntitySpec> = {
       f("nib_in_process_since"),
       f("npwp"),
       f("pkp"),
+      f("buyer_data_retention_months", { field: "buyerDataRetentionMonths" }),
     ],
   },
   business_document: {

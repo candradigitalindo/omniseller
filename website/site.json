@@ -28,7 +28,8 @@
     "refundRequestDays": 30,
     "refundReviewDays": 3,
     "refundPayoutDays": 14,
-    "deletionDays": 30
+    "deletionDays": 30,
+    "buyerDataMonths": 24
   },
   "plans": [
     {

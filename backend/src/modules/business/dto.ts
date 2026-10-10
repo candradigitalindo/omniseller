@@ -1,7 +1,12 @@
 import { ulidSchema } from "@omniseller/shared";
 import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
-import { BUSINESS_TIMEZONES, digitsOf } from "./business-plan";
+import {
+  BUSINESS_TIMEZONES,
+  DEFAULT_BUYER_DATA_RETENTION_MONTHS,
+  digitsOf,
+  MIN_BUYER_DATA_RETENTION_MONTHS,
+} from "./business-plan";
 import type { BusinessProfileView, DocumentView } from "./business-profile.service";
 
 const date = z.iso.date();
@@ -46,6 +51,13 @@ export class UpdateBusinessProfileDto extends createZodDto(
       .nullable()
       .optional(),
     pkp: z.boolean().optional().describe("terdaftar sebagai Pengusaha Kena Pajak"),
+    buyerDataRetentionMonths: z
+      .number()
+      .int()
+      .min(MIN_BUYER_DATA_RETENTION_MONTHS, "Paling cepat 3 bulan.")
+      .max(DEFAULT_BUYER_DATA_RETENTION_MONTHS, "Paling lama 24 bulan, sesuai kebijakan privasi.")
+      .optional()
+      .describe("bulan setelah pesanan, data pribadi pembeli dianonimkan (3 sampai 24)"),
   }),
 ) {}
 
@@ -109,6 +121,10 @@ export class BusinessProfileDto extends createZodDto(
     nibDaysLeft: z.number().int().nullable(),
     npwp: z.string().nullable(),
     pkp: z.boolean(),
+    buyerDataRetentionMonths: z
+      .number()
+      .int()
+      .describe("bulan setelah pesanan, data pribadi pembeli dianonimkan (backend doc 8.34)"),
     documents: z.array(documentSchema),
     today: z.string().describe("tanggal hari ini di zona waktu bisnis, dasar status di atas"),
   }),

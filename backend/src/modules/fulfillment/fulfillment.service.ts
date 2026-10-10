@@ -264,6 +264,30 @@ export class FulfillmentService {
   }
 
   /**
+   * Buyer data in the shipments of these orders goes (backend doc 8.34): tracking descriptions are emptied,
+   * and labels and documents that print the buyer's address expire. In the caller's transaction, before the
+   * orders themselves (module orders).
+   */
+  async anonymizeIn(tx: Tx, orderIds: string[]): Promise<void> {
+    if (orderIds.length === 0) return;
+    const shipments = await this.repo.shipmentsOf(tx, orderIds);
+    const packages = await this.repo.packages(
+      tx,
+      shipments.map((s) => s.id),
+    );
+    const files = [
+      ...shipments.map((s) => s.labelFileId),
+      ...packages.map((p) => p.labelFileId),
+      ...(await this.repo.documentFilesFor(tx, orderIds)),
+    ].filter((id): id is string => !!id);
+    await this.files.expireIn(tx, files);
+    await this.repo.clearTrackingDescriptions(
+      tx,
+      shipments.map((s) => s.id),
+    );
+  }
+
+  /**
    * FR-INT-07, in the caller's transaction: the shipments of these orders go, with their packages; their
    * label files and every document that printed one of the orders expire now, since they carry buyer
    * data (the hourly file cleanup deletes them). Returns the shipments deleted.

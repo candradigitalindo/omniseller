@@ -31,6 +31,7 @@ import {
   scanSlaAlerts,
 } from "./order-scans";
 import { OutboxRelayRunner } from "./outbox-relay";
+import { RETENTION_SCAN_MS, scanBuyerRetention } from "./retention-scan";
 import {
   RETURN_DUE_SLOT_MS,
   RETURN_NOTICE_SLOT_MS,
@@ -102,6 +103,9 @@ export class SchedulerRunner implements OnApplicationBootstrap, OnApplicationShu
     this.every(LEGAL_SCAN_MS, "business.legal_scan", () => scanLegalReminders(this.system, this.queues, this.registry));
     this.every(BILLING_SCAN_MS, "billing.renewal_scan", () =>
       scanBillingRenewals(this.system, this.queues, this.registry),
+    );
+    this.every(RETENTION_SCAN_MS, "retention.buyer_scan", () =>
+      scanBuyerRetention(this.system, this.queues, this.registry),
     );
     log.info("scheduler started");
   }

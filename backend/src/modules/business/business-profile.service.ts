@@ -30,6 +30,7 @@ import {
 } from "./business.errors";
 import { type BusinessDocumentRow, type BusinessProfileRow, BusinessRepository } from "./business.repository";
 import {
+  DEFAULT_BUYER_DATA_RETENTION_MONTHS,
   type DocumentStatus,
   daysBetween,
   documentStatus,
@@ -83,6 +84,8 @@ export interface BusinessProfileView {
   nibDaysLeft: number | null;
   npwp: string | null;
   pkp: boolean;
+  /** Months after the order its buyer's personal data is anonymized (backend doc 8.34). */
+  buyerDataRetentionMonths: number;
   documents: DocumentView[];
   /** The business's local date the statuses are computed for. */
   today: string;
@@ -97,6 +100,7 @@ export interface ProfilePatch {
   nibInProcessSince?: string | null;
   npwp?: string | null;
   pkp?: boolean;
+  buyerDataRetentionMonths?: number;
 }
 
 export interface DocumentInput {
@@ -154,6 +158,7 @@ export class BusinessProfileService {
       nibDaysLeft: deadline ? daysBetween(today, deadline) : null,
       npwp: p?.npwp ?? null,
       pkp: p?.pkp ?? false,
+      buyerDataRetentionMonths: p?.buyerDataRetentionMonths ?? DEFAULT_BUYER_DATA_RETENTION_MONTHS,
       documents: (await this.repo.documents(tx)).map((d) => documentView(d, today)),
       today,
     };
@@ -167,6 +172,11 @@ export class BusinessProfileService {
     const { name } = await this.tenants.profileIn(tx, ctx);
     const p = await this.repo.profile(tx);
     return { name, address: p?.address ?? {}, npwp: p?.npwp ?? null };
+  }
+
+  /** How many months after the order its buyer's data is kept (backend doc 8.34), in the caller's transaction. */
+  async buyerDataRetentionIn(tx: Tx): Promise<number> {
+    return (await this.repo.profile(tx))?.buyerDataRetentionMonths ?? DEFAULT_BUYER_DATA_RETENTION_MONTHS;
   }
 
   /** Saves the profile; `ifMatch` is the `rowVersion` read (0 before the first save). */
@@ -198,6 +208,9 @@ export class BusinessProfileService {
         ...(since !== (current?.nibInProcessSince ?? null) ? { nibRemindedStage: null } : {}),
         ...(patch.npwp !== undefined ? { npwp: patch.npwp } : {}),
         ...(patch.pkp !== undefined ? { pkp: patch.pkp } : {}),
+        ...(patch.buyerDataRetentionMonths !== undefined
+          ? { buyerDataRetentionMonths: patch.buyerDataRetentionMonths }
+          : {}),
       };
       if (current) {
         // name and time zone live on tenant: the profile's version still moves, so one ETag covers both
@@ -398,6 +411,7 @@ export class BusinessProfileService {
           "nib_dalam_proses_sejak",
           "npwp",
           "pkp",
+          "masa_simpan_data_pembeli_bulan",
         ],
         pages: (tx) =>
           singlePage(async () => {
@@ -416,6 +430,7 @@ export class BusinessProfileService {
                 p.nibInProcessSince,
                 p.npwp,
                 p.pkp,
+                p.buyerDataRetentionMonths,
               ],
             ];
           }),

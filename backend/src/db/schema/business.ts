@@ -1,4 +1,4 @@
-import { boolean, date, jsonb, pgTable, text } from "drizzle-orm/pg-core";
+import { boolean, date, jsonb, pgTable, smallint, text } from "drizzle-orm/pg-core";
 import { baseColumns, ulid } from "../columns";
 
 /** Where the business is (UI L47); the province is canonical when OmniSeller knows it (common/region.ts). */
@@ -25,6 +25,8 @@ export const businessProfile = pgTable("business_profile", {
   nibRemindedStage: text("nib_reminded_stage").$type<NibReminderStage>(),
   npwp: text("npwp"),
   pkp: boolean("pkp").notNull().default(false),
+  /** Months after the order its buyer's personal data is anonymized, 3 to 24 (migration 0025). */
+  buyerDataRetentionMonths: smallint("buyer_data_retention_months").notNull().default(24),
 });
 
 export const businessDocument = pgTable("business_document", {

@@ -41,6 +41,7 @@ function order(over: Partial<OrderDetail> = {}): OrderDetail {
     shippingAddress: null,
     addressHidden: false,
     buyerNote: null,
+    buyerAnonymizedAt: null,
     internalNote: null,
     subtotal: 120_000,
     discountTotal: 0,
@@ -211,6 +212,36 @@ describe("OrderDetailSheet: warehouse, tracking, and tags", () => {
     queued = false;
     await user.click(screen.getByRole("button", { name: "Perbarui" }));
     expect(await screen.findByText("Pelacakan sudah diperbarui dalam 10 menit terakhir.")).toBeInTheDocument();
+  });
+
+  it("says when the buyer's data was anonymized, keeping the city and the parcel's steps", async () => {
+    setup(
+      order({
+        status: "completed",
+        trackingNumber: "SPXID0456",
+        buyerName: null,
+        buyerPhone: null,
+        shippingAddress: { city: "Jakarta Barat", province: "DKI Jakarta" },
+        buyerAnonymizedAt: "2026-10-09T17:30:00.000Z",
+      }),
+      {
+        extra: {
+          [`GET /v1/orders/${ID}/tracking`]: () => ({
+            trackingNumber: "SPXID0456",
+            events: [{ at: "2026-09-01T09:00:00.000Z", description: "", code: "DELIVERED", stage: "delivered" }],
+            error: null,
+          }),
+        },
+      },
+    );
+    const user = userEvent.setup();
+    open();
+    expect(
+      await screen.findByText("Data pembeli dianonimkan 10 Okt 2026 sesuai masa simpan data pembeli."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Jakarta Barat, DKI Jakarta")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Lacak paket" }));
+    expect(await screen.findByText("Keterangan dihapus bersama data pembeli")).toBeInTheDocument();
   });
 
   it("offers no tracking refresh for a manual order or one the marketplace ships", async () => {

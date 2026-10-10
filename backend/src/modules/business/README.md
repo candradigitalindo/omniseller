@@ -8,7 +8,7 @@ Profil bisnis dan legalitasnya (PRD 6.13 dan 12, Permendag 19/2026; layar L47; b
 - Nama bisnis dan zona waktu milik `identity` (`tenant`): dibaca dan diubah lewat `TenantsService.profileIn` dan `updateProfileIn`, di transaksi profil. Berkas lewat `FilesService` (tujuan `logo` dan `legal_document`), notifikasi lewat `NotificationInboxService.notifyScopedIn`.
 
 ## Service publik
-- `BusinessProfileService`: `get`, `update`, `setLogo`, `removeLogo`, `logo`, `addDocument`, `updateDocument`, `removeDocument`, `documentFile` (api); `legalTasksIn` (dasbor, di transaksi pemanggil); `billToIn` (billing: nama, alamat, dan NPWP yang ditagih, disalin ke tagihan saat lunas); `alertLegal` (worker); `exportSheets` (ekspor).
+- `BusinessProfileService`: `get`, `update`, `setLogo`, `removeLogo`, `logo`, `addDocument`, `updateDocument`, `removeDocument`, `documentFile` (api); `legalTasksIn` (dasbor, di transaksi pemanggil); `billToIn` (billing: nama, alamat, dan NPWP yang ditagih, disalin ke tagihan saat lunas); `buyerDataRetentionIn` (retention: masa simpan data pembeli dalam bulan, bawaan bila profil belum disimpan); `alertLegal` (worker); `exportSheets` (ekspor).
 - `business-plan.ts` (murni): status NIB, batas proses (`nibDeadline`), status dokumen, tahap pengingat yang jatuh tempo, tugas dasbor, serta `formatNpwp` (NPWP 15 digit seperti di kartu, 16 digit apa adanya) dan `addressLines` (alamat untuk dokumen cetak).
 
 ## Aturan
@@ -16,6 +16,7 @@ Profil bisnis dan legalitasnya (PRD 6.13 dan 12, Permendag 19/2026; layar L47; b
 - NIB 13 angka atau tanggal mulai diurus, tidak keduanya; mengisi NIB mengakhiri proses. Tanggal mulai diurus tidak boleh setelah hari ini di zona waktu bisnis. Nomor (NIB, NPWP, telepon) disimpan sebagai angka saja.
 - `PATCH /v1/business-profile` menerima `If-Match` dengan `rowVersion` (0 sebelum disimpan pertama kali). Mengganti nama atau zona waktu juga menaikkan versi profil, jadi satu ETag mencakup semuanya.
 - Jenis berkas dibaca dari isinya (`common/file-type.ts`): logo PNG, JPG, atau WebP paling besar 1 MB; dokumen PDF, JPG, atau PNG paling besar 5 MB. Berkas yang diganti atau dihapus kedaluwarsa dan dihapus `files.cleanup_expired`.
+- Masa simpan data pembeli (`buyer_data_retention_months`, migrasi 0025): 3 sampai 24 bulan, bawaan 24 (`DEFAULT_BUYER_DATA_RETENTION_MONTHS`, batas yang dijanjikan Kebijakan Privasi; situs publik mengujinya). Lewat masa itu modul retention menganonimkan data pembeli (backend doc 8.34). Perubahannya diaudit.
 - Dokumen berlaku sampai akhir tanggal `valid_until`; `expiring` bila habis dalam 30 hari.
 - Pengingat 30 hari, 7 hari, dan setelah lewat, masing-masing sekali (`reminded_stage`, `nib_reminded_stage`). Tahap yang terlewati tidak dikirim; yang terbaru saja. Tanggal berlaku baru atau tanggal mulai diurus yang baru mengosongkan tahapnya.
 

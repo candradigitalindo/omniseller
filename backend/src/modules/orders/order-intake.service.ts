@@ -23,6 +23,7 @@ import {
   type StatusStep,
   statusSteps,
   warehouseFixed,
+  withoutBuyerData,
 } from "./order-plan";
 import {
   orderCancelledAfterShipping,
@@ -426,7 +427,9 @@ export class OrderIntakeService {
     if (current.externalUpdatedAt && snap.updatedAt < current.externalUpdatedAt) {
       return { orderId: existingId, outcome: "stale", unknownItemIds: [] };
     }
-    await this.repo.update(tx, existingId, fields);
+    // buyer data anonymized (backend doc 8.34) stays so whatever a later snapshot says
+    const update = current.buyerAnonymizedAt ? withoutBuyerData(fields) : fields;
+    await this.repo.update(tx, existingId, update);
     if (current.cancelRequested !== snap.cancelRequested) {
       await this.outbox.enqueue(
         tx,
@@ -460,7 +463,7 @@ export class OrderIntakeService {
     const o = await this.stepIn(
       tx,
       ctx,
-      { ...current, ...fields },
+      { ...current, ...update },
       statusSteps(current.status, { state: snap.state, fulfillment: current.fulfillmentMode }),
       MARKETPLACE,
       { externalStatus: snap.externalStatus },

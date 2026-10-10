@@ -97,6 +97,8 @@ export const order = pgTable("order", {
   notifyNew: boolean("notify_new").notNull().default(false),
   /** How a manual order is paid (FR-ORD-09); NULL for marketplace orders. */
   paymentMethod: text("payment_method").$type<PaymentMethod>(),
+  /** When the buyer's personal data was anonymized (PRD 12.1, migration 0025); NULL while it is kept. */
+  buyerAnonymizedAt: tstz("buyer_anonymized_at"),
 });
 
 /** Enforces (store_id, external_order_id) uniqueness, which the partitioned order table cannot. */

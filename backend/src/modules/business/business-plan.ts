@@ -14,6 +14,13 @@ export const BUSINESS_TIMEZONES = ["Asia/Jakarta", "Asia/Makassar", "Asia/Jayapu
 /** Reminders before an end date, in days; then once when it has passed. */
 export const REMINDER_DAYS = { first: 30, second: 7 } as const;
 
+/**
+ * How long buyers' personal data is kept after the order (PRD 12.1, backend doc 8.34): 3 to 24 months, 24 by
+ * default, the longest the privacy policy promises.
+ */
+export const DEFAULT_BUYER_DATA_RETENTION_MONTHS = 24;
+export const MIN_BUYER_DATA_RETENTION_MONTHS = 3;
+
 /** Digits only, as numbers are often typed with dots, dashes, or spaces ("12.345.678.9-012.000"). */
 export function digitsOf(text: string): string {
   return text.replace(/[\s.\-/]/g, "");

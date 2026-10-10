@@ -16,6 +16,7 @@ export const PROFILE: BusinessProfile = {
   nibDaysLeft: null,
   npwp: "123456789012000",
   pkp: false,
+  buyerDataRetentionMonths: 24,
   documents: [],
   today: "2026-10-07",
 };

@@ -14,6 +14,7 @@ import { InventoryService } from "../inventory/inventory.service";
 import { type Actor, OrderIntakeService } from "./order-intake.service";
 import { manualOrderNumber, manualTotals, pathTo, SHIPPED_STATUSES } from "./order-plan";
 import {
+  buyerDataAnonymized,
   discountTooLarge,
   notManual,
   noWarehouse,
@@ -245,6 +246,7 @@ export class ManualOrdersService {
       if (touchesBuyer && SHIPPED_STATUSES.has(o.status)) {
         throw orderStatusInvalid(orderStatusLabel(o.status), "yang belum dikirim");
       }
+      if (o.buyerAnonymizedAt && (touchesBuyer || patch.buyerNote !== undefined)) throw buyerDataAnonymized();
       const buyer = {
         name: patch.buyer?.name ?? o.buyerName ?? "",
         phone: patch.buyer?.phone !== undefined ? patch.buyer.phone : o.buyerPhone,

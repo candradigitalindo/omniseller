@@ -24,6 +24,7 @@ Pengiriman pesanan (PRD 6.5: FR-SHP-01, 02, 03, 04, 05, 06, 07, 16, 17; FR-ORD-0
 - `FulfillmentService` (api dan worker): `arrange`, `requestLabels`, `shipmentsOf`, `requestDocument` (jenis, format, template, daftar kemas), `document`, `pickList`, `tracking`, `requestTracking`, `exportSheets` (`pengiriman.csv` ekspor data penuh, backend doc 8.18; nomor pesanan lewat `OrdersService.refsIn`).
 - `LabelTemplateService` (api dan worker): `get`, `set`, `preview`, `optionsIn`.
 - `FulfillmentService.requestBarcodeLabels` (dokumen `barcode_labels`) dan `deleteForOrdersIn` (modul retention: pengiriman dihapus, label dan dokumen PDF pesanan itu kedaluwarsa seketika lewat `FilesService.expireIn`).
+- `FulfillmentService.anonymizeIn` (modul retention, masa simpan data pembeli, backend doc 8.34): keterangan kejadian pelacakan dikosongkan (waktu, tahap, dan lokasi tetap), label pengiriman, label paket, dan dokumen cetak pesanan itu kedaluwarsa.
 - `PickListBuilder` (api dan worker): `buildIn`.
 - Hanya worker: `FulfillmentWorkerService` (`arrange`, `fetchLabels`, `followOrder`, `labelsForOrders`, `pullTracking`) dan `DocumentRenderService` (`render`; juga manifest serah terima dan halaman uji agen). Marketplace selalu lewat `MarketplaceGateway`, di luar transaksi.
 - `PrintService` (api dan worker): `queueIn` (pekerjaan untuk sebuah dokumen), `push` (setelah commit), `printDocument`, `list`, `get`, `retry`, `cancel`, `cancelForDeviceIn`, `documentFinishedIn` (worker), dan rute agen `pending`, `take`, `report`, `agentStatus`.

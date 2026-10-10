@@ -605,7 +605,7 @@ describe("full data export (FR-MIG-09) and the audit of sensitive actions (FR-US
         "dibayar_pada;kirim_paling_lambat;dikirim_pada;diterima_pada;selesai_pada;dibatalkan_pada;dibatalkan_oleh;" +
         "alasan_batal;cod;dropship;subtotal;diskon;voucher_penjual;ongkir_pembeli;total;mata_uang;nama_pembeli;" +
         "username_pembeli;telepon_pembeli;nama_penerima;telepon_penerima;alamat;kecamatan;kota;provinsi;kode_pos;kurir;" +
-        "layanan_kurir;no_resi;catatan_pembeli;catatan_internal;sumber;id_toko;metode_bayar;tag",
+        "layanan_kurir;no_resi;catatan_pembeli;catatan_internal;sumber;id_toko;metode_bayar;tag;data_pembeli_dianonimkan_pada",
     );
     const row = orders[1]!;
     expect(row.startsWith(`${order.id};${store.name};Shopee;`)).toBe(true);

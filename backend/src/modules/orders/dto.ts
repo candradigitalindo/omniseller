@@ -315,6 +315,11 @@ const detailSchema = listItemSchema.extend({
   shippingAddress: z.record(z.string(), z.unknown()).nullable(),
   addressHidden: z.boolean().describe("alamat dan telepon pembeli disembunyikan untuk peran ini"),
   buyerNote: z.string().nullable(),
+  buyerAnonymizedAt: iso
+    .nullable()
+    .describe(
+      "kapan data pribadi pembeli dianonimkan sesuai masa simpan bisnis (backend doc 8.34); null bila masih disimpan",
+    ),
   internalNote: z.string().nullable(),
   subtotal: z.number().int(),
   discountTotal: z.number().int(),
@@ -456,6 +461,7 @@ export function orderDetailView(
     shippingAddress: show ? ((o.shippingAddress as Record<string, unknown> | null) ?? null) : null,
     addressHidden: !show,
     buyerNote: o.buyerNote,
+    buyerAnonymizedAt: o.buyerAnonymizedAt?.toISOString() ?? null,
     internalNote: o.internalNote,
     subtotal: o.subtotal,
     discountTotal: o.discountTotal,

@@ -1,6 +1,7 @@
 import type { OrderStatus } from "@omniseller/shared";
 import { describe, expect, it } from "vitest";
 import {
+  BUYER_DATA_FIELDS,
   detectProblems,
   initialStatus,
   itemStockPlan,
@@ -14,6 +15,7 @@ import {
   slaOf,
   statusSteps,
   warehouseFixed,
+  withoutBuyerData,
 } from "./order-plan";
 
 const seller = (state: Parameters<typeof initialStatus>[0]["state"]) => ({ state, fulfillment: "seller" as const });
@@ -242,5 +244,25 @@ describe("manual orders (FR-ORD-09, 12)", () => {
     expect(warehouseFixed("shopee", 1)).toBe(false);
     expect(warehouseFixed("tiktokshop", 0)).toBe(false);
     expect(warehouseFixed("manual", 3)).toBe(false);
+  });
+});
+
+describe("buyer data of a later snapshot (backend doc 8.34)", () => {
+  it("leaves out everything about the buyer, and only that", () => {
+    const fields = {
+      externalStatus: "COMPLETED",
+      total: 90_000,
+      buyerNote: "Bungkus rapi",
+      externalBuyerId: "4242",
+      buyerUsername: "dewi",
+      buyerName: "Dewi",
+      buyerPhone: "6281234567890",
+      shippingAddress: { name: "Dewi", city: "Jakarta Barat" },
+      trackingNumber: "SPX123",
+    };
+    expect(withoutBuyerData(fields)).toEqual({ externalStatus: "COMPLETED", total: 90_000, trackingNumber: "SPX123" });
+    expect(BUYER_DATA_FIELDS).toHaveLength(6);
+    // the input is left as it was
+    expect(fields.buyerName).toBe("Dewi");
   });
 });

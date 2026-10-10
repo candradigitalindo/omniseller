@@ -166,10 +166,11 @@ SELECT ensure_trigger('operating_hours', 'audit_trg',
   'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF name, schedule, valid_from, valid_to
      OR DELETE ON operating_hours FOR EACH ROW EXECUTE FUNCTION audit_row()');
 -- Business profile and legal documents (backend doc 8.29): who changed the NIB, NPWP, PKP status, address,
--- phone, or logo, and who uploaded, renewed, or removed a document. Reminder bookkeeping stays out.
+-- phone, logo, or how long buyer data is kept (8.34, migration 0025), and who uploaded, renewed, or removed
+-- a document. Reminder bookkeeping stays out.
 SELECT ensure_trigger('business_profile', 'audit_trg',
-  'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF address, phone, logo_file_id, nib, nib_in_process_since, npwp, pkp
-     OR DELETE ON business_profile FOR EACH ROW EXECUTE FUNCTION audit_row()');
+  'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF address, phone, logo_file_id, nib, nib_in_process_since, npwp, pkp,
+     buyer_data_retention_months OR DELETE ON business_profile FOR EACH ROW EXECUTE FUNCTION audit_row()');
 SELECT ensure_trigger('business_document', 'audit_trg',
   'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF kind, title, number, issued_on, valid_until, file_object_id
      OR DELETE ON business_document FOR EACH ROW EXECUTE FUNCTION audit_row()');

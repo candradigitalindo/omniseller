@@ -101,6 +101,22 @@ export class FulfillmentRepository {
 
   // ---- packages ----
 
+  /**
+   * Tracking descriptions of these shipments emptied (backend doc 8.34): they may name who received the
+   * parcel. Times, codes, and stages stay, so the timeline keeps its shape.
+   */
+  async clearTrackingDescriptions(tx: Tx, shipmentIds: string[]): Promise<void> {
+    if (shipmentIds.length === 0) return;
+    const events = sql.raw(`"shipment"."tracking_events"`);
+    await tx
+      .update(shipment)
+      .set({
+        trackingEvents: sql`(SELECT coalesce(jsonb_agg(e || '{"description": ""}'::jsonb ORDER BY n), '[]'::jsonb)
+          FROM jsonb_array_elements(${events}) WITH ORDINALITY AS t(e, n))`,
+      })
+      .where(and(inArray(shipment.id, shipmentIds), sql`${events} <> '[]'::jsonb`));
+  }
+
   async packages(tx: Tx, shipmentIds: string[]): Promise<PackageRow[]> {
     if (shipmentIds.length === 0) return [];
     return tx

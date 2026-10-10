@@ -50,7 +50,7 @@ import { useStores } from "@/features/stores/use-store-modes";
 import { api, unwrap } from "@/lib/api/client";
 import { errorMessage } from "@/lib/api/errors";
 import type { components } from "@/lib/api/schema";
-import { formatDateTime, formatNumber, formatRupiah } from "@/lib/format";
+import { formatDate, formatDateTime, formatNumber, formatRupiah } from "@/lib/format";
 import { useCan, useTimeZone } from "@/lib/session";
 import { ArrangeDialog } from "./arrange-dialog";
 import { DeadlinePill } from "./deadline-pill";
@@ -749,6 +749,15 @@ function ShippingCard({
         <span className="text-[13px] text-text-500">{t("address")}</span>
         {o.addressHidden ? (
           <span className="text-text-500">{t("addressHidden")}</span>
+        ) : o.buyerAnonymizedAt ? (
+          <>
+            <span className="text-text-500">{t("buyerAnonymized", { date: formatDate(o.buyerAnonymizedAt, tz) })}</span>
+            {address.lines.map((line) => (
+              <span key={line} className="text-text-700">
+                {line}
+              </span>
+            ))}
+          </>
         ) : o.shippingAddress === null ? (
           <span className="text-text-500">{t("noAddress")}</span>
         ) : (
@@ -803,7 +812,9 @@ function ShippingCard({
                       key={`${e.at}|${e.packageId ?? ""}|${e.description}`}
                       className="grid gap-0.5 border-l-2 border-border pl-3 text-sm"
                     >
-                      <span className="text-text-900">{e.description}</span>
+                      <span className="text-text-900">
+                        {e.description || (o.buyerAnonymizedAt ? t("trackingDescriptionAnonymized") : "—")}
+                      </span>
                       <span className="text-[13px] text-text-500">{formatDateTime(e.at, tz)}</span>
                     </li>
                   ))}

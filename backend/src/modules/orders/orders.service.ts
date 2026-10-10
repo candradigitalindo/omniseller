@@ -89,15 +89,15 @@ export interface SalesFilter {
   channel?: string | undefined;
 }
 
+/** Orders per transaction when a disconnected store's orders stop holding stock. */
+const RELEASE_BATCH = 200;
+
 /**
  * Orders for sellers (PRD 6.4: FR-ORD-02, 03, 05, 06, 07, 08, 10, 13, 14, 15): the unified queue and
  * its counts, one order in full, and the seller's actions. Reads respect the store scope and, for
  * warehouse staff, the warehouse scope (FR-WHS-09). Actions are refused for stores still in read-only
  * mode, where orders are processed in the old application (FR-MIG-05).
  */
-/** Orders per transaction when a disconnected store's orders stop holding stock. */
-const RELEASE_BATCH = 200;
-
 @Injectable()
 export class OrdersService {
   constructor(
@@ -348,6 +348,19 @@ export class OrdersService {
   async deleteOrdersIn(tx: Tx, ctx: RequestContext, ids: string[]): Promise<number> {
     await this.intake.releaseForDisconnectIn(tx, ctx, ids);
     return this.repo.deleteOrders(tx, ids);
+  }
+
+  /** Orders whose buyer data is due to go (backend doc 8.34), oldest first, in the caller's transaction. */
+  buyerDataDueIn(tx: Tx, before: Date, limit: number): Promise<string[]> {
+    return this.repo.buyerDataDue(tx, before, limit);
+  }
+
+  /**
+   * Anonymizes these orders' buyer data (backend doc 8.34) in the caller's transaction, after the shipments
+   * and returns of the same orders (modules fulfillment and returns). Returns how many changed.
+   */
+  anonymizeBuyersIn(tx: Tx, ids: string[], at: Date): Promise<number> {
+    return this.repo.anonymizeBuyers(tx, ids, at);
   }
 
   /** Orders still to ship from a warehouse, whatever the caller's scope: it cannot be deleted (8.21). */
@@ -764,6 +777,7 @@ export class OrdersService {
           "id_toko",
           "metode_bayar",
           "tag",
+          "data_pembeli_dianonimkan_pada",
         ],
         pages: (tx, l) =>
           keysetPages(
@@ -825,6 +839,7 @@ export class OrdersService {
                     .filter((t) => t.orderId === o.id)
                     .map((t) => t.name)
                     .join(", "),
+                  o.buyerAnonymizedAt,
                 ];
               });
             },

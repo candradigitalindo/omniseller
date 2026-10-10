@@ -402,6 +402,14 @@ export class ReturnsService {
     return this.repo.deleteStoreRequests(tx, storeId, limit);
   }
 
+  /**
+   * Buyer data in these orders' requests goes (backend doc 8.34): the buyer's reason and photos, and the
+   * seller's photos, whose files expire. In the caller's transaction, before the orders (module orders).
+   */
+  async anonymizeIn(tx: Tx, orderIds: string[]): Promise<void> {
+    await this.files.expireIn(tx, await this.repo.clearBuyerData(tx, orderIds));
+  }
+
   exportSheets(): ExportSheet[] {
     return [
       {

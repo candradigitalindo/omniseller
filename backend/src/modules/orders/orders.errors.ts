@@ -62,3 +62,8 @@ export const tagDuplicate = () => new ConflictError("tag.duplicate", "Sudah ada 
 export const tagLimit = (max: number) =>
   new UnprocessableError("tag.limit", `Paling banyak ${max} tag. Hapus tag yang tidak dipakai dulu.`);
 export const tagsUnknown = (path: string) => new ValidationError([{ path, message: "Tag tidak ditemukan." }]);
+export const buyerDataAnonymized = () =>
+  new ConflictError(
+    "order.buyer_anonymized",
+    "Data pembeli pesanan ini sudah dianonimkan sesuai masa simpan data pembeli dan tidak bisa diisi lagi.",
+  );

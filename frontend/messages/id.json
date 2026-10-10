@@ -368,7 +368,9 @@
     "moved": "Pesanan dipindah ke {warehouse}.",
     "refreshTracking": "Perbarui",
     "trackingQueued": "Pelacakan sedang diperbarui.",
-    "trackingFresh": "Pelacakan sudah diperbarui dalam 10 menit terakhir."
+    "trackingFresh": "Pelacakan sudah diperbarui dalam 10 menit terakhir.",
+    "buyerAnonymized": "Data pembeli dianonimkan {date} sesuai masa simpan data pembeli.",
+    "trackingDescriptionAnonymized": "Keterangan dihapus bersama data pembeli"
   },
   "orderTags": {
     "more": "+{count, number}",
@@ -2637,7 +2639,15 @@
     "validUntil": "Berlaku sampai {date}",
     "expiresIn": "Habis dalam {days, plural, other {# hari}}",
     "expiresToday": "Habis hari ini",
-    "expiredOn": "Habis berlaku {date}"
+    "expiredOn": "Habis berlaku {date}",
+    "buyerDataTitle": "Data pembeli",
+    "buyerDataBody": "Nama, telepon, alamat, dan catatan pembeli dianonimkan setelah masa ini sejak pesanan dibuat, begitu pula alasan dan foto retur serta keterangan pelacakan paketnya. Nilai, barang, tanggal, kota, dan provinsi pesanan tetap tersimpan. Pesanan yang belum dikirim menunggu sampai dikirim atau dibatalkan.",
+    "buyerDataRetention": "Simpan data pembeli selama",
+    "months": "{count} bulan",
+    "buyerDataHint": "Paling lama 24 bulan, sesuai Kebijakan Privasi OmniSeller.",
+    "shortenTitle": "Persingkat masa simpan data pembeli?",
+    "shortenBody": "Data pembeli pesanan yang lebih tua dari {months} bulan dianonimkan dalam satu jam dan tidak bisa dikembalikan. Ekspor data lebih dulu bila Anda masih membutuhkannya.",
+    "shortenConfirm": "Ya, persingkat"
   },
   "courierHours": {
     "title": "Kurir & Jam Operasional",

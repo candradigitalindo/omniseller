@@ -190,6 +190,49 @@ describe("Profil Bisnis & Legalitas", () => {
     );
   });
 
+  it("keeps buyer data for the chosen months, and asks before shortening it for good", async () => {
+    const calls = mockApi({
+      "GET /v1/business-profile": () => PROFILE,
+      "PATCH /v1/business-profile": (c) => ({ ...PROFILE, rowVersion: 4, ...(c.body as object) }),
+    });
+    const user = userEvent.setup();
+    renderApp(<BusinessProfileView />);
+    const choices = await screen.findByRole("group", { name: "Simpan data pembeli selama" });
+    expect(within(choices).getByRole("radio", { name: "24 bulan" })).toBeChecked();
+    expect(
+      within(choices)
+        .getAllByRole("radio")
+        .map((r) => r.closest("label")?.textContent),
+    ).toEqual(["3 bulan", "6 bulan", "12 bulan", "24 bulan"]);
+    await user.click(within(choices).getByRole("radio", { name: "6 bulan" }));
+    await user.click(screen.getByRole("button", { name: "Simpan perubahan" }));
+    const ask = await screen.findByRole("dialog", { name: "Persingkat masa simpan data pembeli?" });
+    expect(ask).toHaveTextContent("lebih tua dari 6 bulan dianonimkan dalam satu jam dan tidak bisa dikembalikan");
+    // not yet
+    expect(patches(calls)).toHaveLength(0);
+    await user.click(within(ask).getByRole("button", { name: "Batal" }));
+    expect(patches(calls)).toHaveLength(0);
+    await user.click(screen.getByRole("button", { name: "Simpan perubahan" }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Ya, persingkat" }));
+    await waitFor(() => expect(patches(calls)[0]?.body).toEqual({ buyerDataRetentionMonths: 6 }));
+    expect((await screen.findAllByText("Profil bisnis disimpan.")).length).toBeGreaterThan(0);
+  });
+
+  it("lengthens how long buyer data is kept without asking, and shows a value set elsewhere", async () => {
+    const calls = mockApi({
+      "GET /v1/business-profile": () => ({ ...PROFILE, buyerDataRetentionMonths: 18 }),
+      "PATCH /v1/business-profile": (c) => ({ ...PROFILE, rowVersion: 4, ...(c.body as object) }),
+    });
+    const user = userEvent.setup();
+    renderApp(<BusinessProfileView />);
+    const choices = await screen.findByRole("group", { name: "Simpan data pembeli selama" });
+    expect(within(choices).getByRole("radio", { name: "18 bulan" })).toBeChecked();
+    await user.click(within(choices).getByRole("radio", { name: "24 bulan" }));
+    await user.click(screen.getByRole("button", { name: "Simpan perubahan" }));
+    await waitFor(() => expect(patches(calls)[0]?.body).toEqual({ buyerDataRetentionMonths: 24 }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("is only for the owner of the business", () => {
     const calls = mockApi({});
     renderApp(<BusinessProfileView />, { me: testMe(["settings:user", "audit:read"]) });

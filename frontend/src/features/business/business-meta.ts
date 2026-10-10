@@ -39,6 +39,13 @@ export interface ProfileDraft {
   nibInProcessSince: string;
   npwp: string;
   pkp: boolean;
+  /** Months after the order its buyer's data is anonymized (backend doc 8.34). */
+  buyerDataRetentionMonths: number;
+}
+
+/** The choices for how long buyer data is kept: 3 to 24 months, and whatever the business has now. */
+export function retentionChoices(current: number): number[] {
+  return [...new Set([3, 6, 12, 24, current])].sort((a, b) => a - b);
 }
 
 export function draftOf(p: BusinessProfile): ProfileDraft {
@@ -56,6 +63,7 @@ export function draftOf(p: BusinessProfile): ProfileDraft {
     nibInProcessSince: p.nibInProcessSince ?? "",
     npwp: p.npwp ? formatNpwp(p.npwp) : "",
     pkp: p.pkp,
+    buyerDataRetentionMonths: p.buyerDataRetentionMonths,
   };
 }
 
@@ -126,6 +134,9 @@ export function patchOf(d: ProfileDraft, p: BusinessProfile): ProfilePatch {
   const npwp = orNull(d.npwp);
   if ((npwp ? digitsOf(npwp) : null) !== p.npwp) patch.npwp = npwp;
   if (d.pkp !== p.pkp) patch.pkp = d.pkp;
+  if (d.buyerDataRetentionMonths !== p.buyerDataRetentionMonths) {
+    patch.buyerDataRetentionMonths = d.buyerDataRetentionMonths;
+  }
   return patch;
 }
 

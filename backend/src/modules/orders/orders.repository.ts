@@ -149,6 +149,47 @@ export class OrdersRepository {
       .limit(10);
   }
 
+  /**
+   * Orders whose buyer data is due to go (backend doc 8.34): placed before `before`, kept so far, and no
+   * longer held for shipping (the seller still needs the address of those). Oldest first.
+   */
+  async buyerDataDue(tx: Tx, before: Date, limit: number): Promise<string[]> {
+    const rows = await tx
+      .select({ id: order.id })
+      .from(order)
+      .where(
+        and(isNull(order.buyerAnonymizedAt), lt(order.orderedAt, before), notInArray(order.status, [...HOLD_STATUSES])),
+      )
+      .orderBy(asc(order.orderedAt))
+      .limit(limit);
+    return rows.map((r) => r.id);
+  }
+
+  /**
+   * The buyer's personal data out of these orders: name, username, phone, note, marketplace buyer id,
+   * the dropship sender, and the address except its city and province. Amounts, items, and dates stay.
+   */
+  async anonymizeBuyers(tx: Tx, ids: string[], at: Date): Promise<number> {
+    if (ids.length === 0) return 0;
+    const done = await tx
+      .update(order)
+      .set({
+        buyerUsername: null,
+        buyerName: null,
+        buyerPhone: null,
+        buyerNote: null,
+        externalBuyerId: null,
+        customerId: null,
+        dropshipSender: null,
+        shippingAddress: sql`CASE WHEN ${order.shippingAddress} IS NULL THEN NULL ELSE jsonb_strip_nulls(jsonb_build_object(
+          'city', ${order.shippingAddress} -> 'city', 'province', ${order.shippingAddress} -> 'province')) END`,
+        buyerAnonymizedAt: at,
+      })
+      .where(and(inArray(order.id, ids), isNull(order.buyerAnonymizedAt)))
+      .returning({ id: order.id });
+    return done.length;
+  }
+
   async update(tx: Tx, id: string, patch: Partial<typeof order.$inferInsert>): Promise<void> {
     if (Object.keys(patch).length === 0) return;
     await tx.update(order).set(patch).where(eq(order.id, id));
