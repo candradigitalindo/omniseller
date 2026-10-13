@@ -110,6 +110,31 @@ function resolveTarget(target: string): string {
  * Reads no more than `maxRows` rows; `truncated` says there were more.
  */
 export function readXlsx(bytes: Uint8Array, maxRows: number): { rows: string[][]; truncated: boolean } {
+  const { sheets, shared, files } = openWorkbook(bytes);
+  for (const sheet of sheets) {
+    const xml = files.get(sheet.path);
+    if (!xml) continue;
+    const read = readSheetXml(strFromU8(xml), shared, maxRows);
+    if (read.rows.some((r) => r.some((c) => c.trim() !== ""))) return read;
+  }
+  throw new SheetError("Lembar kerja pertama kosong.");
+}
+
+/** Every visible worksheet with its name, in workbook order (tests of written workbooks). */
+export function readXlsxAll(bytes: Uint8Array, maxRows: number): { name: string; rows: string[][] }[] {
+  const { sheets, shared, files } = openWorkbook(bytes);
+  return sheets.flatMap((sheet) => {
+    const xml = files.get(sheet.path);
+    return xml ? [{ name: sheet.name, rows: readSheetXml(strFromU8(xml), shared, maxRows).rows }] : [];
+  });
+}
+
+/** The workbook's visible sheets (name and part path), shared strings, and parts. */
+function openWorkbook(bytes: Uint8Array): {
+  sheets: { name: string; path: string }[];
+  shared: string[];
+  files: Map<string, Uint8Array>;
+} {
   const files = unzipLimited(
     bytes,
     (name) =>
@@ -130,12 +155,12 @@ export function readXlsx(bytes: Uint8Array, maxRows: number): { rows: string[][]
     const target = attr(a, "Target");
     if (id && target) targets.set(id, resolveTarget(target));
   }
-  const sheets: string[] = [];
+  const sheets: { name: string; path: string }[] = [];
   for (const m of strFromU8(workbook).matchAll(/<(?:\w+:)?sheet\b[^>]*>/g)) {
     const a = attrs(m[0]);
     if (attr(a, "state") === "hidden" || attr(a, "state") === "veryHidden") continue;
     const path = targets.get(attr(a, "id") ?? "");
-    if (path) sheets.push(path);
+    if (path) sheets.push({ name: xmlText(attr(a, "name") ?? ""), path });
   }
 
   const shared: string[] = [];
@@ -144,13 +169,7 @@ export function readXlsx(bytes: Uint8Array, maxRows: number): { rows: string[][]
     for (const m of strFromU8(sst).matchAll(/<(?:\w+:)?si\b[^>]*>([\s\S]*?)<\/(?:\w+:)?si>/g))
       shared.push(runText(m[1]!));
 
-  for (const path of sheets) {
-    const xml = files.get(path);
-    if (!xml) continue;
-    const read = readSheetXml(strFromU8(xml), shared, maxRows);
-    if (read.rows.some((r) => r.some((c) => c.trim() !== ""))) return read;
-  }
-  throw new SheetError("Lembar kerja pertama kosong.");
+  return { sheets, shared, files };
 }
 
 function readSheetXml(xml: string, shared: string[], maxRows: number): { rows: string[][]; truncated: boolean } {

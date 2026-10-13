@@ -142,3 +142,29 @@ export function staffCsvRows(r: StaffReport, section: StaffSection): CsvValue[][
     ...r.userDays.map((d) => [d.date, nameOf.get(d.userId) ?? UNKNOWN_MEMBER, ...cells(d)]),
   ];
 }
+
+/** The team per day (UI L33 "Per hari"), the workbook's last sheet. */
+export function staffDayRows(r: StaffReport): CsvValue[][] {
+  return [["tanggal", ...FIGURE_HEADERS], ...r.days.map((d) => [d.date, ...cells(d)])];
+}
+
+/** The workbook's first sheet: the period and the team's figures, worded as L33 shows them. */
+export function staffSummaryRows(
+  r: StaffReport & { range: { from: string; to: string }; packTimeLimitSeconds: number },
+): CsvValue[][] {
+  const t = r.total;
+  return [
+    ["Ukuran", "Nilai"],
+    ["Periode", `${r.range.from} s.d. ${r.range.to}`],
+    ["Pesanan diproses", t.processed],
+    ["Dikemas", t.packed],
+    ["Dikemas dengan scan", t.packedByScan],
+    ["Label dicetak", t.labels],
+    ["Pesanan di pick list", t.pickLists],
+    ["Daftar kemas dicetak", t.packingLists],
+    ["Diserahkan ke kurir", t.handedOver],
+    ["Kemas berwaktu", t.timedPacks],
+    ["Rata-rata detik kemas", t.packSecondsAverage],
+    ["Batas detik kemas yang dihitung", r.packTimeLimitSeconds],
+  ];
+}

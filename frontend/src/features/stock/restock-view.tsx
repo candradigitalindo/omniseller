@@ -11,6 +11,12 @@ import { EmptyState, ErrorState, PageHeader, StatusPill } from "@/components/com
 import { Segmented } from "@/components/common/segmented";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -35,6 +41,7 @@ import {
   type RestockWindow,
   restockExportHref,
   restockQuery,
+  restockWorkbookHref,
   WINDOWS,
   windowOf,
 } from "./restock-meta";
@@ -106,12 +113,26 @@ export function RestockView() {
         title={t("title")}
         description={t("description", { window: Number(f.window), cover: f.coverDays, target: f.targetDays })}
         actions={
-          <Button asChild variant="secondary">
-            <a href={restockExportHref(query)} download>
-              <Download aria-hidden />
-              {t("download")}
-            </a>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="secondary">
+                <Download aria-hidden />
+                {t("download")}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <a href={restockWorkbookHref(query)} download>
+                  {t("downloadXlsx")}
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a href={restockExportHref(query)} download>
+                  {t("downloadCsv")}
+                </a>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         }
       />
 

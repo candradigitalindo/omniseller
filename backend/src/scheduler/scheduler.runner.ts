@@ -33,6 +33,7 @@ import {
   scanSlaAlerts,
 } from "./order-scans";
 import { OutboxRelayRunner } from "./outbox-relay";
+import { REPORT_SCAN_MS, scanScheduledReports } from "./report-scan";
 import { RETENTION_RUN_MS, runRetention } from "./retention-run";
 import { RETENTION_SCAN_MS, scanBuyerRetention } from "./retention-scan";
 import {
@@ -91,6 +92,7 @@ export class SchedulerRunner implements OnApplicationBootstrap, OnApplicationShu
     this.every(SLA_ALERT_SLOT_MS, "order.sla_scan", () => scanSlaAlerts(this.system, this.queues, this.registry));
     this.every(SLA_ALERT_SLOT_MS, "order.new_scan", () => scanNewOrderNotices(this.system, this.queues, this.registry));
     this.every(DIGEST_SCAN_MS, "digest.scan", () => scanDailyDigests(this.system, this.queues, this.registry));
+    this.every(REPORT_SCAN_MS, "report.scan", () => scanScheduledReports(this.system, this.queues, this.registry));
     this.every(TRACKING_SCAN_MS, "shipment.tracking_scan", () => scanTracking(this.system, this.queues, this.registry));
     this.every(CONNECTION_SCAN_MS, "store.connection_scan", () =>
       scanConnectionAlerts(this.system, this.queues, this.registry),

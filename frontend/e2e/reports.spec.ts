@@ -25,6 +25,20 @@ test("the sales report counts a paid order and breaks it down per product", asyn
   );
   expect(csv.headers()["content-type"]).toContain("text/csv");
   expect(await csv.text()).toContain(`KAOS-${t}-HTM`);
+
+  // the whole report as one Excel workbook, from the "Unduh laporan" menu
+  await page.getByRole("button", { name: "Unduh laporan" }).click();
+  const xlsx = await page.request.get(
+    (await page.getByRole("menuitem", { name: "Excel (semua bagian)" }).getAttribute("href")) ?? "",
+  );
+  expect(xlsx.headers()["content-type"]).toContain("spreadsheetml.sheet");
+  expect(xlsx.headers()["content-disposition"]).toMatch(/penjualan-\d{4}-\d{2}-\d{2}-\d{4}-\d{2}-\d{2}\.xlsx/);
+  expect((await xlsx.body()).subarray(0, 2).toString()).toBe("PK");
+  await page.keyboard.press("Escape");
+  // the weekly and monthly emails are chosen on the notifications page
+  await page.getByRole("link", { name: "Jadwalkan email" }).click();
+  await expect(page).toHaveURL(/\/notifikasi$/);
+  await expect(page.getByRole("switch", { name: /Email untuk Laporan penjualan mingguan/ })).toBeVisible();
 });
 
 test("the restock list shows stock under its minimum with a suggestion", async ({ page, business }) => {
@@ -43,6 +57,11 @@ test("the restock list shows stock under its minimum with a suggestion", async (
   await expect(page.getByRole("row", { name: new RegExp(`KAOS-${t}-PTH`) })).toHaveCount(0);
   await page.getByRole("button", { name: "Tampilkan semua" }).click();
   await expect(page.getByRole("row", { name: new RegExp(`KAOS-${t}-PTH`) }).getByText("Belum terjual")).toBeVisible();
+  // every row as Excel or CSV
+  await page.getByRole("button", { name: "Unduh" }).click();
+  const xlsx = await page.request.get((await page.getByRole("menuitem", { name: "Excel" }).getAttribute("href")) ?? "");
+  expect(xlsx.headers()["content-disposition"]).toBe('attachment; filename="perlu-restock.xlsx"');
+  expect((await xlsx.body()).subarray(0, 2).toString()).toBe("PK");
 });
 
 test("the team report counts who accepted and packed by scan, with minutes per order", async ({ page, business }) => {
@@ -87,4 +106,9 @@ test("the team report counts who accepted and packed by scan, with minutes per o
   );
   expect(csv.headers()["content-type"]).toContain("text/csv");
   expect(await csv.text()).toMatch(/\r\nRina Wulandari;1;1;1;0;0;0;0;1;\d+\r\n/);
+  const xlsx = await page.request.get(
+    (await page.getByRole("menuitem", { name: "Excel (per anggota dan per hari)" }).getAttribute("href")) ?? "",
+  );
+  expect(xlsx.headers()["content-type"]).toContain("spreadsheetml.sheet");
+  expect(xlsx.headers()["content-disposition"]).toMatch(/kinerja-tim-\d{4}-\d{2}-\d{2}-\d{4}-\d{2}-\d{2}\.xlsx/);
 });

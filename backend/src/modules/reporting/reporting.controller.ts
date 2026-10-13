@@ -4,6 +4,8 @@ import type { Response } from "express";
 import { ZodResponse } from "nestjs-zod";
 import type { RequestContext } from "../../common/context/request-context";
 import { Ctx, Isolation, RequirePermission } from "../../common/http/decorators";
+import { sendAttachment } from "../../common/http/send-download";
+import { XLSX_MIME } from "../../common/xlsx";
 import { DashboardService } from "./dashboard.service";
 import {
   DashboardDto,
@@ -53,18 +55,20 @@ export class ReportsController {
     return salesReportView(await this.sales.report(ctx, q));
   }
 
-  /** One section of the report as CSV (L30 "Unduh laporan"). */
+  /** One section of the report as CSV, or the whole report as an Excel workbook (L30 "Unduh laporan"). */
   @Get("sales/export")
   @RequirePermission("report:read")
   @Isolation({ fixture: "order" })
-  @ApiProduces("text/csv")
-  @ApiOkResponse({ schema: { type: "string" }, description: "CSV, pemisah ;" })
+  @ApiProduces("text/csv", XLSX_MIME)
+  @ApiOkResponse({ schema: { type: "string" }, description: "CSV (pemisah ;) atau berkas Excel (.xlsx)" })
   async export(@Ctx() ctx: RequestContext, @Query() q: SalesExportQueryDto, @Res() res: Response): Promise<void> {
+    if (q.format === "xlsx") {
+      const { fileName, bytes } = await this.sales.workbook(ctx, q);
+      sendAttachment(res, fileName, XLSX_MIME, bytes);
+      return;
+    }
     const { fileName, csv } = await this.sales.csv(ctx, q, q.section);
-    res.setHeader("content-type", "text/csv; charset=utf-8");
-    res.setHeader("content-disposition", `attachment; filename="${fileName}"`);
-    res.setHeader("cache-control", "private, no-store");
-    res.send(csv);
+    sendAttachment(res, fileName, "text/csv; charset=utf-8", csv);
   }
 
   /**
@@ -79,17 +83,19 @@ export class ReportsController {
     return staffReportView(await this.staff.report(ctx, q));
   }
 
-  /** The team report as CSV (L33 "Unduh"): per member, or per member per day. */
+  /** The team report as CSV (per member, or per member per day) or as an Excel workbook of both (L33 "Unduh"). */
   @Get("staff/export")
   @RequirePermission("settings:user")
   @Isolation({ fixture: "order" })
-  @ApiProduces("text/csv")
-  @ApiOkResponse({ schema: { type: "string" }, description: "CSV, pemisah ;" })
+  @ApiProduces("text/csv", XLSX_MIME)
+  @ApiOkResponse({ schema: { type: "string" }, description: "CSV (pemisah ;) atau berkas Excel (.xlsx)" })
   async staffExport(@Ctx() ctx: RequestContext, @Query() q: StaffExportQueryDto, @Res() res: Response): Promise<void> {
+    if (q.format === "xlsx") {
+      const { fileName, bytes } = await this.staff.workbook(ctx, q);
+      sendAttachment(res, fileName, XLSX_MIME, bytes);
+      return;
+    }
     const { fileName, csv } = await this.staff.csv(ctx, q, q.section);
-    res.setHeader("content-type", "text/csv; charset=utf-8");
-    res.setHeader("content-disposition", `attachment; filename="${fileName}"`);
-    res.setHeader("cache-control", "private, no-store");
-    res.send(csv);
+    sendAttachment(res, fileName, "text/csv; charset=utf-8", csv);
   }
 }

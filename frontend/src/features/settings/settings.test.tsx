@@ -11,8 +11,42 @@ describe("NotificationSettingsView (L44)", () => {
 
   const prefs = () => ({
     items: [
-      { kind: "digest.daily", label: "Ringkasan harian", email: true, emailByDefault: true, locked: false },
-      { kind: "store.connection_lost", label: "Toko terputus", email: true, emailByDefault: true, locked: true },
+      {
+        kind: "digest.daily",
+        label: "Ringkasan harian",
+        email: true,
+        emailByDefault: true,
+        locked: false,
+        inApp: "always",
+        feature: null,
+      },
+      {
+        kind: "store.connection_lost",
+        label: "Toko terputus",
+        email: true,
+        emailByDefault: true,
+        locked: true,
+        inApp: "always",
+        feature: null,
+      },
+      {
+        kind: "report.sales_weekly",
+        label: "Laporan penjualan mingguan",
+        email: false,
+        emailByDefault: false,
+        locked: false,
+        inApp: "with_email",
+        feature: null,
+      },
+      {
+        kind: "report.staff_weekly",
+        label: "Laporan kinerja tim mingguan",
+        email: false,
+        emailByDefault: false,
+        locked: false,
+        inApp: "with_email",
+        feature: "staff_report",
+      },
     ],
   });
 
@@ -27,6 +61,32 @@ describe("NotificationSettingsView (L44)", () => {
     await user.click(screen.getByRole("switch", { name: "Email untuk Ringkasan harian" }));
     await waitFor(() => expect(calls.find((c) => c.method === "PUT")?.body).toEqual({ email: false }));
     expect(screen.getByRole("switch", { name: "Email untuk Ringkasan harian" })).not.toBeChecked();
+  });
+
+  it("offers the scheduled reports as email only, locked while the plan lacks the team report", async () => {
+    const calls = mockApi({
+      "GET /v1/notifications/preferences": prefs,
+      "PUT /v1/notifications/preferences/report.sales_weekly": () => ({ items: [] }),
+    });
+    const user = userEvent.setup();
+    renderApp(<NotificationSettingsView />, {
+      me: { ...testMe(), plan: { code: "starter", name: "Starter", features: [] } },
+    });
+    const sales = await screen.findByRole("switch", { name: "Email untuk Laporan penjualan mingguan" });
+    // a report exists only as an email: no check in the app column
+    const row = sales.closest("tr")!;
+    expect(row).toHaveTextContent("Bersama email");
+    expect(screen.getAllByText("Selalu muncul di aplikasi")).toHaveLength(2);
+    await user.click(sales);
+    await waitFor(() =>
+      expect(calls.find((c) => c.path === "/v1/notifications/preferences/report.sales_weekly")?.body).toEqual({
+        email: true,
+      }),
+    );
+    // the team report needs plan Growth: locked, and said so
+    const staff = screen.getByRole("switch", { name: "Email untuk Laporan kinerja tim mingguan" });
+    expect(staff).toBeDisabled();
+    expect(staff.closest("tr")).toHaveTextContent("Tersedia mulai paket Growth.");
   });
 
   it("puts the switch back when the api refuses", async () => {

@@ -56,6 +56,7 @@ Gudang, stok, pergerakan stok, aturan alokasi, dan push stok ke marketplace (PRD
 - Perlu restock:
   - Kecepatan jual adalah unit pesanan yang dipenuhi penjual sendiri dalam 7, 14, atau 30 hari terakhir, per gudang baris pesanan.
   - Target restock adalah `max(ceil(per hari × targetDays), min_stock + 1)`; saran pesan adalah target dikurangi stok tersedia.
+  - Unduhan CSV dan Excel (`format=xlsx`, `perlu-restock.xlsx`, `common/xlsx.ts`) memuat baris yang sama (`rows()`).
   - Alasan: `out` (habis, padahal laku atau punya minimum), `below_min`, dan `low_cover` (cukup untuk kurang dari `coverDays` hari).
   - Hanya stok yang sudah ditetapkan, dari varian dan produk aktif.
 - Gudang:

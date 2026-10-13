@@ -3,14 +3,19 @@ import type { NestExpressApplication } from "@nestjs/platform-express";
 import { sql } from "drizzle-orm";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { unguardCell } from "../../src/common/csv";
 import { localDate } from "../../src/common/time-zone";
 import type { QueueRegistry } from "../../src/jobs/queues";
 import { JOB_DEFINITIONS, JobRegistry } from "../../src/jobs/registry";
+import { readXlsx, readXlsxAll } from "../../src/modules/migration/xlsx";
 import { longDate } from "../../src/modules/notification/templates";
-import { digestDailyJob } from "../../src/modules/reporting/reporting.jobs";
+import { digestDailyJob, reportScheduledJob } from "../../src/modules/reporting/reporting.jobs";
+import { SALES_SECTIONS, SALES_SHEET_NAMES } from "../../src/modules/reporting/sales-report.service";
 import { addDays } from "../../src/modules/reporting/sales-report-plan";
+import { mondayOf } from "../../src/modules/reporting/scheduled-report-plan";
 import { webhookProcessJob } from "../../src/modules/sync/sync.jobs";
 import { scanDailyDigests } from "../../src/scheduler/digest-scan";
+import { scanDelayMs, scanScheduledReports } from "../../src/scheduler/report-scan";
 import {
   type Client,
   client,
@@ -65,6 +70,23 @@ async function drain(tenantId: string): Promise<string[]> {
     ran.push(...round);
   }
   return ran;
+}
+
+/** A binary download (an Excel workbook): its headers and bytes. */
+async function download(c: Client, url: string) {
+  const res = await c
+    .get(url)
+    .buffer(true)
+    .parse((r, cb) => {
+      const chunks: Buffer[] = [];
+      r.on("data", (d: Buffer) => chunks.push(d));
+      r.on("end", () => cb(null, Buffer.concat(chunks)));
+    });
+  return {
+    status: res.status,
+    headers: res.headers as Record<string, string>,
+    bytes: new Uint8Array(res.body as Buffer),
+  };
 }
 
 async function business() {
@@ -314,6 +336,45 @@ describe("sales report (FR-RPT-02)", () => {
     expect((await c.get("/v1/reports/sales/export?from=2026-09-01&to=2026-09-30&section=hours")).text).toContain(
       "Kamis;10;1;90000",
     );
+    // the whole report as one Excel workbook: a summary, then every section with the CSV's rows (FR-RPT-05)
+    const xlsx = await download(c, "/v1/reports/sales/export?from=2026-09-01&to=2026-09-30&format=xlsx&section=hours");
+    expect(xlsx.status).toBe(200);
+    expect(xlsx.headers["content-type"]).toContain("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    expect(xlsx.headers["content-disposition"]).toBe('attachment; filename="penjualan-2026-09-01-2026-09-30.xlsx"');
+    expect(xlsx.headers["cache-control"]).toContain("no-store");
+    const sheets = readXlsxAll(xlsx.bytes, 100);
+    expect(sheets.map((s) => s.name)).toEqual([
+      "Ringkasan",
+      "Per periode",
+      "Per kanal",
+      "Per toko",
+      "Per produk",
+      "Per kategori",
+      "Per wilayah",
+      "Per jam",
+    ]);
+    expect(sheets[0]!.rows.slice(0, 4)).toEqual([
+      ["Ukuran", "Periode ini", "Periode sebelumnya"],
+      ["Periode", "2026-09-01 s.d. 2026-09-30", "2026-08-01 s.d. 2026-08-31"],
+      ["Omzet", "135000", "45000"],
+      ["Pesanan", "2", "1"],
+    ]);
+    // every section's sheet holds exactly the rows its CSV has
+    const trimEnd = (r: string[]) => {
+      const out = [...r];
+      while (out.length > 0 && out[out.length - 1] === "") out.pop();
+      return out;
+    };
+    for (const section of SALES_SECTIONS) {
+      const text = (await c.get(`/v1/reports/sales/export?from=2026-09-01&to=2026-09-30&section=${section}`)).text;
+      const csvRows = text
+        .replace(/^\uFEFF/, "")
+        .trimEnd()
+        .split("\r\n")
+        .map((l) => trimEnd(l.split(";").map(unguardCell)));
+      expect(csvRows.length, section).toBeGreaterThan(1);
+      expect(sheets.find((s) => s.name === SALES_SHEET_NAMES[section])!.rows.map(trimEnd), section).toEqual(csvRows);
+    }
 
     // filters, validation, permissions
     const other = await connectShopee(c, tenantId, [item(952, ["KAOS-M"])]);
@@ -401,6 +462,19 @@ describe("restock list (FR-STK-07)", () => {
     );
     expect(csv).toContain("TOPI-1;Produk TOPI;1;");
     expect(csv).toContain(";Cepat habis\r\n");
+    // the same rows as an Excel workbook
+    const xlsx = await download(c, "/v1/inventory/restock/export?format=xlsx");
+    expect(xlsx.status).toBe(200);
+    expect(xlsx.headers["content-disposition"]).toBe('attachment; filename="perlu-restock.xlsx"');
+    const rows = readXlsx(xlsx.bytes, 50).rows;
+    expect(rows[0]).toEqual(
+      csv
+        .split("\r\n")[0]!
+        .replace(/^\uFEFF/, "")
+        .split(";"),
+    );
+    expect(rows.find((r) => r[0] === "TOPI-1")?.slice(0, 3)).toEqual(["TOPI-1", "Produk TOPI", "1"]);
+    expect(rows.find((r) => r[0] === "TOPI-1")?.at(-1)).toBe("Cepat habis");
   });
 });
 
@@ -430,8 +504,16 @@ describe("daily operational email (FR-NTF-02)", () => {
     const gudang = await addMember(c, tenantId, "Gudang");
     const cs = await addMember(c, tenantId, "CS");
     // preferences: the Viewer turns it off, CS (no sales figures by default) turns it on
+    // a Viewer may choose the daily email and the sales report emails, nothing else (L44)
     expect((await viewer.c.get("/v1/notifications/preferences")).body.items).toEqual([
-      expect.objectContaining({ kind: "digest.daily", email: true, emailByDefault: true }),
+      expect.objectContaining({ kind: "digest.daily", email: true, emailByDefault: true, inApp: "always" }),
+      expect.objectContaining({
+        kind: "report.sales_weekly",
+        email: false,
+        emailByDefault: false,
+        inApp: "with_email",
+      }),
+      expect.objectContaining({ kind: "report.sales_monthly", email: false, locked: false, feature: null }),
     ]);
     expect(
       (await viewer.c.put("/v1/notifications/preferences/digest.daily", { email: false })).body.items[0].email,
@@ -487,3 +569,230 @@ describe("daily operational email (FR-NTF-02)", () => {
     expect(added.filter((a) => a.payload.tenantId === tenantId)).toEqual([]); // today's went out already
   });
 });
+
+describe("scheduled report emails (FR-RPT-05, backend doc 8.20)", () => {
+  it("mails the week's sales and team reports as Excel to the people who chose them, once per period", async () => {
+    const { c, me, tenantId, warehouseId } = await business();
+    const v = await product(c, "JAKET", ["JAKET-1"]);
+    await c.post("/v1/inventory/adjustments", {
+      lines: [{ variantId: v["JAKET-1"], warehouseId, mode: "set", quantity: 20 }],
+      reason: "correction",
+    });
+    const store = await connectShopee(c, tenantId, [item(981, ["JAKET-1"])]);
+    const other = await connectShopee(c, tenantId, [item(982, ["JAKET-1"])]);
+    const today = localDate(TZ, new Date());
+    // the week before the one holding today, as the Monday email reports it
+    const period = { from: addDays(mondayOf(today), -7), to: addDays(mondayOf(today), -1) };
+    const sold = [
+      order(981, [{ model: 9811, sku: "JAKET-1", qty: 2 }], {
+        create_time: wib(`${period.from}T10:00:00`),
+        order_status: "COMPLETED",
+      }),
+      order(981, [{ model: 9811, sku: "JAKET-1", qty: 1 }], {
+        create_time: wib(`${period.to}T20:00:00`),
+        order_status: "COMPLETED",
+      }),
+    ];
+    store.orders.push(...sold);
+    for (const o of sold) await push(tenantId, store.shopId, o);
+
+    // who may choose what (L44): the owner every report, a Viewer the sales reports, CS none
+    const viewer = await addMember(c, tenantId, "Viewer");
+    const silent = await addMember(c, tenantId, "Viewer"); // may read reports, chooses nothing
+    const cs = await addMember(c, tenantId, "CS");
+    const ownerKinds = (await c.get("/v1/notifications/preferences")).body.items as {
+      kind: string;
+      inApp: string;
+      feature: string | null;
+    }[];
+    expect(ownerKinds.filter((k) => k.kind.startsWith("report."))).toEqual([
+      {
+        kind: "report.sales_weekly",
+        inApp: "with_email",
+        feature: null,
+        email: false,
+        emailByDefault: false,
+        locked: false,
+        label: expect.stringContaining("Senin pukul 07.00"),
+      },
+      expect.objectContaining({
+        kind: "report.sales_monthly",
+        label: expect.stringContaining("tanggal 1 pukul 07.00"),
+      }),
+      expect.objectContaining({ kind: "report.staff_weekly", feature: "staff_report" }),
+      expect.objectContaining({ kind: "report.staff_monthly", feature: "staff_report", inApp: "with_email" }),
+    ]);
+    expect((await cs.c.get("/v1/notifications/preferences")).body.items.map((k: { kind: string }) => k.kind)).toEqual([
+      "digest.daily",
+    ]);
+    expect((await cs.c.put("/v1/notifications/preferences/report.staff_weekly", { email: true })).status).toBe(404);
+    expect((await viewer.c.put("/v1/notifications/preferences/report.staff_weekly", { email: true })).status).toBe(404);
+    const chosen = await viewer.c.put("/v1/notifications/preferences/report.sales_weekly", { email: true });
+    expect(chosen.status).toBe(200);
+    expect(chosen.body.items.find((k: { kind: string }) => k.kind === "report.sales_weekly").email).toBe(true);
+    expect((await c.put("/v1/notifications/preferences/report.sales_weekly", { email: true })).status).toBe(200);
+    expect((await c.put("/v1/notifications/preferences/report.staff_weekly", { email: true })).status).toBe(200);
+    // the Viewer sees only the second store: their workbook will hold none of the sales
+    const viewerId = (await viewer.c.get("/v1/me")).body.user.id as string;
+    expect((await c.put(`/v1/users/${viewerId}/scopes`, { storeIds: [other.storeId] })).status).toBe(200);
+
+    // the scan: a business older than a day, from Monday 07.00 local, and again until the week is over
+    // a business younger than a day is left alone, even on its first Monday morning
+    await h.system.db.execute(
+      sql`UPDATE tenant SET created_at = ${`${period.to}T23:00:00+07:00`}::timestamptz WHERE id = ${tenantId}`,
+    );
+    const added: { payload: Record<string, string>; jobId: string; delay: number | undefined }[] = [];
+    const queues = {
+      get: () => ({
+        add: async (_name: string, payload: Record<string, string>, o: { jobId: string; delay?: number }) =>
+          added.push({ payload, jobId: o.jobId, delay: o.delay }),
+      }),
+    } as unknown as QueueRegistry;
+    const registry = new JobRegistry(JOB_DEFINITIONS);
+    const monday = addDays(period.to, 1);
+    const mine = () => added.filter((a) => a.payload.tenantId === tenantId && a.payload.cadence === "weekly");
+    await scanScheduledReports(h.system, queues, registry, new Date(`${monday}T07:05:00+07:00`));
+    expect(mine()).toEqual([]);
+    // the business exists since the period's first day: the week is owed from Monday 07.00, an older month is not
+    await h.system.db.execute(
+      sql`UPDATE tenant SET created_at = ${`${period.from}T00:00:00+07:00`}::timestamptz WHERE id = ${tenantId}`,
+    );
+    await scanScheduledReports(h.system, queues, registry, new Date(`${monday}T06:30:00+07:00`));
+    expect(mine()).toEqual([]);
+    const at = new Date(`${monday}T07:05:00+07:00`);
+    await scanScheduledReports(h.system, queues, registry, at);
+    const slot = `h${Math.floor(at.getTime() / 3_600_000)}`;
+    expect(mine()).toEqual([
+      {
+        payload: { tenantId, cadence: "weekly", periodStart: period.from, periodEnd: period.to, slot },
+        jobId: `report.scheduled|${tenantId}|weekly|${period.from}|${slot}`,
+        delay: scanDelayMs(tenantId),
+      },
+    ]);
+    // Tuesday: still the same week's report, in another hour's slot; the monthly report only on the 1st
+    await scanScheduledReports(h.system, queues, registry, new Date(`${addDays(monday, 1)}T09:00:00+07:00`));
+    expect(mine().map((a) => a.payload.cadence)).toEqual(["weekly", "weekly"]);
+    expect(new Set(mine().map((a) => a.jobId)).size).toBe(2);
+    const firstOfMonth = addDays(`${addDays(monday, 31).slice(0, 8)}01`, 0);
+    await scanScheduledReports(h.system, queues, registry, new Date(`${firstOfMonth}T07:30:00+07:00`));
+    const monthly = added.find((a) => a.payload.tenantId === tenantId && a.payload.cadence === "monthly")!;
+    expect(monthly.payload.periodStart!.slice(8)).toBe("01");
+    expect(addDays(monthly.payload.periodEnd!, 1)).toBe(firstOfMonth);
+
+    // the job: one period claimed once; a notification and an email per person, with their own workbook
+    const sentBefore = worker.email.sent.length;
+    await worker.runJob(
+      reportScheduledJob,
+      { cadence: "weekly", periodStart: period.from, periodEnd: period.to, slot },
+      tenantId,
+    );
+    expect(await drain(tenantId)).toEqual(["notification.email", "notification.email", "notification.email"]);
+    const mails = worker.email.sent.slice(sentBefore);
+    expect(mails.map((m) => [m.to, m.attachments?.map((a) => a.filename)]).sort()).toEqual(
+      [
+        [me.user.email, [`penjualan-${period.from}-${period.to}.xlsx`]],
+        [me.user.email, [`kinerja-tim-${period.from}-${period.to}.xlsx`]],
+        [viewer.email, [`penjualan-${period.from}-${period.to}.xlsx`]],
+      ].sort(),
+    );
+    const title = (m: { subject: string }) => m.subject;
+    expect(mails.map(title).sort()).toEqual(
+      [
+        `Laporan penjualan minggu ${periodLabelOf(period)} (${me.tenant.name})`,
+        `Laporan kinerja tim minggu ${periodLabelOf(period)} (${me.tenant.name})`,
+        `Laporan penjualan minggu ${periodLabelOf(period)} (${me.tenant.name})`,
+      ].sort(),
+    );
+    const ownerSales = mails.find(
+      (m) => m.to === me.user.email && m.attachments?.[0]?.filename.startsWith("penjualan"),
+    )!;
+    expect(ownerSales.text).toContain("Terlampir:");
+    expect(ownerSales.attachments?.[0]?.contentType).toBe(
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    const ownerBook = readXlsxAll(ownerSales.attachments![0]!.content, 50);
+    expect(ownerBook.map((s) => s.name)).toEqual([
+      "Ringkasan",
+      "Per periode",
+      "Per kanal",
+      "Per toko",
+      "Per produk",
+      "Per kategori",
+      "Per wilayah",
+      "Per jam",
+    ]);
+    expect(ownerBook[0]!.rows[1]).toEqual(["Periode", `${period.from} s.d. ${period.to}`, expect.any(String)]);
+    expect(ownerBook[0]!.rows[2]).toEqual(["Omzet", "135000", "0"]);
+    expect(ownerBook[4]!.rows[1]).toEqual(["JAKET-1", "Produk JAKET", "1", "3", "2", "135000"]);
+    // the Viewer's workbook is theirs: the second store sold nothing
+    const viewerBook = readXlsxAll(mails.find((m) => m.to === viewer.email)!.attachments![0]!.content, 50);
+    expect(viewerBook[0]!.rows[2]).toEqual(["Omzet", "0", "0"]);
+    const team = readXlsxAll(
+      mails.find((m) => m.attachments?.[0]?.filename.startsWith("kinerja"))!.attachments![0]!.content,
+      50,
+    );
+    expect(team.map((s) => s.name)).toEqual(["Ringkasan", "Per anggota", "Per anggota per hari", "Per hari"]);
+    expect(mails.some((m) => m.to === cs.email || m.to === silent.email)).toBe(false);
+    // the in-app notice says where the Excel went and opens the period
+    const notices = (await viewer.c.get("/v1/notifications")).body.items as {
+      kind: string;
+      title: string;
+      body: string;
+      data: Record<string, string>;
+    }[];
+    expect(notices[0]).toMatchObject({
+      kind: "report.sales_weekly",
+      title: `Laporan penjualan minggu ${periodLabelOf(period)}`,
+      body: expect.stringContaining("berkas Excel"),
+      data: { report: "sales", cadence: "weekly", from: period.from, to: period.to },
+    });
+
+    // the same period again plans nothing, and the scan no longer picks it
+    await worker.runJob(
+      reportScheduledJob,
+      { cadence: "weekly", periodStart: period.from, periodEnd: period.to, slot: "again" },
+      tenantId,
+    );
+    expect(await drain(tenantId)).toEqual([]);
+    added.length = 0;
+    await scanScheduledReports(h.system, queues, registry, new Date(`${addDays(monday, 2)}T09:00:00+07:00`));
+    expect(mine()).toEqual([]);
+
+    // on Starter the team report cannot be chosen, and a choice from the trial sends nothing
+    expect((await c.post("/v1/billing/subscription", { planCode: "starter" })).status).toBe(200);
+    const refused = await c.put("/v1/notifications/preferences/report.staff_monthly", { email: true });
+    expect([refused.status, refused.body.code]).toEqual([422, "billing.feature_unavailable"]);
+    expect((await c.put("/v1/notifications/preferences/report.staff_weekly", { email: true })).status).toBe(422);
+    // the owner's weekly team report, chosen on the trial, stays chosen and goes to nobody on Starter
+    expect(
+      (await c.get("/v1/notifications/preferences")).body.items.find(
+        (k: { kind: string }) => k.kind === "report.staff_weekly",
+      ),
+    ).toMatchObject({ email: true, feature: "staff_report" });
+    const before = { from: addDays(period.from, -7), to: addDays(period.to, -7) };
+    const sentBefore2 = worker.email.sent.length;
+    await worker.runJob(
+      reportScheduledJob,
+      { cadence: "weekly", periodStart: before.from, periodEnd: before.to, slot },
+      tenantId,
+    );
+    expect(await drain(tenantId)).toEqual(["notification.email", "notification.email"]);
+    expect(worker.email.sent.slice(sentBefore2).map((m) => m.attachments?.[0]?.filename)).toEqual([
+      `penjualan-${before.from}-${before.to}.xlsx`,
+      `penjualan-${before.from}-${before.to}.xlsx`,
+    ]);
+  });
+});
+
+/** "6–12 Okt 2026" as the plan words a week; the spec repeats the rule only for the same-month case it uses. */
+function periodLabelOf(period: { from: string; to: string }): string {
+  const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+  const d = (x: string) => Number(x.slice(8, 10));
+  const m = (x: string) => months[Number(x.slice(5, 7)) - 1];
+  const y = (x: string) => x.slice(0, 4);
+  if (period.from.slice(0, 7) === period.to.slice(0, 7))
+    return `${d(period.from)}–${d(period.to)} ${m(period.to)} ${y(period.to)}`;
+  if (y(period.from) === y(period.to))
+    return `${d(period.from)} ${m(period.from)}–${d(period.to)} ${m(period.to)} ${y(period.to)}`;
+  return `${d(period.from)} ${m(period.from)} ${y(period.from)}–${d(period.to)} ${m(period.to)} ${y(period.to)}`;
+}

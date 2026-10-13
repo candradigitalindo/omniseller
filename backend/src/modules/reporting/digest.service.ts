@@ -1,6 +1,6 @@
 import { Inject, Injectable, Optional } from "@nestjs/common";
 import { newId } from "@omniseller/shared";
-import type { RequestContext } from "../../common/context/request-context";
+import { type RequestContext, userContext } from "../../common/context/request-context";
 import { startOfDate } from "../../common/time-zone";
 import { ENV } from "../../config/config.module";
 import type { Env } from "../../config/env.schema";
@@ -67,13 +67,7 @@ export class DigestService {
         if (!(choices.get(u.id) ?? seesSales.has(u.id))) continue;
         const principal = await this.users.loadPrincipal(ctx.tenantId, u.id);
         if (principal?.user.status !== "active") continue;
-        const reader: RequestContext = {
-          ...ctx,
-          actor: { type: "user", id: u.id },
-          permissions: new Set(principal.permissions),
-          storeScope: principal.storeScope ? new Set(principal.storeScope) : null,
-          warehouseScope: principal.warehouseScope ? new Set(principal.warehouseScope) : null,
-        };
+        const reader = userContext(ctx, principal);
         const summary = await this.summaryIn(tx, reader, profile.timezone, date);
         if (!summary.sales && !summary.orders && !summary.stock && !summary.stores) continue;
         await this.outbox.enqueue(

@@ -33,3 +33,12 @@ export const dailyDigest = pgTable("daily_digest", {
   digestDate: date("digest_date", { mode: "string" }).notNull(),
   recipients: integer("recipients").notNull().default(0),
 });
+
+/** One scheduled report email run per business, cadence, and period (PRD FR-RPT-05, backend doc 8.20). */
+export const reportScheduleRun = pgTable("report_schedule_run", {
+  ...baseColumns(),
+  cadence: text("cadence").$type<"weekly" | "monthly">().notNull(),
+  periodStart: date("period_start", { mode: "string" }).notNull(),
+  periodEnd: date("period_end", { mode: "string" }).notNull(),
+  recipients: integer("recipients").notNull().default(0),
+});

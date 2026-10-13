@@ -8264,6 +8264,9 @@ export interface components {
         email: boolean;
         emailByDefault: boolean;
         locked: boolean;
+        /** @enum {string} */
+        inApp: "always" | "with_email";
+        feature: string | null;
       }[];
     };
     SetPreferenceDto: {
@@ -10583,6 +10586,7 @@ export interface operations {
         q?: string;
         all?: "true" | "false";
         limit?: number;
+        format?: "csv" | "xlsx";
       };
       header?: never;
       path?: never;
@@ -10590,13 +10594,14 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description CSV, pemisah ; */
+      /** @description CSV (pemisah ;) atau berkas Excel (.xlsx) */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
           "text/csv": string;
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
         };
       };
     };
@@ -14322,6 +14327,7 @@ export interface operations {
         channel?: "shopee" | "tiktokshop" | "lazada" | "blibli" | "shopify" | "woocommerce" | "manual";
         compare?: "true" | "false";
         section?: "series" | "channels" | "stores" | "products" | "categories" | "regions" | "hours";
+        format?: "csv" | "xlsx";
       };
       header?: never;
       path?: never;
@@ -14329,13 +14335,14 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description CSV, pemisah ; */
+      /** @description CSV (pemisah ;) atau berkas Excel (.xlsx) */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
           "text/csv": string;
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
         };
       };
     };
@@ -14368,6 +14375,7 @@ export interface operations {
         from?: string;
         to?: string;
         section?: "users" | "days";
+        format?: "csv" | "xlsx";
       };
       header?: never;
       path?: never;
@@ -14375,13 +14383,14 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description CSV, pemisah ; */
+      /** @description CSV (pemisah ;) atau berkas Excel (.xlsx) */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
           "text/csv": string;
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
         };
       };
     };

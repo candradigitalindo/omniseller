@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import type { RequestContext } from "../../common/context/request-context";
 import { toCsv } from "../../common/csv";
 import { localDate, startOfDate } from "../../common/time-zone";
+import { toXlsx } from "../../common/xlsx";
 import type { DbHandle } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
@@ -9,8 +10,9 @@ import { TenantsService } from "../identity/tenants.service";
 import { UsersService } from "../identity/users.service";
 import { PACK_TIME_LIMIT_SECONDS } from "../orders/order-plan";
 import { OrdersService } from "../orders/orders.service";
+import { sheetOf } from "./sales-report.service";
 import { addDays } from "./sales-report-plan";
-import { type StaffSection, staffCsvRows, staffReport } from "./staff-report-plan";
+import { type StaffSection, staffCsvRows, staffDayRows, staffReport, staffSummaryRows } from "./staff-report-plan";
 
 export interface StaffQuery {
   from?: string | undefined;
@@ -60,6 +62,23 @@ export class StaffReportService {
     return {
       fileName: `kinerja-tim-${section === "users" ? "per-anggota" : "per-hari"}-${r.range.from}-${r.range.to}.csv`,
       csv: toCsv(staffCsvRows(r, section), { timeZone: r.timezone }),
+    };
+  }
+
+  /** The team report as one Excel workbook (UI L33 "Unduh"): the team's figures, then its three tables. */
+  async workbook(ctx: RequestContext, q: StaffQuery): Promise<{ fileName: string; bytes: Uint8Array }> {
+    const r = await this.report(ctx, q);
+    return {
+      fileName: `kinerja-tim-${r.range.from}-${r.range.to}.xlsx`,
+      bytes: toXlsx(
+        [
+          sheetOf("Ringkasan", staffSummaryRows(r)),
+          sheetOf("Per anggota", staffCsvRows(r, "users")),
+          sheetOf("Per anggota per hari", staffCsvRows(r, "days")),
+          sheetOf("Per hari", staffDayRows(r)),
+        ],
+        { timeZone: r.timezone },
+      ),
     };
   }
 }

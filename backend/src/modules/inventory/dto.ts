@@ -370,23 +370,28 @@ export function ruleView(r: RuleWithVariant): z.infer<typeof ruleSchema> {
 
 // ---- restock list (FR-STK-07) ----
 
-export class RestockQueryDto extends createZodDto(
-  z.object({
-    /** Days of sales the pace is measured over. */
-    window: z
-      .enum(["7", "14", "30"])
-      .default("30")
-      .transform((v) => Number(v) as 7 | 14 | 30),
-    /** Stock lasting fewer days than this needs restocking. */
-    coverDays: z.coerce.number().int().min(1).max(365).default(14),
-    /** A restock should last this many days. */
-    targetDays: z.coerce.number().int().min(1).max(365).default(30),
-    warehouseId: ulidSchema.optional(),
-    q: z.string().trim().max(100).optional(),
-    /** All established stock instead of only what needs restocking. */
-    all: z.enum(["true", "false"]).default("false"),
-    limit: z.coerce.number().int().min(1).max(1000).default(200),
-  }),
+const restockQuerySchema = z.object({
+  /** Days of sales the pace is measured over. */
+  window: z
+    .enum(["7", "14", "30"])
+    .default("30")
+    .transform((v) => Number(v) as 7 | 14 | 30),
+  /** Stock lasting fewer days than this needs restocking. */
+  coverDays: z.coerce.number().int().min(1).max(365).default(14),
+  /** A restock should last this many days. */
+  targetDays: z.coerce.number().int().min(1).max(365).default(30),
+  warehouseId: ulidSchema.optional(),
+  q: z.string().trim().max(100).optional(),
+  /** All established stock instead of only what needs restocking. */
+  all: z.enum(["true", "false"]).default("false"),
+  limit: z.coerce.number().int().min(1).max(1000).default(200),
+});
+
+export class RestockQueryDto extends createZodDto(restockQuerySchema) {}
+
+/** The restock download: CSV, or an Excel workbook of the same rows (FR-RPT-05). */
+export class RestockExportQueryDto extends createZodDto(
+  restockQuerySchema.extend({ format: z.enum(["csv", "xlsx"]).default("csv") }),
 ) {}
 
 const restockItemSchema = z.object({

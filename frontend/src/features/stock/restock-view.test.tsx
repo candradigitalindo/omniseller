@@ -3,7 +3,15 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import { currentUrl, setUrl } from "@/test/navigation";
 import { mockApi, renderApp, testMe } from "@/test/render";
-import { coverTone, dayCount, nextLimit, type RestockRow, restockExportHref, restockQuery } from "./restock-meta";
+import {
+  coverTone,
+  dayCount,
+  nextLimit,
+  type RestockRow,
+  restockExportHref,
+  restockQuery,
+  restockWorkbookHref,
+} from "./restock-meta";
 import { RestockView } from "./restock-view";
 
 const JAKARTA = { id: "01JWAREHOUSE00000000000001", name: "Gudang Jakarta" };
@@ -93,6 +101,9 @@ describe("restock rules", () => {
     expect(new URL(restockExportHref(full), "http://x").search).toBe(
       "?window=30&coverDays=7&targetDays=60&warehouseId=W1&q=kaos&all=true",
     );
+    expect(new URL(restockWorkbookHref(full), "http://x").search).toBe(
+      "?window=30&coverDays=7&targetDays=60&warehouseId=W1&q=kaos&all=true&format=xlsx",
+    );
   });
 });
 
@@ -119,7 +130,13 @@ describe("RestockView (FR-STK-07)", () => {
     );
     expect(screen.getByText("Menampilkan 3 dari 3")).toBeInTheDocument();
     expect(restockCalls(calls)[0]?.query).toEqual({ window: "30", coverDays: "14", targetDays: "30", limit: "200" });
-    expect(screen.getByRole("link", { name: "Unduh CSV" })).toHaveAttribute(
+    // "Unduh": the rows as Excel or as CSV, with the filters in use
+    await userEvent.setup().click(screen.getByRole("button", { name: "Unduh" }));
+    expect(await screen.findByRole("menuitem", { name: "Excel" })).toHaveAttribute(
+      "href",
+      "/v1/inventory/restock/export?window=30&coverDays=14&targetDays=30&format=xlsx",
+    );
+    expect(screen.getByRole("menuitem", { name: "CSV" })).toHaveAttribute(
       "href",
       "/v1/inventory/restock/export?window=30&coverDays=14&targetDays=30",
     );

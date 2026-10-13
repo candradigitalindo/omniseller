@@ -60,18 +60,18 @@ describe("email (backend doc 8.17)", () => {
   it("asks every registered source for an email's files, in order", async () => {
     const files = new EmailAttachments();
     const ctx = {} as never;
-    expect(await files.for(ctx, { kind: "billing.reminder", data: {} })).toEqual([]);
+    expect(await files.for(ctx, { kind: "billing.reminder", userId: null, data: {} })).toEqual([]);
     files.register(async (_ctx, n) => (n.kind === "a" ? [message.attachments![0]!] : []));
     files.register(async () => [{ filename: "b.txt", contentType: "text/plain", content: new Uint8Array([98]) }]);
-    expect((await files.for(ctx, { kind: "a", data: {} })).map((f) => f.filename)).toEqual([
+    expect((await files.for(ctx, { kind: "a", userId: null, data: {} })).map((f) => f.filename)).toEqual([
       "INV-2610-0001.pdf",
       "b.txt",
     ]);
-    expect((await files.for(ctx, { kind: "z", data: {} })).map((f) => f.filename)).toEqual(["b.txt"]);
+    expect((await files.for(ctx, { kind: "z", userId: null, data: {} })).map((f) => f.filename)).toEqual(["b.txt"]);
     // a source that fails fails the email (the job retries it)
     files.register(async () => {
       throw new Error("down");
     });
-    await expect(files.for(ctx, { kind: "a", data: {} })).rejects.toThrow("down");
+    await expect(files.for(ctx, { kind: "a", userId: null, data: {} })).rejects.toThrow("down");
   });
 });

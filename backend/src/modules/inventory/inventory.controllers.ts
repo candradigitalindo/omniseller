@@ -24,6 +24,8 @@ import { Ctx, Isolation, RequirePermission } from "../../common/http/decorators"
 import { parseIfMatch } from "../../common/http/if-match";
 import { decodeCursor, encodeCursor } from "../../common/http/pagination";
 import type { AuthedRequest } from "../../common/http/request";
+import { sendAttachment } from "../../common/http/send-download";
+import { XLSX_MIME } from "../../common/xlsx";
 import { AllocationRulesService } from "./allocation-rules.service";
 import {
   AdjustmentResultDto,
@@ -40,6 +42,7 @@ import {
   MovementPageDto,
   MovementQueryDto,
   movementView,
+  RestockExportQueryDto,
   RestockListDto,
   RestockQueryDto,
   ResyncStockDto,
@@ -249,14 +252,14 @@ export class InventoryController {
     return { items: r.items.map(restockItemView), total: r.total, needed: r.needed };
   }
 
-  /** The restock list as CSV, every line. */
+  /** The restock list, every line, as CSV or as an Excel workbook. */
   @Get("restock/export")
   @RequirePermission("inventory:read")
   @Isolation({ fixture: "variant" })
-  @ApiProduces("text/csv")
-  @ApiOkResponse({ schema: { type: "string" }, description: "CSV, pemisah ;" })
-  async restockCsv(@Ctx() ctx: RequestContext, @Query() q: RestockQueryDto, @Res() res: Response): Promise<void> {
-    const csv = await this.restock.csv(ctx, {
+  @ApiProduces("text/csv", XLSX_MIME)
+  @ApiOkResponse({ schema: { type: "string" }, description: "CSV (pemisah ;) atau berkas Excel (.xlsx)" })
+  async restockCsv(@Ctx() ctx: RequestContext, @Query() q: RestockExportQueryDto, @Res() res: Response): Promise<void> {
+    const query = {
       windowDays: q.window,
       coverDays: q.coverDays,
       targetDays: q.targetDays,
@@ -264,11 +267,12 @@ export class InventoryController {
       q: q.q,
       needed: q.all === "false",
       limit: q.limit,
-    });
-    res.setHeader("content-type", "text/csv; charset=utf-8");
-    res.setHeader("content-disposition", 'attachment; filename="perlu-restock.csv"');
-    res.setHeader("cache-control", "private, no-store");
-    res.send(csv);
+    };
+    if (q.format === "xlsx") {
+      sendAttachment(res, "perlu-restock.xlsx", XLSX_MIME, await this.restock.workbook(ctx, query));
+      return;
+    }
+    sendAttachment(res, "perlu-restock.csv", "text/csv; charset=utf-8", await this.restock.csv(ctx, query));
   }
 
   /** L19: stock per variant and warehouse, with the push state per store. */

@@ -10,11 +10,14 @@ import { OrdersModule } from "../orders/orders.module";
 import { DashboardService } from "./dashboard.service";
 import { DigestRepository } from "./digest.repository";
 import { DigestService } from "./digest.service";
+import { ReportAttachments } from "./report-attachments";
 import { DashboardController, ReportsController } from "./reporting.controller";
 import { SalesReportService } from "./sales-report.service";
+import { ScheduledReportRepository } from "./scheduled-report.repository";
+import { ScheduledReportService } from "./scheduled-report.service";
 import { StaffReportService } from "./staff-report.service";
 
-/** Reports read other modules' data through their services; the module owns only `daily_digest` (backend doc 11). */
+/** Reports read other modules' data through their services; the module owns `daily_digest` and `report_schedule_run` (backend doc 11). */
 @Module({
   imports: [OrdersModule, InventoryModule, CatalogModule, ChannelModule, IdentityModule, BusinessModule, BillingModule],
   providers: [DashboardService, SalesReportService, StaffReportService],
@@ -25,10 +28,10 @@ export class ReportingModule {}
 @Module({ imports: [ReportingModule], controllers: [DashboardController, ReportsController] })
 export class ReportingHttpModule {}
 
-/** Worker only: the daily operational email (FR-NTF-02). */
+/** Worker only: the daily operational email (FR-NTF-02) and the scheduled report emails (FR-RPT-05). */
 @Module({
   imports: [ReportingModule, OrdersModule, InventoryModule, ChannelModule, IdentityModule, NotificationInboxModule],
-  providers: [DigestRepository, DigestService],
-  exports: [DigestService],
+  providers: [DigestRepository, DigestService, ScheduledReportRepository, ScheduledReportService, ReportAttachments],
+  exports: [DigestService, ScheduledReportService],
 })
 export class ReportingWorkerModule {}

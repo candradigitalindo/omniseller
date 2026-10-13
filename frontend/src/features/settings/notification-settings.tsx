@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { api, unwrap } from "@/lib/api/client";
 import { errorMessage } from "@/lib/api/errors";
 import type { components } from "@/lib/api/schema";
+import { useSession } from "@/lib/session";
 
 type Preferences = components["schemas"]["PreferenceListDto_Output"];
 const KEY = ["notification-preferences"];
@@ -23,6 +24,7 @@ const KEY = ["notification-preferences"];
  */
 export function NotificationSettingsView() {
   const t = useTranslations("notificationSettings");
+  const { plan } = useSession();
   const queryClient = useQueryClient();
   const prefs = useQuery({ queryKey: KEY, queryFn: () => unwrap(api.GET("/v1/notifications/preferences")) });
   const set = useMutation({
@@ -62,31 +64,42 @@ export function NotificationSettingsView() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {prefs.data.items.map((p) => (
-                <TableRow key={p.kind}>
-                  <TableCell>
-                    <div className="grid gap-0.5">
-                      <span className="text-sm text-text-900">{p.label}</span>
-                      {p.locked ? <span className="text-[13px] text-text-500">{t("lockedHint")}</span> : null}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Check className="inline size-4 text-success" aria-hidden />
-                    <span className="sr-only">{t("appAlways")}</span>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <span className="inline-flex items-center gap-2">
-                      <Switch
-                        checked={p.email}
-                        disabled={p.locked}
-                        aria-label={t("emailFor", { kind: p.label })}
-                        onCheckedChange={(email) => set.mutate({ kind: p.kind, email })}
-                      />
-                      {p.locked ? <Lock className="size-3.5 text-text-500" aria-hidden /> : null}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {prefs.data.items.map((p) => {
+                // a report the plan lacks: the row stays, locked, until the plan has it again
+                const unavailable = p.feature !== null && !plan.features.includes(p.feature);
+                return (
+                  <TableRow key={p.kind}>
+                    <TableCell className="whitespace-normal">
+                      <div className="grid gap-0.5 whitespace-normal">
+                        <span className="text-sm text-text-900">{p.label}</span>
+                        {p.locked ? <span className="text-[13px] text-text-500">{t("lockedHint")}</span> : null}
+                        {unavailable ? <span className="text-[13px] text-text-500">{t("lockedPlan")}</span> : null}
+                      </div>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-center">
+                      {p.inApp === "with_email" ? (
+                        <span className="text-[13px] text-text-500">{t("appWithEmail")}</span>
+                      ) : (
+                        <>
+                          <Check className="inline size-4 text-success" aria-hidden />
+                          <span className="sr-only">{t("appAlways")}</span>
+                        </>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className="inline-flex items-center gap-2">
+                        <Switch
+                          checked={p.email}
+                          disabled={p.locked || unavailable}
+                          aria-label={t("emailFor", { kind: p.label })}
+                          onCheckedChange={(email) => set.mutate({ kind: p.kind, email })}
+                        />
+                        {p.locked || unavailable ? <Lock className="size-3.5 text-text-500" aria-hidden /> : null}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}

@@ -2377,13 +2377,31 @@
               "default": 200,
               "type": "integer"
             }
+          },
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "csv",
+              "type": "string",
+              "enum": [
+                "csv",
+                "xlsx"
+              ]
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "CSV, pemisah ;",
+            "description": "CSV (pemisah ;) atau berkas Excel (.xlsx)",
             "content": {
               "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
                 "schema": {
                   "type": "string"
                 }
@@ -9111,13 +9129,31 @@
                 "hours"
               ]
             }
+          },
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "csv",
+              "type": "string",
+              "enum": [
+                "csv",
+                "xlsx"
+              ]
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "CSV, pemisah ;",
+            "description": "CSV (pemisah ;) atau berkas Excel (.xlsx)",
             "content": {
               "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
                 "schema": {
                   "type": "string"
                 }
@@ -9210,13 +9246,31 @@
                 "days"
               ]
             }
+          },
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "csv",
+              "type": "string",
+              "enum": [
+                "csv",
+                "xlsx"
+              ]
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "CSV, pemisah ;",
+            "description": "CSV (pemisah ;) atau berkas Excel (.xlsx)",
             "content": {
               "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
                 "schema": {
                   "type": "string"
                 }
@@ -33607,6 +33661,19 @@
                 },
                 "locked": {
                   "type": "boolean"
+                },
+                "inApp": {
+                  "type": "string",
+                  "enum": [
+                    "always",
+                    "with_email"
+                  ]
+                },
+                "feature": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 }
               },
               "required": [
@@ -33614,7 +33681,9 @@
                 "label",
                 "email",
                 "emailByDefault",
-                "locked"
+                "locked",
+                "inApp",
+                "feature"
               ],
               "additionalProperties": false
             }

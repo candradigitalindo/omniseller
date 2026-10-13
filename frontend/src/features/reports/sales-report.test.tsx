@@ -197,6 +197,23 @@ describe("SalesReportView (L30)", () => {
     expect(href.pathname).toBe("/v1/reports/sales/export");
     expect(href.searchParams.get("section")).toBe("channels");
     expect(href.searchParams.get("from")).toBe(month.from);
+    // the menu: the whole report as Excel first, then every part as CSV; the email schedule lives on L44
+    await user.click(screen.getByRole("button", { name: "Unduh laporan" }));
+    const xlsx = new URL(
+      (await screen.findByRole("menuitem", { name: "Excel (semua bagian)" })).getAttribute("href") ?? "",
+      "http://x",
+    );
+    expect(xlsx.searchParams.get("format")).toBe("xlsx");
+    expect(xlsx.searchParams.get("section")).toBeNull();
+    expect(xlsx.searchParams.get("from")).toBe(month.from);
+    expect(
+      new URL(
+        screen.getByRole("menuitem", { name: "Per kanal (CSV)" }).getAttribute("href") ?? "",
+        "http://x",
+      ).searchParams.get("section"),
+    ).toBe("channels");
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("link", { name: "Jadwalkan email" })).toHaveAttribute("href", "/notifikasi");
     await user.click(screen.getByRole("button", { name: "Lihat tabel Per kanal" }));
     expect(within(screen.getByRole("tabpanel")).getAllByRole("columnheader", { name: "Porsi" }).length).toBeGreaterThan(
       0,

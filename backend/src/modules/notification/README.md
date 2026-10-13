@@ -19,11 +19,11 @@ Notifikasi untuk pengguna OmniSeller (PRD FR-NTF-01, FR-NTF-02; backend doc 7.8.
   - `list`: jenis yang bisa dipilih, pilihan pengguna, dan bawaannya.
   - `set`: menyimpan pilihan pengguna sendiri.
   - `emailChoicesIn(tx, kind)`: pilihan email semua pengguna yang sudah memilih.
-- `PREFERENCE_KINDS`: jenis yang bisa dipilih beserta label dan bawaan emailnya.
+- `PREFERENCE_KINDS`: jenis yang bisa dipilih beserta label, bawaan emailnya, `audience` (siapa yang melihat dan boleh memilihnya; jenis laporan terjadwal mengikuti izin laporannya), `feature` (fitur paket yang diperlukan untuk menyalakan emailnya), dan `inAppWithEmail` (jenis yang hanya ada bersama emailnya). `digest.daily` tetap yang pertama.
 - `inScope(recipient, item)`: aturan cakupan toko dan gudang yang sama dengan daftar pesanan.
 - `NotificationEmailService` (hanya worker, job `notification.email`): mengirim satu notifikasi ke penerimanya bila masih aktif dan mencatat `channels_sent.email`, sehingga ulangan job tidak mengirim dua kali.
 - `EmailSender` (`EMAIL_SENDER`, hanya worker): `smtp`, `log` (hanya local), `memory` (hanya test). Templatnya di `templates.ts`, termasuk `dailyDigestEmail`. Pesan boleh membawa `attachments` (nama, tipe, isi); `log` hanya mencatat nama dan ukurannya (`attachmentSummary`).
-- `EmailAttachments` (diekspor `NotificationInboxModule`): modul lain mendaftarkan sumber lampiran saat modul worker-nya mulai (`register`), dan job `notification.email` menanyai semuanya untuk setiap email (`for`), sebelum mengirim. Modul ini tidak mengimpor pemilik sumbernya. Sumber sekarang: PDF tagihan untuk email pembayaran (billing).
+- `EmailAttachments` (diekspor `NotificationInboxModule`): modul lain mendaftarkan sumber lampiran saat modul worker-nya mulai (`register`), dan job `notification.email` menanyai semuanya untuk setiap email (`for`), sebelum mengirim. Modul ini tidak mengimpor pemilik sumbernya. Sumber sekarang: PDF tagihan untuk email pembayaran (billing) dan buku kerja laporan terjadwal (reporting); `AttachingNotification` menyebut `userId` penerima agar sumber bisa menggambar dengan izin dan cakupan orang itu.
 
 ## Aturan
 - Jenis `account.closing` (penutupan akun, pengingat 7 hari sebelum data dihapus, pembukaan kembali; backend doc 8.36) selalu dikirim ke pemegang `settings:billing`, dalam aplikasi dan email.

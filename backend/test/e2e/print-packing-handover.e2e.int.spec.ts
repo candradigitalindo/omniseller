@@ -13,6 +13,7 @@ import { orderEvent } from "../../src/db/schema";
 import { withTenantTx } from "../../src/db/tenant-tx";
 import { ExportRenderService } from "../../src/modules/exports/export-render.service";
 import { A4_PAGE, THERMAL_PAGE } from "../../src/modules/fulfillment/shipping-plan";
+import { readXlsxAll } from "../../src/modules/migration/xlsx";
 import { addDays } from "../../src/modules/reporting/sales-report-plan";
 import { webhookProcessJob } from "../../src/modules/sync/sync.jobs";
 import {
@@ -1073,6 +1074,27 @@ describe("team performance (FR-RPT-10, UI L33)", () => {
       `${today};Kurir;3;0;0;0;0;0;3;0;`,
       `${today};Gudang;2;2;2;1;3;1;0;1;95`,
     ]);
+    // both tables in one Excel workbook (FR-RPT-05)
+    const xlsx = await c
+      .get("/v1/reports/staff/export?format=xlsx")
+      .buffer(true)
+      .parse((r, cb) => {
+        const chunks: Buffer[] = [];
+        r.on("data", (d: Buffer) => chunks.push(d));
+        r.on("end", () => cb(null, Buffer.concat(chunks)));
+      });
+    expect(xlsx.status).toBe(200);
+    expect(xlsx.headers["content-type"]).toContain("spreadsheetml.sheet");
+    expect(xlsx.headers["content-disposition"]).toBe(
+      `attachment; filename="kinerja-tim-${today.slice(0, 8)}01-${today}.xlsx"`,
+    );
+    const sheets = readXlsxAll(new Uint8Array(xlsx.body as Buffer), 10);
+    expect(sheets.map((x) => x.name)).toEqual(["Ringkasan", "Per anggota", "Per anggota per hari", "Per hari"]);
+    expect(sheets[0]!.rows[0]).toEqual(["Ukuran", "Nilai"]);
+    const members = sheets[1]!.rows;
+    expect(members[0]).toEqual(perMember.text.replace("\ufeff", "").split("\r\n")[0]!.split(";"));
+    expect(members[3]).toEqual(["Gudang", "2", "2", "2", "1", "3", "1", "0", "1", "95"]);
+    expect(sheets[3]!.rows[1]![0]).toBe(today);
 
     // someone who sees only the marketplace store sees only what was done to its orders
     const role = await c.post("/v1/roles", { name: "Supervisor", permissions: ["order:read", "settings:user"] });

@@ -15,8 +15,10 @@ import {
   type StaffReport,
   staffDays,
   staffExportHref,
+  staffWorkbookHref,
   todayIn,
   trendPoints,
+  workbookHref,
 } from "./report-meta";
 
 const point = (bucket: string, revenue: number, previousRevenue: number | null) => ({
@@ -199,6 +201,17 @@ describe("report queries", () => {
       channel: "manual",
       section: "regions",
     });
+    // the whole report as Excel: the same filters, no section
+    const xlsx = new URL(workbookHref(query), "http://x");
+    expect(xlsx.pathname).toBe("/v1/reports/sales/export");
+    expect(Object.fromEntries(xlsx.searchParams)).toEqual({
+      from: "2026-10-01",
+      to: "2026-10-31",
+      granularity: "day",
+      compare: "true",
+      channel: "manual",
+      format: "xlsx",
+    });
   });
 
   it("writes a change of the cancellation rate in points", () => {
@@ -221,6 +234,10 @@ describe("the team report (L33)", () => {
       "/v1/reports/staff/export?from=2026-10-01&to=2026-10-31&section=users",
     );
     expect(staffExportHref("days", {})).toBe("/v1/reports/staff/export?section=days");
+    expect(staffWorkbookHref({ from: "2026-10-01", to: "2026-10-31" })).toBe(
+      "/v1/reports/staff/export?from=2026-10-01&to=2026-10-31&format=xlsx",
+    );
+    expect(staffWorkbookHref({})).toBe("/v1/reports/staff/export?format=xlsx");
   });
 
   it("lists the team's days, or one member's", () => {

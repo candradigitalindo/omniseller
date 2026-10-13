@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Download } from "lucide-react";
+import { Download, Mail } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { KpiTile } from "@/components/common/kpi";
@@ -15,6 +15,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -37,6 +38,7 @@ import {
   type StaffSection,
   staffDays,
   staffExportHref,
+  staffWorkbookHref,
   todayIn,
 } from "./report-meta";
 import { CustomPeriod, type RankColumn, RankTable } from "./report-parts";
@@ -107,7 +109,19 @@ export function StaffReportView() {
       <PageHeader
         title={t("title")}
         description={t("description")}
-        actions={query ? <DownloadMenu query={query} /> : null}
+        actions={
+          query ? (
+            <>
+              <Button asChild variant="ghost">
+                <Link href="/notifikasi">
+                  <Mail aria-hidden />
+                  {t("scheduleEmail")}
+                </Link>
+              </Button>
+              <DownloadMenu query={query} />
+            </>
+          ) : null
+        }
       />
 
       <div className="-mx-4 mb-3 w-[calc(100%+2rem)] overflow-x-auto px-4 md:mx-0 md:w-auto md:px-0">
@@ -158,7 +172,7 @@ function StaffSkeleton() {
   );
 }
 
-/** Per member, or per member per day, as CSV for the period on screen. */
+/** Both tables as one Excel workbook, or per member or per member per day as CSV, for the period on screen. */
 function DownloadMenu({ query }: { query: StaffQuery }) {
   const t = useTranslations("staffReport");
   return (
@@ -170,6 +184,12 @@ function DownloadMenu({ query }: { query: StaffQuery }) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        <DropdownMenuItem asChild>
+          <a href={staffWorkbookHref(query)} download>
+            {t("downloadXlsx")}
+          </a>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         {SECTIONS.map((s) => (
           <DropdownMenuItem key={s} asChild>
             <a href={staffExportHref(s, query)} download>

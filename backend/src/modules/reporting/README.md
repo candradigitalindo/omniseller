@@ -2,14 +2,15 @@
 
 ## Tanggung jawab
 - Dasbor utama (PRD FR-RPT-01, layar L01, backend doc 8.16): penjualan hari ini, 7 hari, atau 30 hari dibanding periode sebelumnya di zona waktu bisnis, pesanan per status dan yang mendesak, grafik 30 hari per marketplace, produk terlaris, laba kotor dari HPP, stok kritis, kesehatan toko, dan daftar "Perlu tindakan".
-- Laporan penjualan (PRD FR-RPT-02, layar L30, backend doc 8.20): periode bebas dengan pembanding, grafik per hari, minggu, atau bulan, rincian per marketplace, toko, produk, kategori, provinsi, dan jam, tingkat pembatalan, pesanan yang diserahkan ke kurir, dan CSV per bagian.
-- Kinerja tim (PRD FR-RPT-10, layar L33, backend doc 8.35), mulai paket Growth: apa yang dikerjakan setiap anggota pada pesanan per hari, dari riwayat pesanan, dengan CSV.
+- Laporan penjualan (PRD FR-RPT-02, layar L30, backend doc 8.20): periode bebas dengan pembanding, grafik per hari, minggu, atau bulan, rincian per marketplace, toko, produk, kategori, provinsi, dan jam, tingkat pembatalan, pesanan yang diserahkan ke kurir, CSV per bagian, dan satu buku kerja Excel untuk semuanya.
+- Kinerja tim (PRD FR-RPT-10, layar L33, backend doc 8.35), mulai paket Growth: apa yang dikerjakan setiap anggota pada pesanan per hari, dari riwayat pesanan, dengan CSV dan Excel.
 - Ringkasan operasional harian lewat email (PRD FR-NTF-02, backend doc 8.20): pukul 07.00 waktu lokal bisnis, hanya di worker.
 
-Laporan terjadwal menyusul.
+- Laporan terjadwal lewat email (PRD FR-RPT-05, layar L44, backend doc 8.20): laporan penjualan dan kinerja tim mingguan (Senin 07.00 lokal) dan bulanan (tanggal 1 07.00) sebagai buku kerja Excel kepada setiap pengguna yang memilihnya, hanya di worker.
 
 ## Tabel yang dimiliki
 - `daily_digest`: satu baris per bisnis dan tanggal lokal ringkasan harian. Baris ini mencegah email terkirim dua kali.
+- `report_schedule_run` (migrasi 0030): satu baris per bisnis, kadens, dan periode laporan terjadwal; klaim yang sama. Keduanya tidak diaudit dan tidak diekspor.
 
 Dasbor dan laporan tidak menulis apa pun. Semua angkanya dibaca dalam satu transaksi lewat service modul pemiliknya:
 - `OrdersService`: `summaryIn`, `urgentIn`, `salesIn`, `salesByDayIn`, `topProductsIn`, `grossProfitIn`, `salesBucketsIn`, `salesByIn`, `salesByHourIn`, `itemSalesIn`, `unitsSoldIn`, `cancellationsIn`, `shippedIn`, `staffActionsIn`.
@@ -44,7 +45,9 @@ Dasbor dan laporan tidak menulis apa pun. Semua angkanya dibaca dalam satu trans
   - listing belum terpetakan: `catalog:read`;
   - kesehatan toko di email: `settings:store`.
 - **Kinerja tim** dihitung dari riwayat pesanan pengguna (`order_event` dengan `actor_type = 'user'`), bukan dari tabel sendiri, jadi hanya aksi di dalam OmniSeller yang tercatat. Arti setiap angka di backend doc 8.35; "pesanan diproses" dihitung sekali per pesanan untuk tim maupun anggota. Kemas dengan scan lebih dari 30 menit tidak masuk rata-rata menit per pesanan. Periode seperti laporan penjualan; izin `settings:user`; di Starter 422 `billing.feature_unavailable`.
-- **Email harian.** Penerimanya pengguna aktif dengan `order:read` yang memilih email `digest.daily`. Pengguna yang belum memilih menerimanya bila memegang `report:read`. Isinya dihitung dengan izin dan cakupan penerima itu.
+- **Email harian.** Penerimanya pengguna aktif dengan `order:read` yang memilih email `digest.daily`. Pengguna yang belum memilih menerimanya bila memegang `report:read`. Isinya dihitung dengan izin dan cakupan penerima itu (`userContext`).
+- **Laporan terjadwal.** Periode dari `scheduled-report-plan.ts` (`periodBefore`, `sendsFrom`, judul); penerima adalah pemegang izin laporannya yang memilih jenisnya (mati sampai dipilih); jenis kinerja tim dilewati selagi paket tidak punya `staff_report`. `ReportAttachments` menggambar buku kerja saat email dikirim, dengan izin dan cakupan penerima, paling banyak dua bersamaan; tanpa izin atau fitur lagi, email pergi tanpa lampiran. Periode tetap jatuh tempo sampai minggu atau bulannya habis; yang terlewat seluruhnya tidak dikejar.
+- **Excel.** `workbook()` pada `SalesReportService` (Ringkasan, lalu satu lembar per bagian dengan baris `salesSectionRows`, semua produk), `StaffReportService` (Ringkasan, Per anggota, Per anggota per hari, Per hari), dan `RestockService` lewat `common/xlsx.ts`; provinsi pembeli lewat `regionRows` ("Lainnya" untuk teks yang bukan provinsi).
 - **Keputusan murni** ada di berkas tersendiri dengan uji unit; service hanya memuat data:
   - `dashboard-plan.ts`: periode, persen perubahan, deret grafik, kesehatan toko, daftar tugas.
   - `sales-report-plan.ts`: periode dan pembanding, ember grafik, rata-rata, porsi, tingkat pembatalan.
@@ -56,16 +59,16 @@ Dasbor dan laporan tidak menulis apa pun. Semua angkanya dibaca dalam satu trans
 ## Job
 - `digest.daily` (antrean `notify`, dari scheduler `digest.scan`): mengklaim tanggal dan merencanakan email.
 - `digest.email` (antrean `notify`, dari `digest.email_requested`): mengirim satu email.
-- Menyusul: `report.scheduled_email`.
+- `report.scheduled` (antrean `notify`, dari scheduler `report.scan` setiap 15 menit; id per periode dan slot jam): mengklaim periode dan menulis satu notifikasi beremail per penerima; `notification.email` mengirimnya dengan buku kerja dari `ReportAttachments`.
 
 ## Endpoint
 | Metode | Path | Izin |
 |---|---|---|
 | GET | `/v1/dashboard?range=today\|7d\|30d&storeId=` | `order:read` (bagian lain per izin) |
 | GET | `/v1/reports/sales?from=&to=&granularity=day\|week\|month&storeId=&channel=&compare=` | `report:read` |
-| GET | `/v1/reports/sales/export?...&section=series\|channels\|stores\|products\|categories\|regions\|hours` | `report:read` |
+| GET | `/v1/reports/sales/export?...&section=series\|channels\|stores\|products\|categories\|regions\|hours&format=csv\|xlsx` | `report:read` |
 | GET | `/v1/reports/staff?from=&to=` | `settings:user`, paket dengan `staff_report` |
-| GET | `/v1/reports/staff/export?from=&to=&section=users\|days` | `settings:user`, paket dengan `staff_report` |
+| GET | `/v1/reports/staff/export?from=&to=&section=users\|days&format=csv\|xlsx` | `settings:user`, paket dengan `staff_report` |
 
 ## Keputusan khusus modul
 - **Belum di-cache.** DOKUMEN-TEKNOLOGI 7.2 menyiapkan cache 30 detik per pengguna bila beban menuntut. Kuncinya harus memuat pengguna, karena isi bergantung pada izin dan cakupan.

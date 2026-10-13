@@ -3,6 +3,7 @@ import { defineJob } from "../../jobs/define";
 import { jobKey } from "../../jobs/job-id";
 import { digestEmailRequested, digestSummarySchema } from "./digest.events";
 import { DigestService } from "./digest.service";
+import { ScheduledReportService } from "./scheduled-report.service";
 
 /** FR-NTF-02: plans one business's daily operational emails; from the scheduler's `digest.scan`. */
 export const digestDailyJob = defineJob({
@@ -29,4 +30,26 @@ export const digestEmailJob = defineJob({
   },
 });
 
-export const REPORTING_JOBS = [digestDailyJob, digestEmailJob];
+const localDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+/**
+ * FR-RPT-05: plans one business's weekly or monthly report emails for a period; from the scheduler's
+ * `report.scan`, once per hour slot (a failed job is queued again next hour; the run row keeps the period once).
+ */
+export const reportScheduledJob = defineJob({
+  queue: "notify",
+  name: "report.scheduled",
+  schema: z.object({
+    cadence: z.enum(["weekly", "monthly"]),
+    periodStart: localDay,
+    periodEnd: localDay,
+    slot: z.string().min(1),
+  }),
+  options: { attempts: 3, backoff: { type: "exponential", delay: 30_000 } },
+  jobId: (p) => jobKey("report.scheduled", p.tenantId, p.cadence, p.periodStart, p.slot),
+  handler: async (p, run) => {
+    await run.deps.resolve(ScheduledReportService).run(run.ctx, p);
+  },
+});
+
+export const REPORTING_JOBS = [digestDailyJob, digestEmailJob, reportScheduledJob];

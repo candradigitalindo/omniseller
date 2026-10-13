@@ -70,6 +70,11 @@ export function restockExportHref(query: Omit<RestockQuery, "limit">): string {
   return `/v1/inventory/restock/export?${params}`;
 }
 
+/** Every row as an Excel workbook, with the same filters. */
+export function restockWorkbookHref(query: Omit<RestockQuery, "limit">): string {
+  return `${restockExportHref(query)}&format=xlsx`;
+}
+
 /** Units sold per day with at most one decimal: "1,4". */
 export function formatRate(rate: number): string {
   return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 1 }).format(rate);

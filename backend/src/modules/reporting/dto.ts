@@ -240,11 +240,15 @@ const salesQuerySchema = z
 
 export class SalesReportQueryDto extends createZodDto(salesQuerySchema) {}
 
+/** CSV of one section, or an Excel workbook with every section (FR-RPT-05). */
+export const exportFormatSchema = z.enum(["csv", "xlsx"]).default("csv");
+
 export class SalesExportQueryDto extends createZodDto(
   salesQuerySchema.and(
     z.object({
-      /** Which part of the report; the chart's figures per period by default. */
+      /** Which part of the report; the chart's figures per period by default. Ignored for `xlsx`. */
       section: z.enum(["series", "channels", "stores", "products", "categories", "regions", "hours"]).default("series"),
+      format: exportFormatSchema,
     }),
   ),
 ) {}
@@ -379,8 +383,9 @@ export class StaffReportQueryDto extends createZodDto(staffQuerySchema) {}
 export class StaffExportQueryDto extends createZodDto(
   staffQuerySchema.and(
     z.object({
-      /** Per member for the period, or per member per day. */
+      /** Per member for the period, or per member per day. Ignored for `xlsx`, which holds both. */
       section: z.enum(["users", "days"]).default("users"),
+      format: exportFormatSchema,
     }),
   ),
 ) {}

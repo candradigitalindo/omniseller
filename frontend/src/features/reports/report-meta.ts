@@ -239,11 +239,27 @@ export function exportHref(section: Section, query: ReportQuery): string {
   return `/v1/reports/sales/export?${params}`;
 }
 
+/** The whole report as one Excel workbook (`penjualan-<dari>-<sampai>.xlsx`), same filters. */
+export function workbookHref(query: ReportQuery): string {
+  const params = new URLSearchParams(Object.entries(query).filter((e): e is [string, string] => e[1] !== undefined));
+  params.set("format", "xlsx");
+  return `/v1/reports/sales/export?${params}`;
+}
+
 /** The team report's CSV (`kinerja-tim-per-anggota-<dari>-<sampai>.csv`), same period (L33 "Unduh"). */
 export function staffExportHref(section: StaffSection, query: StaffQuery): string {
   const params = new URLSearchParams({
     ...(query.from && query.to ? { from: query.from, to: query.to } : {}),
     section,
+  });
+  return `/v1/reports/staff/export?${params}`;
+}
+
+/** Both tables of the team report in one Excel workbook (`kinerja-tim-<dari>-<sampai>.xlsx`). */
+export function staffWorkbookHref(query: StaffQuery): string {
+  const params = new URLSearchParams({
+    ...(query.from && query.to ? { from: query.from, to: query.to } : {}),
+    format: "xlsx",
   });
   return `/v1/reports/staff/export?${params}`;
 }

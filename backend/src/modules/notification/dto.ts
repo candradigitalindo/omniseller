@@ -61,6 +61,10 @@ const preferenceSchema = z.object({
   emailByDefault: z.boolean(),
   /** Always sent; the choice cannot be changed (L44 "Selalu dikirim"). */
   locked: z.boolean(),
+  /** Whether something appears in the app regardless, or only together with the email (scheduled reports). */
+  inApp: z.enum(["always", "with_email"]),
+  /** The plan feature the kind needs, if any; without it the row is locked and turning the email on is refused. */
+  feature: z.string().nullable(),
 });
 export class PreferenceListDto extends createZodDto(z.object({ items: z.array(preferenceSchema) })) {}
 export class PreferenceKindParamDto extends createZodDto(

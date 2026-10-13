@@ -25,6 +25,16 @@ function stockItems(data: unknown): { sku: string }[] {
   return Array.isArray(items) ? items.filter((i): i is { sku: string } => typeof i?.sku === "string") : [];
 }
 
+/** The report screen on the period the emailed report covered (`data.from`, `data.to`). */
+function reportNoticeHref(path: string, data: unknown): string {
+  const d = data as { from?: unknown; to?: unknown } | null;
+  const day = /^\d{4}-\d{2}-\d{2}$/;
+  if (typeof d?.from === "string" && typeof d?.to === "string" && day.test(d.from) && day.test(d.to)) {
+    return `${path}?period=custom&from=${d.from}&to=${d.to}`;
+  }
+  return path;
+}
+
 export function noticeHref(notice: Pick<Notice, "kind" | "data">): string | null {
   switch (notice.kind) {
     case "order.new":
@@ -37,6 +47,12 @@ export function noticeHref(notice: Pick<Notice, "kind" | "data">): string | null
     case "return.due_soon":
     case "return.parcel_back":
       return returnNoticeHref(notice.kind, notice.data);
+    case "report.sales_weekly":
+    case "report.sales_monthly":
+      return reportNoticeHref("/laporan/penjualan", notice.data);
+    case "report.staff_weekly":
+    case "report.staff_monthly":
+      return reportNoticeHref("/laporan/kinerja-tim", notice.data);
     case "legal.reminder":
       return "/profil-bisnis";
     case "billing.reminder":

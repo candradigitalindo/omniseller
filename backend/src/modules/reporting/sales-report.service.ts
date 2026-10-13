@@ -1,7 +1,9 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { RequestContext } from "../../common/context/request-context";
 import { type CsvValue, toCsv } from "../../common/csv";
+import { provinceOf } from "../../common/region";
 import { localDate } from "../../common/time-zone";
+import { toXlsx, type XlsxSheet } from "../../common/xlsx";
 import type { DbHandle } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
@@ -120,8 +122,9 @@ export class SalesReportService {
       const byCategory = (
         await this.orders.itemSalesIn(tx, ctx, filter, w.current.from, w.current.to, "category", null)
       ).map((r) => ({ category: r.category, units: r.units, orders: r.orders, revenue: r.revenue }));
-      const byRegion = (await this.orders.salesByIn(tx, ctx, filter, w.current.from, w.current.to, "province")).map(
-        (r) => ({ province: r.label, orders: r.orders, revenue: r.revenue, share: share(r.revenue, current.revenue) }),
+      const byRegion = regionRows(
+        await this.orders.salesByIn(tx, ctx, filter, w.current.from, w.current.to, "province"),
+        current.revenue,
       );
       const byHour = await this.orders.salesByHourIn(tx, ctx, filter, w.current.from, w.current.to, timezone);
 
@@ -162,48 +165,18 @@ export class SalesReportService {
   /** One section as CSV (UI L30 "Unduh laporan"); products are all of them, not the top 50. */
   async csv(ctx: RequestContext, q: SalesQuery, section: SalesSection): Promise<{ fileName: string; csv: string }> {
     const r = await this.report(ctx, q, { allProducts: section === "products" });
-    const rows: CsvValue[][] = (() => {
-      switch (section) {
-        case "series":
-          return [
-            ["periode", "omzet", "pesanan", "omzet_pembanding", "pesanan_pembanding"],
-            ...r.series.map((s) => [s.bucket, s.revenue, s.orders, s.previousRevenue, s.previousOrders]),
-          ];
-        case "channels":
-          return [
-            ["marketplace", "omzet", "pesanan", "porsi_persen"],
-            ...r.byChannel.map((c) => [c.displayName, c.revenue, c.orders, c.share]),
-          ];
-        case "stores":
-          return [
-            ["toko", "marketplace", "omzet", "pesanan", "porsi_persen"],
-            ...r.byStore.map((s) => [s.name, s.displayName, s.revenue, s.orders, s.share]),
-          ];
-        case "products":
-          return [
-            ["sku", "produk", "varian", "unit", "pesanan", "omzet"],
-            ...r.byProduct.map((p) => [p.sku, p.name, p.variantName, p.units, p.orders, p.revenue]),
-          ];
-        case "categories":
-          return [
-            ["kategori", "unit", "pesanan", "omzet"],
-            ...r.byCategory.map((c) => [c.category ?? "Tanpa kategori", c.units, c.orders, c.revenue]),
-          ];
-        case "regions":
-          return [
-            ["provinsi", "pesanan", "omzet", "porsi_persen"],
-            ...r.byRegion.map((x) => [x.province ?? "Tidak diketahui", x.orders, x.revenue, x.share]),
-          ];
-        case "hours":
-          return [
-            ["hari", "jam", "pesanan", "omzet"],
-            ...r.byHour.map((h) => [WEEKDAYS[h.weekday], h.hour, h.orders, h.revenue]),
-          ];
-      }
-    })();
     return {
       fileName: `penjualan-${section}-${r.range.from}-${r.range.to}.csv`,
-      csv: toCsv(rows, { timeZone: r.timezone }),
+      csv: toCsv(salesSectionRows(r, section), { timeZone: r.timezone }),
+    };
+  }
+
+  /** The whole report as one Excel workbook: a summary, then a sheet per section with the CSV's rows. */
+  async workbook(ctx: RequestContext, q: SalesQuery): Promise<{ fileName: string; bytes: Uint8Array }> {
+    const r = await this.report(ctx, q, { allProducts: true });
+    return {
+      fileName: `penjualan-${r.range.from}-${r.range.to}.xlsx`,
+      bytes: toXlsx(salesSheets(r), { timeZone: r.timezone }),
     };
   }
 
@@ -232,4 +205,128 @@ export class SalesReportService {
       };
     });
   }
+}
+
+export type SalesReport = Awaited<ReturnType<SalesReportService["report"]>>;
+
+/** The region of an address whose province text names none OmniSeller knows. */
+export const OTHER_REGION = "Lainnya";
+
+/**
+ * Sales per province as OmniSeller names it. The address's province field is typed by hand on manual
+ * orders and may hold anything, so text that names no known province is "Lainnya" and never leaves as
+ * written (the report is emailed); an order without a province stays null ("Tidak diketahui").
+ */
+export function regionRows(
+  rows: readonly { label: string | null; orders: number; revenue: number }[],
+  total: number,
+): { province: string | null; orders: number; revenue: number; share: number }[] {
+  const merged = new Map<string | null, { orders: number; revenue: number }>();
+  for (const r of rows) {
+    const province = r.label === null ? null : (provinceOf(r.label)?.name ?? OTHER_REGION);
+    const m = merged.get(province) ?? { orders: 0, revenue: 0 };
+    m.orders += r.orders;
+    m.revenue += r.revenue;
+    merged.set(province, m);
+  }
+  return [...merged.entries()]
+    .map(([province, m]) => ({ province, ...m, share: share(m.revenue, total) }))
+    .sort((a, b) => b.revenue - a.revenue || b.orders - a.orders);
+}
+
+export const SALES_SECTIONS: readonly SalesSection[] = [
+  "series",
+  "channels",
+  "stores",
+  "products",
+  "categories",
+  "regions",
+  "hours",
+];
+
+/** The sections' sheet names in a workbook (UI L30). */
+export const SALES_SHEET_NAMES: Record<SalesSection, string> = {
+  series: "Per periode",
+  channels: "Per kanal",
+  stores: "Per toko",
+  products: "Per produk",
+  categories: "Per kategori",
+  regions: "Per wilayah",
+  hours: "Per jam",
+};
+
+/** One section's rows, the header first: the same rows for the CSV and the workbook. */
+export function salesSectionRows(r: SalesReport, section: SalesSection): CsvValue[][] {
+  switch (section) {
+    case "series":
+      return [
+        ["periode", "omzet", "pesanan", "omzet_pembanding", "pesanan_pembanding"],
+        ...r.series.map((s) => [s.bucket, s.revenue, s.orders, s.previousRevenue, s.previousOrders]),
+      ];
+    case "channels":
+      return [
+        ["marketplace", "omzet", "pesanan", "porsi_persen"],
+        ...r.byChannel.map((c) => [c.displayName, c.revenue, c.orders, c.share]),
+      ];
+    case "stores":
+      return [
+        ["toko", "marketplace", "omzet", "pesanan", "porsi_persen"],
+        ...r.byStore.map((s) => [s.name, s.displayName, s.revenue, s.orders, s.share]),
+      ];
+    case "products":
+      return [
+        ["sku", "produk", "varian", "unit", "pesanan", "omzet"],
+        ...r.byProduct.map((p) => [p.sku, p.name, p.variantName, p.units, p.orders, p.revenue]),
+      ];
+    case "categories":
+      return [
+        ["kategori", "unit", "pesanan", "omzet"],
+        ...r.byCategory.map((c) => [c.category ?? "Tanpa kategori", c.units, c.orders, c.revenue]),
+      ];
+    case "regions":
+      return [
+        ["provinsi", "pesanan", "omzet", "porsi_persen"],
+        ...r.byRegion.map((x) => [x.province ?? "Tidak diketahui", x.orders, x.revenue, x.share]),
+      ];
+    case "hours":
+      return [
+        ["hari", "jam", "pesanan", "omzet"],
+        ...r.byHour.map((h) => [WEEKDAYS[h.weekday], h.hour, h.orders, h.revenue]),
+      ];
+  }
+}
+
+/** The workbook's first sheet: the period and the headline figures against the period before. */
+export function salesSummaryRows(r: SalesReport): CsvValue[][] {
+  const s = r.summary;
+  const p = s.previous;
+  const period = `${r.range.from} s.d. ${r.range.to}`;
+  const previous = r.previousRange ? `${r.previousRange.from} s.d. ${r.previousRange.to}` : null;
+  // worded as the screen is: this sheet has no CSV twin to keep machine keys for
+  return [
+    ["Ukuran", "Periode ini", "Periode sebelumnya"],
+    ["Periode", period, previous],
+    ["Omzet", s.revenue, p?.revenue ?? null],
+    ["Pesanan", s.orders, p?.orders ?? null],
+    ["Unit", s.units, p?.units ?? null],
+    ["Rata-rata nilai pesanan", s.averageOrderValue, p?.averageOrderValue ?? null],
+    ["Pesanan dibayar", s.paidOrders, p?.paidOrders ?? null],
+    ["Pesanan dibatalkan", s.cancelledOrders, p?.cancelledOrders ?? null],
+    ["Tingkat pembatalan (%)", s.cancellationRate, p?.cancellationRate ?? null],
+    ["Diserahkan ke kurir", s.shippedOrders, p?.shippedOrders ?? null],
+    ["Omzet diserahkan", s.shippedRevenue, p?.shippedRevenue ?? null],
+  ];
+}
+
+/** Header and rows of a CSV-shaped table as a workbook sheet. */
+export function sheetOf(name: string, rows: CsvValue[][]): XlsxSheet {
+  return { name, columns: (rows[0] ?? []).map((c) => String(c ?? "")), rows: rows.slice(1) };
+}
+
+/** Every sheet of the sales workbook, the summary first. */
+export function salesSheets(r: SalesReport): XlsxSheet[] {
+  return [
+    sheetOf("Ringkasan", salesSummaryRows(r)),
+    ...SALES_SECTIONS.map((section) => sheetOf(SALES_SHEET_NAMES[section], salesSectionRows(r, section))),
+  ];
 }

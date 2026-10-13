@@ -5,6 +5,8 @@ import type { EmailAttachment } from "./email";
 /** The notification an email is about, as an attachment source sees it. */
 export interface AttachingNotification {
   kind: string;
+  /** The recipient; a source drawing a per-person file reads with that person's permissions and scope. */
+  userId: string | null;
   data: Record<string, unknown>;
 }
 

@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { RequestContext } from "../../common/context/request-context";
-import { toCsv } from "../../common/csv";
+import { type CsvValue, toCsv } from "../../common/csv";
+import { toXlsx } from "../../common/xlsx";
 import type { DbHandle } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
@@ -95,8 +96,19 @@ export class RestockService {
 
   /** The list as CSV, every line (UI L24 "saran restock"). */
   async csv(ctx: RequestContext, q: RestockQuery): Promise<string> {
+    return toCsv(await this.rows(ctx, q));
+  }
+
+  /** The list as an Excel workbook with the CSV's rows (FR-RPT-05). */
+  async workbook(ctx: RequestContext, q: RestockQuery): Promise<Uint8Array> {
+    const rows = await this.rows(ctx, q);
+    return toXlsx([{ name: "Perlu restock", columns: (rows[0] ?? []).map(String), rows: rows.slice(1) }]);
+  }
+
+  /** Every line with its header, the shape both downloads share. */
+  private async rows(ctx: RequestContext, q: RestockQuery): Promise<CsvValue[][]> {
     const { items } = await this.list(ctx, { ...q, limit: Number.MAX_SAFE_INTEGER });
-    return toCsv([
+    return [
       [
         "sku",
         "produk",
@@ -123,6 +135,6 @@ export class RestockService {
         i.suggested,
         i.reason ? REASON_LABEL[i.reason] : "",
       ]),
-    ]);
+    ];
   }
 }

@@ -1,8 +1,9 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Download, LineChart, Table2 } from "lucide-react";
+import { Download, LineChart, Mail, Table2 } from "lucide-react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import { ChannelIcon, channelChartSlot, channelLabel } from "@/components/common/channel";
@@ -15,6 +16,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
@@ -51,6 +53,7 @@ import {
   type TrendPoint,
   todayIn,
   trendPoints,
+  workbookHref,
 } from "./report-meta";
 import { type BarRow, CustomPeriod, HourHeatmap, HourTable, RankTable, ShareBars } from "./report-parts";
 import type { TrendData } from "./trend-chart";
@@ -129,7 +132,14 @@ export function SalesReportView() {
       <PageHeader
         title={t("title")}
         description={t("description")}
-        actions={query ? <DownloadMenu query={query} /> : null}
+        actions={
+          query ? (
+            <>
+              <ScheduleEmailLink label={t("scheduleEmail")} />
+              <DownloadMenu query={query} />
+            </>
+          ) : null
+        }
       />
 
       <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -206,7 +216,7 @@ function ReportSkeleton() {
   );
 }
 
-/** Every part of the report as CSV with the same filters (L30 "Unduh laporan"). */
+/** The whole report as Excel, or any part as CSV, with the same filters (L30 "Unduh laporan"). */
 function DownloadMenu({ query }: { query: ReportQuery }) {
   const t = useTranslations("reports");
   return (
@@ -218,15 +228,33 @@ function DownloadMenu({ query }: { query: ReportQuery }) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        <DropdownMenuItem asChild>
+          <a href={workbookHref(query)} download>
+            {t("downloadXlsx")}
+          </a>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         {SECTIONS.map((s) => (
           <DropdownMenuItem key={s} asChild>
             <a href={exportHref(s, query)} download>
-              {t(`section_${s}`)}
+              {t("downloadCsvItem", { section: t(`section_${s}`) })}
             </a>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/** L30 "Jadwalkan email": the weekly and monthly report emails are chosen on the notifications page (L44). */
+function ScheduleEmailLink({ label }: { label: string }) {
+  return (
+    <Button asChild variant="ghost">
+      <Link href="/notifikasi">
+        <Mail aria-hidden />
+        {label}
+      </Link>
+    </Button>
   );
 }
 

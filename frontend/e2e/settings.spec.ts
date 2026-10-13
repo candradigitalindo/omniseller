@@ -43,6 +43,18 @@ test("invites a team member and exports all data", async ({ page, business }) =>
   await expect(download).toBeVisible({ timeout: 60_000 });
   const zip = await page.request.get((await download.getAttribute("href")) ?? "");
   expect(zip.headers()["content-type"]).toContain("application/zip");
+
+  // the weekly sales report email is a personal choice (L44), off until chosen; the team report is on the trial too
+  await page.goto("/notifikasi");
+  const weekly = page.getByRole("switch", { name: /Email untuk Laporan penjualan mingguan/ });
+  await expect(weekly).not.toBeChecked();
+  await weekly.click();
+  await expect(page.getByText("Email diaktifkan.")).toBeVisible();
+  await expect(weekly).toBeChecked();
+  await expect(weekly.locator("xpath=ancestor::tr")).toContainText("Bersama email");
+  await expect(page.getByRole("switch", { name: /Email untuk Laporan kinerja tim mingguan/ })).toBeEnabled();
+  await page.reload();
+  await expect(page.getByRole("switch", { name: /Email untuk Laporan penjualan mingguan/ })).toBeChecked();
 });
 
 test("makes a custom role on the Growth trial, invites with it, and deletes it once nothing needs it", async ({

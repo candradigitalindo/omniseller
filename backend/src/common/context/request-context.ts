@@ -16,6 +16,32 @@ export interface RequestContext {
   locale: "id" | "en";
 }
 
+/**
+ * A job acting for one person (the daily email, an emailed report): that person's permissions and store
+ * or warehouse scope on top of the job's ids. Only what the principal says reaches the context; the system
+ * context's every-permission set does not.
+ */
+export function userContext(
+  base: Pick<RequestContext, "requestId" | "traceId" | "tenantId">,
+  principal: {
+    user: { id: string; locale?: "id" | "en" };
+    permissions: readonly string[];
+    storeScope: readonly string[] | null;
+    warehouseScope: readonly string[] | null;
+  },
+): RequestContext {
+  return {
+    requestId: base.requestId,
+    traceId: base.traceId,
+    tenantId: base.tenantId,
+    actor: { type: "user", id: principal.user.id },
+    permissions: new Set(principal.permissions),
+    storeScope: principal.storeScope ? new Set(principal.storeScope) : null,
+    warehouseScope: principal.warehouseScope ? new Set(principal.warehouseScope) : null,
+    locale: principal.user.locale ?? "id",
+  };
+}
+
 /** Per-request (or per-job) ambient data used by logging and error rendering, never by services. */
 export interface Ambient {
   requestId: string;

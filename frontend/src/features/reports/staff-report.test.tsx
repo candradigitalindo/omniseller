@@ -145,6 +145,12 @@ describe("StaffReportView (L33)", () => {
       "href",
       `/v1/reports/staff/export?from=${last.from}&to=${last.to}&section=days`,
     );
+    expect(screen.getByRole("menuitem", { name: "Excel (per anggota dan per hari)" })).toHaveAttribute(
+      "href",
+      `/v1/reports/staff/export?from=${last.from}&to=${last.to}&format=xlsx`,
+    );
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("link", { name: "Jadwalkan email" })).toHaveAttribute("href", "/notifikasi");
   });
 
   it("names a member who left the business, and says so when nobody did anything", async () => {
