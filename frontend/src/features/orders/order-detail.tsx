@@ -50,7 +50,7 @@ import { useStores } from "@/features/stores/use-store-modes";
 import { api, unwrap } from "@/lib/api/client";
 import { errorMessage } from "@/lib/api/errors";
 import type { components } from "@/lib/api/schema";
-import { formatDate, formatDateTime, formatNumber, formatRupiah } from "@/lib/format";
+import { formatDate, formatDateTime, formatNumber, formatRupiah, formatTime } from "@/lib/format";
 import { useCan, useTimeZone } from "@/lib/session";
 import { ArrangeDialog } from "./arrange-dialog";
 import { DeadlinePill } from "./deadline-pill";
@@ -363,7 +363,7 @@ function OrderDetailContent({ order: o }: { order: OrderDetail }) {
           <ol className="grid gap-3">
             {[...o.events].reverse().map((e) => (
               <li key={e.id} className="grid gap-0.5 border-l-2 border-border pl-3">
-                <span className="text-sm text-text-900">{eventText(e, t)}</span>
+                <span className="text-sm text-text-900">{eventText(e, t, tz)}</span>
                 {e.type === "auto_processed" && autoRefusals(e.payload).length > 0 ? (
                   <span className="text-[13px] text-text-700">
                     {t("event_auto_refused", {
@@ -740,6 +740,10 @@ function ShippingCard({
         {shipment ? (
           <Row label={t("shipmentStatus")} value={shipment.trackingStageLabel ?? shipment.statusLabel} />
         ) : null}
+        {shipment?.pickupAt ? <Row label={t("pickupBooked")} value={formatDateTime(shipment.pickupAt, tz)} /> : null}
+        {!shipment && scheduledArrangeAt(o) ? (
+          <Row label={t("arrangeScheduled")} value={formatDateTime(scheduledArrangeAt(o)!, tz)} />
+        ) : null}
         {o.fulfillmentMode === "seller" ? (
           <div className="flex items-center justify-between gap-3">
             <dt className="text-text-500">{t("warehouse")}</dt>
@@ -1108,9 +1112,10 @@ function MoveWarehouseDialog({
   );
 }
 
-function eventText(e: OrderEvent, t: ReturnType<typeof useTranslations<"orders">>): string {
+function eventText(e: OrderEvent, t: ReturnType<typeof useTranslations<"orders">>, tz: string): string {
   const status = (s: OrderStatus | null) => (s ? t(`status_${s}`) : "—");
   const code = typeof e.payload.code === "string" ? e.payload.code : null;
+  const text = (k: string) => (typeof e.payload[k] === "string" ? (e.payload[k] as string) : "—");
   switch (e.type) {
     case "status_changed":
       return t("event_status_changed", { from: status(e.fromStatus), to: status(e.toStatus) });
@@ -1118,8 +1123,29 @@ function eventText(e: OrderEvent, t: ReturnType<typeof useTranslations<"orders">
     case "problem_resolved":
       return t(`event_${e.type}`, { problem: code && isProblemCode(code) ? t(`problem_${code}`) : (code ?? "—") });
     // an automatic rule acted (backend doc 8.37); its steps follow as their own entries
-    case "auto_processed":
-      return t("event_auto_processed", { rule: typeof e.payload.rule === "string" ? e.payload.rule : "—" });
+    case "auto_processed": {
+      const line = t("event_auto_processed", { rule: text("rule") });
+      if (typeof e.payload.arrangeAt === "string") {
+        return `${line} · ${t("event_auto_scheduled", { time: formatTime(e.payload.arrangeAt, tz) })}`;
+      }
+      return e.payload.arrangeNow === "deadline" ? `${line} · ${t("event_auto_now_deadline")}` : line;
+    }
+    // the rule's later steps: the arrange at its time, the label print when it was ready
+    case "auto_arrange":
+    case "auto_print": {
+      const outcome = e.payload.status;
+      if (outcome === "arranged") return t("event_auto_arrange_arranged");
+      if (outcome === "queued") return t("event_auto_print_queued", { agent: text("agent") });
+      const reason = text("message");
+      if (e.type === "auto_arrange") {
+        return outcome === "refused"
+          ? t("event_auto_arrange_refused", { reason })
+          : t("event_auto_arrange_skipped", { reason });
+      }
+      return outcome === "refused"
+        ? t("event_auto_print_refused", { reason })
+        : t("event_auto_print_skipped", { reason });
+    }
     default:
       return isNamedEvent(e.type)
         ? t(`event_${e.type}`)
@@ -1127,6 +1153,14 @@ function eventText(e: OrderEvent, t: ReturnType<typeof useTranslations<"orders">
           ? t("event_status_changed", { from: status(e.fromStatus), to: status(e.toStatus) })
           : t("event_other");
   }
+}
+
+/** When a rule will send the arrange request for an order still waiting for its time (backend doc 8.37). */
+function scheduledArrangeAt(o: OrderDetail): string | null {
+  if (o.status !== "ready_to_pack" && o.status !== "packed") return null;
+  const run = o.events.find((e) => e.type === "auto_processed");
+  const at = run?.payload.arrangeAt;
+  return typeof at === "string" && !o.events.some((e) => e.type === "auto_arrange") ? at : null;
 }
 
 const PROBLEM_CODES = new Set<string>([

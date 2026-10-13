@@ -4,6 +4,7 @@ import { IdentityModule } from "../identity/identity.module";
 import { InventoryModule } from "../inventory/inventory-core.module";
 import { OrdersModule, OrdersWorkerModule } from "../orders/orders.module";
 import { SyncModule } from "../sync/sync.module";
+import { AutoPrintService } from "./auto-print.service";
 import { DocumentRenderService } from "./document-render.service";
 import { DocumentsController, ShipmentsController } from "./fulfillment.controllers";
 import { FulfillmentRepository } from "./fulfillment.repository";
@@ -57,8 +58,8 @@ export class FulfillmentModule {}
     SyncModule,
     IdentityModule,
   ],
-  providers: [FulfillmentWorkerService, DocumentRenderService],
-  exports: [FulfillmentWorkerService, DocumentRenderService],
+  providers: [FulfillmentWorkerService, DocumentRenderService, AutoPrintService],
+  exports: [FulfillmentWorkerService, DocumentRenderService, AutoPrintService],
 })
 export class FulfillmentWorkerModule {}
 

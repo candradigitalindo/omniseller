@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import type { PrintJobStatus } from "@omniseller/shared";
-import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, or, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, exists, inArray, isNotNull, isNull, lt, or, type SQL, sql } from "drizzle-orm";
 import type { Tx } from "../../db/client";
-import { printJob } from "../../db/schema";
+import { device, printJob } from "../../db/schema";
 
 export type PrintJobRow = typeof printJob.$inferSelect;
 
@@ -27,17 +27,41 @@ export class PrintRepository {
     return r!;
   }
 
-  /** The print queue (UI L07), newest first. */
+  /**
+   * The print queue (UI L07), newest first. `visibleTo` limits a scoped user to their own requests and
+   * the system's jobs on agents serving one of their warehouses (an agent without a warehouse serves all).
+   */
   async page(
     tx: Tx,
-    f: { deviceId?: string | undefined; status?: PrintJobStatus | undefined; requestedBy?: string | undefined },
+    f: {
+      deviceId?: string | undefined;
+      status?: PrintJobStatus | undefined;
+      visibleTo?: { userId: string; warehouseIds: string[] | null } | undefined;
+    },
     before: string | undefined,
     limit: number,
   ): Promise<PrintJobRow[]> {
+    const agentServes = (warehouseIds: string[] | null) =>
+      exists(
+        tx
+          .select({ one: sql`1` })
+          .from(device)
+          .where(
+            and(
+              eq(device.id, sql.raw('"print_job"."device_id"')),
+              warehouseIds ? or(isNull(device.warehouseId), inArray(device.warehouseId, warehouseIds)) : undefined,
+            ),
+          ),
+      );
     const where: (SQL | undefined)[] = [
       f.deviceId ? eq(printJob.deviceId, f.deviceId) : undefined,
       f.status ? eq(printJob.status, f.status) : undefined,
-      f.requestedBy ? eq(printJob.requestedBy, f.requestedBy) : undefined,
+      f.visibleTo
+        ? or(
+            eq(printJob.requestedBy, f.visibleTo.userId),
+            and(isNull(printJob.requestedBy), agentServes(f.visibleTo.warehouseIds)),
+          )
+        : undefined,
       before ? lt(printJob.id, before) : undefined,
     ];
     return tx

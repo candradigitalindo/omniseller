@@ -124,7 +124,10 @@ export class PrintService {
     return job;
   }
 
-  /** The print queue (UI L07), newest first. */
+  /**
+   * The print queue (UI L07), newest first. Users limited to some stores or warehouses see their own
+   * requests and the system's jobs (automatic rules) on agents serving a warehouse in their scope.
+   */
   async list(
     ctx: RequestContext,
     f: { deviceId?: string | undefined; status?: PrintJobStatus | undefined },
@@ -132,7 +135,17 @@ export class PrintService {
     limit: number,
   ): Promise<{ items: PrintJobRow[]; more: boolean }> {
     const rows = await withTenantTx(this.db, ctx, (tx) =>
-      this.repo.page(tx, { ...f, requestedBy: scoped(ctx) ? ctx.actor.id : undefined }, before, limit),
+      this.repo.page(
+        tx,
+        {
+          ...f,
+          ...(scoped(ctx)
+            ? { visibleTo: { userId: ctx.actor.id, warehouseIds: ctx.warehouseScope ? [...ctx.warehouseScope] : null } }
+            : {}),
+        },
+        before,
+        limit,
+      ),
     );
     return { items: rows.slice(0, limit), more: rows.length > limit };
   }
@@ -148,7 +161,12 @@ export class PrintService {
 
   private async visibleIn(tx: Tx, ctx: RequestContext, id: string, lock = false): Promise<PrintJobRow> {
     const j = await this.repo.get(tx, id, lock);
-    if (!j || (scoped(ctx) && j.requestedBy !== ctx.actor.id)) throw printJobNotFound();
+    if (!j) throw printJobNotFound();
+    if (scoped(ctx) && j.requestedBy !== ctx.actor.id) {
+      // the system's job: visible when its agent serves a warehouse the caller may see
+      const d = j.requestedBy === null ? await this.devices.getIn(tx, j.deviceId) : undefined;
+      if (!d || !inWarehouses(ctx, d.warehouseId)) throw printJobNotFound();
+    }
     return j;
   }
 

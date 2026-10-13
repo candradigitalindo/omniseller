@@ -4,11 +4,13 @@ import { defineJob } from "../../jobs/define";
 import { jobKey } from "../../jobs/job-id";
 import { orderStatusChanged } from "../orders/orders.events";
 import type { WebhookConsumer, WebhookConsumers } from "../sync/webhook-consumer";
+import { AutoPrintService } from "./auto-print.service";
 import { DocumentRenderService } from "./document-render.service";
 import {
   documentRequested,
   shipmentArrangeRequested,
   shipmentLabelRequested,
+  shipmentPrintDue,
   shipmentTrackingRequested,
 } from "./fulfillment.events";
 import { FulfillmentWorkerService } from "./fulfillment-worker.service";
@@ -41,6 +43,23 @@ export const labelFetchJob = defineJob({
   jobId: (p, meta) => jobKey("label.fetch", p.shipmentIds[0]!, meta.eventId ?? "direct"),
   handler: async (p, run) => {
     await run.deps.resolve(FulfillmentWorkerService).fetchLabels(run.ctx, p.shipmentIds, run.jobId);
+  },
+});
+
+/**
+ * FR-SHP-18: the labels an automatic rule prints. Each label that becomes ready queues one job, which waits
+ * a little and then prints every label ready for the rule's agent in one document; later jobs of the same
+ * batch find nothing left. Once per shipment.
+ */
+export const shipmentAutoPrintJob = defineJob({
+  queue: "order.ingest",
+  name: "shipment.auto_print",
+  schema: z.object({ shipmentId: ulidSchema }),
+  triggeredBy: [shipmentPrintDue],
+  options: { attempts: 3, backoff: { type: "exponential", delay: 10_000 }, delay: 20_000 },
+  jobId: (p) => jobKey("shipment.auto_print", p.shipmentId),
+  handler: async (_p, run) => {
+    await run.deps.resolve(AutoPrintService).printDue(run.ctx);
   },
 });
 
@@ -96,6 +115,7 @@ export const shipmentTrackingPullJob = defineJob({
 export const FULFILLMENT_JOBS = [
   shipmentArrangeJob,
   labelFetchJob,
+  shipmentAutoPrintJob,
   documentRenderJob,
   shipmentFollowOrderJob,
   shipmentTrackingPullJob,

@@ -34,6 +34,16 @@ const conditionsInput = z
   })
   .describe("semua kondisi harus terpenuhi; yang kosong berarti apa saja");
 
+const timeOfDay = z.string().regex(/^([01][0-9]|2[0-3]):[0-5][0-9]$/, "Jam ditulis JJ:MM, misalnya 13:00.");
+const printInput = z
+  .object({
+    deviceId: ulidSchema.describe("agen cetak tujuan (GET /v1/print-agents)"),
+    format: z.enum(["thermal", "a4"]).optional(),
+    template: z.enum(["standard", "custom"]).optional(),
+    packingList: z.boolean().optional().describe("daftar kemas tepat setelah label"),
+  })
+  .describe("cetak label ke agen ini begitu labelnya siap (FR-SHP-18); hanya bersama arrange");
+
 const actionsInput = z
   .object({
     warehouseId: ulidSchema.nullable().optional().describe("pindahkan pesanan ke gudang ini"),
@@ -44,8 +54,17 @@ const actionsInput = z
       .nullable()
       .optional()
       .describe("atur pengiriman dengan pickup atau drop-off; pesanan diterima sekaligus"),
+    arrangeAt: timeOfDay
+      .nullable()
+      .optional()
+      .describe(
+        "jam (zona waktu bisnis) saat permintaan atur kirim dikirim ke marketplace, pesanan diterima lebih dulu; kosong: segera. Lewat batas kirim atau jam operasional: segera",
+      ),
+    print: printInput.nullable().optional(),
   })
-  .describe("dijalankan berurutan: gudang, tag, terima, atur pengiriman");
+  .describe(
+    "dijalankan berurutan: gudang, tag, terima, atur pengiriman (segera atau pada jamnya), cetak label saat siap",
+  );
 
 export class CreateOrderRuleDto extends createZodDto(
   z.object({
@@ -97,7 +116,17 @@ const ruleSchema = z.object({
     tagIds: z.array(z.string()),
     accept: z.boolean(),
     arrange: z.enum(["pickup", "dropoff"]).nullable(),
+    arrangeAt: z.string().nullable().describe("JJ:MM zona waktu bisnis; null: segera"),
+    print: z
+      .object({
+        deviceId: z.string(),
+        format: z.enum(["thermal", "a4"]),
+        template: z.enum(["standard", "custom"]),
+        packingList: z.boolean(),
+      })
+      .nullable(),
   }),
+  pending: z.number().int().describe("pesanan yang menunggu jam atur kirim aturan ini"),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   rowVersion: z.number().int(),
@@ -113,6 +142,7 @@ export function orderRuleDto(r: OrderRule) {
     active: r.active,
     conditions: r.conditions,
     actions: r.actions,
+    pending: r.pending,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
     rowVersion: r.rowVersion,

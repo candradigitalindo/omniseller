@@ -6394,6 +6394,8 @@ export interface components {
           name: string;
           color: string | null;
         }[];
+        /** @description label terakhir dicetak (oleh siapa pun atau aturan otomatis); null: belum */
+        labelPrintedAt: string | null;
         /** Format: date-time */
         orderedAt: string;
       }[];
@@ -6570,6 +6572,8 @@ export interface components {
         name: string;
         color: string | null;
       }[];
+      /** @description label terakhir dicetak (oleh siapa pun atau aturan otomatis); null: belum */
+      labelPrintedAt: string | null;
       /** Format: date-time */
       orderedAt: string;
       items: {
@@ -6787,7 +6791,19 @@ export interface components {
           tagIds: string[];
           accept: boolean;
           arrange: ("pickup" | "dropoff") | null;
+          /** @description JJ:MM zona waktu bisnis; null: segera */
+          arrangeAt: string | null;
+          print: {
+            deviceId: string;
+            /** @enum {string} */
+            format: "thermal" | "a4";
+            /** @enum {string} */
+            template: "standard" | "custom";
+            packingList: boolean;
+          } | null;
         };
+        /** @description pesanan yang menunggu jam atur kirim aturan ini */
+        pending: number;
         /** Format: date-time */
         createdAt: string;
         /** Format: date-time */
@@ -6821,7 +6837,7 @@ export interface components {
         /** @description hanya selama jam operasional bisnis (L43) */
         withinOperatingHours?: boolean;
       };
-      /** @description dijalankan berurutan: gudang, tag, terima, atur pengiriman */
+      /** @description dijalankan berurutan: gudang, tag, terima, atur pengiriman (segera atau pada jamnya), cetak label saat siap */
       actions: {
         /** @description pindahkan pesanan ke gudang ini */
         warehouseId?: string | null;
@@ -6831,6 +6847,18 @@ export interface components {
         accept?: boolean;
         /** @description atur pengiriman dengan pickup atau drop-off; pesanan diterima sekaligus */
         arrange?: ("pickup" | "dropoff") | null;
+        /** @description jam (zona waktu bisnis) saat permintaan atur kirim dikirim ke marketplace, pesanan diterima lebih dulu; kosong: segera. Lewat batas kirim atau jam operasional: segera */
+        arrangeAt?: string | null;
+        print?: {
+          /** @description agen cetak tujuan (GET /v1/print-agents) */
+          deviceId: string;
+          /** @enum {string} */
+          format?: "thermal" | "a4";
+          /** @enum {string} */
+          template?: "standard" | "custom";
+          /** @description daftar kemas tepat setelah label */
+          packingList?: boolean;
+        } | null;
       };
     };
     OrderRuleDto_Output: {
@@ -6855,7 +6883,19 @@ export interface components {
         tagIds: string[];
         accept: boolean;
         arrange: ("pickup" | "dropoff") | null;
+        /** @description JJ:MM zona waktu bisnis; null: segera */
+        arrangeAt: string | null;
+        print: {
+          deviceId: string;
+          /** @enum {string} */
+          format: "thermal" | "a4";
+          /** @enum {string} */
+          template: "standard" | "custom";
+          packingList: boolean;
+        } | null;
       };
+      /** @description pesanan yang menunggu jam atur kirim aturan ini */
+      pending: number;
       /** Format: date-time */
       createdAt: string;
       /** Format: date-time */
@@ -6901,6 +6941,18 @@ export interface components {
         accept?: boolean;
         /** @description atur pengiriman dengan pickup atau drop-off; pesanan diterima sekaligus */
         arrange?: ("pickup" | "dropoff") | null;
+        /** @description jam (zona waktu bisnis) saat permintaan atur kirim dikirim ke marketplace, pesanan diterima lebih dulu; kosong: segera. Lewat batas kirim atau jam operasional: segera */
+        arrangeAt?: string | null;
+        print?: {
+          /** @description agen cetak tujuan (GET /v1/print-agents) */
+          deviceId: string;
+          /** @enum {string} */
+          format?: "thermal" | "a4";
+          /** @enum {string} */
+          template?: "standard" | "custom";
+          /** @description daftar kemas tepat setelah label */
+          packingList?: boolean;
+        } | null;
       };
     };
     ArrangeShipmentsDto: {

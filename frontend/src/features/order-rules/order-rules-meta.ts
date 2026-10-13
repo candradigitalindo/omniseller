@@ -11,6 +11,13 @@ export const ITEMS: readonly ItemsKind[] = ["any", "single", "multiple"];
 
 /** The order is left in the warehouse it was given (a Select value cannot be empty). */
 export const KEEP_WAREHOUSE = "keep";
+/** No automatic print (a Select value cannot be empty). */
+export const NO_PRINT = "none";
+export const PRINT_FORMATS = ["thermal", "a4"] as const;
+export const PRINT_TEMPLATES = ["standard", "custom"] as const;
+const TIME_OF_DAY = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
+/** "13:00" as it is read: "13.00". */
+export const clockText = (time: string) => time.replace(":", ".");
 
 /** The editor (L55) as typed: lists of names as text, totals as rupiah text. */
 export interface RuleDraft {
@@ -27,9 +34,16 @@ export interface RuleDraft {
   warehouseId: string;
   tagIds: string[];
   process: Process;
+  /** "HH:MM" when the arrange request waits for that time of day; "" for at once. */
+  arrangeAt: string;
+  /** The agent that prints the label when it is ready; "" for no automatic print. */
+  printDeviceId: string;
+  printFormat: (typeof PRINT_FORMATS)[number];
+  printTemplate: (typeof PRINT_TEMPLATES)[number];
+  printPackingList: boolean;
 }
 
-export type DraftProblem = "name" | "money" | "range" | "nothing";
+export type DraftProblem = "name" | "money" | "range" | "nothing" | "time";
 
 export function emptyDraft(): RuleDraft {
   return {
@@ -46,6 +60,11 @@ export function emptyDraft(): RuleDraft {
     warehouseId: KEEP_WAREHOUSE,
     tagIds: [],
     process: "none",
+    arrangeAt: "",
+    printDeviceId: "",
+    printFormat: "thermal",
+    printTemplate: "standard",
+    printPackingList: false,
   };
 }
 
@@ -66,8 +85,16 @@ export function draftOf(r: OrderRule): RuleDraft {
     warehouseId: r.actions.warehouseId ?? KEEP_WAREHOUSE,
     tagIds: r.actions.tagIds,
     process: processOf(r.actions),
+    arrangeAt: r.actions.arrangeAt ?? "",
+    printDeviceId: r.actions.print?.deviceId ?? "",
+    printFormat: r.actions.print?.format ?? "thermal",
+    printTemplate: r.actions.print?.template ?? "standard",
+    printPackingList: r.actions.print?.packingList ?? false,
   };
 }
+
+/** Whether the draft arranges the shipment (the time and the print belong to that step). */
+export const arranges = (d: Pick<RuleDraft, "process">) => d.process === "pickup" || d.process === "dropoff";
 
 /** "J&T, SiCepat" or one per line: the names, trimmed, without empty ones. */
 export function splitList(text: string): string[] {
@@ -87,8 +114,8 @@ export function rupiahValue(text: string): number | null {
 /** What keeps the draft from being saved, per field. */
 export function draftProblems(
   d: RuleDraft,
-): Partial<Record<"name" | "minTotal" | "maxTotal" | "actions", DraftProblem>> {
-  const out: Partial<Record<"name" | "minTotal" | "maxTotal" | "actions", DraftProblem>> = {};
+): Partial<Record<"name" | "minTotal" | "maxTotal" | "actions" | "arrangeAt", DraftProblem>> {
+  const out: Partial<Record<"name" | "minTotal" | "maxTotal" | "actions" | "arrangeAt", DraftProblem>> = {};
   if (!d.name.trim()) out.name = "name";
   const min = rupiahValue(d.minTotal);
   const max = rupiahValue(d.maxTotal);
@@ -96,6 +123,7 @@ export function draftProblems(
   if (Number.isNaN(max)) out.maxTotal = "money";
   if (min !== null && max !== null && !Number.isNaN(min) && !Number.isNaN(max) && min > max) out.maxTotal = "range";
   if (d.warehouseId === KEEP_WAREHOUSE && d.tagIds.length === 0 && d.process === "none") out.actions = "nothing";
+  if (arranges(d) && d.arrangeAt !== "" && !TIME_OF_DAY.test(d.arrangeAt)) out.arrangeAt = "time";
   return out;
 }
 
@@ -119,6 +147,17 @@ export function ruleBody(d: RuleDraft): RuleBody {
       tagIds: d.tagIds,
       accept: d.process !== "none",
       arrange: d.process === "pickup" || d.process === "dropoff" ? d.process : null,
+      // the time and the print go with the arrange: without one they are dropped, not refused
+      arrangeAt: arranges(d) && d.arrangeAt !== "" ? d.arrangeAt : null,
+      print:
+        arranges(d) && d.printDeviceId !== ""
+          ? {
+              deviceId: d.printDeviceId,
+              format: d.printFormat,
+              template: d.printTemplate,
+              packingList: d.printPackingList,
+            }
+          : null,
     },
   };
 }
@@ -149,13 +188,20 @@ export type WhenKey =
   | "when_min"
   | "when_max"
   | "when_hours";
-export type DoKey = "do_warehouse" | "do_tags" | `do_${Exclude<Process, "none">}`;
+export type DoKey =
+  | "do_warehouse"
+  | "do_tags"
+  | `do_${Exclude<Process, "none">}`
+  | "do_pickup_at"
+  | "do_dropoff_at"
+  | "do_print";
 export type Part<K> = { key: K; values: Record<string, string | number> };
 
 export interface Names {
   store: (id: string) => string | undefined;
   warehouse: (id: string) => string | undefined;
   tag: (id: string) => string | undefined;
+  agent: (id: string) => string | undefined;
 }
 
 /**
@@ -188,6 +234,9 @@ export function actionParts(a: OrderRule["actions"], names: Names): Part<DoKey>[
   const tags = a.tagIds.map(names.tag).filter((n): n is string => !!n);
   if (a.tagIds.length > 0) out.push({ key: "do_tags", values: { names: tags.join(", ") || "—" } });
   const process = processOf(a);
-  if (process !== "none") out.push({ key: `do_${process}`, values: {} });
+  if ((process === "pickup" || process === "dropoff") && a.arrangeAt) {
+    out.push({ key: `do_${process}_at`, values: { time: clockText(a.arrangeAt) } });
+  } else if (process !== "none") out.push({ key: `do_${process}`, values: {} });
+  if (a.print) out.push({ key: "do_print", values: { agent: names.agent(a.print.deviceId) ?? "—" } });
   return out;
 }

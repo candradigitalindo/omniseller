@@ -23,7 +23,7 @@ import { api, unwrap } from "@/lib/api/client";
 import { errorMessage } from "@/lib/api/errors";
 import { formatRupiah } from "@/lib/format";
 import { useCan, useHasFeature, useSession } from "@/lib/session";
-import { actionParts, conditionParts, moved, type Names, type OrderRule } from "./order-rules-meta";
+import { actionParts, clockText, conditionParts, moved, type Names, type OrderRule } from "./order-rules-meta";
 import { RuleDialog } from "./rule-editor";
 import { useRuleChoices } from "./use-rule-choices";
 
@@ -234,6 +234,7 @@ function RuleCard({
   onRemove: () => void;
 }) {
   const t = useTranslations("orderRules");
+  const can = useCan();
   // totals read as rupiah
   const money = (v: Record<string, string | number>) =>
     Object.fromEntries(
@@ -270,6 +271,14 @@ function RuleCard({
           <p className="text-sm text-text-700">
             <span className="font-medium text-text-900">{t("then")}</span> {then.join(" → ")}
           </p>
+          {rule.pending > 0 && rule.actions.arrangeAt ? (
+            <p className="text-[13px] text-text-700">
+              {t("pendingArranges", { count: rule.pending, time: clockText(rule.actions.arrangeAt) })}
+            </p>
+          ) : null}
+          {rule.actions.print && can("shipment:print") && !names.agent(rule.actions.print.deviceId) ? (
+            <p className="text-[13px] text-danger">{t("agentMissing")}</p>
+          ) : null}
         </div>
         <div className="flex items-center gap-1">
           {editable ? (

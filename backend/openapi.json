@@ -24456,6 +24456,19 @@
                     "additionalProperties": false
                   }
                 },
+                "labelPrintedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "label terakhir dicetak (oleh siapa pun atau aturan otomatis); null: belum"
+                },
                 "orderedAt": {
                   "type": "string",
                   "format": "date-time",
@@ -24488,6 +24501,7 @@
                 "problems",
                 "cancelRequested",
                 "tags",
+                "labelPrintedAt",
                 "orderedAt"
               ],
               "additionalProperties": false
@@ -25205,6 +25219,19 @@
               "additionalProperties": false
             }
           },
+          "labelPrintedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "label terakhir dicetak (oleh siapa pun atau aturan otomatis); null: belum"
+          },
           "orderedAt": {
             "type": "string",
             "format": "date-time",
@@ -25662,6 +25689,7 @@
           "problems",
           "cancelRequested",
           "tags",
+          "labelPrintedAt",
           "orderedAt",
           "items",
           "buyerUsername",
@@ -26277,15 +26305,69 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "arrangeAt": {
+                      "description": "JJ:MM zona waktu bisnis; null: segera",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "print": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "deviceId": {
+                              "type": "string"
+                            },
+                            "format": {
+                              "type": "string",
+                              "enum": [
+                                "thermal",
+                                "a4"
+                              ]
+                            },
+                            "template": {
+                              "type": "string",
+                              "enum": [
+                                "standard",
+                                "custom"
+                              ]
+                            },
+                            "packingList": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "deviceId",
+                            "format",
+                            "template",
+                            "packingList"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
                     "warehouseId",
                     "tagIds",
                     "accept",
-                    "arrange"
+                    "arrange",
+                    "arrangeAt",
+                    "print"
                   ],
                   "additionalProperties": false
+                },
+                "pending": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991,
+                  "description": "pesanan yang menunggu jam atur kirim aturan ini"
                 },
                 "createdAt": {
                   "type": "string",
@@ -26310,6 +26392,7 @@
                 "active",
                 "conditions",
                 "actions",
+                "pending",
                 "createdAt",
                 "updatedAt",
                 "rowVersion"
@@ -26463,9 +26546,60 @@
                     "type": "null"
                   }
                 ]
+              },
+              "arrangeAt": {
+                "description": "jam (zona waktu bisnis) saat permintaan atur kirim dikirim ke marketplace, pesanan diterima lebih dulu; kosong: segera. Lewat batas kirim atau jam operasional: segera",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "print": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "deviceId": {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                        "description": "agen cetak tujuan (GET /v1/print-agents)"
+                      },
+                      "format": {
+                        "type": "string",
+                        "enum": [
+                          "thermal",
+                          "a4"
+                        ]
+                      },
+                      "template": {
+                        "type": "string",
+                        "enum": [
+                          "standard",
+                          "custom"
+                        ]
+                      },
+                      "packingList": {
+                        "description": "daftar kemas tepat setelah label",
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "deviceId"
+                    ],
+                    "description": "cetak label ke agen ini begitu labelnya siap (FR-SHP-18); hanya bersama arrange"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             },
-            "description": "dijalankan berurutan: gudang, tag, terima, atur pengiriman"
+            "description": "dijalankan berurutan: gudang, tag, terima, atur pengiriman (segera atau pada jamnya), cetak label saat siap"
           }
         },
         "required": [
@@ -26598,15 +26732,69 @@
                     "type": "null"
                   }
                 ]
+              },
+              "arrangeAt": {
+                "description": "JJ:MM zona waktu bisnis; null: segera",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "print": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "deviceId": {
+                        "type": "string"
+                      },
+                      "format": {
+                        "type": "string",
+                        "enum": [
+                          "thermal",
+                          "a4"
+                        ]
+                      },
+                      "template": {
+                        "type": "string",
+                        "enum": [
+                          "standard",
+                          "custom"
+                        ]
+                      },
+                      "packingList": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "deviceId",
+                      "format",
+                      "template",
+                      "packingList"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             },
             "required": [
               "warehouseId",
               "tagIds",
               "accept",
-              "arrange"
+              "arrange",
+              "arrangeAt",
+              "print"
             ],
             "additionalProperties": false
+          },
+          "pending": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "pesanan yang menunggu jam atur kirim aturan ini"
           },
           "createdAt": {
             "type": "string",
@@ -26631,6 +26819,7 @@
           "active",
           "conditions",
           "actions",
+          "pending",
           "createdAt",
           "updatedAt",
           "rowVersion"
@@ -26787,6 +26976,57 @@
                       "pickup",
                       "dropoff"
                     ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "arrangeAt": {
+                "description": "jam (zona waktu bisnis) saat permintaan atur kirim dikirim ke marketplace, pesanan diterima lebih dulu; kosong: segera. Lewat batas kirim atau jam operasional: segera",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "print": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "deviceId": {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                        "description": "agen cetak tujuan (GET /v1/print-agents)"
+                      },
+                      "format": {
+                        "type": "string",
+                        "enum": [
+                          "thermal",
+                          "a4"
+                        ]
+                      },
+                      "template": {
+                        "type": "string",
+                        "enum": [
+                          "standard",
+                          "custom"
+                        ]
+                      },
+                      "packingList": {
+                        "description": "daftar kemas tepat setelah label",
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "deviceId"
+                    ],
+                    "description": "cetak label ke agen ini begitu labelnya siap (FR-SHP-18); hanya bersama arrange"
                   },
                   {
                     "type": "null"

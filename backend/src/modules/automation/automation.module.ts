@@ -5,12 +5,14 @@ import { FulfillmentModule } from "../fulfillment/fulfillment.module";
 import { IdentityModule } from "../identity/identity.module";
 import { InventoryModule } from "../inventory/inventory-core.module";
 import { OrdersModule } from "../orders/orders.module";
+import { AutoArrangeService } from "./auto-arrange.service";
 import { AutoProcessService } from "./auto-process.service";
 import { OrderRulesController } from "./automation.controller";
 import { OrderRulesRepository } from "./automation.repository";
 import { OrderRulesService } from "./order-rules.service";
+import { ScheduleRepository } from "./schedule.repository";
 
-const SERVICES = [OrderRulesRepository, OrderRulesService, AutoProcessService];
+const SERVICES = [OrderRulesRepository, ScheduleRepository, OrderRulesService, AutoProcessService, AutoArrangeService];
 
 /**
  * Automatic order processing (api and worker, backend doc 8.37): the rules, and the engine the worker

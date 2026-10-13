@@ -13,21 +13,22 @@ Pengiriman pesanan (PRD 6.5: FR-SHP-01, 02, 03, 04, 05, 06, 07, 16, 17; FR-ORD-0
 - pengiriman yang mengikuti status pesanannya;
 - agen cetak lokal dan pekerjaan cetaknya (FR-SHP-17, backend doc 8.24): pasang, printer label dan A4, antrean, cetak percobaan, scan untuk cetak;
 - kemas dengan scan (FR-SHP-04): isi paket dicocokkan dengan pesanan sebelum dikemas;
-- serah terima kurir (FR-SHP-05): manifest per gudang dan kurir, pindai resi, serahkan, manifest PDF.
+- serah terima kurir (FR-SHP-05): manifest per gudang dan kurir, pindai resi, serahkan, manifest PDF;
+- cetak label otomatis untuk aturan otomatis (FR-SHP-18, backend doc 8.37): label yang siap dicetak ke agen aturan, satu dokumen per agen dan tata letak.
 
 ## Tabel yang dimiliki
-- `shipment` (termasuk kolom `tracking_*`), `shipment_package`, `document_job`, `label_template`, `print_job`, `handover`, `handover_item`.
+- `shipment` (termasuk kolom `tracking_*` dan `auto_print`: instruksi cetak aturan otomatis), `shipment_package`, `document_job`, `label_template`, `print_job`, `handover`, `handover_item`.
 - Baris `device` milik `identity`: dibaca dan ditulis lewat `DevicesService` (`createIn`, `getIn`, `activeIn`, `updateIn`, `revokeIn`, `reportIn`).
 - Pesanan lewat `OrdersService` (`requireVisible`, `readIn`, `accept`, `idsByExternalIn`, `tagsIn`) dan `OrderIntakeService` (`advanceIn`, `recordIn`, `setShippingIn`); lokasi rak dan nama varian lewat `InventoryService.pickInfoIn`; nama gudang lewat `WarehousesService`; nama toko dan toko yang bisa dipakai lewat `StoresService` (`namesIn`, `stockTargetsIn`); berkas lewat `FilesService`.
 
 ## Service publik
-- `FulfillmentService` (api dan worker): `arrange`, `requestLabels`, `shipmentsOf`, `requestDocument` (jenis, format, template, daftar kemas), `document`, `pickList`, `tracking`, `requestTracking`, `exportSheets` (`pengiriman.csv` ekspor data penuh, backend doc 8.18; nomor pesanan lewat `OrdersService.refsIn`).
+- `FulfillmentService` (api dan worker): `arrange` (dengan `{ autoPrint }` dari aturan otomatis), `requestLabels`, `shipmentsOf`, `requestDocument` (jenis, format, template, daftar kemas), `document`, `pickList`, `tracking`, `requestTracking`, `exportSheets` (`pengiriman.csv` ekspor data penuh, backend doc 8.18; nomor pesanan lewat `OrdersService.refsIn`).
 - `LabelTemplateService` (api dan worker): `get`, `set`, `preview`, `optionsIn`.
 - `FulfillmentService.requestBarcodeLabels` (dokumen `barcode_labels`) dan `deleteForOrdersIn` (modul retention: pengiriman dihapus, label dan dokumen PDF pesanan itu kedaluwarsa seketika lewat `FilesService.expireIn`).
 - `FulfillmentService.anonymizeIn` (modul retention, masa simpan data pembeli, backend doc 8.34): keterangan kejadian pelacakan dikosongkan (waktu, tahap, dan lokasi tetap), label pengiriman, label paket, dan dokumen cetak pesanan itu kedaluwarsa.
 - `PickListBuilder` (api dan worker): `buildIn` (bagian per gudang, yang tertinggal, dan `orderIds` pesanan yang barangnya diambil).
-- Hanya worker: `FulfillmentWorkerService` (`arrange`, `fetchLabels`, `followOrder`, `labelsForOrders`, `pullTracking`) dan `DocumentRenderService` (`render`; juga manifest serah terima dan halaman uji agen). Marketplace selalu lewat `MarketplaceGateway`, di luar transaksi.
-- `PrintService` (api dan worker): `queueIn` (pekerjaan untuk sebuah dokumen), `push` (setelah commit), `printDocument`, `list`, `get`, `retry`, `cancel`, `cancelForDeviceIn`, `documentFinishedIn` (worker), dan rute agen `pending`, `take`, `report`, `agentStatus`.
+- Hanya worker: `FulfillmentWorkerService` (`arrange`, `fetchLabels`, `followOrder`, `labelsForOrders`, `pullTracking`), `DocumentRenderService` (`render`; juga manifest serah terima dan halaman uji agen), dan `AutoPrintService` (`printDue`: job `shipment.auto_print`). Marketplace selalu lewat `MarketplaceGateway`, di luar transaksi.
+- `PrintService` (api dan worker): `queueIn` (pekerjaan untuk sebuah dokumen), `agentIn` (agen cetak yang boleh dipakai pemanggil), `push` (setelah commit), `printDocument`, `list`, `get`, `retry`, `cancel`, `cancelForDeviceIn`, `documentFinishedIn` (worker), dan rute agen `pending`, `take`, `report`, `agentStatus`.
 - `PrintAgentsService` (api): `list`, `get`, `create`, `update`, `revoke`, `testPrint`.
 - `ScanService` (api): `orderIn` (pesanan dari nomor pesanan atau resi), `labelRefusalIn`, `printLabelIn`, `scanToPrint`.
 - `PackingService` (api): `lookup`, `complete`. `HandoverService` (api): `open`, `couriers`, `scan`, `removeItem`, `complete`, `cancel`, `manifest`, `list`, `get`, `exportSheets` (`serah_terima.csv`).
@@ -57,13 +58,14 @@ Pengiriman pesanan (PRD 6.5: FR-SHP-01, 02, 03, 04, 05, 06, 07, 16, 17; FR-ORD-0
 - **Label barcode** (`renderBarcodeLabels`): barcode varian, atau SKU-nya bila tidak punya; simbol dari `common/barcode.ts` digambar sebagai persegi panjang selebar kelipatan titik printer 203 dpi (`moduleWidth`). Batang di bawah dua titik dicatat di `result.dense`; kode di luar ASCII dan varian yang dihapus masuk `missing` dengan `variantId`. Paling banyak 2.000 label per dokumen.
 
 - **Agen cetak.** Token sekali tampil, hanya hash yang disimpan; dicabut, bukan dihapus. Pengguna dengan cakupan gudang hanya memakai agen gudangnya dan agen tanpa gudang. Printer pekerjaan: yang diminta, lalu printer agen untuk kertasnya (`paperOf`: label atau A4), lalu printer bawaan komputer.
-- **Pekerjaan cetak.** Dibuat bersama dokumennya dan menunggu worker; worker memasang berkas lalu mendorong `print.job` setelah commit (`PrintService.push`). Agen mengambil berkas (`sent`), lalu melapor `printed` atau `failed`. Socket bisa terlewat: agen membaca daftar tertunda lewat REST.
+- **Pekerjaan cetak.** Dibuat bersama dokumennya dan menunggu worker; worker memasang berkas lalu mendorong `print.job` setelah commit (`PrintService.push`). Agen mengambil berkas (`sent`), lalu melapor `printed` atau `failed`. Socket bisa terlewat: agen membaca daftar tertunda lewat REST. Pengguna bercakupan toko atau gudang melihat permintaannya sendiri dan pekerjaan sistem di agen yang melayani gudangnya (`visibleTo`), serta dokumen sistem yang semua pesanannya dalam cakupan.
+- **Cetak otomatis** (backend doc 8.37). `arrange` menyimpan instruksi aturan di `shipment.auto_print` (`{deviceId, format, template, packingList, ruleId, until}`); `completeLabelsIn` menulis `shipment.print_due` bila ada; job `shipment.auto_print` (tunda 20 detik) mengunci semua pengiriman `label_ready` atau `packed` yang masih membawa instruksi dan mencetaknya dalam satu dokumen `labels` per agen dan tata letak lewat `requestDocumentIn` dan `PrintService.queueIn` (judul "Label N pesanan (otomatis)"), sebagai sistem. Dilewati atau ditolak dengan riwayat `auto_print`: sudah dicetak sejak diatur (`auto_print.already_printed`), lebih dari 12 jam (`auto_print.expired`), paket tanpa `auto_process`, agen dicabut atau gudang lain, atau alasan label biasa. Instruksi dikosongkan begitu diputuskan: paling banyak sekali per pengiriman.
 - **Scan.** `ScanService.orderIn` mencari nomor pesanan, resi pesanan, resi pengiriman, dan resi paket, persis atau huruf besar, dalam cakupan pengguna; dua pesanan atau lebih: 409 `scan.ambiguous`. Penolakan label memakai kode dokumen label (`labelRefusal`).
 - **Kemas dengan scan.** Server memeriksa ulang semua pindaian (`checkPacking`): jumlah per baris sama persis, tanpa kode asing; lalu `OrdersService.packIn` dengan aturan "Tandai dikemas". Label yang belum siap tidak membatalkan pengemasan. `seconds` dari stasiun (waktu sejak pesanan dipindai) disimpan di riwayat untuk menit kemas per pesanan (backend doc 8.35).
 - **Serah terima.** Satu manifest terbuka per gudang dan kurir. Pindai memeriksa gudang, kurir (`courierMatches`), status (`handoverRefusal`), dan manifest terbuka lain; kunci pesanan mencegah satu paket di dua manifest. Selesai memeriksa ulang semua paket, lalu semua atau tidak sama sekali: pengiriman marketplace `handed_over`, pesanan manual dikirim. Kunci pengiriman dulu, baru pesanan. Manifest A4 tanpa data pembeli.
 
 ## Event
-- Diterbitkan: `shipment.arrange_requested`, `shipment.label_requested`, `shipment.tracking_requested`, `document.requested`.
+- Diterbitkan: `shipment.arrange_requested`, `shipment.label_requested`, `shipment.tracking_requested`, `document.requested`, `shipment.print_due` (label pengiriman beraturan cetak sudah tersimpan).
 - Dikonsumsi: `order.status_changed` (milik `orders`); webhook `order.tracking_updated` dan `shipment.document_ready` (Shopee kode 4 dan 15).
 
 ## Job
@@ -71,6 +73,7 @@ Pengiriman pesanan (PRD 6.5: FR-SHP-01, 02, 03, 04, 05, 06, 07, 16, 17; FR-ORD-0
 |---|---|---|
 | `shipment.arrange` | `mp.outbound` | `shipment.arrange_requested` |
 | `label.fetch` | `mp.outbound` | `shipment.label_requested` (setelah atur kirim, push Shopee, atau `POST /v1/shipments/labels`) |
+| `shipment.auto_print` | `order.ingest` | `shipment.print_due`; id `shipment.auto_print\|<shipment_id>`, tunda 20 detik |
 | `document.render` | `pdf` | `document.requested` |
 | `shipment.follow_order` | `order.ingest` | `order.status_changed` |
 | `shipment.tracking_pull` | `mp.track` | `shipment.tracking_requested` ("Perbarui"), jadwal `shipment.tracking_scan` (30 menit, per 50 pesanan) |

@@ -4,7 +4,13 @@ import { newId } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
 import { EXPORT_PAGE_SIZE, type ExportSheet, keysetPages } from "../../common/export-sheet";
 import type { DbHandle, Tx } from "../../db/client";
-import type { DocumentKind, DocumentParams, StoredTrackingEvent, TrackingStage } from "../../db/schema";
+import type {
+  AutoPrintIntent,
+  DocumentKind,
+  DocumentParams,
+  StoredTrackingEvent,
+  TrackingStage,
+} from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
@@ -84,7 +90,12 @@ export class FulfillmentService {
    * shipments and its request to the worker are written in one transaction. Results per order; the
    * marketplace's answer arrives on the shipment.
    */
-  async arrange(ctx: RequestContext, orderIds: string[], method: HandoverMethod): Promise<ActionResult[]> {
+  async arrange(
+    ctx: RequestContext,
+    orderIds: string[],
+    method: HandoverMethod,
+    opts: { autoPrint?: AutoPrintIntent | null } = {},
+  ): Promise<ActionResult[]> {
     const ids = [...new Set(orderIds)];
     const visible = await this.orders.requireVisible(ctx, ids);
     const results = new Map<string, ActionResult>();
@@ -128,7 +139,11 @@ export class FulfillmentService {
           let shipmentId = existing?.id;
           if (existing) {
             // a pending shipment whose last attempt failed: try again, maybe with the other method
-            await this.repo.updateShipment(tx, existing.id, { pickupType: method, lastError: null });
+            await this.repo.updateShipment(tx, existing.id, {
+              pickupType: method,
+              lastError: null,
+              ...(opts.autoPrint ? { autoPrint: opts.autoPrint } : {}),
+            });
           } else {
             const row = await this.repo.insertShipment(tx, {
               id: newId(),
@@ -138,6 +153,7 @@ export class FulfillmentService {
               pickupType: method,
               provider: o.shippingProvider,
               service: o.shippingService,
+              autoPrint: opts.autoPrint ?? null,
             });
             if (!row) {
               results.set(id, {
@@ -333,16 +349,24 @@ export class FulfillmentService {
   }
 
   /**
-   * A document of this tenant. Users limited to some stores or warehouses see only their own requests:
-   * someone else's document may hold orders outside their scope.
+   * A document of this tenant. Users limited to some stores or warehouses see their own requests, and the
+   * system's documents (automatic rules) whose orders are all in their scope: someone else's document may
+   * hold orders outside it.
    */
   async document(ctx: RequestContext, id: string): Promise<DocumentWithPrint> {
     return withTenantTx(this.db, ctx, async (tx) => {
       const doc = await this.repo.getDocument(tx, id);
-      const scoped = ctx.storeScope !== null || ctx.warehouseScope !== null;
-      if (!doc || (scoped && doc.requestedBy !== ctx.actor.id)) throw documentNotFound();
+      if (!doc || !(await this.documentVisibleIn(tx, ctx, doc))) throw documentNotFound();
       return { doc, printJob: (await this.print.latestOfDocumentsIn(tx, [doc.id])).get(doc.id) ?? null };
     });
+  }
+
+  private async documentVisibleIn(tx: Tx, ctx: RequestContext, doc: DocumentRow): Promise<boolean> {
+    const scoped = ctx.storeScope !== null || ctx.warehouseScope !== null;
+    if (!scoped || doc.requestedBy === ctx.actor.id) return true;
+    if (doc.requestedBy !== null || doc.params.orderIds.length === 0) return false;
+    const visible = await this.orders.visibleManyIn(tx, ctx, doc.params.orderIds);
+    return visible.length === new Set(doc.params.orderIds).size;
   }
 
   /**

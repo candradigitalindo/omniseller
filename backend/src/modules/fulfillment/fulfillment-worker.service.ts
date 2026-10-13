@@ -23,7 +23,7 @@ import { OrderSyncService } from "../orders/order-sync.service";
 import type { OrderItemRow, OrderRow } from "../orders/orders.repository";
 import { OrdersService } from "../orders/orders.service";
 import { describeSyncError } from "../sync/connector-calls";
-import { shipmentLabelRequested } from "./fulfillment.events";
+import { shipmentLabelRequested, shipmentPrintDue } from "./fulfillment.events";
 import { FulfillmentRepository, type PackageRow, type ShipmentRow } from "./fulfillment.repository";
 import { combineParcels, shipmentStepFor, TRACKED, TRACKING_REFRESH_MS } from "./shipping-plan";
 
@@ -483,6 +483,8 @@ export class FulfillmentWorkerService {
       ...(trackingNumber ? { trackingNumber } : {}),
       packages: packages.length,
     });
+    // a rule asked for the label to be printed as soon as it is ready (FR-SHP-18)
+    if (s.autoPrint) await this.outbox.enqueue(tx, ctx, shipmentPrintDue, { shipmentId: s.id }, s.id);
     const { orders } = await this.orders.readIn(tx, [s.orderId]);
     if (orders[0]?.status === "packed") await this.packIn(tx, ctx, s, orders[0], SYSTEM);
   }

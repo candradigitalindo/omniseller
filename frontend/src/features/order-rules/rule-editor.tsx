@@ -26,8 +26,10 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { api, unwrap } from "@/lib/api/client";
 import { ApiError, errorMessage } from "@/lib/api/errors";
-import { useCan } from "@/lib/session";
+import { zoneAbbreviation } from "@/lib/format";
+import { useCan, useTimeZone } from "@/lib/session";
 import {
+  arranges,
   type DraftProblem,
   draftOf,
   draftProblems,
@@ -35,7 +37,10 @@ import {
   fieldOfPath,
   ITEMS,
   KEEP_WAREHOUSE,
+  NO_PRINT,
   type OrderRule,
+  PRINT_FORMATS,
+  PRINT_TEMPLATES,
   PROCESS,
   type RuleDraft,
   ruleBody,
@@ -75,7 +80,9 @@ export function RuleDialog({
 
 function RuleForm({ rule, onClose, onSaved }: { rule: OrderRule | null; onClose: () => void; onSaved: () => void }) {
   const t = useTranslations("orderRules");
+  const tShipping = useTranslations("shipping");
   const can = useCan();
+  const zone = zoneAbbreviation(useTimeZone());
   const choices = useRuleChoices();
   const [draft, setDraft] = useState<RuleDraft>(rule ? draftOf(rule) : emptyDraft());
   const [problems, setProblems] = useState<Partial<Record<string, DraftProblem>>>({});
@@ -122,7 +129,9 @@ function RuleForm({ rule, onClose, onSaved }: { rule: OrderRule | null; onClose:
   };
   const error = (k: string) => (problems[k] ? t(`problem_${problems[k]}`) : (server.field?.[k] ?? undefined));
   const toggle = (list: string[], id: string, on: boolean) => (on ? [...list, id] : list.filter((x) => x !== id));
-  const arranges = can("shipment:arrange");
+  const mayArrange = can("shipment:arrange");
+  const mayPrint = can("shipment:print");
+  const timing = draft.arrangeAt === "" ? "now" : "at";
 
   return (
     <form className="grid gap-5" noValidate onSubmit={submit}>
@@ -287,7 +296,7 @@ function RuleForm({ rule, onClose, onSaved }: { rule: OrderRule | null; onClose:
             onValueChange={(v) => set({ process: PROCESS.find((p) => p === v) ?? "none" })}
             className="grid gap-2 sm:grid-cols-2"
           >
-            {PROCESS.filter((p) => arranges || (p !== "pickup" && p !== "dropoff")).map((p) => (
+            {PROCESS.filter((p) => mayArrange || (p !== "pickup" && p !== "dropoff")).map((p) => (
               <Label
                 key={p}
                 htmlFor={`rule-process-${p}`}
@@ -302,6 +311,112 @@ function RuleForm({ rule, onClose, onSaved }: { rule: OrderRule | null; onClose:
             {t("processHint")}
           </p>
         </div>
+        {arranges(draft) ? (
+          <>
+            <div className="grid gap-2">
+              <span className="text-sm font-medium text-text-700">{t("timing")}</span>
+              <Segmented
+                block
+                label={t("timing")}
+                value={timing}
+                options={[
+                  { value: "now", label: t("timing_now") },
+                  { value: "at", label: t("timing_at") },
+                ]}
+                onChange={(v) => set({ arrangeAt: v === "now" ? "" : draft.arrangeAt || "13:00" })}
+              />
+              {timing === "at" ? (
+                <Field
+                  id="rule-arrange-at"
+                  label={t("arrangeAt", { zone })}
+                  hint={t("arrangeAtHint")}
+                  error={error("arrangeAt")}
+                >
+                  <Input
+                    type="time"
+                    className="w-36"
+                    value={draft.arrangeAt}
+                    onChange={(e) => set({ arrangeAt: e.target.value })}
+                    {...fieldProps("rule-arrange-at", error("arrangeAt"), true)}
+                  />
+                </Field>
+              ) : null}
+            </div>
+            {mayPrint ? (
+              <fieldset className="grid gap-3 rounded-lg border p-3">
+                <legend className="px-1 text-sm font-medium text-text-700">{t("printTitle")}</legend>
+                <Field id="rule-print-agent" label={t("printAgent")} hint={t("printHint")} error={error("print")}>
+                  <Select
+                    value={draft.printDeviceId || NO_PRINT}
+                    onValueChange={(v) => set({ printDeviceId: v === NO_PRINT ? "" : v })}
+                  >
+                    <SelectTrigger
+                      id="rule-print-agent"
+                      aria-invalid={error("print") ? true : undefined}
+                      aria-describedby="rule-print-agent-message"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_PRINT}>{t("printNone")}</SelectItem>
+                      {choices.agents.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.name} · {a.connected ? tShipping("agentOnline") : tShipping("agentOffline")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                {draft.printDeviceId !== "" ? (
+                  <>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field id="rule-print-format" label={tShipping("format")}>
+                        <Select
+                          value={draft.printFormat}
+                          onValueChange={(v) => set({ printFormat: PRINT_FORMATS.find((f) => f === v) ?? "thermal" })}
+                        >
+                          <SelectTrigger id="rule-print-format">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="thermal">{tShipping("formatThermal")}</SelectItem>
+                            <SelectItem value="a4">{tShipping("formatA4")}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                      <Field id="rule-print-template" label={tShipping("template")}>
+                        <Select
+                          value={draft.printTemplate}
+                          onValueChange={(v) =>
+                            set({ printTemplate: PRINT_TEMPLATES.find((x) => x === v) ?? "standard" })
+                          }
+                        >
+                          <SelectTrigger id="rule-print-template">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="standard">{tShipping("templateStandard")}</SelectItem>
+                            <SelectItem value="custom">{tShipping("templateCustom")}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <Label htmlFor="rule-print-packing" className="font-normal">
+                        {tShipping("withPackingList")}
+                      </Label>
+                      <Switch
+                        id="rule-print-packing"
+                        checked={draft.printPackingList}
+                        onCheckedChange={(printPackingList) => set({ printPackingList })}
+                      />
+                    </div>
+                  </>
+                ) : null}
+              </fieldset>
+            ) : null}
+          </>
+        ) : null}
         {error("actions") ? (
           <p role="alert" className="text-sm text-danger">
             {error("actions")}

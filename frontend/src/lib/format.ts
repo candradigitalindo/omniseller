@@ -48,6 +48,11 @@ export function formatDateTime(value: string | Date, timeZone: string): string {
   return dateTimeFormat(timeZone, "datetime").format(toDate(value));
 }
 
+/** The zone as Indonesians write it: WIB, WITA, WIT; other zones by name. */
+export function zoneAbbreviation(timeZone: string): string {
+  return { "Asia/Jakarta": "WIB", "Asia/Makassar": "WITA", "Asia/Jayapura": "WIT" }[timeZone] ?? timeZone;
+}
+
 /** `30 Sep 2026` */
 export function formatDate(value: string | Date, timeZone: string): string {
   return dateTimeFormat(timeZone, "date").format(toDate(value));

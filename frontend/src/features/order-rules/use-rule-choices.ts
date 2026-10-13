@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { usePrintAgents } from "@/features/shipping/print-target";
 import { api, unwrap } from "@/lib/api/client";
 import { useCan } from "@/lib/session";
 import type { Names } from "./order-rules-meta";
@@ -20,13 +21,17 @@ export function useRuleChoices() {
     enabled: can("order:read"),
     staleTime: 60_000,
   });
+  // only who may print reads the agents; a printing rule then names its agent
+  const agents = usePrintAgents();
   const storeById = new Map((stores.data?.items ?? []).map((s) => [s.id, s]));
+  const agentById = new Map((agents.data?.items ?? []).map((a) => [a.id, a]));
   const warehouseById = new Map((warehouses.data?.items ?? []).map((w) => [w.id, w]));
   const tagById = new Map((tags.data?.items ?? []).map((t) => [t.id, t]));
   const names: Names = {
     store: (id) => storeById.get(id)?.name,
     warehouse: (id) => warehouseById.get(id)?.name,
     tag: (id) => tagById.get(id)?.name,
+    agent: (id) => agentById.get(id)?.name,
   };
   return {
     names,
@@ -34,6 +39,7 @@ export function useRuleChoices() {
     stores: (stores.data?.items ?? []).filter((s) => s.channel !== "manual" && s.status !== "disconnected"),
     warehouses: warehouses.data?.items ?? [],
     tags: tags.data?.items ?? [],
+    agents: agents.data?.items ?? [],
     pending: stores.isPending || warehouses.isPending,
   };
 }

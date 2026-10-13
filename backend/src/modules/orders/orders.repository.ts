@@ -292,6 +292,27 @@ export class OrdersRepository {
     return !!r;
   }
 
+  /** Whether the order's history has an entry of this type written at or after `since`. */
+  async hasEventSince(tx: Tx, orderId: string, type: string, since: Date): Promise<boolean> {
+    const [r] = await tx
+      .select({ id: orderEvent.id })
+      .from(orderEvent)
+      .where(and(eq(orderEvent.orderId, orderId), eq(orderEvent.type, type), gte(orderEvent.createdAt, since)))
+      .limit(1);
+    return !!r;
+  }
+
+  /** The newest entry of this type per order (the last label print, for the print queue). */
+  async lastEventAt(tx: Tx, orderIds: string[], type: string): Promise<Map<string, Date>> {
+    if (orderIds.length === 0) return new Map();
+    const rows = await tx
+      .select({ orderId: orderEvent.orderId, at: sql<Date>`max(${orderEvent.createdAt})` })
+      .from(orderEvent)
+      .where(and(inArray(orderEvent.orderId, orderIds), eq(orderEvent.type, type)))
+      .groupBy(orderEvent.orderId);
+    return new Map(rows.map((r) => [r.orderId, new Date(r.at)]));
+  }
+
   /** One order's open lines with their product's SKU when the listing is mapped (automatic rules). */
   async openLines(tx: Tx, orderId: string): Promise<{ skuSnapshot: string; sku: string | null; units: number }[]> {
     return tx

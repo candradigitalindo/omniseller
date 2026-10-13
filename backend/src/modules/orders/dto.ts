@@ -274,6 +274,7 @@ const listItemSchema = z.object({
   problems: z.array(problemSchema),
   cancelRequested: z.boolean(),
   tags: z.array(tagRefSchema),
+  labelPrintedAt: iso.nullable().describe("label terakhir dicetak (oleh siapa pun atau aturan otomatis); null: belum"),
   orderedAt: iso,
 });
 export class OrderPageDto extends createZodDto(pageSchema(listItemSchema)) {}
@@ -424,6 +425,7 @@ export function orderListView(v: OrderView, now = new Date()): z.infer<typeof li
     problems: v.problems.filter((p) => !p.resolvedAt).map(problemView),
     cancelRequested: o.cancelRequested,
     tags: v.tags.map(tagRefView),
+    labelPrintedAt: v.labelPrintedAt?.toISOString() ?? null,
     orderedAt: o.orderedAt.toISOString(),
   };
 }

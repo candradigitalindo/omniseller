@@ -157,6 +157,21 @@ describe("what an entry says", () => {
       { key: "rule_pickup", values: {} },
     ]);
     expect(rulePhrases("actions", { accept: true, arrange: null })).toEqual([{ key: "rule_accept", values: {} }]);
+    // a time of day and an automatic print read as their own phrases after the process
+    expect(
+      rulePhrases("actions", {
+        arrange: "dropoff",
+        arrangeAt: "13:00",
+        print: { deviceId: "D1", format: "thermal", template: "standard", packingList: true },
+      }),
+    ).toEqual([
+      { key: "rule_dropoff", values: {} },
+      { key: "rule_arrangeAt", values: { time: "13.00" } },
+      { key: "rule_print", values: {} },
+    ]);
+    expect(rulePhrases("actions", { arrange: "pickup", arrangeAt: null, print: null })).toEqual([
+      { key: "rule_pickup", values: {} },
+    ]);
     expect(rulePhrases("actions", {})).toEqual([{ key: "rule_nothing", values: {} }]);
     expect(rulePhrases("schedule", {})).toBeNull();
     expect(AUDIT_KINDS.orders).toContain("order_rule");

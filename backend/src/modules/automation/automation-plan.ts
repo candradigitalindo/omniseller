@@ -1,6 +1,6 @@
 import { localDate, startOfDate } from "../../common/time-zone";
-import type { OrderRuleActions, OrderRuleConditions, WeekSchedule } from "../../db/schema";
-import { hoursOn, minutesOf, sameCourier } from "../campaign/cutoff-plan";
+import type { OrderRuleActions, OrderRuleConditions, OrderRulePrint, WeekSchedule } from "../../db/schema";
+import { addDays, hoursOn, minutesOf, SEARCH_DAYS, sameCourier } from "../campaign/cutoff-plan";
 
 /**
  * Automatic order processing (PRD FR-ORD-19, backend doc 8.37) as pure rules: whether a rule fits a new
@@ -99,21 +99,51 @@ export function normalizeConditions(c: OrderRuleConditions): Required<OrderRuleC
   };
 }
 
-/** Actions as stored: every key present. Arranging accepts on the way, so it implies accepting. */
-export function normalizeActions(a: OrderRuleActions): Required<OrderRuleActions> {
+/** A time of day as rules keep it: "13:00". */
+const TIME_OF_DAY = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
+
+/**
+ * Actions as stored: every key present. Arranging accepts on the way, so it implies accepting. A print
+ * instruction and a time are kept even without an arrange, so `actionsProblem` can name them.
+ */
+export type NormalizedActions = Omit<Required<OrderRuleActions>, "print"> & { print: Required<OrderRulePrint> | null };
+
+export function normalizeActions(a: OrderRuleActions): NormalizedActions {
   const arrange = a.arrange ?? null;
   return {
     warehouseId: a.warehouseId ?? null,
     tagIds: [...new Set(a.tagIds ?? [])],
     accept: arrange !== null || a.accept === true,
     arrange,
+    arrangeAt: a.arrangeAt ?? null,
+    print: a.print
+      ? {
+          deviceId: a.print.deviceId,
+          format: a.print.format ?? "thermal",
+          template: a.print.template ?? "standard",
+          packingList: a.print.packingList ?? false,
+        }
+      : null,
   };
 }
 
-/** Why a rule's actions cannot be saved: it must do something. */
-export function actionsProblem(a: OrderRuleActions): string | null {
+/** Why a rule's actions cannot be saved, and which field says so; null when they can. */
+export function actionsProblem(a: OrderRuleActions): { path: string; message: string } | null {
   const does = !!a.warehouseId || (a.tagIds?.length ?? 0) > 0 || !!a.accept || !!a.arrange;
-  return does ? null : "Pilih paling sedikit satu tindakan.";
+  if (!does) return { path: "actions", message: "Pilih paling sedikit satu tindakan." };
+  if (a.arrangeAt != null && !TIME_OF_DAY.test(a.arrangeAt)) {
+    return { path: "actions.arrangeAt", message: "Jam ditulis JJ:MM, misalnya 13:00." };
+  }
+  if (a.arrangeAt != null && !a.arrange) {
+    return { path: "actions.arrangeAt", message: "Jam hanya untuk Atur pengiriman." };
+  }
+  if (a.print && !a.arrange) {
+    return {
+      path: "actions.print",
+      message: "Cetak otomatis butuh Atur pengiriman: label baru ada setelah pengiriman diatur.",
+    };
+  }
+  return null;
 }
 
 /** Why a rule's conditions cannot be saved: a total range must run upwards. */
@@ -132,10 +162,12 @@ export function actionPermissions(a: OrderRuleActions): string[] {
   const out = new Set<string>(["order:accept"]);
   if ((a.tagIds?.length ?? 0) > 0) out.add("order:tag");
   if (a.arrange) out.add("shipment:arrange");
+  if (a.print) out.add("shipment:print");
   return [...out];
 }
 
-export type AutoAction = "warehouse" | "tags" | "accept" | "arrange";
+/** The steps a rule takes: `schedule` waits for the time of day, `print` is the label's auto print. */
+export type AutoAction = "warehouse" | "tags" | "accept" | "arrange" | "schedule" | "print";
 
 /** What the history keeps of one run: the rule, what it did, and what was refused with the reason. */
 export interface AutoRunRecord {
@@ -143,4 +175,59 @@ export interface AutoRunRecord {
   rule: string;
   done: AutoAction[];
   refused: { action: AutoAction; code: string; message: string }[];
+  /** ISO 8601: when the arrange request is sent, for a rule with a time of day. */
+  arrangeAt?: string;
+  /** Why a rule with a time of day arranged at once instead. */
+  arrangeNow?: "deadline" | "no_slot";
+}
+
+/** An order arriving this long after the rule's time still joins that batch (the scan runs each minute). */
+export const SCHEDULE_GRACE_MS = 60_000;
+/** The arrange request must go this long before the order's deadline, or it goes at once. */
+export const SCHEDULE_MARGIN_MS = 90 * 60_000;
+
+export interface ScheduleInput {
+  /** "HH:MM" in the business's time zone. */
+  time: string;
+  timezone: string;
+  /** The business's operating hours; null when it set none (every day, any time). */
+  hours: Pick<BusinessHours, "week" | "periods"> | null;
+  now: Date;
+  /** The order's ship-by deadline (the marketplace's or the courier cut-off), whichever comes first. */
+  deadline: Date | null;
+}
+
+/**
+ * When a rule with a time of day sends the arrange request: the first such moment from now (an order a
+ * minute late still joins today's batch) on a day the business is open at that time, provided it comes
+ * at least SCHEDULE_MARGIN_MS before the order's deadline. `{ now: "deadline" }` when waiting would miss
+ * the deadline, `{ now: "no_slot" }` when no open day is found within SEARCH_DAYS: arrange at once.
+ */
+export function scheduledArrange(input: ScheduleInput): { at: Date } | { now: "deadline" | "no_slot" } {
+  const minutes = minutesOf(input.time);
+  if (minutes === null) return { now: "no_slot" };
+  const first = localDate(input.timezone, input.now);
+  for (let i = 0; i <= SEARCH_DAYS; i++) {
+    const date = addDays(first, i);
+    const at = new Date(startOfDate(input.timezone, date).getTime() + minutes * 60_000);
+    if (at.getTime() < input.now.getTime() - SCHEDULE_GRACE_MS) continue;
+    if (input.hours && !openAt({ timezone: input.timezone, ...input.hours }, at)) continue;
+    if (input.deadline && at.getTime() > input.deadline.getTime() - SCHEDULE_MARGIN_MS) return { now: "deadline" };
+    return { at };
+  }
+  return { now: "no_slot" };
+}
+
+/** The print instruction a shipment carries for a rule, valid for a while after the arrange. */
+export const AUTO_PRINT_VALID_MS = 12 * 3600_000;
+
+export function printIntent(p: Required<OrderRulePrint> | OrderRulePrint, ruleId: string, now: Date) {
+  return {
+    deviceId: p.deviceId,
+    format: p.format ?? "thermal",
+    template: p.template ?? "standard",
+    packingList: p.packingList ?? false,
+    ruleId,
+    until: new Date(now.getTime() + AUTO_PRINT_VALID_MS).toISOString(),
+  };
 }

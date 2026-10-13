@@ -3,6 +3,7 @@ import { z } from "zod";
 import { defineJob } from "../../jobs/define";
 import { jobKey } from "../../jobs/job-id";
 import { orderNewArrived } from "../orders/orders.events";
+import { AutoArrangeService } from "./auto-arrange.service";
 import { AutoProcessService } from "./auto-process.service";
 
 /**
@@ -22,4 +23,20 @@ export const orderAutoProcessJob = defineJob({
   },
 });
 
-export const AUTOMATION_JOBS = [orderAutoProcessJob];
+/**
+ * Backend doc 8.37: orders whose rule arranges the shipment at a time of day, once that time came. Queued
+ * by the scheduler's `order.auto_arrange_scan` per business and minute; `until` is the scan's moment, so
+ * the job arranges what was due then and the test harness can hand it any moment.
+ */
+export const orderAutoArrangeJob = defineJob({
+  queue: "order.ingest",
+  name: "order.auto_arrange",
+  schema: z.object({ slot: z.string().min(1), until: z.iso.datetime() }),
+  options: { attempts: 3, backoff: { type: "exponential", delay: 10_000 } },
+  jobId: (p) => jobKey("order.auto_arrange", p.tenantId, p.slot),
+  handler: async (p, run) => {
+    await run.deps.resolve(AutoArrangeService).arrangeDue(run.ctx, new Date(p.until));
+  },
+});
+
+export const AUTOMATION_JOBS = [orderAutoProcessJob, orderAutoArrangeJob];

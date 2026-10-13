@@ -20,6 +20,13 @@ export const shipmentLabelRequested = defineEvent({
   schema: z.object({ shipmentIds: z.array(ulidSchema).min(1).max(500) }),
 });
 
+/** A shipment carrying a rule's print instruction has its label ready (FR-SHP-18, backend doc 8.37). */
+export const shipmentPrintDue = defineEvent({
+  type: "shipment.print_due",
+  aggregate: "shipment",
+  schema: z.object({ shipmentId: ulidSchema }),
+});
+
 /** A printable document (labels in one PDF, pick list) should be rendered. */
 export const documentRequested = defineEvent({
   type: "document.requested",

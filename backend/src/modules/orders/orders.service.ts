@@ -48,6 +48,8 @@ export interface OrderView {
   items: OrderItemRow[];
   problems: OrderProblemRow[];
   tags: OrderTagRef[];
+  /** When the label was last printed (a labels document rendered), by anyone or a rule; null: never. */
+  labelPrintedAt: Date | null;
 }
 
 /** The history entry of an automatic rule's run (backend doc 8.37); one per order. */
@@ -160,6 +162,7 @@ export class OrdersService {
     const problems = await this.repo.problems(tx, ids, true);
     const stores = await this.stores.listIn(tx, ctx);
     const tags = await this.tags.ofOrders(tx, ids);
+    const printed = await this.repo.lastEventAt(tx, ids, "label_printed");
     const storeOf = new Map(stores.map((s) => [s.id, { id: s.id, name: s.name, channel: s.channel }]));
     return orders.map((o) => ({
       order: o,
@@ -167,6 +170,7 @@ export class OrdersService {
       items: items.filter((i) => i.orderId === o.id),
       problems: problems.filter((p) => p.orderId === o.id),
       tags: tags.filter((t) => t.orderId === o.id),
+      labelPrintedAt: printed.get(o.id) ?? null,
     }));
   }
 
@@ -616,9 +620,23 @@ export class OrdersService {
     return { order: o, lines: await this.repo.openLines(tx, orderId) };
   }
 
-  /** What a rule did to the order, in its history, by the system (L04 "otomatis"). */
-  async recordAutoRunIn(tx: Tx, ctx: RequestContext, orderId: string, run: Record<string, unknown>): Promise<void> {
-    await this.intake.recordIn(tx, ctx, orderId, AUTO_PROCESSED, actorOf(ctx), run);
+  /** Whether the order's label was printed (a labels document rendered) at or after `since`. */
+  labelPrintedSinceIn(tx: Tx, orderId: string, since: Date): Promise<boolean> {
+    return this.repo.hasEventSince(tx, orderId, "label_printed", since);
+  }
+
+  /**
+   * What a rule did to the order, in its history, by the system (L04 "otomatis"): the run itself, or a
+   * later step of it (`auto_arrange` when its time came).
+   */
+  async recordAutoRunIn(
+    tx: Tx,
+    ctx: RequestContext,
+    orderId: string,
+    run: Record<string, unknown>,
+    type = AUTO_PROCESSED,
+  ): Promise<void> {
+    await this.intake.recordIn(tx, ctx, orderId, type, actorOf(ctx), run);
   }
 
   /** Why "Tandai dikemas" would refuse this order now (packing by scan shows it before scanning items). */

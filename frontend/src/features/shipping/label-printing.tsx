@@ -140,6 +140,7 @@ export function LabelPrinting() {
                       <StatusPill tone={STATUS_PILL[o.status].tone} icon={STATUS_PILL[o.status].icon}>
                         {o.statusLabel}
                       </StatusPill>
+                      {o.labelPrintedAt ? <StatusPill tone="success">{t("labelPrinted")}</StatusPill> : null}
                     </span>
                     <span className="flex items-center gap-1.5 truncate text-[13px] text-text-500">
                       {o.store ? <ChannelIcon channel={o.store.channel} /> : null}

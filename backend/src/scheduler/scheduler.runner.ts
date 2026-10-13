@@ -10,6 +10,7 @@ import { DB_SYSTEM, JOB_REGISTRY, QUEUES, STOCK_DIRTY } from "../infra/tokens";
 import type { QueueRegistry } from "../jobs/queues";
 import type { JobRegistry } from "../jobs/registry";
 import type { StockDirtySet } from "../jobs/stock-dirty";
+import { AUTO_ARRANGE_SCAN_MS, scanAutoArranges } from "./auto-arrange-scan";
 import { BILLING_SCAN_MS, scanBillingRenewals } from "./billing-scan";
 import {
   CONNECTION_SCAN_MS,
@@ -112,6 +113,9 @@ export class SchedulerRunner implements OnApplicationBootstrap, OnApplicationShu
     this.every(RETENTION_RUN_MS, "retention.run", () => runRetention(this.system));
     this.every(CLOSURE_SCAN_MS, "account.closure_scan", () =>
       scanAccountClosures(this.system, this.queues, this.registry),
+    );
+    this.every(AUTO_ARRANGE_SCAN_MS, "order.auto_arrange_scan", () =>
+      scanAutoArranges(this.system, this.queues, this.registry),
     );
     log.info("scheduler started");
   }

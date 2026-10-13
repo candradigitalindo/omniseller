@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { WeekSchedule } from "../../db/schema";
 import { factsOf } from "./auto-process.service";
 import {
+  AUTO_PRINT_VALID_MS,
   actionPermissions,
   actionsProblem,
   type BusinessHours,
@@ -12,7 +13,10 @@ import {
   normalizeConditions,
   type OrderFacts,
   openAt,
+  printIntent,
   ruleMatches,
+  type ScheduleInput,
+  scheduledArrange,
 } from "./automation-plan";
 
 const order = (o: Partial<OrderFacts> = {}): OrderFacts => ({
@@ -163,23 +167,31 @@ describe("saving a rule", () => {
     });
   });
 
-  it("makes arranging accept as well", () => {
+  it("makes arranging accept as well, and fills the print instruction", () => {
     expect(normalizeActions({ arrange: "pickup" })).toEqual({
       warehouseId: null,
       tagIds: [],
       accept: true,
       arrange: "pickup",
+      arrangeAt: null,
+      print: null,
     });
     expect(normalizeActions({ tagIds: ["T1", "T1"], accept: false })).toEqual({
       warehouseId: null,
       tagIds: ["T1"],
       accept: false,
       arrange: null,
+      arrangeAt: null,
+      print: null,
+    });
+    expect(normalizeActions({ arrange: "dropoff", arrangeAt: "13:00", print: { deviceId: "D1" } })).toMatchObject({
+      arrangeAt: "13:00",
+      print: { deviceId: "D1", format: "thermal", template: "standard", packingList: false },
     });
   });
 
   it("must do something, and a total range must run upwards", () => {
-    expect(actionsProblem({})).toBe("Pilih paling sedikit satu tindakan.");
+    expect(actionsProblem({})).toEqual({ path: "actions", message: "Pilih paling sedikit satu tindakan." });
     expect(actionsProblem({ tagIds: [], accept: false, arrange: null, warehouseId: null })).not.toBeNull();
     expect(actionsProblem({ warehouseId: "W2" })).toBeNull();
     expect(actionsProblem({ tagIds: ["T1"] })).toBeNull();
@@ -190,6 +202,18 @@ describe("saving a rule", () => {
     expect(conditionsProblem({ minTotal: 200_000 })).toBeNull();
   });
 
+  it("keeps a time and a print only with an arrange, and the time well formed", () => {
+    expect(actionsProblem({ arrange: "pickup", arrangeAt: "13:00" })).toBeNull();
+    expect(actionsProblem({ accept: true, arrangeAt: "13:00" })).toEqual({
+      path: "actions.arrangeAt",
+      message: "Jam hanya untuk Atur pengiriman.",
+    });
+    expect(actionsProblem({ arrange: "pickup", arrangeAt: "25:00" })?.path).toBe("actions.arrangeAt");
+    expect(actionsProblem({ arrange: "pickup", arrangeAt: "9:00" })?.path).toBe("actions.arrangeAt");
+    expect(actionsProblem({ arrange: "pickup", print: { deviceId: "D1" } })).toBeNull();
+    expect(actionsProblem({ accept: true, print: { deviceId: "D1" } })?.path).toBe("actions.print");
+  });
+
   it("needs the permissions of the buttons the rule presses", () => {
     expect(actionPermissions({ accept: true })).toEqual(["order:accept"]);
     expect(actionPermissions({ warehouseId: "W1" })).toEqual(["order:accept"]);
@@ -198,6 +222,69 @@ describe("saving a rule", () => {
       "order:tag",
       "shipment:arrange",
     ]);
+    expect(actionPermissions({ arrange: "pickup", print: { deviceId: "D1" } }).sort()).toEqual([
+      "order:accept",
+      "shipment:arrange",
+      "shipment:print",
+    ]);
+  });
+});
+
+describe("scheduledArrange (a rule with a time of day)", () => {
+  const nine = { open: "09:00", close: "17:00" };
+  const hours = { week: [null, nine, nine, nine, nine, nine, nine], periods: [] };
+  const at = (iso: string) => ({ at: new Date(iso) });
+  const plan = (over: Partial<ScheduleInput>) =>
+    scheduledArrange({
+      time: "13:00",
+      timezone: "Asia/Jakarta",
+      hours: null,
+      now: new Date("2026-10-12T02:00:00Z"),
+      deadline: null,
+      ...over,
+    });
+
+  it("takes the time today when it is still ahead, else tomorrow, in the business's zone", () => {
+    // Monday 12 October 2026, 09.00 WIB -> 13.00 WIB today
+    expect(plan({})).toEqual(at("2026-10-12T06:00:00Z"));
+    // 14.00 WIB -> tomorrow
+    expect(plan({ now: new Date("2026-10-12T07:00:00Z") })).toEqual(at("2026-10-13T06:00:00Z"));
+    // Makassar is an hour ahead: 13.00 WITA is 05.00 UTC
+    expect(plan({ timezone: "Asia/Makassar" })).toEqual(at("2026-10-12T05:00:00Z"));
+  });
+
+  it("lets an order a minute late join today's batch, but not an order later than that", () => {
+    expect(plan({ now: new Date("2026-10-12T06:00:40Z") })).toEqual(at("2026-10-12T06:00:00Z"));
+    expect(plan({ now: new Date("2026-10-12T06:01:01Z") })).toEqual(at("2026-10-13T06:00:00Z"));
+  });
+
+  it("skips days the business is closed or already shut at that time", () => {
+    // Saturday 17 October 2026, 20.00 WIB: Sunday is closed, so Monday
+    expect(plan({ hours, now: new Date("2026-10-17T13:00:00Z") })).toEqual(at("2026-10-19T06:00:00Z"));
+    // a 18.00 rule falls after closing every day: nothing within the search, arrange now
+    expect(plan({ hours, time: "18:00" })).toEqual({ now: "no_slot" });
+    // no hours set: any day, any time
+    expect(plan({ time: "18:00" })).toEqual(at("2026-10-12T11:00:00Z"));
+  });
+
+  it("arranges at once when waiting would run into the order's deadline", () => {
+    // cut-off 15.00 WIB: 13.00 is 2 hours before, enough
+    expect(plan({ deadline: new Date("2026-10-12T08:00:00Z") })).toEqual(at("2026-10-12T06:00:00Z"));
+    // cut-off 14.00 WIB: less than 90 minutes after 13.00
+    expect(plan({ deadline: new Date("2026-10-12T07:00:00Z") })).toEqual({ now: "deadline" });
+    expect(plan({ time: "x" })).toEqual({ now: "no_slot" });
+  });
+
+  it("gives a shipment its print instruction, valid for a while after the arrange", () => {
+    const now = new Date("2026-10-12T02:00:00Z");
+    expect(printIntent({ deviceId: "D1", format: "a4", template: "custom", packingList: true }, "R1", now)).toEqual({
+      deviceId: "D1",
+      format: "a4",
+      template: "custom",
+      packingList: true,
+      ruleId: "R1",
+      until: new Date(now.getTime() + AUTO_PRINT_VALID_MS).toISOString(),
+    });
   });
 });
 

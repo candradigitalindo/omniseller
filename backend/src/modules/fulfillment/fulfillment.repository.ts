@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import type { Tx } from "../../db/client";
 import { documentJob, labelTemplate, shipment, shipmentPackage } from "../../db/schema";
 
@@ -39,6 +39,37 @@ export class FulfillmentRepository {
         ),
       );
     return rows.map((r) => r.fileId!);
+  }
+
+  /**
+   * Shipments with a rule's print instruction whose label is ready (label ready, or packed already), locked
+   * and skipping rows another print job holds (FR-SHP-18).
+   */
+  async autoPrintDue(tx: Tx, limit: number): Promise<ShipmentRow[]> {
+    return tx
+      .select()
+      .from(shipment)
+      .where(and(isNotNull(shipment.autoPrint), inArray(shipment.status, ["label_ready", "packed"])))
+      .orderBy(asc(shipment.id))
+      .limit(limit)
+      .for("update", { skipLocked: true });
+  }
+
+  /** Whether a labels document holding this order was requested at or after `since` and still stands. */
+  async labelsDocumentSince(tx: Tx, orderId: string, since: Date): Promise<boolean> {
+    const [r] = await tx
+      .select({ id: documentJob.id })
+      .from(documentJob)
+      .where(
+        and(
+          eq(documentJob.kind, "labels"),
+          inArray(documentJob.status, ["queued", "running", "ready"]),
+          gte(documentJob.createdAt, since),
+          sql`${documentJob.params} -> 'orderIds' ? ${orderId}`,
+        ),
+      )
+      .limit(1);
+    return !!r;
   }
 
   /** The live (not cancelled) shipment of each order. */

@@ -463,6 +463,8 @@ export type RuleWord =
   | "rule_accept"
   | "rule_pickup"
   | "rule_dropoff"
+  | "rule_arrangeAt"
+  | "rule_print"
   | "rule_nothing";
 
 /** An automatic rule's `conditions` or `actions` as the log words them; null for anything else. */
@@ -491,6 +493,9 @@ export function rulePhrases(
   if (list(v.tagIds).length) out.push({ key: "rule_tags", values: { count: list(v.tagIds).length } });
   if (v.arrange === "pickup" || v.arrange === "dropoff") out.push({ key: `rule_${v.arrange}`, values: {} });
   else if (v.accept === true) out.push({ key: "rule_accept", values: {} });
+  if (typeof v.arrangeAt === "string")
+    out.push({ key: "rule_arrangeAt", values: { time: v.arrangeAt.replace(":", ".") } });
+  if (v.print && typeof v.print === "object") out.push({ key: "rule_print", values: {} });
   return out.length > 0 ? out : [{ key: "rule_nothing", values: {} }];
 }
 

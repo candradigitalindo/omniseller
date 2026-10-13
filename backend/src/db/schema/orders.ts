@@ -204,7 +204,20 @@ export const shipment = pgTable("shipment", {
   trackingEventAt: tstz("tracking_event_at"),
   trackingSyncedAt: tstz("tracking_synced_at"),
   trackingError: text("tracking_error"),
+  /** A rule's print instruction, carried until the label is ready (FR-SHP-18, backend doc 8.37). */
+  autoPrint: jsonb("auto_print").$type<AutoPrintIntent>(),
 });
+
+/** What an automatic rule prints once a shipment's label is ready, and until when it still should. */
+export interface AutoPrintIntent {
+  deviceId: string;
+  format: "thermal" | "a4";
+  template: "standard" | "custom";
+  packingList: boolean;
+  ruleId: string | null;
+  /** ISO 8601: a label ready after this moment is not printed (nobody is waiting for it any more). */
+  until: string;
+}
 
 export const TRACKING_STAGES = [
   "waiting_pickup",

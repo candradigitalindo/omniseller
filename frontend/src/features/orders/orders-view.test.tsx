@@ -33,6 +33,7 @@ function listItem(over: Partial<OrderListItem>): OrderListItem {
     problems: [],
     cancelRequested: false,
     tags: [],
+    labelPrintedAt: null,
     orderedAt: "2026-10-03T08:00:00.000Z",
     ...over,
   };

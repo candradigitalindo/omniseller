@@ -30,7 +30,8 @@ const RULE: OrderRule = {
     maxTotal: null,
     withinOperatingHours: true,
   },
-  actions: { warehouseId: "W2", tagIds: ["T1", "T9"], accept: true, arrange: "pickup" },
+  actions: { warehouseId: "W2", tagIds: ["T1", "T9"], accept: true, arrange: "pickup", arrangeAt: null, print: null },
+  pending: 0,
   createdAt: "2026-10-10T01:00:00.000Z",
   updatedAt: "2026-10-10T01:00:00.000Z",
   rowVersion: 1,
@@ -40,6 +41,7 @@ const names: Names = {
   store: (id) => ({ S1: "Toko Shopee" })[id],
   warehouse: (id) => ({ W2: "Gudang Surabaya" })[id],
   tag: (id) => ({ T1: "Kilat" })[id],
+  agent: (id) => ({ D1: "PC Packing" })[id],
 };
 
 describe("the rule editor's draft (L55)", () => {
@@ -75,7 +77,7 @@ describe("the rule editor's draft (L55)", () => {
         maxTotal: 1_000_000,
         withinOperatingHours: false,
       },
-      actions: { warehouseId: null, tagIds: ["T1"], accept: false, arrange: null },
+      actions: { warehouseId: null, tagIds: ["T1"], accept: false, arrange: null, arrangeAt: null, print: null },
     });
     expect(ruleBody({ ...d, process: "accept" }).actions).toMatchObject({ accept: true, arrange: null });
     expect(ruleBody({ ...d, process: "dropoff" }).actions).toMatchObject({ accept: true, arrange: "dropoff" });
@@ -149,9 +151,55 @@ describe("a rule's sentence", () => {
       { key: "do_tags", values: { names: "Kilat" } },
       { key: "do_pickup", values: {} },
     ]);
-    expect(actionParts({ warehouseId: null, tagIds: [], accept: true, arrange: null }, names)).toEqual([
-      { key: "do_accept", values: {} },
+    expect(
+      actionParts({ warehouseId: null, tagIds: [], accept: true, arrange: null, arrangeAt: null, print: null }, names),
+    ).toEqual([{ key: "do_accept", values: {} }]);
+    // a time of day and an automatic print, naming the agent (or not, when it is gone)
+    const timed = {
+      ...RULE.actions,
+      warehouseId: null,
+      tagIds: [],
+      arrangeAt: "13:00",
+      print: { deviceId: "D1", format: "thermal" as const, template: "standard" as const, packingList: true },
+    };
+    expect(actionParts(timed, names)).toEqual([
+      { key: "do_pickup_at", values: { time: "13.00" } },
+      { key: "do_print", values: { agent: "PC Packing" } },
     ]);
+    expect(actionParts({ ...timed, print: { ...timed.print, deviceId: "gone" } }, names)[1]).toEqual({
+      key: "do_print",
+      values: { agent: "—" },
+    });
+  });
+
+  it("reads and sends a time of day and an automatic print only with an arrange", () => {
+    const rule: OrderRule = {
+      ...RULE,
+      actions: {
+        ...RULE.actions,
+        arrangeAt: "13:00",
+        print: { deviceId: "D1", format: "a4", template: "custom", packingList: true },
+      },
+    };
+    const d = draftOf(rule);
+    expect(d).toMatchObject({
+      process: "pickup",
+      arrangeAt: "13:00",
+      printDeviceId: "D1",
+      printFormat: "a4",
+      printTemplate: "custom",
+      printPackingList: true,
+    });
+    expect(ruleBody(d).actions).toEqual(rule.actions);
+    // switched to a plain accept: the time and the print are dropped, not refused by the api
+    expect(ruleBody({ ...d, process: "accept" }).actions).toMatchObject({
+      arrange: null,
+      arrangeAt: null,
+      print: null,
+    });
+    expect(draftProblems({ ...d, arrangeAt: "1pm" })).toEqual({ arrangeAt: "time" });
+    expect(draftProblems({ ...d, arrangeAt: "" })).toEqual({});
+    expect(draftProblems({ ...d, process: "accept", arrangeAt: "1pm" })).toEqual({});
   });
 
   it("moves one rule up or down, never past the ends", () => {

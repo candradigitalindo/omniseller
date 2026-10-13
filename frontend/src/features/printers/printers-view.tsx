@@ -128,6 +128,13 @@ function AgentCard({ agent: a }: { agent: Agent }) {
   const [name, setName] = useState(a.name);
   const [revoking, setRevoking] = useState(false);
   const refresh = () => void queryClient.invalidateQueries({ queryKey: ["print-agents"] });
+  // automatic rules printing to this agent would be refused after a revoke (backend doc 8.37)
+  const rules = useQuery({
+    queryKey: ["order-rules"],
+    queryFn: () => unwrap(api.GET("/v1/order-rules")),
+    enabled: revoking && can("order:accept"),
+  });
+  const printingRules = (rules.data?.items ?? []).filter((r) => r.actions.print?.deviceId === a.id).length;
   const update = useMutation({
     mutationFn: (body: {
       name?: string;
@@ -247,7 +254,10 @@ function AgentCard({ agent: a }: { agent: Agent }) {
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader>
             <DialogTitle>{t("revokeTitle", { name: a.name })}</DialogTitle>
-            <DialogDescription>{t("revokeBody")}</DialogDescription>
+            <DialogDescription>
+              {t("revokeBody")}
+              {printingRules > 0 ? ` ${t("revokeRules", { count: printingRules })}` : null}
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setRevoking(false)}>

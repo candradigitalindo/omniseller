@@ -7,6 +7,8 @@ test("keeps automatic order rules: made in the dialog, switched off, reordered, 
 }) => {
   void business;
   await call(page, "POST", "/v1/tags", { name: "Cek dulu", color: "#E34948" });
+  // an agent the second rule prints to (paired through the api; it never reports, so it shows as cut off)
+  await call(page, "POST", "/v1/print-agents", { name: "PC Packing" });
 
   await page.goto("/");
   await page.getByRole("link", { name: "Aturan Otomatis" }).click();
@@ -28,11 +30,18 @@ test("keeps automatic order rules: made in the dialog, switched off, reordered, 
   await dialog.getByRole("button", { name: "Simpan" }).click();
   await expect(page.getByText("Aturan Pesanan besar disimpan.")).toBeVisible();
 
+  // the second rule arranges pickup at a time of day and prints the label on the agent (M48)
   await page.getByRole("button", { name: "Buat aturan" }).first().click();
   const second = page.getByRole("dialog", { name: "Aturan baru" });
   await second.getByLabel("Nama aturan").fill("Satu barang");
   await second.locator("label", { hasText: "1 barang" }).click();
-  await second.getByLabel("Terima pesanan").check();
+  await second.getByLabel("Terima dan atur pickup").check();
+  // the segmented control's radios are sr-only: click the label
+  await second.locator("label", { hasText: "Pada jam tertentu" }).click();
+  await second.getByLabel("Jam (WIB)").fill("16:30");
+  await second.getByRole("combobox", { name: "Agen cetak" }).click();
+  await page.getByRole("option", { name: "PC Packing · terputus" }).click();
+  await second.getByRole("switch", { name: "Sertakan daftar kemas" }).click();
   await second.getByRole("button", { name: "Simpan" }).click();
   await expect(page.getByText("Aturan Satu barang disimpan.")).toBeVisible();
 
@@ -40,7 +49,9 @@ test("keeps automatic order rules: made in the dialog, switched off, reordered, 
   await expect(list.getByRole("listitem").first()).toContainText("Jika: total paling sedikit Rp 500.000");
   await expect(list.getByRole("listitem").first()).toContainText("Maka: beri tag Cek dulu");
   await expect(list.getByRole("listitem").nth(1)).toContainText("Jika: 1 barang");
-  await expect(list.getByRole("listitem").nth(1)).toContainText("Maka: terima pesanan");
+  await expect(list.getByRole("listitem").nth(1)).toContainText(
+    "Maka: terima, atur pickup pukul 16.30 → cetak label ke PC Packing",
+  );
 
   // the single-item rule goes first, and the big one is switched off
   await page.getByRole("button", { name: "Naikkan urutan Satu barang" }).click();
@@ -48,15 +59,17 @@ test("keeps automatic order rules: made in the dialog, switched off, reordered, 
   await page.getByRole("switch", { name: "Aktifkan aturan Pesanan besar" }).click();
   await expect(page.getByText("Aturan Pesanan besar dimatikan.")).toBeVisible();
   await expect(list.getByRole("listitem").nth(1)).toContainText("Mati");
-  const rules = await call<{ items: { name: string; priority: number; active: boolean }[] }>(
-    page,
-    "GET",
-    "/v1/order-rules",
-  );
+  const rules = await call<{
+    items: { name: string; priority: number; active: boolean; actions: { arrangeAt: string | null; print: unknown } }[];
+  }>(page, "GET", "/v1/order-rules");
   expect(rules.items.map((r) => [r.name, r.priority, r.active])).toEqual([
     ["Satu barang", 1, true],
     ["Pesanan besar", 2, false],
   ]);
+  expect(rules.items[0]!.actions).toMatchObject({
+    arrangeAt: "16:30",
+    print: { format: "thermal", template: "standard", packingList: true },
+  });
 
   await page.getByRole("button", { name: "Hapus aturan Pesanan besar" }).click();
   await page

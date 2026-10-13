@@ -207,7 +207,7 @@ export function missedPickup(o: DeadlineFields): string | null {
   return o.internalSla?.state === "missed" && o.internalShipByAt ? o.internalShipByAt : null;
 }
 
-export const AUTO_ACTIONS = ["warehouse", "tags", "accept", "arrange"] as const;
+export const AUTO_ACTIONS = ["warehouse", "tags", "accept", "arrange", "schedule", "print"] as const;
 export type AutoAction = (typeof AUTO_ACTIONS)[number];
 
 /**

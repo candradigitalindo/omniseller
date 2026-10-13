@@ -4,14 +4,20 @@ import { sql } from "drizzle-orm";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { systemContext } from "../../src/common/context/request-context";
-import { withTenantTx } from "../../src/db/tenant-tx";
+import { localDate } from "../../src/common/time-zone";
+import { withSystemTx, withTenantTx } from "../../src/db/tenant-tx";
+import type { QueueRegistry } from "../../src/jobs/queues";
+import { JOB_DEFINITIONS, JobRegistry } from "../../src/jobs/registry";
 import { AutoProcessService } from "../../src/modules/automation/auto-process.service";
-import { orderAutoProcessJob } from "../../src/modules/automation/automation.jobs";
+import { orderAutoArrangeJob, orderAutoProcessJob } from "../../src/modules/automation/automation.jobs";
 import { ExportRenderService } from "../../src/modules/exports/export-render.service";
+import { AutoPrintService } from "../../src/modules/fulfillment/auto-print.service";
 import { webhookProcessJob } from "../../src/modules/sync/sync.jobs";
+import { scanAutoArranges } from "../../src/scheduler/auto-arrange-scan";
 import {
   type Client,
   client,
+  fakeIp,
   PASSWORD,
   signup,
   startApi,
@@ -60,6 +66,7 @@ interface RuleBody {
   name: string;
   priority: number;
   active: boolean;
+  pending: number;
   rowVersion: number;
   conditions: Record<string, unknown>;
   actions: Record<string, unknown>;
@@ -179,12 +186,24 @@ function shopeeOrder(
 
 /** A new order announced by a signed Shopee push, received and processed as in production. */
 async function arrives(tenantId: string, shop: { shopId: string; orders: MockShopeeOrder[] }, o: MockShopeeOrder) {
+  await announce(tenantId, shop, o);
+  return drain(tenantId);
+}
+
+/** A new order at the fake Shopee, its push received and the order read in; nothing more run yet. */
+async function announce(tenantId: string, shop: { shopId: string; orders: MockShopeeOrder[] }, o: MockShopeeOrder) {
   shop.orders.push(o);
-  return pushed(tenantId, shop, o);
+  await webhook(tenantId, shop, o);
 }
 
 /** The order's change announced by a signed Shopee push (code 3), then the outbox run empty. */
 async function pushed(tenantId: string, shop: { shopId: string }, o: MockShopeeOrder) {
+  await webhook(tenantId, shop, o);
+  return drain(tenantId);
+}
+
+/** A signed Shopee push (code 3) through the webhook process, and its inbox row processed. */
+async function webhook(tenantId: string, shop: { shopId: string }, o: MockShopeeOrder) {
   const data = { ordersn: o.order_sn, status: o.order_status, update_time: o.update_time };
   const raw = JSON.stringify({ data, shop_id: Number(shop.shopId), code: 3, timestamp: nowSec() + snSeq++ });
   const res = await request(hooks.getHttpServer())
@@ -197,8 +216,48 @@ async function pushed(tenantId: string, shop: { shopId: string }, o: MockShopeeO
     sql`SELECT id FROM webhook_inbox WHERE processed_at IS NULL AND external_shop_id = ${shop.shopId} ORDER BY id`,
   );
   for (const r of rows.rows) await worker.runJob(webhookProcessJob, { inboxId: r.id }, tenantId);
-  return drain(tenantId);
 }
+
+/** A print agent paired by the owner (its token is shown once) and its REST client. */
+async function pairAgent(c: Client, body: object = { name: "PC Gudang" }) {
+  const paired = await c.post("/v1/print-agents", body);
+  expect(paired.status, JSON.stringify(paired.body)).toBe(201);
+  const token = paired.body.token as string;
+  const ip = fakeIp();
+  const auth = <T extends { set(k: string, v: string): T }>(r: T) =>
+    r.set("authorization", `Bearer ${token}`).set("CF-Connecting-IP", ip);
+  const server = api.getHttpServer();
+  return {
+    id: paired.body.agent.id as string,
+    agent: { get: (url: string) => auth(request(server).get(url)) },
+  };
+}
+
+/** The scheduler's queue as a list of what it added. */
+function fakeQueues() {
+  const added: { name: string; payload: { tenantId: string; slot: string; until: string }; jobId: string }[] = [];
+  const queues = {
+    get: () => ({
+      add: async (name: string, payload: (typeof added)[number]["payload"], o: { jobId: string }) =>
+        added.push({ name, payload, jobId: o.jobId }),
+    }),
+  } as unknown as QueueRegistry;
+  return { added, queues };
+}
+
+/** The moment of a WIB wall-clock time on a date; the fake orders' ship-by dates are two days from now. */
+const wib = (date: string, time: string) => new Date(`${date}T${time}:00+07:00`);
+const today = () => localDate("Asia/Jakarta", new Date());
+
+const printJobsOf = async (c: Client, deviceId: string) =>
+  (await c.get(`/v1/print-jobs?deviceId=${deviceId}`)).body.items as {
+    id: string;
+    title: string;
+    status: string;
+    waitingForDocument: boolean;
+    documentId: string;
+    requestedBy: string | null;
+  }[];
 
 async function orderBy(c: Client, externalOrderId: string) {
   const list = (await c.get(`/v1/orders?q=${externalOrderId}`)).body.items as { id: string; externalOrderId: string }[];
@@ -269,7 +328,14 @@ describe("rules acting on new orders (FR-ORD-19)", () => {
       actions: { tagIds: [kilat], arrange: "pickup" },
     });
     expect([big.priority, spx.priority]).toEqual([1, 2]);
-    expect(spx.actions).toEqual({ warehouseId: null, tagIds: [kilat], accept: true, arrange: "pickup" });
+    expect(spx.actions).toEqual({
+      warehouseId: null,
+      tagIds: [kilat],
+      accept: true,
+      arrange: "pickup",
+      arrangeAt: null,
+      print: null,
+    });
 
     const single = shopeeOrder(711, [{ model: 7111, sku: "KAOS-M", qty: 1 }]);
     const ran = await arrives(tenantId, shop, single);
@@ -510,6 +576,375 @@ describe("rules acting on new orders (FR-ORD-19)", () => {
       "Di luar jam",
     ]);
   });
+
+  it("processes an order once when its job is delivered twice at the same moment", async () => {
+    const { c, tenantId } = await business();
+    const shop = await connectShopee(c, tenantId, 724);
+    const o = shopeeOrder(724, [{ model: 7241, sku: "KAOS-M", qty: 1 }]);
+    await arrives(tenantId, shop, o);
+    const id = (await orderBy(c, o.order_sn)).id;
+    // a rule that leaves the status alone: only the processed entry tells a second run to stop
+    const kilat = await tag(c, "Kilat");
+    const saved = await rule(c, { name: "Tag kilat", actions: { tagIds: [kilat] } });
+    const engine = worker.ctx.get(AutoProcessService, { strict: false });
+    const ctx = systemContext(tenantId);
+    // a run waits on the order's lock while another delivery holds it, instead of reading the order
+    let held: Promise<string> | undefined;
+    let whileLocked: string | undefined;
+    await withSystemTx(h.system, async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`order.auto_process|${id}`}))`);
+      held = engine.run(ctx, id).then((r) => (r ? "ran" : "nothing"));
+      whileLocked = await Promise.race([held, new Promise<string>((r) => setTimeout(() => r("waiting"), 400))]);
+    });
+    expect(whileLocked).toBe("waiting");
+    // the lock went with that transaction: the run goes on and processes the order
+    expect(await held).toBe("ran");
+    // a second delivery finds the order processed
+    expect(await engine.run(ctx, id)).toBeNull();
+    const d = await orderBy(c, o.order_sn);
+    expect(d.status).toBe("new");
+    expect(d.tags.map((t) => t.name)).toEqual(["Kilat"]);
+    expect(autoRuns(d).map((e) => e.payload)).toMatchObject([{ ruleId: saved.id, done: ["tags"], refused: [] }]);
+    expect(d.events.filter((e) => e.type === "tags_changed")).toHaveLength(1);
+  });
+});
+
+describe("auto print and timed arranges (FR-SHP-18, backend doc 8.37)", () => {
+  it("prints labels ready together on the rule's agent as one document, seen by the warehouse's own staff", async () => {
+    const { c, me, tenantId, warehouseId } = await business();
+    const shop = await connectShopee(c, tenantId, 720);
+    const agent = await pairAgent(c, { name: "PC Packing" });
+    const saved = await rule(c, {
+      name: "Pickup dan cetak",
+      actions: { arrange: "pickup", print: { deviceId: agent.id, packingList: true } },
+    });
+    expect(saved.actions).toMatchObject({
+      arrange: "pickup",
+      print: { deviceId: agent.id, format: "thermal", template: "standard", packingList: true },
+    });
+    const one = shopeeOrder(720, [{ model: 7201, sku: "KAOS-M", qty: 1 }]);
+    const two = shopeeOrder(720, [{ model: 7202, sku: "KAOS-L", qty: 2 }]);
+    await announce(tenantId, shop, one);
+    await announce(tenantId, shop, two);
+    const ran = await drain(tenantId);
+    expect(ran).toEqual(
+      expect.arrayContaining(["order.auto_process", "label.fetch", "shipment.auto_print", "document.render"]),
+    );
+
+    // the two labels, ready in the same batch, went in one document to the agent
+    const jobs = await printJobsOf(c, agent.id);
+    expect(jobs).toMatchObject([
+      { title: "Label 2 pesanan (otomatis)", status: "queued", waitingForDocument: false, requestedBy: null },
+    ]);
+    expect((await agent.agent.get("/v1/agent/print-jobs")).body.items).toMatchObject([
+      { title: "Label 2 pesanan (otomatis)" },
+    ]);
+    const doc = (await c.get(`/v1/documents/${jobs[0]!.documentId}`)).body;
+    expect(doc).toMatchObject({ kind: "labels", status: "ready", orderCount: 2 });
+    for (const o of [one, two]) {
+      const detail = await orderBy(c, o.order_sn);
+      expect(detail.status).toBe("ready_to_pack");
+      expect(autoRuns(detail)[0]!.payload.done).toEqual(["arrange", "print"]);
+      const printed = detail.events.filter((e) => e.type === "auto_print");
+      expect(printed).toHaveLength(1);
+      expect(printed[0]).toMatchObject({
+        actorType: "system",
+        payload: { status: "queued", agent: "PC Packing", ruleId: saved.id },
+      });
+      // the label was printed by the system (the team report counts nobody), and the list says so
+      expect(detail.events.find((e) => e.type === "label_printed")?.actorType).toBe("system");
+    }
+    const listed = (await c.get("/v1/orders?status=ready_to_pack")).body.items as { labelPrintedAt: string | null }[];
+    expect(listed.map((o) => o.labelPrintedAt !== null)).toEqual([true, true]);
+
+    // a packer limited to the warehouse sees the system's job on its agent (L07), and can open the document
+    const packer = await member(c, tenantId, { name: "Gudang" });
+    expect((await c.put(`/v1/users/${packer.userId}/scopes`, { warehouseIds: [warehouseId] })).status).toBe(200);
+    expect((await packer.c.get(`/v1/print-jobs?deviceId=${agent.id}`)).body.items).toHaveLength(1);
+    expect((await packer.c.get(`/v1/print-jobs/${jobs[0]!.id}`)).status).toBe(200);
+    expect((await packer.c.get(`/v1/documents/${jobs[0]!.documentId}`)).status).toBe(200);
+    void me;
+  });
+
+  it("skips a label somebody printed first or ready too late, and refuses an agent revoked since", async () => {
+    const { c, tenantId } = await business();
+    const ctx = systemContext(tenantId);
+    const shop = await connectShopee(c, tenantId, 721);
+    const agent = await pairAgent(c, { name: "PC Lama" });
+    await rule(c, { name: "Cetak", actions: { arrange: "dropoff", print: { deviceId: agent.id } } });
+    const first = shopeeOrder(721, [{ model: 7211, sku: "KAOS-M", qty: 1 }]);
+    await announce(tenantId, shop, first);
+    // run the chain up to the label: the print job itself is still in the outbox
+    for (let i = 0; i < 10; i++) {
+      const round = await worker.runOutbox(tenantId);
+      if (round.includes("label.fetch")) break;
+    }
+    const o = await orderBy(c, first.order_sn);
+    expect((await c.get(`/v1/orders/${o.id}/shipments`)).body.items[0]).toMatchObject({ status: "label_ready" });
+    // a person prints the label from the queue before the automatic print runs
+    expect((await c.post("/v1/documents", { kind: "labels", orderIds: [o.id] })).status).toBe(202);
+    await drain(tenantId);
+    const skipped = (await orderBy(c, first.order_sn)).events.filter((e) => e.type === "auto_print");
+    expect(skipped.map((e) => e.payload)).toMatchObject([{ status: "skipped", code: "auto_print.already_printed" }]);
+    expect(await printJobsOf(c, agent.id)).toEqual([]);
+
+    // a label ready long after the arrange: the rule's instruction has expired
+    const late = shopeeOrder(721, [{ model: 7212, sku: "KAOS-L", qty: 1 }]);
+    await announce(tenantId, shop, late);
+    for (let i = 0; i < 10; i++) {
+      const round = await worker.runOutbox(tenantId);
+      if (round.includes("label.fetch")) break;
+    }
+    const printer = worker.ctx.get(AutoPrintService, { strict: false });
+    expect(await printer.printDue(ctx, new Date(Date.now() + 13 * 3600_000))).toEqual({
+      queued: 0,
+      skipped: 1,
+      refused: 0,
+    });
+    expect(
+      (await orderBy(c, late.order_sn)).events.filter((e) => e.type === "auto_print").map((e) => e.payload),
+    ).toMatchObject([{ status: "skipped", code: "auto_print.expired" }]);
+    // the queued auto print job finds nothing left
+    await drain(tenantId);
+    expect(await printJobsOf(c, agent.id)).toEqual([]);
+
+    // the agent is revoked after the arrange, before the label: refused when the label is ready
+    const third = shopeeOrder(721, [{ model: 7211, sku: "KAOS-M", qty: 1 }]);
+    await announce(tenantId, shop, third);
+    for (let i = 0; i < 10; i++) {
+      const round = await worker.runOutbox(tenantId);
+      if (round.includes("label.fetch")) break;
+    }
+    expect((await c.delete(`/v1/print-agents/${agent.id}`)).status).toBe(204);
+    await drain(tenantId);
+    expect(
+      (await orderBy(c, third.order_sn)).events.filter((e) => e.type === "auto_print").map((e) => e.payload),
+    ).toEqual([
+      {
+        status: "refused",
+        code: "print_agent.invalid",
+        message: "Agen cetak tidak ditemukan atau sudah dicabut.",
+        ruleId: expect.any(String),
+      },
+    ]);
+    expect(await printJobsOf(c, agent.id)).toEqual([]);
+
+    // after the revoke, the next order is arranged, and the print refused at once
+    const second = shopeeOrder(721, [{ model: 7211, sku: "KAOS-M", qty: 1 }]);
+    await arrives(tenantId, shop, second);
+    const detail = await orderBy(c, second.order_sn);
+    expect(detail.status).toBe("ready_to_pack");
+    expect(autoRuns(detail)[0]!.payload).toMatchObject({
+      done: ["arrange"],
+      refused: [{ action: "print", code: "print_agent.invalid" }],
+    });
+    expect(detail.events.filter((e) => e.type === "auto_print")).toEqual([]);
+  });
+
+  it("arranges at the rule's time, leaving alone what a person arranged, a switched-off rule, and a near deadline", async () => {
+    const { c, tenantId } = await business();
+    const shop = await connectShopee(c, tenantId, 722);
+    // the orders come in before the rule exists, so each run below is the rule's first look at them
+    const o1 = shopeeOrder(722, [{ model: 7221, sku: "KAOS-M", qty: 1 }]);
+    const o2 = shopeeOrder(722, [{ model: 7221, sku: "KAOS-M", qty: 1 }]);
+    const o3 = shopeeOrder(722, [{ model: 7222, sku: "KAOS-L", qty: 1 }]);
+    // o4 must be shipped within the hour: waiting until 13.00 would miss it
+    const o4 = shopeeOrder(722, [{ model: 7221, sku: "KAOS-M", qty: 1 }], {
+      ship_by_date: Math.floor(wib(today(), "10:00").getTime() / 1000),
+    });
+    for (const o of [o1, o2, o3, o4]) await arrives(tenantId, shop, o);
+    const ids = await Promise.all([o1, o2, o3, o4].map(async (o) => (await orderBy(c, o.order_sn)).id));
+    const timed = await rule(c, { name: "Pickup siang", actions: { arrange: "pickup", arrangeAt: "13:00" } });
+    expect(timed.pending).toBe(0);
+
+    const engine = worker.ctx.get(AutoProcessService, { strict: false });
+    const ctx = systemContext(tenantId);
+    // the rule looks at the orders at 09.00 WIB today
+    const morning = wib(today(), "09:00");
+    for (const id of ids.slice(0, 3)) {
+      const run = await engine.run(ctx, id, morning);
+      expect(run).toMatchObject({
+        done: ["accept", "schedule"],
+        refused: [],
+        arrangeAt: wib(today(), "13:00").toISOString(),
+      });
+    }
+    expect(await engine.run(ctx, ids[3]!, morning)).toMatchObject({ done: ["arrange"], arrangeNow: "deadline" });
+    expect((await orderBy(c, o1.order_sn)).status).toBe("ready_to_pack");
+    expect(((await c.get("/v1/order-rules")).body.items as { pending: number }[])[0]!.pending).toBe(3);
+    await drain(tenantId);
+    expect((await c.get(`/v1/orders/${ids[3]}/shipments`)).body.items[0]).toMatchObject({ status: "label_ready" });
+
+    // before the time, a person arranges o2 by hand; the rule is switched off for o3 only after its row exists
+    expect((await c.post("/v1/shipments/arrange", { orderIds: [ids[1]], method: "dropoff" })).body.items).toEqual([
+      { id: ids[1], ok: true },
+    ]);
+    await drain(tenantId);
+    const registry = new JobRegistry(JOB_DEFINITIONS);
+    const early = fakeQueues();
+    await scanAutoArranges(h.system, early.queues, registry, wib(today(), "12:59"));
+    expect(early.added.filter((a) => a.payload.tenantId === tenantId)).toEqual([]);
+    const due = fakeQueues();
+    const at = wib(today(), "13:00");
+    at.setSeconds(30);
+    await scanAutoArranges(h.system, due.queues, registry, at);
+    const job = due.added.find((a) => a.payload.tenantId === tenantId)!;
+    expect(job).toMatchObject({ name: "order.auto_arrange", jobId: expect.stringMatching(/^order\.auto_arrange\|/) });
+    // the rule is switched off just before its time: the whole wave stops, o2's own arrange stands
+    expect((await c.patch(`/v1/order-rules/${timed.id}`, { active: false })).status).toBe(200);
+    await worker.runJob(orderAutoArrangeJob, { slot: job.payload.slot, until: job.payload.until }, tenantId);
+    const outcomes = await Promise.all(
+      ids.slice(0, 3).map(async (id, i) => {
+        const d = await orderBy(c, [o1, o2, o3][i]!.order_sn);
+        const e = d.events.find((x) => x.type === "auto_arrange");
+        return [id, e?.payload.status, e?.payload.code];
+      }),
+    );
+    expect(outcomes).toEqual([
+      [ids[0], "skipped", "auto_arrange.rule_inactive"],
+      [ids[1], "skipped", "shipment.already_arranged"],
+      [ids[2], "skipped", "auto_arrange.rule_inactive"],
+    ]);
+    expect(((await c.get("/v1/order-rules")).body.items as { pending: number }[])[0]!.pending).toBe(0);
+  });
+
+  it("arranges a waiting order at its time through the store's one request, and tells the order", async () => {
+    const { c, tenantId } = await business();
+    const shop = await connectShopee(c, tenantId, 723);
+    const a = shopeeOrder(723, [{ model: 7231, sku: "KAOS-M", qty: 1 }]);
+    const b = shopeeOrder(723, [{ model: 7232, sku: "KAOS-L", qty: 1 }]);
+    await arrives(tenantId, shop, a);
+    await arrives(tenantId, shop, b);
+    const agent = await pairAgent(c, { name: "PC Siang" });
+    await rule(c, {
+      name: "Pickup siang cetak",
+      actions: { arrange: "pickup", arrangeAt: "13:00", print: { deviceId: agent.id } },
+    });
+    const engine = worker.ctx.get(AutoProcessService, { strict: false });
+    const ctx = systemContext(tenantId);
+    const ids = [await orderBy(c, a.order_sn), await orderBy(c, b.order_sn)].map((o) => o.id);
+    for (const id of ids) {
+      expect(await engine.run(ctx, id, wib(today(), "08:30"))).toMatchObject({
+        done: ["accept", "schedule", "print"],
+      });
+    }
+    const before = mock.callsTo("POST", "/api/v2/logistics/mass_ship_order").length;
+    // a job of an earlier minute claims nothing: the rows are due at 13.00
+    await worker.runJob(orderAutoArrangeJob, { slot: "early", until: wib(today(), "12:00").toISOString() }, tenantId);
+    for (const o of [a, b]) {
+      expect((await orderBy(c, o.order_sn)).events.filter((e) => e.type === "auto_arrange")).toEqual([]);
+    }
+    expect(((await c.get("/v1/order-rules")).body.items as { pending: number }[])[0]!.pending).toBe(2);
+    const at = wib(today(), "13:00");
+    await worker.runJob(orderAutoArrangeJob, { slot: "test", until: at.toISOString() }, tenantId);
+    const ran = await drain(tenantId);
+    expect(ran).toEqual(
+      expect.arrayContaining(["shipment.arrange", "label.fetch", "shipment.auto_print", "document.render"]),
+    );
+    // one marketplace request for both orders
+    expect(mock.callsTo("POST", "/api/v2/logistics/mass_ship_order").length).toBe(before + 1);
+    for (const o of [a, b]) {
+      const d = await orderBy(c, o.order_sn);
+      expect(d.status).toBe("ready_to_pack");
+      expect(d.events.find((e) => e.type === "auto_arrange")?.payload).toMatchObject({
+        status: "arranged",
+        method: "pickup",
+      });
+      expect(d.events.find((e) => e.type === "auto_print")?.payload).toMatchObject({
+        status: "queued",
+        agent: "PC Siang",
+      });
+      expect((await c.get(`/v1/orders/${d.id}/shipments`)).body.items[0]).toMatchObject({
+        status: "label_ready",
+        method: "pickup",
+      });
+    }
+    expect(await printJobsOf(c, agent.id)).toMatchObject([{ title: "Label 2 pesanan (otomatis)", status: "queued" }]);
+  });
+
+  it("does not wait for the time when the order could not be accepted", async () => {
+    const { c, tenantId, variants } = await business();
+    const shop = await connectShopee(c, tenantId, 725);
+    const surabaya = await c.post("/v1/warehouses", {
+      code: "sby",
+      name: "Gudang Surabaya",
+      address: {
+        contactName: "Budi",
+        phone: "081234567890",
+        line1: "Jl. Darmo 5",
+        city: "Surabaya",
+        province: "jatim",
+      },
+    });
+    expect(surabaya.status).toBe(201);
+    const counted = await c.post("/v1/inventory/adjustments", {
+      lines: variants.map((x) => ({ variantId: x.id, warehouseId: surabaya.body.id, mode: "set", quantity: 0 })),
+      reason: "correction",
+    });
+    expect(counted.status).toBe(200);
+    const o = shopeeOrder(725, [{ model: 7252, sku: "KAOS-L", qty: 1 }]);
+    await arrives(tenantId, shop, o);
+    const id = (await orderBy(c, o.order_sn)).id;
+    const timed = await rule(c, {
+      name: "Siang dari Surabaya",
+      actions: { warehouseId: surabaya.body.id, arrange: "pickup", arrangeAt: "13:00" },
+    });
+    const engine = worker.ctx.get(AutoProcessService, { strict: false });
+    // moved to a warehouse without the stock, the order has a problem and cannot be accepted: nothing waits
+    const run = await engine.run(systemContext(tenantId), id, wib(today(), "09:00"));
+    expect(run).toMatchObject({
+      ruleId: timed.id,
+      done: ["warehouse"],
+      refused: [{ action: "accept", code: "order.has_problems" }],
+    });
+    expect(run?.arrangeAt).toBeUndefined();
+    expect((await orderBy(c, o.order_sn)).status).toBe("problem");
+    expect(((await c.get("/v1/order-rules")).body.items as { pending: number }[])[0]!.pending).toBe(0);
+    const due = fakeQueues();
+    await scanAutoArranges(h.system, due.queues, new JobRegistry(JOB_DEFINITIONS), wib(today(), "13:00"));
+    expect(due.added.filter((x) => x.payload.tenantId === tenantId)).toEqual([]);
+  });
+
+  it("refuses the print when the agent no longer serves the order's warehouse", async () => {
+    const { c, tenantId, warehouseId } = await business();
+    const shop = await connectShopee(c, tenantId, 726);
+    const bound = await pairAgent(c, { name: "PC Jakarta", warehouseId });
+    const surabaya = await c.post("/v1/warehouses", {
+      code: "sby",
+      name: "Gudang Surabaya",
+      address: {
+        contactName: "Budi",
+        phone: "081234567890",
+        line1: "Jl. Darmo 5",
+        city: "Surabaya",
+        province: "jatim",
+      },
+    });
+    expect(surabaya.status).toBe(201);
+    await rule(c, {
+      name: "Dari Jakarta",
+      conditions: { warehouseIds: [warehouseId] },
+      actions: { arrange: "pickup", print: { deviceId: bound.id } },
+    });
+    // the agent is moved to Surabaya after the rule was saved
+    expect((await c.patch(`/v1/print-agents/${bound.id}`, { warehouseId: surabaya.body.id })).status).toBe(200);
+    const o = shopeeOrder(726, [{ model: 7261, sku: "KAOS-M", qty: 1 }]);
+    await arrives(tenantId, shop, o);
+    const d = await orderBy(c, o.order_sn);
+    expect(d.status).toBe("ready_to_pack");
+    expect(autoRuns(d)[0]!.payload).toMatchObject({
+      done: ["arrange"],
+      refused: [
+        {
+          action: "print",
+          code: "print_agent.other_warehouse",
+          message: "Agen cetak PC Jakarta melayani gudang lain.",
+        },
+      ],
+    });
+    expect(d.events.filter((e) => e.type === "auto_print")).toEqual([]);
+    expect(await printJobsOf(c, bound.id)).toEqual([]);
+  });
 });
 
 describe("managing rules (UI L55)", () => {
@@ -548,6 +983,7 @@ describe("managing rules (UI L55)", () => {
       const res = await c.post("/v1/order-rules", body);
       return [res.status, res.body.code, res.body.errors?.[0]?.path ?? null, res.body.errors?.[0]?.message ?? null];
     };
+    const nobodyAgent = "01JZZZZZZZZZZZZZZZZZZZZZZA";
     expect((await c.post("/v1/order-rules", { name: "pickup j&t", actions: { accept: true } })).body.code).toBe(
       "order_rule.duplicate",
     );
@@ -575,6 +1011,22 @@ describe("managing rules (UI L55)", () => {
       "conditions.storeIds.0",
       "Aturan otomatis hanya untuk pesanan toko marketplace.",
     ]);
+    // a print needs an arrange, a time needs an arrange and the form JJ:MM
+    expect(await refused({ name: "Cetak saja", actions: { accept: true, print: { deviceId: nobodyAgent } } })).toEqual([
+      422,
+      "validation.failed",
+      "actions.print",
+      "Cetak otomatis butuh Atur pengiriman: label baru ada setelah pengiriman diatur.",
+    ]);
+    expect((await refused({ name: "Jam", actions: { accept: true, arrangeAt: "13:00" } }))[2]).toBe(
+      "actions.arrangeAt",
+    );
+    expect((await refused({ name: "Jam", actions: { arrange: "pickup", arrangeAt: "1pm" } }))[2]).toBe(
+      "actions.arrangeAt",
+    );
+    expect((await refused({ name: "Agen", actions: { arrange: "pickup", print: { deviceId: nobodyAgent } } }))[2]).toBe(
+      "actions.print.deviceId",
+    );
     const nobody = "01JZZZZZZZZZZZZZZZZZZZZZZZ";
     expect((await refused({ name: "X", conditions: { storeIds: [nobody] }, actions: { accept: true } }))[2]).toBe(
       "conditions.storeIds.0",
@@ -622,8 +1074,48 @@ describe("managing rules (UI L55)", () => {
       return out;
     });
     expect(rows).toEqual([
-      [1, "Tag besar", false, "", "", "", "", "any", 500_000, null, false, null, "Besar", false, null],
-      [2, "Pickup J&T", true, "Toko Shopee", "J&T", "", "KAOS-M", "any", null, null, false, null, "", true, "pickup"],
+      [
+        1,
+        "Tag besar",
+        false,
+        "",
+        "",
+        "",
+        "",
+        "any",
+        500_000,
+        null,
+        false,
+        null,
+        "Besar",
+        false,
+        null,
+        null,
+        null,
+        null,
+        null,
+      ],
+      [
+        2,
+        "Pickup J&T",
+        true,
+        "Toko Shopee",
+        "J&T",
+        "",
+        "KAOS-M",
+        "any",
+        null,
+        null,
+        false,
+        null,
+        "",
+        true,
+        "pickup",
+        null,
+        null,
+        null,
+        null,
+      ],
     ]);
 
     expect((await c.delete(`/v1/order-rules/${pickup.id}`)).status).toBe(204);
@@ -706,6 +1198,92 @@ describe("managing rules (UI L55)", () => {
     expect(((await c.get("/v1/order-rules")).body.items as RuleBody[]).map((r) => [r.name, r.priority])).toEqual(
       before,
     );
+  });
+
+  it("ties a printing rule to the agent's warehouse, this business's agents, and the printing permission", async () => {
+    const { c, tenantId, warehouseId } = await business();
+    const other = await business();
+    const bound = await pairAgent(c, { name: "PC Jakarta", warehouseId });
+    const any = await pairAgent(c, { name: "PC Mana Saja" });
+    const surabaya = await c.post("/v1/warehouses", {
+      code: "sby",
+      name: "Gudang Surabaya",
+      address: {
+        contactName: "Budi",
+        phone: "081234567890",
+        line1: "Jl. Darmo 5",
+        city: "Surabaya",
+        province: "jatim",
+      },
+    });
+    expect(surabaya.status).toBe(201);
+    const refused = async (client: Client, body: object) => {
+      const res = await client.post("/v1/order-rules", body);
+      return [res.status, res.body.code, res.body.errors?.[0]?.path ?? null, res.body.errors?.[0]?.message ?? null];
+    };
+    // an agent of one warehouse: the rule must keep its orders there
+    expect(await refused(c, { name: "Lepas", actions: { arrange: "pickup", print: { deviceId: bound.id } } })).toEqual([
+      422,
+      "validation.failed",
+      "actions.print.deviceId",
+      "Agen cetak PC Jakarta melayani satu gudang: batasi aturan ke gudang itu, atau pindahkan pesanan ke sana.",
+    ]);
+    expect(
+      (
+        await refused(c, {
+          name: "Lain",
+          conditions: { warehouseIds: [surabaya.body.id] },
+          actions: { arrange: "pickup", print: { deviceId: bound.id } },
+        })
+      )[2],
+    ).toBe("actions.print.deviceId");
+    expect(
+      (
+        await c.post("/v1/order-rules", {
+          name: "Ke Jakarta",
+          actions: { warehouseId, arrange: "pickup", print: { deviceId: bound.id } },
+        })
+      ).status,
+    ).toBe(201);
+    expect(
+      (
+        await c.post("/v1/order-rules", {
+          name: "Dari Jakarta",
+          conditions: { warehouseIds: [warehouseId] },
+          actions: { arrange: "pickup", print: { deviceId: bound.id } },
+        })
+      ).status,
+    ).toBe(201);
+    expect(
+      (
+        await c.post("/v1/order-rules", {
+          name: "Mana saja",
+          actions: { arrange: "pickup", print: { deviceId: any.id } },
+        })
+      ).status,
+    ).toBe(201);
+    // another business cannot print to this one's agent
+    expect(
+      await refused(other.c, { name: "Penyusup", actions: { arrange: "pickup", print: { deviceId: any.id } } }),
+    ).toEqual([422, "validation.failed", "actions.print.deviceId", expect.any(String)]);
+    // arranging without the printing permission
+    const arranger = await member(c, tenantId, {
+      name: "Pengatur",
+      permissions: ["order:read", "order:accept", "shipment:arrange"],
+    });
+    const held = await arranger.c.post("/v1/order-rules", {
+      name: "Cetak",
+      actions: { arrange: "pickup", print: { deviceId: any.id } },
+    });
+    expect([held.status, held.body.code, held.body.detail]).toEqual([
+      403,
+      "order_rule.permission_not_held",
+      'Aturan ini menjalankan "Cetak label dan dokumen", izin yang tidak Anda miliki.',
+    ]);
+    expect(
+      (await arranger.c.post("/v1/order-rules", { name: "Siang", actions: { arrange: "pickup", arrangeAt: "13:00" } }))
+        .status,
+    ).toBe(201);
   });
 
   it("on Starter: rules are listed and deleted, never made or changed", async () => {
