@@ -379,6 +379,8 @@ Tabel bervolume tinggi dipartisi **range pada kolom `id`** (ULID terurut waktu) 
 
 ### 8.1 Antarmuka connector
 
+Cakupan Tokopedia & Shop dijelaskan dalam [audit integrasi resmi](AUDIT-INTEGRASI-TIKTOKSHOP.md) dan [inventaris method/path per versi](AUDIT-TIKTOKSHOP-ENDPOINTS.csv), diambil 16 Oktober 2026 UTC. Katalog publik mempunyai 317 operasi API Reference; referensi connector dan alur aplikasi belum mencakup seluruh operasi. Dua endpoint token ada di panduan otorisasi. Scope, market, principal, versi dan sandbox harus dinilai terpisah. Audit mencatat celah App Store, Finance/Promotion/Analytics/Customer Service/Affiliate, serta perubahan Imported Goods dan Horizon+ Indonesia; ini bukan penambahan kemampuan aplikasi.
+
 Cakupan Shopee dipetakan dalam [audit integrasi](AUDIT-INTEGRASI-SHOPEE.md) dan [inventaris endpoint](AUDIT-SHOPEE-ENDPOINTS.csv). Snapshot sekunder 15 Mei 2026 memuat 428 endpoint/28 modul dan 48 panduan; 45 endpoint memiliki referensi kode. Angka ini bukan persentase fitur lengkap atau bukti sandbox, dan snapshot bukan katalog resmi terkini. Portal resmi belum dapat diakses dari lingkungan audit (HTTP 403). Adapter AMS baca sudah ada, tetapi belum memiliki alur service/job/API/UI untuk seller; izin aplikasi AMS dan aktivasi toko wajib diverifikasi (ADR-044).
 
 Setiap marketplace adalah paket di `packages/connectors/<nama>` yang mengimplementasikan satu antarmuka yang sama (26.4). Logika inti tidak pernah mengimpor detail marketplace. Menambah marketplace berarti menambah paket, bukan mengubah inti.
