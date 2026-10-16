@@ -56,7 +56,15 @@ type NavKey =
   | "dataExport"
   | "businessProfile"
   | "subscription";
-type GroupKey = "groupHome" | "groupSales" | "groupCatalog" | "groupStock" | "groupAnalytics" | "groupSettings";
+type GroupKey =
+  | "groupHome"
+  | "groupSales"
+  | "groupCatalog"
+  | "groupStock"
+  | "groupShipping"
+  | "groupAnalytics"
+  | "groupAccess"
+  | "groupBusiness";
 
 export interface NavItem {
   key: NavKey;
@@ -79,22 +87,21 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-/** The sidebar of DOKUMEN-UI-UX 7.1, in its order. */
+/** Shared categories for every tenant; visibility follows permissions, never role names. */
 export const NAV: readonly NavGroup[] = [
-  { key: "groupHome", items: [{ key: "overview", href: "/", icon: LayoutDashboard, ready: true }] },
+  {
+    key: "groupHome",
+    items: [
+      { key: "overview", href: "/", icon: LayoutDashboard, ready: true },
+      { key: "notifications", href: "/notifikasi", icon: Bell, ready: true },
+    ],
+  },
   {
     key: "groupSales",
     items: [
       { key: "orders", href: "/pesanan", icon: ShoppingBag, permission: "order:read", ready: true },
       // L55: rules that process new orders (backend doc 8.37), for whoever accepts orders
       { key: "orderRules", href: "/pesanan/aturan", icon: Zap, permission: "order:accept", ready: true },
-      {
-        key: "shipping",
-        href: "/pengiriman",
-        icon: Truck,
-        permission: ["shipment:pack", "shipment:print", "shipment:handover"],
-        ready: true,
-      },
       { key: "returns", href: "/retur", icon: RotateCcw, permission: "order:read", ready: true },
     ],
   },
@@ -124,18 +131,15 @@ export const NAV: readonly NavGroup[] = [
     ],
   },
   {
-    key: "groupAnalytics",
+    key: "groupShipping",
     items: [
-      { key: "salesReport", href: "/laporan/penjualan", icon: BarChart3, permission: "report:read", ready: true },
-      { key: "teamPerformance", href: "/laporan/kinerja-tim", icon: Users, permission: "settings:user", ready: true },
-    ],
-  },
-  {
-    key: "groupSettings",
-    items: [
-      { key: "stores", href: "/integrasi", icon: Plug, permission: "settings:store", ready: true },
-      { key: "team", href: "/tim", icon: UsersRound, permission: "settings:user", ready: true },
-      { key: "auditLog", href: "/log-audit", icon: ScrollText, permission: "audit:read", ready: true },
+      {
+        key: "shipping",
+        href: "/pengiriman",
+        icon: Truck,
+        permission: ["shipment:pack", "shipment:print", "shipment:handover"],
+        ready: true,
+      },
       {
         key: "printers",
         href: "/printer",
@@ -144,10 +148,28 @@ export const NAV: readonly NavGroup[] = [
         ready: true,
       },
       { key: "courierHours", href: "/kurir-jam", icon: Clock, permission: "settings:warehouse", ready: true },
-      { key: "notifications", href: "/notifikasi", icon: Bell, ready: true },
-      { key: "subscription", href: "/langganan", icon: CreditCard, permission: "settings:billing", ready: true },
-      { key: "migration", href: "/migrasi", icon: Database, permission: "settings:store", ready: true },
+    ],
+  },
+  {
+    key: "groupAnalytics",
+    items: [
+      { key: "salesReport", href: "/laporan/penjualan", icon: BarChart3, permission: "report:read", ready: true },
+      { key: "teamPerformance", href: "/laporan/kinerja-tim", icon: Users, permission: "settings:user", ready: true },
       { key: "dataExport", href: "/ekspor", icon: Download, permission: "data:export", ready: true },
+    ],
+  },
+  {
+    key: "groupAccess",
+    items: [
+      { key: "team", href: "/tim", icon: UsersRound, permission: "settings:user", ready: true },
+      { key: "auditLog", href: "/log-audit", icon: ScrollText, permission: "audit:read", ready: true },
+    ],
+  },
+  {
+    key: "groupBusiness",
+    items: [
+      { key: "stores", href: "/integrasi", icon: Plug, permission: "settings:store", ready: true },
+      { key: "migration", href: "/migrasi", icon: Database, permission: "settings:store", ready: true },
       {
         key: "businessProfile",
         href: "/profil-bisnis",
@@ -155,6 +177,7 @@ export const NAV: readonly NavGroup[] = [
         permission: "settings:billing",
         ready: true,
       },
+      { key: "subscription", href: "/langganan", icon: CreditCard, permission: "settings:billing", ready: true },
     ],
   },
 ];

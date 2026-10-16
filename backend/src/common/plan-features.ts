@@ -3,13 +3,12 @@ import { UnprocessableError } from "./errors/domain-errors";
 /**
  * What a plan unlocks beyond its quotas (PRD 14; backend doc 8.32 and 8.33): `plan.features`. The module
  * that owns a feature checks the plan in force (`TenantsService.planIn`) in the transaction that writes,
- * as quotas are checked. What a business made while its plan had a feature stays usable after it moves
- * down; it only cannot be made, changed, or handed to someone new.
+ * as quotas are checked. Each owning module defines runtime behaviour after a downgrade; stored
+ * settings are retained, while automatic processing pauses. Custom roles are core, not a plan feature.
  */
 export const PLAN_FEATURES = {
   auto_process: "Aturan proses otomatis",
   staff_report: "Laporan kinerja staf",
-  custom_roles: "Peran kustom",
 } as const;
 export type PlanFeature = keyof typeof PLAN_FEATURES;
 

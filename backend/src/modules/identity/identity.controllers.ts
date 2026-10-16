@@ -133,7 +133,7 @@ export class RolesController {
     return { items: await this.roles.list(ctx), next_cursor: null };
   }
 
-  /** A custom role (backend doc 8.33): from plan Growth on, with permissions the caller holds. */
+  /** A custom role (backend doc 8.33): on every plan, with permissions the caller holds. */
   @Post("roles")
   @Isolation("self")
   @ZodResponse({ status: 201, type: RoleDto })

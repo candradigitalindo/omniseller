@@ -13,15 +13,7 @@ export const PLANS: Plan[] = [
     name: "Growth",
     priceMonthly: 899_000,
     limits: { stores: 10, warehouses: 2, ordersPerMonth: 10_000, users: 10 },
-    features: [
-      "auto_process",
-      "promo_auto_renew",
-      "boost",
-      "customer_receivable",
-      "staff_report",
-      "custom_roles",
-      "chat",
-    ],
+    features: ["auto_process", "promo_auto_renew", "boost", "customer_receivable", "staff_report", "chat"],
   },
   {
     code: "business",

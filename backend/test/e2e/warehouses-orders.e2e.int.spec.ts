@@ -372,6 +372,63 @@ describe("more than one physical warehouse (FR-STK-01)", () => {
 });
 
 describe("manual orders (FR-ORD-09) and automatic allocation (FR-ORD-12)", () => {
+  it("scopes courier filters and outstanding COD to the caller's stores and warehouses (FR-ORD-03, 15)", async () => {
+    const { c, tenantId, jakarta, surabaya } = await business();
+    const v = await product(c, "COD", ["COD-1"]);
+    await setStock(c, jakarta, { [v["COD-1"]!]: 20 });
+    await setStock(c, surabaya, { [v["COD-1"]!]: 20 });
+    const stores = [
+      await c.post("/v1/stores/manual", { name: "WhatsApp" }),
+      await c.post("/v1/stores/manual", { name: "Offline" }),
+    ] as const;
+    for (const store of stores) expect(store.status).toBe(201);
+    const create = async (storeId: string, warehouseId: string, paymentMethod = "cod") => {
+      const res = await c.post("/v1/orders/manual", {
+        storeId,
+        warehouseId,
+        buyer: { name: "Pembeli" },
+        items: [{ variantId: v["COD-1"], qty: 1 }],
+        paymentMethod,
+        shippingProvider: "J&T Express",
+        orderedAt: new Date(Date.now() - 10 * 86_400_000).toISOString(),
+      });
+      expect(res.status).toBe(201);
+      return res.body;
+    };
+    const jkt = await create(stores[0].body.id, jakarta);
+    const sby = await create(stores[0].body.id, surabaya);
+    const otherStore = await create(stores[1].body.id, jakarta);
+    const completed = await create(stores[0].body.id, jakarta);
+    expect((await c.post(`/v1/orders/${completed.id}/complete`)).status).toBe(200);
+    const cancelled = await create(stores[0].body.id, jakarta);
+    expect((await c.post(`/v1/orders/${cancelled.id}/cancel`, { reason: "other" })).status).toBe(202);
+    await create(stores[0].body.id, jakarta, "cash");
+    const all = (await c.get("/v1/dashboard")).body.orders.codOutstanding;
+    expect(all).toEqual({ orders: 3, total: 150_000 });
+    // COD is not restricted to the dashboard's sales period, even for members without finance:read.
+    const gudang = await addMember(c, tenantId, "Gudang");
+    expect(
+      (await c.put(`/v1/users/${gudang.id}/scopes`, { warehouseIds: [jakarta], storeIds: [stores[0].body.id] })).status,
+    ).toBe(200);
+    const scoped = (await gudang.c.get("/v1/dashboard?range=today")).body;
+    expect(scoped.grossProfit).toBeNull();
+    expect(scoped.orders.codOutstanding).toEqual({ orders: 1, total: 50_000 });
+    expect((await gudang.c.get("/v1/dashboard?range=30d")).body.orders.codOutstanding).toEqual(
+      scoped.orders.codOutstanding,
+    );
+    const rows = (await gudang.c.get("/v1/orders?courier=J%26T+Express&cod=true&status=new")).body.items;
+    expect(rows.map((o: { id: string }) => o.id)).toEqual([jkt.id]);
+    expect(rows.map((o: { id: string }) => o.id)).not.toContain(sby.id);
+    expect(rows.map((o: { id: string }) => o.id)).not.toContain(otherStore.id);
+    expect((await gudang.c.get(`/v1/orders?courier=J%26T+Express&warehouseId=${surabaya}`)).body.items).toEqual([]);
+    expect((await gudang.c.get(`/v1/orders?courier=J%26T+Express&storeId=${stores[1].body.id}`)).body.items).toEqual(
+      [],
+    );
+    expect((await gudang.c.get("/v1/orders/couriers")).body.items).toEqual([{ courier: "J&T Express", orders: 4 }]);
+    const stranger = await business();
+    expect((await stranger.c.get("/v1/dashboard")).body.orders.codOutstanding).toEqual({ orders: 0, total: 0 });
+  });
+
   it("takes a WhatsApp order from end to end: reserve, pay, pack, label, ship, complete", async () => {
     const { c, tenantId, jakarta, surabaya } = await business();
     const v = await product(c, "KAOS", ["KAOS-M", "KAOS-L"]);

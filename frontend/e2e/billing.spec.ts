@@ -51,6 +51,7 @@ test("shows the Growth trial with its quotas, and steps down to Starter at once"
   expect((await refused.json()).code).toBe("billing.limit_reached");
   // the sidebar leads here for the Owner
   await page.goto("/");
+  await page.getByRole("button", { name: "Bisnis & Integrasi" }).click();
   await expect(page.getByRole("link", { name: "Langganan & Tagihan" }).first()).toBeVisible();
 });
 

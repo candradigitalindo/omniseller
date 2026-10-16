@@ -6,8 +6,10 @@ test("signs up, signs out, and signs back in to where the user was going", async
   await page.goto("/daftar");
   await page.getByLabel("Nama bisnis").fill(`Toko Daftar ${stamp}`);
   await page.getByLabel("Nama Anda").fill("Rina Wulandari");
+  await page.getByRole("button", { name: "Lanjutkan" }).click();
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Kata sandi").fill("E2e-kata-sandi-2026");
+  await page.getByRole("button", { name: "Lanjutkan" }).click();
   await page.getByRole("checkbox", { name: /Saya menyetujui/ }).click();
   await page.getByRole("button", { name: "Daftar" }).click();
   await expect(page.getByText("Hubungkan toko pertama Anda")).toBeVisible();

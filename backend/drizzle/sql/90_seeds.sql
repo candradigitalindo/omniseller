@@ -10,10 +10,10 @@ INSERT INTO plan (id, code, name, limits, features, price_monthly) VALUES
    '{"stores": 2, "warehouses": 1, "orders_per_month": 1000, "users": 2}', '{}', 0),
   (gen_ulid(), 'growth', 'Growth',
    '{"stores": 10, "warehouses": 2, "orders_per_month": 10000, "users": 10}',
-   '{auto_process, promo_auto_renew, boost, customer_receivable, staff_report, custom_roles, chat}', 899000),
+   '{auto_process, promo_auto_renew, boost, customer_receivable, staff_report, chat}', 899000),
   (gen_ulid(), 'business', 'Business',
    '{"stores": null, "warehouses": null, "orders_per_month": 100000, "users": null}',
-   '{auto_process, promo_auto_renew, boost, customer_receivable, staff_report, custom_roles, chat, accounting, public_api, distribution}', 2499000)
+   '{auto_process, promo_auto_renew, boost, customer_receivable, staff_report, chat, accounting, public_api, distribution}', 2499000)
 ON CONFLICT (code) DO UPDATE
   SET name = EXCLUDED.name, limits = EXCLUDED.limits, features = EXCLUDED.features,
       price_monthly = EXCLUDED.price_monthly, updated_at = now(), row_version = plan.row_version + 1

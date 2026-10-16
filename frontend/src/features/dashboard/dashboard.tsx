@@ -56,6 +56,7 @@ function DashboardSkeleton() {
           <Skeleton key={i} className="h-28" />
         ))}
       </div>
+      <Skeleton className="h-28" />
       <Skeleton className="h-24" />
       <Skeleton className="h-80" />
     </div>
@@ -216,6 +217,20 @@ function DashboardBody({
             change={{ pct: data.sales.ordersChangePct, versus }}
           />
         ) : null}
+      </section>
+      <section aria-label={t("codOutstanding")}>
+        <Card className="gap-2">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3">
+            <div className="grid gap-1">
+              <p className="text-sm font-medium text-text-900">{t("codOutstanding")}</p>
+              <p className="text-sm text-text-500">
+                {t("codOutstandingOrders", { count: data.orders.codOutstanding.orders })}
+              </p>
+            </div>
+            <p className="tabular text-2xl font-bold text-text-900">{formatRupiah(data.orders.codOutstanding.total)}</p>
+          </CardContent>
+          <CardContent className="text-xs text-text-500">{t("codOutstandingScope")}</CardContent>
+        </Card>
       </section>
 
       <TaskList tasks={tasks} data={data} />

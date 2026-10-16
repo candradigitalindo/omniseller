@@ -101,6 +101,7 @@ export class OrdersController {
       {
         storeId: q.storeId,
         channel: q.channel,
+        courier: q.courier,
         statuses: q.status ? (q.status.split(",").map((s) => s.trim()) as OrderStatus[]) : undefined,
         from: q.from ? new Date(q.from) : undefined,
         to: q.to ? new Date(q.to) : undefined,

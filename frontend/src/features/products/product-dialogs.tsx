@@ -173,6 +173,7 @@ function CreateForm({ onClose }: { onClose: () => void }) {
             <div className={seesCost ? "grid grid-cols-3 gap-2" : "grid grid-cols-2 gap-2"}>
               <Field id={`v${r.key}-price`} label={t("price")} error={errors[`variants.${i}.basePrice`]}>
                 <Input
+                  currency
                   inputMode="numeric"
                   className="tabular"
                   value={r.basePrice}
@@ -183,6 +184,7 @@ function CreateForm({ onClose }: { onClose: () => void }) {
               {seesCost ? (
                 <Field id={`v${r.key}-cost`} label={t("cost")} error={errors[`variants.${i}.costPrice`]}>
                   <Input
+                    currency
                     inputMode="numeric"
                     className="tabular"
                     value={r.costPrice}

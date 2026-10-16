@@ -4,8 +4,8 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.11 |
-| Tanggal | 4 Oktober 2026 |
+| Versi dokumen | 1.12 |
+| Tanggal | 17 Oktober 2026 |
 | Status | Draft untuk review |
 | Pemilik dokumen | Candra Syahputra |
 | Nama produk | OmniSeller (nama sementara, dapat diganti) |
@@ -1415,9 +1415,9 @@ Yang dikeluarkan dari Fase 1 sepenuhnya dan pindah ke Fase 2: chat, harga per ka
 |---|---|---|
 | Starter | Pedagang solo | 2 toko, 1 gudang, 1.000 pesanan/bulan, 2 pengguna |
 | Growth | Toko menengah | 10 toko, 2 gudang, 10.000 pesanan/bulan, 10 pengguna, chat terpadu |
-| Business | Brand/distributor | Toko dan gudang tidak dibatasi, kuota pesanan besar, peran kustom, integrasi akuntansi, API, modul distribusi |
+| Business | Brand/distributor | Toko dan gudang tidak dibatasi, kuota pesanan besar, integrasi akuntansi, API, modul distribusi |
 
-Mengikuti praktik pasar (BigSeller menempatkan proses pesanan otomatis dan rekonsiliasi pelanggan di paket berbayar), fitur berikut hanya tersedia mulai paket Growth: aturan proses otomatis, perpanjang promo otomatis, naikkan produk otomatis, rekonsiliasi pelanggan, laporan kinerja staf, dan peran kustom. Paket Starter tetap mendapat sinkron stok, pesanan terpadu, cetak label, dan laba per pesanan tanpa batasan fitur inti.
+Mengikuti praktik pasar (BigSeller menempatkan proses pesanan otomatis dan rekonsiliasi pelanggan di paket berbayar), fitur berikut hanya tersedia mulai paket Growth: aturan proses otomatis, perpanjang promo otomatis, naikkan produk otomatis, rekonsiliasi pelanggan, dan laporan kinerja staf. Peran kustom beserta CRUD dan pemberian hak akses tersedia bagi semua tenant di setiap paket, termasuk Starter (ADR-043, keputusan 17 Oktober 2026); kuota pengguna paket tetap berlaku. Paket Starter tetap mendapat sinkron stok, pesanan terpadu, cetak label, dan laba per pesanan tanpa batasan fitur inti.
 
 Harga ditentukan setelah validasi dengan pedagang pilot.
 

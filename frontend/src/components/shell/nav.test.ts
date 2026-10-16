@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Permission } from "@/lib/session";
-import { activeHref, isActive, visibleNav } from "./nav";
+import { activeHref, isActive, NAV, visibleNav } from "./nav";
 
 const holding =
   (...perms: Permission[]) =>
@@ -8,33 +8,25 @@ const holding =
     perms.includes(p);
 
 describe("sidebar (DOKUMEN-UI-UX 7.1)", () => {
-  it("shows only screens that exist, and only to users with the permission", () => {
-    const owner = visibleNav(
-      holding("order:read", "inventory:read", "catalog:read", "catalog:map", "report:read", "settings:store"),
-    );
+  it("groups each screen once by purpose and leaves out empty or forbidden categories", () => {
+    const owner = visibleNav(() => true);
     expect(owner.map((g) => [g.key, g.items.map((i) => i.key)])).toEqual([
-      ["groupHome", ["overview"]],
-      ["groupSales", ["orders", "returns"]],
-      ["groupCatalog", ["products", "listings"]],
-      ["groupStock", ["stock", "warehouses", "stockHistory", "restock"]],
-      ["groupAnalytics", ["salesReport"]],
-      ["groupSettings", ["stores", "notifications", "migration"]],
+      ["groupHome", ["overview", "notifications"]],
+      ["groupSales", ["orders", "orderRules", "returns"]],
+      ["groupCatalog", ["products", "listings", "copyListings"]],
+      ["groupStock", ["stock", "warehouses", "stockHistory", "stockCounts", "transfers", "restock"]],
+      ["groupShipping", ["shipping", "printers", "courierHours"]],
+      ["groupAnalytics", ["salesReport", "teamPerformance", "dataExport"]],
+      ["groupAccess", ["team", "auditLog"]],
+      ["groupBusiness", ["stores", "migration", "businessProfile", "subscription"]],
     ]);
-    // the audit log is for audit:read (Owner and Admin), next to the team
-    expect(
-      visibleNav(holding("settings:user", "audit:read"))
-        .find((g) => g.key === "groupSettings")
-        ?.items.map((i) => i.key),
-    ).toEqual(["team", "auditLog", "notifications"]);
-    // the subscription, the business profile, and its legal papers are the Owner's (settings:billing)
-    expect(
-      visibleNav(holding("settings:billing"))
-        .find((g) => g.key === "groupSettings")
-        ?.items.map((i) => i.key),
-    ).toEqual(["notifications", "subscription", "businessProfile"]);
-    // copying listings needs catalog:write, which this role does not hold
-    expect(owner.find((g) => g.key === "groupCatalog")?.items.map((i) => i.key)).not.toContain("copyListings");
+    const hrefs = NAV.flatMap((g) => g.items.map((i) => i.href));
+    expect(new Set(hrefs).size).toBe(hrefs.length);
+    expect(visibleNav(holding()).map((g) => [g.key, g.items.map((i) => i.key)])).toEqual([
+      ["groupHome", ["overview", "notifications"]],
+    ]);
     const warehouse = visibleNav(holding("inventory:read", "inventory:count", "inventory:transfer"));
+    expect(warehouse.map((g) => g.key)).toEqual(["groupHome", "groupStock"]);
     expect(warehouse.find((g) => g.key === "groupStock")?.items.map((i) => i.key)).toEqual([
       "stock",
       "warehouses",
@@ -43,45 +35,37 @@ describe("sidebar (DOKUMEN-UI-UX 7.1)", () => {
       "transfers",
       "restock",
     ]);
-    // the sales report needs report:read (backend 8.20), so the warehouse role does not see Analitik
-    expect(warehouse.map((g) => g.key)).not.toContain("groupAnalytics");
-    // shipping shows to anyone holding one of its permissions
-    const packer = visibleNav(holding("order:read", "shipment:pack"));
-    expect(packer.find((g) => g.key === "groupSales")?.items.map((i) => i.key)).toEqual([
-      "orders",
-      "shipping",
-      "returns",
+  });
+
+  it("follows actual permissions of any custom role instead of names or plans", () => {
+    const categories = (permissions: Permission[]) =>
+      visibleNav(holding(...permissions)).map((g) => [g.key, g.items.map((i) => i.key)]);
+    expect(categories(["settings:user", "audit:read"])).toEqual([
+      ["groupHome", ["overview", "notifications"]],
+      ["groupAnalytics", ["teamPerformance"]],
+      ["groupAccess", ["team", "auditLog"]],
     ]);
-    expect(
-      visibleNav(holding("shipment:handover"))
-        .find((g) => g.key === "groupSales")
-        ?.items.map((i) => i.key),
-    ).toEqual(["shipping"]);
-    // a role without order:read keeps the overview and loses the sales group; everyone has their own
-    // notification settings
-    expect(visibleNav(holding("inventory:read")).map((g) => g.key)).toEqual([
-      "groupHome",
-      "groupStock",
-      "groupSettings",
+    expect(categories(["settings:billing"])).toEqual([
+      ["groupHome", ["overview", "notifications"]],
+      ["groupBusiness", ["businessProfile", "subscription"]],
     ]);
-    // printers show to whoever prints or manages warehouses; team and data export to their own permission
-    expect(
-      visibleNav(holding("shipment:print", "settings:user", "data:export"))
-        .find((g) => g.key === "groupSettings")
-        ?.items.map((i) => i.key),
-    ).toEqual(["team", "printers", "notifications", "dataExport"]);
-    // automatic order rules belong to whoever accepts orders (backend doc 8.37)
-    expect(
-      visibleNav(holding("order:read", "order:accept"))
-        .find((g) => g.key === "groupSales")
-        ?.items.map((i) => i.key),
-    ).toEqual(["orders", "orderRules", "returns"]);
-    // courier cut-offs and operating hours belong to whoever manages the warehouses
-    expect(
-      visibleNav(holding("settings:warehouse"))
-        .find((g) => g.key === "groupSettings")
-        ?.items.map((i) => i.key),
-    ).toEqual(["printers", "courierHours", "notifications"]);
+    for (const permission of ["shipment:pack", "shipment:print", "shipment:handover"] as const) {
+      expect(
+        visibleNav(holding(permission))
+          .find((g) => g.key === "groupShipping")
+          ?.items.map((i) => i.key),
+      ).toContain("shipping");
+    }
+    expect(categories(["settings:warehouse"])).toEqual([
+      ["groupHome", ["overview", "notifications"]],
+      ["groupShipping", ["printers", "courierHours"]],
+    ]);
+    expect(categories(["order:accept", "data:export", "settings:store"])).toEqual([
+      ["groupHome", ["overview", "notifications"]],
+      ["groupSales", ["orderRules"]],
+      ["groupAnalytics", ["dataExport"]],
+      ["groupBusiness", ["stores", "migration"]],
+    ]);
   });
 
   it("marks the home only on itself and other items on their whole subtree", () => {

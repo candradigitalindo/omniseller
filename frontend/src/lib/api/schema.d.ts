@@ -12466,6 +12466,8 @@ export interface operations {
         limit?: number;
         storeId?: string;
         channel?: "shopee" | "tiktokshop" | "lazada" | "blibli" | "shopify" | "woocommerce" | "manual";
+        /** @description nama kurir persis seperti pada pesanan */
+        courier?: string;
         /** @description satu atau beberapa status dipisah koma */
         status?: string;
         /** @description waktu pesanan dibuat, sejak */

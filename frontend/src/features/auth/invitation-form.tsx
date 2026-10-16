@@ -67,7 +67,7 @@ export function InvitationForm() {
         <p className="text-text-500">{t("inviteSubtitle", { role: invite.roleName, email: invite.email })}</p>
       </div>
       <form className="grid gap-4" noValidate onSubmit={form.handleSubmit((values) => accept.mutate(values))}>
-        <FormBanner message={errors.root?.message} />
+        <FormBanner message={errors.root?.message} onDismiss={() => form.clearErrors("root")} />
         <Field id="name" label={t("yourName")} error={errors.name?.message}>
           <Input autoComplete="name" {...fieldProps("name", errors.name?.message)} {...form.register("name")} />
         </Field>
@@ -79,7 +79,13 @@ export function InvitationForm() {
             {...form.register("password")}
           />
         </Field>
-        <Button type="submit" size="lg" className="w-full md:h-10 md:text-[15px]" loading={accept.isPending}>
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full md:h-10 md:text-[15px]"
+          loading={accept.isPending}
+          loadingLabel={t("inviteProgress")}
+        >
           {t("inviteAccept")}
         </Button>
       </form>

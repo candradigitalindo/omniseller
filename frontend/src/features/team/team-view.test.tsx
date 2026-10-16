@@ -227,7 +227,7 @@ describe("TeamView (L41)", () => {
     const calls = api();
     const user = userEvent.setup();
     // this admin lacks settings:billing, so the owner role is not theirs to give
-    renderApp(<TeamView />, { me: testMe(["settings:user", "order:read", "shipment:pack"]) });
+    renderApp(<TeamView />, { me: { ...testMe(["settings:user", "order:read", "shipment:pack"]), plan: STARTER } });
     await openActions(user, "Budi Santoso");
     await user.click(await screen.findByRole("menuitem", { name: "Ubah peran" }));
     const dialog = await screen.findByRole("dialog");
@@ -348,6 +348,11 @@ describe("TeamView (L41)", () => {
     expect(billing).not.toBeChecked();
     await user.click(within(dialog).getByRole("checkbox", { name: /Kemas pesanan/ }));
     expect(within(dialog).getByText("2 izin dipilih")).toBeInTheDocument();
+    await user.type(within(dialog).getByRole("searchbox", { name: "Cari izin" }), "Pengiriman");
+    expect(within(dialog).getByRole("checkbox", { name: /Kemas pesanan/ })).toBeChecked();
+    expect(within(dialog).queryByRole("checkbox", { name: /Lihat pesanan/ })).not.toBeInTheDocument();
+    await user.clear(within(dialog).getByRole("searchbox", { name: "Cari izin" }));
+    expect(within(dialog).getByRole("checkbox", { name: /Lihat pesanan/ })).toBeChecked();
     await user.click(within(dialog).getByRole("button", { name: "Buat peran" }));
     await waitFor(() =>
       expect(calls.find((c) => c.method === "POST" && c.path === "/v1/roles")?.body).toEqual({
@@ -363,7 +368,7 @@ describe("TeamView (L41)", () => {
     setUrl("/tim?tab=peran");
     const calls = api();
     const user = userEvent.setup();
-    renderApp(<TeamView />);
+    renderApp(<TeamView />, { me: { ...testMe(), plan: STARTER } });
     await user.click(await screen.findByRole("button", { name: "Ubah peran Packer Malam" }));
     const edit = await screen.findByRole("dialog", { name: "Ubah peran Packer Malam" });
     expect(edit).toHaveTextContent("Perubahan berlaku bagi 1 pemegangnya pada permintaan berikutnya");
@@ -395,34 +400,41 @@ describe("TeamView (L41)", () => {
     expect(await screen.findByText("Peran Arsip dihapus.")).toBeInTheDocument();
   });
 
-  it("on a plan without custom roles: nothing made, changed, or handed out, but they can still go", async () => {
+  it("on Starter: custom roles can be created, edited, assigned, and offered in invitations", async () => {
     setUrl("/tim?tab=peran");
-    api();
+    const calls = api();
     const user = userEvent.setup();
     renderApp(<TeamView />, { me: { ...testMe(), plan: STARTER } });
-    expect(await screen.findByText(/^Paket Starter tidak termasuk peran kustom\./)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Lihat paket" })).toHaveAttribute("href", "/langganan");
-    expect(screen.queryByRole("button", { name: "Buat peran" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Ubah peran Packer Malam" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Hapus peran Arsip" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Buat peran" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Ubah peran Packer Malam" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Hapus peran Arsip" })).toBeEnabled();
 
-    // members: a custom role stays with whoever holds it, and goes to nobody new
     await user.click(screen.getByRole("tab", { name: "Anggota" }));
     await openActions(user, "Budi Santoso");
     await user.click(await screen.findByRole("menuitem", { name: "Ubah peran" }));
     const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByRole("checkbox", { name: /Packer Malam/ })).toBeDisabled();
-    expect(within(dialog).getAllByText("Peran kustom tidak termasuk paket Starter.")).toHaveLength(2);
+    expect(within(dialog).getByRole("checkbox", { name: /Packer Malam/ })).toBeEnabled();
     expect(within(dialog).getByRole("checkbox", { name: /Gudang/ })).toBeEnabled();
-    await user.click(within(dialog).getByRole("button", { name: "Batal" }));
+    await user.click(within(dialog).getByRole("checkbox", { name: /Packer Malam/ }));
+    await user.click(within(dialog).getByRole("button", { name: "Simpan" }));
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === "PUT" && c.path === `/v1/users/${BUDI}/roles`)?.body).toEqual({
+        roleIds: ["R-GUDANG", "R-PACKER"],
+      }),
+    );
 
     await user.click(screen.getByRole("button", { name: "Undang anggota" }));
     const invite = await screen.findByRole("dialog", { name: "Undang anggota" });
     await user.click(within(invite).getByRole("combobox", { name: "Peran" }));
-    expect((await screen.findAllByRole("option")).map((o) => o.textContent)).toEqual(["Gudang", "Pemilik"]);
+    expect((await screen.findAllByRole("option")).map((o) => o.textContent)).toEqual([
+      "Gudang",
+      "Pemilik",
+      "Arsip",
+      "Packer Malam",
+    ]);
   });
 
-  it("keeps a custom role a member already holds when the plan has none", async () => {
+  it("keeps a member’s existing custom role selected on Starter", async () => {
     api();
     const user = userEvent.setup();
     renderApp(<TeamView />, { me: { ...testMe(), plan: STARTER } });

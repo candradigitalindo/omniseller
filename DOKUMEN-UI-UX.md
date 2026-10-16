@@ -2,8 +2,8 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.28 |
-| Tanggal | 16 Oktober 2026 |
+| Versi dokumen | 1.30 |
+| Tanggal | 17 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
 | Dokumen terkait | DOKUMEN-SPESIFIKASI-APLIKASI.md (PRD) versi 1.10, DOKUMEN-UI-UX-MOBILE.md versi 1.0 (aplikasi mobile), DOKUMEN-TEKNOLOGI.md versi 1.1, DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.0 |
@@ -221,55 +221,55 @@ Item diberi nama sehari-hari. Kolom "Fase" mengikuti roadmap PRD; item fase lanj
 | Kelompok | Item | Ikon Lucide | Izin minimal | Fase |
 |---|---|---|---|---|
 | **Beranda** | Ringkasan | `layout-dashboard` | semua | 1 |
-| | Tugas Hari Ini | `list-checks` | semua | 1 |
+|  | Tugas Hari Ini | `list-checks` | semua | 1 |
+|  | Notifikasi | `bell` | semua | 1 |
 | **Penjualan** | Pesanan | `shopping-bag` | `order:read` | 1 |
-| | Aturan Otomatis | `zap` | `order:accept` | 2 |
-| | Pengiriman (Ambil & Kemas, Cetak Label, Serah Terima, Lacak) | `truck` | `shipment:*` | 1 |
-| | Retur & Batal | `rotate-ccw` | `order:read` | 2 |
-| | Chat Pembeli | `message-square` | `chat:read` | 2 |
-| | Ulasan | `star` | `chat:read` | 2 |
-| | Pesanan Tautan | `link` | `order:read` | 3 |
-| **Katalog** | Produk | `package` | `catalog:*` | 1 |
-| | Listing Toko (pemetaan SKU) | `store` | `catalog:map` | 1 |
-| | Salin Listing | `copy` | `catalog:write` | 2 |
-| | Harga | `tag` | `price:write` | 2 |
-| | Promosi | `percent` | `promo:write` | 2 |
-| | Naikkan Produk | `arrow-up-circle` | `promo:write` | 2 |
+|  | Aturan Otomatis | `zap` | `order:accept` | 2 |
+|  | Retur & Batal | `rotate-ccw` | `order:read` | 2 |
+|  | Chat Pembeli | `message-square` | `chat:read` | 2 |
+|  | Ulasan | `star` | `chat:read` | 2 |
+|  | Pesanan Tautan | `link` | `order:read` | 3 |
+| **Produk & Katalog** | Produk | `package` | `catalog:*` | 1 |
+|  | Listing Toko (pemetaan SKU) | `store` | `catalog:map` | 1 |
+|  | Salin Listing | `copy` | `catalog:write` | 2 |
+|  | Harga | `tag` | `price:write` | 2 |
+|  | Promosi | `percent` | `promo:write` | 2 |
+|  | Naikkan Produk | `arrow-up-circle` | `promo:write` | 2 |
 | **Stok & Gudang** | Stok | `boxes` | `inventory:read` | 1 |
-| | Gudang | `warehouse` | `inventory:read` | 1 |
-| | Riwayat Stok | `history` | `inventory:read` | 1 |
-| | Stock Opname | `clipboard-check` | `inventory:count` | 3 |
-| | Transfer Stok | `arrow-left-right` | `inventory:transfer` | 3 |
-| | Pembelian & Supplier | `shopping-cart` | `inventory:adjust` | 3 |
-| | Perlu Restock | `package-plus` | `inventory:read` | 2 |
+|  | Gudang | `warehouse` | `inventory:read` | 1 |
+|  | Riwayat Stok | `history` | `inventory:read` | 1 |
+|  | Stock Opname | `clipboard-check` | `inventory:count` | 3 |
+|  | Transfer Stok | `arrow-left-right` | `inventory:transfer` | 3 |
+|  | Pembelian & Supplier | `shopping-cart` | `inventory:adjust` | 3 |
+|  | Perlu Restock | `package-plus` | `inventory:read` | 2 |
+| **Pengiriman** | Pengiriman (Ambil & Kemas, Cetak Label, Serah Terima, Lacak) | `truck` | `shipment:*` | 1 |
+|  | Printer & Label | `printer` | `settings:warehouse` atau `shipment:print` | 1 |
+|  | Kurir & Jam Operasional | `clock` | `settings:warehouse` | 2 |
+| **Laporan & Data** | Laporan Penjualan | `bar-chart-3` | `report:read` | 1 |
+|  | Laporan Stok | `pie-chart` | `inventory:read` | 2 |
+|  | Kesehatan Toko | `heart-pulse` | semua | 2 |
+|  | Kinerja Tim | `users` | `settings:user` | 2 |
+|  | Riset Pasar (Riset Produk, Pantau Harga, Kata Kunci, Kompetitor, Supplier) | `search` | `research:read` | 3 |
+|  | Ekspor Data | `download` | `data:export` | 1 |
+| **Tim & Akses** | Tim & Peran | `users-round` | `settings:user` | 1 |
+|  | Log Audit | `scroll-text` | `audit:read` | 1 |
+| **Bisnis & Integrasi** | Toko Terhubung (dan pemetaan gudang marketplace) | `plug` | `settings:store` | 1 |
+|  | Migrasi Data | `database` | `settings:store` | 1 |
+|  | Profil Bisnis & Legalitas | `building-2` | `settings:billing` | 1 |
+|  | Langganan & Tagihan | `credit-card` | `settings:billing` | 2 |
+|  | Integrasi (Akuntansi, API, Ekstensi) | `puzzle` | `settings:store` | 3 |
 | **Keuangan** | Dana Cair & Rekonsiliasi | `banknote` | `finance:read` | 3 |
-| | Laba per Pesanan | `trending-up` | `finance:read` | 3 |
-| | Biaya Marketplace | `receipt` | `finance:read` | 2 |
-| | Pajak & Dokumen | `file-text` | `finance:read` | 3 |
-| | Piutang Pelanggan | `hand-coins` | `finance:read` | 3 |
-| **Analitik** | Laporan Penjualan | `bar-chart-3` | `report:read` | 1 |
-| | Laporan Stok | `pie-chart` | `inventory:read` | 2 |
-| | Kesehatan Toko | `heart-pulse` | semua | 2 |
-| | Kinerja Tim | `users` | `settings:user` | 2 |
-| | Riset Pasar (Riset Produk, Pantau Harga, Kata Kunci, Kompetitor, Supplier) | `search` | `research:read` | 3 |
+|  | Laba per Pesanan | `trending-up` | `finance:read` | 3 |
+|  | Biaya Marketplace | `receipt` | `finance:read` | 2 |
+|  | Pajak & Dokumen | `file-text` | `finance:read` | 3 |
+|  | Piutang Pelanggan | `hand-coins` | `finance:read` | 3 |
 | **Kampanye & Pelanggan** | Kalender Kampanye | `calendar-days` | semua | 2 |
-| | Live & Affiliate | `radio` | `order:read` | 3 |
-| | Pelanggan | `user-round` | `chat:read` | 3 |
-| **Pengaturan** | Toko Terhubung (dan pemetaan gudang marketplace) | `plug` | `settings:store` | 1 |
-| | Tim & Peran | `users-round` | `settings:user` | 1 |
-| | Log Audit | `scroll-text` | `audit:read` | 1 |
-| | Printer & Label | `printer` | `settings:warehouse` atau `shipment:print` | 1 |
-| | Kurir & Jam Operasional | `clock` | `settings:warehouse` | 2 |
-| | Notifikasi | `bell` | semua | 1 |
-| | Langganan & Tagihan | `credit-card` | `settings:billing` | 2 |
-| | Migrasi Data | `database` | `settings:store` | 1 |
-| | Ekspor Data | `download` | `data:export` | 1 |
-| | Profil Bisnis & Legalitas | `building-2` | `settings:billing` | 1 |
-| | Integrasi (Akuntansi, API, Ekstensi) | `puzzle` | `settings:store` | 3 |
+|  | Live & Affiliate | `radio` | `order:read` | 3 |
+|  | Pelanggan | `user-round` | `chat:read` | 3 |
 | **Bawah sidebar** | Bantuan & Status Sistem | `life-buoy` | semua | 1 |
-| | Profil pengguna (nama, peran, Akun saya, mode gelap, keluar) | avatar | semua | 1 |
+|  | Profil pengguna (nama, peran, Akun saya, mode gelap, keluar) | avatar | semua | 1 |
 
-Perilaku: kelompok dapat dilipat dan ingat keadaannya; item aktif berlatar `primary-100` dengan teks dan ikon `primary-600` serta garis 3 px di kiri; penghitung kecil (badge angka) pada Pesanan, Chat, dan Tugas Hari Ini; saat sidebar dilipat menjadi rel ikon, nama kelompok hilang dan ikon mendapat tooltip.
+Perilaku: kelompok dapat dilipat; kategori halaman aktif otomatis terbuka saat navigasi masuk, termasuk lewat tautan langsung. Kategori kosong disembunyikan berdasarkan izin; peran kustom dan tenant mana pun memakai pengelompokan yang sama. Penghitung di judul kategori menunjukkan jumlah menu yang diizinkan; item aktif berlatar `primary-100` dengan teks dan ikon `primary-600` serta garis 3 px di kiri; penghitung kecil (badge angka) pada Pesanan, Chat, dan Tugas Hari Ini; saat sidebar dilipat menjadi rel ikon, nama kelompok hilang dan ikon mendapat tooltip.
 
 ### 7.2 Pemilih toko dan gudang
 
@@ -565,11 +565,11 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 #### L04a Pesanan Manual Baru
 
 - **Tujuan**: mencatat penjualan di luar marketplace (WhatsApp, Instagram, toko) secepat menulis nota, dengan stok yang langsung ditahan.
-- **Isi**: halaman dua kolom dari tombol "Pesanan manual" di L03 (izin `order:write`). Kiri: kartu Barang (kotak cari SKU, nama, atau barcode; Enter pada barcode atau SKU lengkap langsung menambah; hasil menampilkan harga dan stok siap jual; baris barang dengan jumlah, tombol tambah dan kurang, harga satuan yang bisa diubah dengan keterangan harga produk, dan peringatan kuning bila jumlah melebihi stok), kartu Pembeli (nama, telepon), kartu Pengiriman (pilihan "Dikirim ke alamat" atau "Diambil pembeli atau di tempat"; penerima, telepon, alamat, kecamatan, kota, provinsi dari daftar, kode pos, kurir dengan saran, layanan), kartu Lainnya (saluran penjualan, gudang otomatis atau pilihan, waktu pesanan sampai 90 hari ke belakang, catatan pembeli yang tercetak di label, catatan internal). Kanan, lengket di desktop: Ringkasan (subtotal, diskon, ongkir, total besar, cara bayar: Transfer, Tunai, E-wallet, COD, Lainnya; sakelar "Sudah dibayar" kecuali COD; kalimat status awal pesanan).
+- **Isi**: modal responsif dari tombol "Pesanan manual" di L03 (izin `order:write`) dengan tiga langkah: Barang, Pembeli & Pengiriman, lalu Lainnya & Ringkasan. Rincian: kartu Barang (kotak cari SKU, nama, atau barcode; Enter pada barcode atau SKU lengkap langsung menambah; hasil menampilkan harga dan stok siap jual; baris barang dengan jumlah, tombol tambah dan kurang, harga satuan yang bisa diubah dengan keterangan harga produk, dan peringatan kuning bila jumlah melebihi stok), kartu Pembeli (nama, telepon), kartu Pengiriman (pilihan "Dikirim ke alamat" atau "Diambil pembeli atau di tempat"; penerima, telepon, alamat, kecamatan, kota, provinsi dari daftar, kode pos, kurir dengan saran, layanan), kartu Lainnya (saluran penjualan, gudang otomatis atau pilihan, waktu pesanan sampai 90 hari ke belakang, catatan pembeli yang tercetak di label, catatan internal). Pada langkah terakhir: Ringkasan (subtotal, diskon, ongkir, total besar, cara bayar: Transfer, Tunai, E-wallet, COD, Lainnya; sakelar "Sudah dibayar" kecuali COD; kalimat status awal pesanan).
 - **Aksi utama**: "Buat pesanan". Satu kunci idempoten per formulir, jadi klik ganda tidak membuat dua pesanan. Setelah berhasil, daftar pesanan terbuka dengan panel detail pesanan baru.
 - **Keadaan khusus**: kesalahan tampil di bawah kolomnya dan satu kalimat di atas tombol; stok kurang tidak menolak pesanan (pesanan masuk bermasalah, seperti pesanan marketplace).
-- **Mobile**: kolom bertumpuk, ringkasan dan tombol di akhir halaman.
-- **Prompt untuk AI**: "Formulir pesanan manual dua kolom. Kiri: kartu 'Barang' dengan kotak cari 'Cari SKU atau nama produk, atau pindai barcode', baris 'Kaos Polos Hitam L, KAOS-HTM-L mono, Stok siap jual 83', jumlah dengan tombol minus dan plus, harga satuan 'Rp 65.000', total baris 'Rp 130.000'; kartu 'Pembeli' dan 'Pengiriman' dengan pilihan 'Dikirim ke alamat' atau 'Diambil pembeli'. Kanan: kartu 'Ringkasan' lengket dengan 'Subtotal (2 barang) Rp 250.000', diskon, ongkir, 'Total Rp 260.000' tebal, pilihan cara bayar berbentuk kotak, sakelar 'Sudah dibayar', tombol utama lebar penuh 'Buat pesanan'."
+- **Mobile**: modal mengikuti tinggi layar, konten bergulir di dalamnya bila diperlukan, total dan tombol navigasi/submit tetap terlihat. Menutup isian yang berubah memerlukan dialog konfirmasi; klik di luar modal tidak menghapus isian.
+- **Catatan prompt lama**: tata letak dua kolom berikut telah diganti modal bertahap di versi 1.29; rincian isi tetap berlaku. "Formulir pesanan manual dua kolom. Kiri: kartu 'Barang' dengan kotak cari 'Cari SKU atau nama produk, atau pindai barcode', baris 'Kaos Polos Hitam L, KAOS-HTM-L mono, Stok siap jual 83', jumlah dengan tombol minus dan plus, harga satuan 'Rp 65.000', total baris 'Rp 130.000'; kartu 'Pembeli' dan 'Pengiriman' dengan pilihan 'Dikirim ke alamat' atau 'Diambil pembeli'. Kanan: kartu 'Ringkasan' lengket dengan 'Subtotal (2 barang) Rp 250.000', diskon, ongkir, 'Total Rp 260.000' tebal, pilihan cara bayar berbentuk kotak, sakelar 'Sudah dibayar', tombol utama lebar penuh 'Buat pesanan'."
 
 #### L05 Pengiriman: Ambil dan Kemas
 
@@ -785,7 +785,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
 
 #### L41 Tim dan Peran, L42 Printer dan Label, L43 Kurir dan Jam Operasional, L44 Notifikasi, L45 Langganan dan Tagihan
 
-- **L41**: tabel pengguna (avatar, nama, email, peran pil, toko dan gudang yang diizinkan, terakhir aktif, status), tombol "Undang anggota"; halaman peran: matriks izin per modul dengan kotak centang dan penjelasan sederhana per izin. Prompt: "Tabel tim dengan pil peran 'Gudang', kolom cakupan 'Gudang Jakarta saja'. Halaman peran: matriks baris modul (Pesanan, Stok, Harga) dan kolom izin (Lihat, Ubah, Hapus) dengan kotak centang, keterangan 'Peran Gudang tidak bisa melihat harga dan laba'." Di web app tab Peran berisi kartu "Peran kustom" dan matriks izin per modul (nama modul dalam bahasa Indonesia; peran bawaan lalu peran kustom sebagai kolom; di ponsel matriks digeser ke samping dan bisa difokus keyboard). Kartu itu mendaftar peran kustom dengan keterangan, jumlah izin dan pemegangnya ("8 izin · 2 pemegang"), serta Ubah dan Hapus untuk peran yang seluruh izinnya dimiliki pengguna. "Buat peran" membuka dialog: nama (paling panjang 40 karakter), keterangan opsional, "Salin izin dari" peran lain (hanya izin yang dimiliki pengguna ikut tersalin), dan kotak centang izin per modul dengan hitungan "8 izin dipilih"; izin yang tidak dimiliki pengguna nonaktif dengan "Anda tidak memegang izin ini.". Hapus meminta konfirmasi; peran yang masih dipegang menjelaskan alasannya tanpa tombol hapus, dan undangan terbuka yang menawarkannya disebut pesan dari api. Di paket tanpa peran kustom (Starter), kartu menjelaskan bahwa peran kustom yang ada tetap berlaku bagi pemegangnya tetapi tidak bisa dibuat, diubah, atau diberikan ke orang lain, dengan tautan "Lihat paket" untuk pemegang `settings:billing`; hanya Hapus yang tersisa, dialog "Ubah peran" menonaktifkan peran kustom yang belum dipegang orang itu ("Peran kustom tidak termasuk paket Starter."), dan undangan tidak menawarkannya. Peran kustom diberi pil "Kustom" di dialog "Ubah peran". Dialog "Ubah peran" hanya mengaktifkan peran yang seluruh izinnya dimiliki pengguna yang mengubah; cakupan toko dan gudang dipilih dengan sakelar "Semua toko" atau daftar centang, tidak pernah daftar kosong; undangan bisa dikirim ulang (tautan lama tidak berlaku) atau dibatalkan.
+- **L41**: tabel pengguna (avatar, nama, email, peran pil, toko dan gudang yang diizinkan, terakhir aktif, status), tombol "Undang anggota"; halaman peran: matriks izin per modul dengan kotak centang dan penjelasan sederhana per izin. Prompt: "Tabel tim dengan pil peran 'Gudang', kolom cakupan 'Gudang Jakarta saja'. Halaman peran: matriks baris modul (Pesanan, Stok, Harga) dan kolom izin (Lihat, Ubah, Hapus) dengan kotak centang, keterangan 'Peran Gudang tidak bisa melihat harga dan laba'." Di web app tab Peran berisi kartu "Peran kustom" dan matriks izin per modul (nama modul dalam bahasa Indonesia; peran bawaan lalu peran kustom sebagai kolom; di ponsel matriks digeser ke samping dan bisa difokus keyboard). Kartu itu mendaftar peran kustom dengan keterangan, jumlah izin dan pemegangnya ("8 izin · 2 pemegang"), serta Ubah dan Hapus untuk peran yang seluruh izinnya dimiliki pengguna. "Buat peran" membuka dialog: nama (paling panjang 40 karakter), keterangan opsional, "Salin izin dari" peran lain (hanya izin yang dimiliki pengguna ikut tersalin), dan kotak centang izin per modul dengan hitungan "8 izin dipilih"; izin yang tidak dimiliki pengguna nonaktif dengan "Anda tidak memegang izin ini.". Hapus meminta konfirmasi; peran yang masih dipegang menjelaskan alasannya tanpa tombol hapus, dan undangan terbuka yang menawarkannya disebut pesan dari api. Peran kustom tersedia di semua paket, termasuk Starter, dengan CRUD, penggantian role anggota, dan undangan sesuai izin pengguna. Dialog menyediakan "Cari izin" berdasarkan nama izin, kode, atau modul dalam area gulir terbatas; pencarian tidak menghapus izin terpilih. Peran kustom diberi pil "Kustom" di dialog "Ubah peran". Dialog "Ubah peran" hanya mengaktifkan peran yang seluruh izinnya dimiliki pengguna yang mengubah; cakupan toko dan gudang dipilih dengan sakelar "Semua toko" atau daftar centang, tidak pernah daftar kosong; undangan bisa dikirim ulang (tautan lama tidak berlaku) atau dibatalkan.
   - **Di web app**: pil "2FA aktif" di samping status anggota yang memakai verifikasi dua langkah. Menu aksi anggota (Owner, `settings:user`) menambah "Keluarkan dari semua perangkat" (untuk ponsel atau laptop yang hilang) dan, bila 2FA anggota aktif, "Matikan verifikasi dua langkah" (untuk anggota yang kehilangan ponsel dan kode cadangannya; ia juga dikeluarkan dari semua perangkat). Keduanya meminta konfirmasi dan tidak ada untuk akun sendiri.
 - **L42**: daftar agen cetak (nama komputer, status terhubung, printer yang terdeteksi, versi), template label (pratinjau thermal dan A4, sakelar tambahkan SKU dan rak, catatan pembeli), tombol "Cetak percobaan". Prompt: "Halaman printer: kartu 'PC Gudang Jakarta, terhubung, printer Zebra GK420' hijau dan 'Laptop Kasir, terputus 2 hari' abu; pratinjau label thermal 100 x 150 di kanan dengan area tambahan SKU dan rak di bawah label resmi." Di web app: "Pasang agen cetak" memberi kode yang tampil sekali dengan tombol salin; tiap agen memilih printer label dan printer dokumen dari printer yang dilaporkannya, bisa diganti nama, dicetak percobaan bila terhubung, dan dicabut; template label berupa lima sakelar (SKU, nama varian, lokasi rak, catatan pembeli, tag) dengan contoh PDF thermal atau A4 yang dimuat ulang setiap kali diubah. Dialog cabut memperingatkan bila aturan otomatis mencetak ke agen itu: "1 aturan otomatis mencetak ke agen ini; setelah dicabut, cetak otomatisnya ditolak sampai aturannya diubah."
 - **L43**: tabel cut-off per gudang per kurir (jam, hari), jam operasional dengan periode khusus (Ramadan), hari libur. Prompt: "Tabel cut-off: 'Gudang Jakarta, J&T, 15.00, Sen sampai Sab', tombol edit. Kartu 'Jam operasional Ramadan 1 sampai 30 Mar 2027: 08.00 sampai 20.00'."
@@ -860,7 +860,7 @@ Format setiap layar: **Tujuan**, **Isi** (dari atas ke bawah), **Aksi utama** (s
   - Kode salah menampilkan pesan di bawah kotak dan mengosongkannya. "Pakai kode cadangan" mengganti kotak dengan satu input kode cadangan, dan setelah masuk muncul toast berisi sisa kode.
   - Bila waktu lima menit habis, terlalu banyak kode salah, atau akun terkunci, layar kembali ke email dan kata sandi dengan pesan dari api; email tetap terisi.
 
-- Tata letak: kartu tunggal di tengah 420 px pada latar `canvas` dengan logo di atas; formulir sederhana; kesalahan ditulis jelas; tautan "Lupa kata sandi"; halaman 2FA meminta enam digit dengan input besar terpisah dan tombol "Pakai kode cadangan". Daftar: nama bisnis, email, kata sandi dengan indikator kekuatan, persetujuan syarat. Undangan: menampilkan nama bisnis dan peran yang diberikan.
+- Tata letak: desktop memakai panel ilustrasi alur kerja berwarna biru laut dan kartu autentikasi maksimal 460 px. Tablet/ponsel dan layar desktop pendek menampilkan kartu saja. Header logo dan footer tetap ringkas; konten kartu dibatasi tinggi viewport agar akses pada layar pendek tetap tersedia. Masuk, lupa/reset sandi, 2FA dan undangan memakai komponen bersama; kata sandi dapat ditampilkan/disembunyikan. Daftar terdiri atas tiga langkah: profil bisnis, email/kata sandi, dan konfirmasi persetujuan. Isian tetap tersimpan ketika kembali ke langkah sebelumnya; persetujuan tidak dipilih otomatis.
 - **Persetujuan di Daftar**: "Saya menyetujui syarat layanan dan kebijakan privasi OmniSeller." Bila web app dibangun dengan alamat situs publik (`NEXT_PUBLIC_SITE_URL`), "syarat layanan" dan "kebijakan privasi" adalah tautan ke dokumennya di situs itu, dibuka di tab baru agar isian tidak hilang; tanpa alamat itu keduanya teks biasa.
 - **Prompt untuk AI**: "Halaman masuk: kartu putih di tengah latar abu muda, logo OmniSeller, input email dan kata sandi tinggi 48 px, tombol utama lebar penuh 'Masuk', tautan 'Lupa kata sandi'. Halaman 2FA: enam kotak digit besar, teks 'Masukkan kode dari aplikasi autentikator', tautan 'Pakai kode cadangan'."
 
@@ -1111,3 +1111,16 @@ Sebelum layar dinyatakan selesai:
 | 1.27 | 13 Oktober 2026 | Unduhan Excel: L30 "Unduh laporan" dengan "Excel (semua bagian)" dan "{bagian} (CSV)", L33 "Excel (per anggota dan per hari)", L24a menu "Unduh" Excel atau CSV; "Jadwalkan email" di L30 dan L33 membuka L44; L44 baris laporan terjadwal "Bersama email", terkunci "Tersedia mulai paket Growth." tanpa fiturnya; notifikasi laporan (L52) membuka laporan pada periodenya | Candra Syahputra |
 
 | 1.28 | 16 Oktober 2026 | M51 agen cetak desktop (16.3): pengaturan dilipat, status penerimaan spooler, pemulihan yang perlu pemeriksaan dan konfirmasi cetak ulang, tanpa data pesanan, pembaruan pada paket rilis | Candra Syahputra |
+| 1.29 | 16 Oktober 2026 | Desain autentikasi responsif; daftar/pesanan manual bertahap; select pencarian; rupiah dan tanggal/jam Indonesia; alert/loading informatif; modal dengan batas viewport dan konfirmasi keluar | Codex |
+| 1.30 | 17 Oktober 2026 | Sidebar dikelompokkan ulang menjadi delapan kategori aktif yang bisa dilipat; role kustom dan pemberiannya tersedia bagi semua tenant di semua paket, dengan pencarian izin dalam modal (ADR-043) | Candra Syahputra |
+
+## Pembaruan interaksi web — 16 Oktober 2026 (v1.29)
+
+- Setiap dropdown `Select` memiliki pencarian berdasarkan label, pesan hasil kosong, navigasi panah/Enter/Escape, dan pengembalian fokus ke pemicu. Pilihan yang datang secara asinkron tetap mempertahankan nilai semula.
+- Isian uang menampilkan awalan Rp dan pemisah ribuan, misalnya `Rp 1.250.000`. State formulir dan payload API tetap berupa angka rupiah bulat tanpa pemisah. Pecahan tidak ditafsirkan diam-diam sebagai nominal lain; kesalahan tampil di dekat kolom. Ini berlaku pada harga/HPP produk dan varian, pesanan manual, aturan pesanan, dan harga draft salin listing. Jumlah barang, berat, barcode, NIB dan nomor telepon tidak diubah menjadi uang.
+- Isian tanggal menampilkan `DD/MM/YYYY`, waktu 24 jam `JJ.mm`, dan tanggal/waktu `DD/MM/YYYY JJ.mm`. Kalender dan jam dibuka di modal, bulan dapat dicari, rentang min/max dan hari kalender valid diperiksa. Nilai API tetap ISO/`HH:mm`, dengan zona waktu bisnis tetap digunakan oleh fitur yang mengubah waktu menjadi UTC.
+- Error formulir memakai panel ikon dan teks, dengan tombol tutup jika pemilik formulir menyediakan reset error. Toast memiliki warna semantik, ikon dan tombol tutup; di ponsel posisinya di atas navigasi bawah. Error data menyediakan tombol coba lagi.
+- Aktivitas fetch/simpan nyata baru ditampilkan setelah 450 ms untuk menghindari kedipan. Setelah delapan detik, pesan menjelaskan bahwa proses membutuhkan waktu lebih lama. Tidak ada persentase progres buatan; status menghilang ketika request selesai. Skeleton dan animasi menghormati reduced motion.
+- Modal dibatasi tinggi viewport, header/footer tetap mudah dijangkau, dan tombol tutup berada di atas header. Formulir panjang dipisahkan menjadi langkah, sementara daftar transaksi dan laporan mempertahankan scrolling konten yang diperlukan. Tidak mengunci isi hingga tak bisa diakses pada layar pendek.
+
+Validasi aktual dan batas pengujian dicatat di `frontend/UI-REFRESH.md`.

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import { currentUrl, setUrl } from "@/test/navigation";
@@ -208,6 +208,13 @@ describe("OrdersView: stores, warehouses, tags, and reading orders again", () =>
       "GET /v1/orders": () => ({ items: [tagged, plain], next_cursor: null }),
       "GET /v1/warehouses": () => ({ items: [warehouse(JKT, "Gudang Jakarta"), warehouse(SBY, "Gudang Surabaya")] }),
       "GET /v1/tags": () => ({ items: [{ ...TAG, orders: 1 }] }),
+      "GET /v1/orders/couriers": () => ({
+        items: [
+          { courier: "J&T Express", orders: 2 },
+          { courier: "JNE", orders: 1 },
+        ],
+        next_cursor: null,
+      }),
       "GET /v1/stores": () => ({
         items: [
           store(SHOP, "Toko Utama", "shopee", "active"),
@@ -243,6 +250,107 @@ describe("OrdersView: stores, warehouses, tags, and reading orders again", () =>
     await user.click(screen.getByRole("combobox", { name: "Tag" }));
     await user.click(await screen.findByRole("option", { name: "Prioritas" }));
     expect(currentUrl()).toBe(`/pesanan?tag=${TAG.id}`);
+  });
+
+  it("restores channel, historical courier, and calendar dates, then clears all filters together", async () => {
+    setUrl(
+      `/pesanan?status=shipped&store=${SHOP}&warehouse=${SBY}&tag=${TAG.id}&channel=shopee&courier=Kurir+Lama&from=2026-10-01&to=2026-10-02`,
+    );
+    const calls = api();
+    const me = testMe();
+    me.tenant.timezone = "Asia/Jayapura";
+    renderApp(<OrdersView />, { me });
+    await waitFor(() =>
+      expect(listQuery(calls)).toMatchObject({
+        status: "shipped,delivered",
+        storeId: SHOP,
+        warehouseId: SBY,
+        tagId: TAG.id,
+        channel: "shopee",
+        courier: "Kurir Lama",
+        from: "2026-09-30T15:00:00.000Z",
+        to: "2026-10-02T15:00:00.000Z",
+      }),
+    );
+    expect(screen.getByRole("combobox", { name: "Kanal" })).toHaveTextContent("Shopee");
+    expect(screen.getByRole("combobox", { name: "Kurir" })).toHaveTextContent("Kurir Lama");
+    expect(screen.getByLabelText("Dari tanggal")).toHaveValue("01/10/2026");
+    expect(screen.getByLabelText("Sampai tanggal")).toHaveValue("02/10/2026");
+    await userEvent.setup().click(screen.getByRole("button", { name: "Bersihkan" }));
+    expect(currentUrl()).toBe("/pesanan?status=shipped");
+    await waitFor(() => expect(listQuery(calls)).not.toHaveProperty("courier"));
+    for (const key of ["from", "to", "channel", "warehouseId", "storeId", "tagId"])
+      expect(listQuery(calls)).not.toHaveProperty(key);
+  });
+
+  it("writes the selected channel, courier, and dates to the URL and request", async () => {
+    const calls = api();
+    const user = userEvent.setup();
+    renderApp(<OrdersView />);
+    await user.click(screen.getByRole("combobox", { name: "Kanal" }));
+    await user.click(screen.getByRole("option", { name: "Penjualan langsung" }));
+    await user.click(screen.getByRole("combobox", { name: "Kurir" }));
+    await user.click(await screen.findByRole("option", { name: "J&T Express" }));
+    fireEvent.change(screen.getByLabelText("Dari tanggal"), { target: { value: "2026-10-01" } });
+    fireEvent.change(screen.getByLabelText("Sampai tanggal"), { target: { value: "2026-10-02" } });
+    expect(new URLSearchParams(currentUrl().split("?")[1]).get("courier")).toBe("J&T Express");
+    await waitFor(() =>
+      expect(listQuery(calls)).toMatchObject({
+        channel: "manual",
+        courier: "J&T Express",
+        from: "2026-09-30T17:00:00.000Z",
+        to: "2026-10-02T17:00:00.000Z",
+      }),
+    );
+  });
+
+  it("blocks a reversed date interval from a shared link until it is corrected", async () => {
+    setUrl("/pesanan?from=2026-10-03&to=2026-10-01");
+    const calls = api();
+    renderApp(<OrdersView />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Tanggal akhir harus sama dengan atau setelah tanggal awal.");
+    expect(calls.filter((c) => c.path === "/v1/orders")).toHaveLength(0);
+    fireEvent.change(screen.getByLabelText("Sampai tanggal"), { target: { value: "2026-10-03" } });
+    await waitFor(() =>
+      expect(listQuery(calls)).toMatchObject({ from: "2026-10-02T17:00:00.000Z", to: "2026-10-03T17:00:00.000Z" }),
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("keeps the combined filters on subsequent pages and starts over when a filter changes", async () => {
+    setUrl("/pesanan?channel=manual&courier=JNE&from=2026-10-01&to=2026-10-02");
+    const calls = mockApi({
+      "GET /v1/orders": (c) => ({
+        items: c.query.cursor ? [plain] : [tagged],
+        next_cursor: c.query.cursor ? null : "next-page",
+      }),
+      "GET /v1/orders/summary": () => ({
+        statuses: { new: 2 },
+        overdue: 0,
+        dueSoon: 0,
+        codOutstanding: { orders: 0, total: 0 },
+      }),
+      "GET /v1/orders/couriers": () => ({ items: [{ courier: "JNE", orders: 2 }], next_cursor: null }),
+    });
+    const user = userEvent.setup();
+    renderApp(<OrdersView />);
+    await user.click(await screen.findByRole("button", { name: "Muat lebih banyak" }));
+    await waitFor(() =>
+      expect(listQuery(calls)).toMatchObject({
+        cursor: "next-page",
+        courier: "JNE",
+        channel: "manual",
+        from: "2026-09-30T17:00:00.000Z",
+        to: "2026-10-02T17:00:00.000Z",
+      }),
+    );
+    await user.click(within(screen.getByRole("table")).getByRole("checkbox", { name: "Pilih pesanan 2609300AB1" }));
+    expect(screen.getByText("1 dipilih")).toBeInTheDocument();
+    act(() => setUrl("/pesanan?channel=manual&courier=J%26T+Express&from=2026-10-01&to=2026-10-02"));
+    await waitFor(() => expect(listQuery(calls)?.courier).toBe("J&T Express"));
+    expect(listQuery(calls)).not.toHaveProperty("cursor");
+    expect(screen.queryByText("1 dipilih")).not.toBeInTheDocument();
+    expect(within(await screen.findByRole("table")).queryByText("2609300AB2")).not.toBeInTheDocument();
   });
 
   it("shows each order's warehouse and tags", async () => {

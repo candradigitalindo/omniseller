@@ -118,18 +118,10 @@ export function roleProblems(input: { name: string; permissions: readonly string
   };
 }
 
-/**
- * Whether a role may be given to this user here: every permission is the giver's, and a custom role needs a
- * plan with `custom_roles` unless the user already holds it (it stays theirs after a move down).
- */
-export function roleBlock(
-  role: Pick<Role, "isSystem" | "permissions" | "id">,
-  opts: { mine: readonly string[]; customAllowed: boolean; held: ReadonlySet<string> },
-): "permissions" | "plan" | null {
-  const held = new Set(opts.mine);
-  if (!role.permissions.every((p) => held.has(p))) return "permissions";
-  if (!role.isSystem && !opts.customAllowed && !opts.held.has(role.id)) return "plan";
-  return null;
+/** Whether the caller holds every permission they would grant, on any plan. */
+export function roleBlock(role: Pick<Role, "permissions">, mine: readonly string[]): "permissions" | null {
+  const held = new Set(mine);
+  return role.permissions.every((p) => held.has(p)) ? null : "permissions";
 }
 
 /**

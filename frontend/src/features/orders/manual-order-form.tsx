@@ -52,8 +52,16 @@ const NONE = "none";
  * or pickup, and payment; stock is held at once, in the nearest warehouse that has everything unless one is
  * chosen. One Idempotency-Key per open form, so a double click or a retry never makes two orders.
  */
-export function ManualOrderForm() {
+export function ManualOrderForm({
+  compact = false,
+  onDirtyChange,
+}: {
+  compact?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
+} = {}) {
   const t = useTranslations("manualOrder");
+  const common = useTranslations("common");
+  const [step, setStep] = useState(0);
   const can = useCan();
   const tz = useTimeZone();
   const router = useRouter();
@@ -61,6 +69,9 @@ export function ManualOrderForm() {
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [key] = useState(() => crypto.randomUUID());
+  useEffect(() => {
+    onDirtyChange?.(JSON.stringify(draft) !== JSON.stringify(emptyDraft()));
+  }, [draft, onDirtyChange]);
   const { byId } = useStores();
   const channels = [...byId.values()].filter((s) => s.channel === "manual" && s.status !== "disconnected");
   const warehouses = useQuery({
@@ -109,27 +120,60 @@ export function ManualOrderForm() {
       ]),
     );
     if (found.length === 0) create.mutate(manualOrderBody(draft, tz));
+    else if (compact) {
+      const first = found[0]?.[0] ?? "";
+      setStep(
+        first.startsWith("items")
+          ? 0
+          : /^(buyer|recipient|line1|city|province|postalCode|shippingProvider|shippingAddress)/.test(first)
+            ? 1
+            : 2,
+      );
+    }
   };
 
   return (
     <>
-      <Button asChild variant="ghost" size="sm" className="mb-2 -ml-2">
-        <Link href="/pesanan">
-          <ArrowLeft aria-hidden />
-          {t("back")}
-        </Link>
-      </Button>
-      <PageHeader title={t("title")} description={t("description")} />
+      {!compact ? (
+        <>
+          <Button asChild variant="ghost" size="sm" className="mb-2 -ml-2">
+            <Link href="/pesanan">
+              <ArrowLeft aria-hidden />
+              {t("back")}
+            </Link>
+          </Button>
+          <PageHeader title={t("title")} description={t("description")} />
+        </>
+      ) : (
+        <nav aria-label={t("formSteps")} className="sticky top-0 z-10 grid grid-cols-3 gap-2 bg-popover pb-3">
+          {[t("items"), t("buyerDeliveryStep"), t("summary")].map((label, index) => (
+            <button
+              key={label}
+              type="button"
+              aria-current={step === index ? "step" : undefined}
+              className={`rounded-xl border px-2 py-3 text-xs font-medium transition-colors ${step === index ? "border-primary bg-primary-50 text-primary" : "border-border text-text-500 hover:bg-surface-2"}`}
+              onClick={() => setStep(index)}
+            >
+              {index + 1}. {label}
+            </button>
+          ))}
+        </nav>
+      )}
       <form
+        id="manual-order-editor"
         noValidate
-        className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)]"
+        className={
+          compact && step !== 2
+            ? "grid items-start gap-4"
+            : "grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)]"
+        }
         onSubmit={(e) => {
           e.preventDefault();
           submit();
         }}
       >
         <div className="grid gap-4">
-          <Card>
+          <Card hidden={compact && step !== 0}>
             <CardHeader>
               <CardTitle>{t("items")}</CardTitle>
             </CardHeader>
@@ -160,7 +204,7 @@ export function ManualOrderForm() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card hidden={compact && step !== 1}>
             <CardHeader>
               <CardTitle>{t("buyer")}</CardTitle>
             </CardHeader>
@@ -186,7 +230,7 @@ export function ManualOrderForm() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card hidden={compact && step !== 1}>
             <CardHeader>
               <CardTitle>{t("delivery")}</CardTitle>
             </CardHeader>
@@ -316,7 +360,7 @@ export function ManualOrderForm() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card hidden={compact && step !== 2}>
             <CardHeader>
               <CardTitle>{t("more")}</CardTitle>
             </CardHeader>
@@ -395,7 +439,7 @@ export function ManualOrderForm() {
           </Card>
         </div>
 
-        <Card className="lg:sticky lg:top-20">
+        <Card hidden={compact && step !== 2} className="lg:sticky lg:top-20">
           <CardHeader>
             <CardTitle>{t("summary")}</CardTitle>
           </CardHeader>
@@ -407,6 +451,7 @@ export function ManualOrderForm() {
             <div className="grid grid-cols-2 gap-3">
               <Field id="discount" label={t("discount")} error={error("discount")}>
                 <Input
+                  currency
                   value={draft.discount}
                   inputMode="numeric"
                   placeholder="0"
@@ -417,6 +462,7 @@ export function ManualOrderForm() {
               {address ? (
                 <Field id="shipping-fee" label={t("shippingFee")} error={error("shippingFee")}>
                   <Input
+                    currency
                     value={draft.shippingFee}
                     inputMode="numeric"
                     placeholder="0"
@@ -475,12 +521,54 @@ export function ManualOrderForm() {
                 {errors.root}
               </p>
             ) : null}
-            <Button type="submit" size="lg" loading={create.isPending}>
+            <Button hidden={compact} type="submit" size="lg" loading={create.isPending}>
               {t("submit")}
             </Button>
           </CardContent>
         </Card>
       </form>
+      {compact ? (
+        <div className="sticky bottom-0 z-10 -mx-1 flex items-center justify-between gap-3 border-t bg-popover py-3">
+          <div className="min-w-0">
+            <p className="text-xs text-text-500">{t("total")}</p>
+            <p className="tabular font-semibold text-text-900">{formatRupiah(sum.total)}</p>
+          </div>
+          <div className="flex gap-2">
+            {step > 0 ? (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={create.isPending}
+                onClick={() => setStep((s) => s - 1)}
+              >
+                {common("back")}
+              </Button>
+            ) : null}
+            {step < 2 ? (
+              <Button
+                key="next"
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setStep((s) => s + 1);
+                }}
+              >
+                {common("continue")}
+              </Button>
+            ) : (
+              <Button
+                key="submit"
+                type="submit"
+                form="manual-order-editor"
+                loading={create.isPending}
+                loadingLabel={common("savingData")}
+              >
+                {t("submit")}
+              </Button>
+            )}
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
@@ -565,6 +653,7 @@ function LineRow({
           {t("unitPrice")}
         </Label>
         <Input
+          currency
           value={line.unitPrice}
           inputMode="numeric"
           className="h-8 w-32 text-right"

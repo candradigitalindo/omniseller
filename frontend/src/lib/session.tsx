@@ -11,12 +11,14 @@ export type Permission = Me["permissions"][number];
 
 export const meQueryKey = ["me"] as const;
 
-/** The signed-in user, the business, permissions, and scopes (`GET /v1/me`), loaded once per visit. */
+/** The signed-in user, the business, permissions, and scopes (`GET /v1/me`), refreshed while the app is in use. */
 export function useMe() {
   return useQuery({
     queryKey: meQueryKey,
     queryFn: () => unwrap(api.GET("/v1/me")),
-    staleTime: 5 * 60_000,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: "always",
     retry: false,
   });
 }
@@ -49,7 +51,7 @@ export function useCan(): (permission: Permission) => boolean {
 
 /**
  * What the plan in force unlocks beyond its quotas (`plan.features`, backend doc 8.32), such as
- * `custom_roles`. Screens offer only what the plan has; the api refuses the rest (422).
+ * `auto_process`. Screens offer only what the plan has; the api refuses the rest (422).
  */
 export function useHasFeature(feature: string): boolean {
   return useSession().plan.features.includes(feature);

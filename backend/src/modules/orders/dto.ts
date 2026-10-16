@@ -31,6 +31,7 @@ export class OrderQueryDto extends createZodDto(
     limit: z.coerce.number().int().min(1).max(MAX_LIMIT).default(50),
     storeId: ulidSchema.optional(),
     channel: z.enum(CHANNELS).optional(),
+    courier: z.string().trim().min(1).max(100).optional().describe("nama kurir persis seperti pada pesanan"),
     status: z
       .string()
       .max(300)

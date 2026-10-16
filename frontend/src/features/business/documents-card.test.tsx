@@ -95,7 +95,7 @@ describe("Dokumen legalitas", () => {
     await user.click(screen.getByRole("button", { name: "Ubah SPPKP" }));
     const edit = await screen.findByRole("dialog");
     const until = within(edit).getByLabelText("Berlaku sampai");
-    expect(until).toHaveValue("2026-10-20");
+    expect(until).toHaveValue("20/10/2026");
     await user.clear(until);
     await user.type(until, "2031-10-20");
     await user.click(within(edit).getByRole("button", { name: "Simpan" }));

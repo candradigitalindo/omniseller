@@ -20,7 +20,7 @@ Pesanan dari semua toko dalam satu antrean (PRD 6.4: FR-ORD-01 sampai 10, 12, 13
 
 ## Service publik
 - `OrdersService` (api):
-  - `list` (filter `tagId`; `cutoffToday` untuk `due=cutoff`; `sort=ship_by` menurut batas yang lebih dulu, marketplace atau cut-off kurir), `summary`, `get` (dengan `warehouseFixed`), `accept`, `pack`, `recentCouriers` (kurir pesanan 90 hari terakhir, untuk formulir cut-off L43), `cutoffTodayIn` (pesanan yang harus dikirim sebelum cut-off hari ini, untuk dasbor);
+  - `list` (filter `tagId`, `channel`, `courier` persis sesuai nama pada pesanan setelah spasi tepi dibuang, dan waktu pesanan `from` inklusif / `to` eksklusif; `cutoffToday` untuk `due=cutoff`; `sort=ship_by` menurut batas yang lebih dulu, marketplace atau cut-off kurir), `summary`, `get` (dengan `warehouseFixed`), `accept`, `pack`, `recentCouriers` (kurir pesanan 90 hari terakhir, untuk filter antrean dan formulir cut-off L43), `cutoffTodayIn` (pesanan yang harus dikirim sebelum cut-off hari ini, untuk dasbor);
   - `cancelReasons` dan `requestCancel` (pesanan manual: alasan OmniSeller, dibatalkan seketika);
   - `setNote`, `resolveProblem`, `requestSync`, `changeWarehouse`.
 
@@ -72,6 +72,11 @@ Pesanan dari semua toko dalam satu antrean (PRD 6.4: FR-ORD-01 sampai 10, 12, 13
 | `order.store_disconnected` | `order.ingest` | `store.disconnected` (200 pesanan per transaksi) |
 
 ## Endpoint
+
+Filter daftar dapat digabung dan tetap berlaku pada setiap halaman kursor. Cakupan toko/gudang pengguna selalu diterapkan, termasuk saat filter menyebut id di luar cakupan. Web menyimpan filter pada URL; tanggal kalender mengikuti zona waktu bisnis dan seluruh hari akhir ikut dihitung. Pilihan kurir berasal dari `/v1/orders/couriers`, dengan nama dari tautan lama tetap dapat ditampilkan.
+
+Dasbor menampilkan `summary.codOutstanding` sebagai jumlah pesanan dan total rupiah seluruh periode dalam cakupan pengguna (`order:read`, tidak memerlukan `finance:read`). Definisi yang sudah dipakai API: COD pada status `new`, `problem`, `ready_to_pack`, `packed`, `ready_to_ship`, `shipped`, atau `delivered`; `unpaid`, selesai, pembatalan dan retur tidak dihitung. Ini ringkasan operasional menurut status pesanan, bukan rekonsiliasi settlement marketplace.
+
 | Metode | Path | Izin |
 |---|---|---|
 | GET | `/v1/orders`, `/v1/orders/summary`, `/v1/orders/{id}` | `order:read` |

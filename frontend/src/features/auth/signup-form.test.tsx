@@ -5,14 +5,24 @@ import { mockApi, renderApp, testMe } from "@/test/render";
 import { SignupForm } from "./signup-form";
 
 const agreement = "Saya menyetujui syarat layanan dan kebijakan privasi OmniSeller.";
+async function enterBusiness(user: ReturnType<typeof userEvent.setup>) {
+  await user.type(screen.getByLabelText("Nama bisnis"), "Toko Rina");
+  await user.type(screen.getByLabelText("Nama Anda"), "Rina");
+  await user.click(screen.getByRole("button", { name: "Lanjutkan" }));
+}
 
 describe("SignupForm", () => {
   afterEach(() => vi.unstubAllEnvs());
 
-  it("links the terms and the privacy policy on the public site, opened beside the form", () => {
+  it("links the terms and the privacy policy on the public site, opened beside the form", async () => {
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://omniseller.example/");
     mockApi({});
     renderApp(<SignupForm />);
+    const user = userEvent.setup();
+    await enterBusiness(user);
+    await user.type(screen.getByLabelText("Email"), "rina@example.test");
+    await user.type(screen.getByLabelText("Kata sandi"), "kata-sandi-kuat-123");
+    await user.click(screen.getByRole("button", { name: "Lanjutkan" }));
     // the checkbox keeps the whole sentence as its name
     expect(screen.getByRole("checkbox", { name: agreement })).toBeInTheDocument();
     const terms = screen.getByRole("link", { name: "syarat layanan" });
@@ -29,13 +39,12 @@ describe("SignupForm", () => {
     const calls = mockApi({ "POST /v1/auth/signup": () => testMe() });
     const user = userEvent.setup();
     renderApp(<SignupForm />);
-    expect(screen.getByRole("checkbox", { name: agreement })).toBeInTheDocument();
+    await enterBusiness(user);
     expect(screen.queryByRole("link", { name: "syarat layanan" })).not.toBeInTheDocument();
 
-    await user.type(screen.getByLabelText("Nama bisnis"), "Toko Rina");
-    await user.type(screen.getByLabelText("Nama Anda"), "Rina");
     await user.type(screen.getByLabelText("Email"), "rina@example.test");
     await user.type(screen.getByLabelText("Kata sandi"), "kata-sandi-kuat-123");
+    await user.click(screen.getByRole("button", { name: "Lanjutkan" }));
     await user.click(screen.getByRole("button", { name: "Daftar" }));
     expect(await screen.findByText("Setujui syarat layanan untuk melanjutkan.")).toBeInTheDocument();
     expect(calls.filter((c) => c.path === "/v1/auth/signup")).toHaveLength(0);

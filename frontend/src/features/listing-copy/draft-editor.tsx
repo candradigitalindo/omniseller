@@ -778,6 +778,7 @@ function Variants({
                   </TableCell>
                   <TableCell className="min-w-36">
                     <Input
+                      currency
                       value={v.price}
                       inputMode="numeric"
                       disabled={disabled}

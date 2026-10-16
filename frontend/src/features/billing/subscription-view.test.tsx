@@ -29,7 +29,9 @@ describe("Langganan & Tagihan", () => {
     expect(screen.getByRole("button", { name: "Naik ke Business" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Turun ke Starter" })).toBeEnabled();
     expect(screen.getByText("Toko marketplace tidak dibatasi")).toBeInTheDocument();
-    expect(screen.getAllByText("Fitur inti + 7 fitur lanjutan")).toHaveLength(2);
+    // Custom roles are core, so Growth has one fewer paid feature.
+    expect(screen.getByText("Fitur inti + 6 fitur lanjutan")).toBeInTheDocument();
+    expect(screen.getByText("Fitur inti + 7 fitur lanjutan")).toBeInTheDocument();
     expect(screen.getByText("Belum ada tagihan.")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Ubah di Profil bisnis" })).not.toBeInTheDocument();
   });

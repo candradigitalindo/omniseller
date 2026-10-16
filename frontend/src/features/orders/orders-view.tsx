@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ChannelIcon } from "@/components/common/channel";
+import { ChannelIcon, channelLabel } from "@/components/common/channel";
 import { FilterChip } from "@/components/common/filter-chip";
 import { EmptyState, ErrorState, PageHeader, StatusPill } from "@/components/common/page";
 import { SelectionBar } from "@/components/common/selection-bar";
@@ -31,10 +31,11 @@ import { useUrlParams } from "@/hooks/use-url-params";
 import { api, unwrap } from "@/lib/api/client";
 import { errorMessage } from "@/lib/api/errors";
 import { formatNumber, formatRupiah } from "@/lib/format";
-import { useCan } from "@/lib/session";
+import { useCan, useTimeZone } from "@/lib/session";
 import { ArrangeDialog } from "./arrange-dialog";
 import { DeadlinePill } from "./deadline-pill";
 import { OrderDetailSheet } from "./order-detail";
+import { ORDER_CHANNELS, orderChannel, orderDate, orderPeriod } from "./order-filters";
 import { ORDER_TABS, type OrderListItem, STATUS_PILL, syncableStores, tabCount, tabOf } from "./order-meta";
 import { TagDot, TagPicker, TagPills, TagsDialog, useTags } from "./tags";
 import { useOrderActions } from "./use-order-actions";
@@ -55,6 +56,10 @@ function useOrderFilters() {
     due: due === "soon" || due === "overdue" || due === "cutoff" ? (due as "soon" | "overdue" | "cutoff") : null,
     cod: params.get("cod") === "true",
     storeId: params.get("store"),
+    channel: orderChannel(params.get("channel")),
+    courier: params.get("courier")?.trim() || null,
+    from: orderDate(params.get("from")),
+    to: orderDate(params.get("to")),
     warehouseId: params.get("warehouse"),
     tagId: params.get("tag"),
     openId: params.get("id"),
@@ -76,6 +81,7 @@ export function OrdersView() {
   const t = useTranslations("orders");
   const tCommon = useTranslations("common");
   const can = useCan();
+  const timeZone = useTimeZone();
   const f = useOrderFilters();
   const { q, set } = f;
   const [search, setSearch] = useState(q);
@@ -91,6 +97,7 @@ export function OrdersView() {
   }, [search, q, set]);
 
   const tabDef = ORDER_TABS.find((x) => x.key === f.tab)!;
+  const invalidPeriod = !!(f.from && f.to && f.from > f.to);
   // query keys compare by value, so a new object per render is fine
   const query = {
     status: tabDef.statuses.length > 0 ? tabDef.statuses.join(",") : undefined,
@@ -98,6 +105,9 @@ export function OrdersView() {
     due: f.due ?? undefined,
     cod: f.cod ? ("true" as const) : undefined,
     storeId: f.storeId ?? undefined,
+    channel: f.channel ?? undefined,
+    courier: f.courier ?? undefined,
+    ...orderPeriod(f.from, f.to, timeZone),
     warehouseId: f.warehouseId ?? undefined,
     tagId: f.tagId ?? undefined,
     sort: f.tab === "new" || f.due ? ("ship_by" as const) : ("newest" as const),
@@ -110,6 +120,7 @@ export function OrdersView() {
   });
   const list = useInfiniteQuery({
     queryKey: ["orders", "list", query],
+    enabled: !invalidPeriod,
     queryFn: ({ pageParam }) =>
       unwrap(
         api.GET("/v1/orders", {
@@ -152,11 +163,22 @@ export function OrdersView() {
   const warehouseList = warehouses.data?.items ?? [];
   const warehouseNames = new Map(warehouseList.map((w) => [w.id, w.name]));
   const showWarehouse = warehouseList.length > 1;
+  const couriers = useQuery({
+    queryKey: ["orders", "couriers", f.warehouseId],
+    queryFn: () =>
+      unwrap(api.GET("/v1/orders/couriers", { params: { query: { warehouseId: f.warehouseId ?? undefined } } })),
+    staleTime: 5 * 60_000,
+  });
+  // A shared view can name a courier last used more than 90 days ago.
+  const courierNames = [
+    ...new Set([...(couriers.data?.items.map((c) => c.courier) ?? []), ...(f.courier ? [f.courier] : [])]),
+  ];
   const tags = useTags();
   const tagList = tags.data?.items ?? [];
   const storeList = [...stores.byId.values()];
   const syncable = can("settings:store") ? syncableStores(storeList) : [];
-  const filtered = f.q || f.due || f.cod || f.storeId || f.warehouseId || f.tagId;
+  const filtered =
+    f.q || f.due || f.cod || f.storeId || f.warehouseId || f.tagId || f.channel || f.courier || f.from || f.to;
   const sync = useMutation({
     mutationFn: (store: { id: string; name: string }) =>
       unwrap(api.POST("/v1/orders/sync", { body: { storeId: store.id } })),
@@ -330,6 +352,61 @@ export function OrdersView() {
           <FilterChip active={f.cod} onClick={() => set({ cod: f.cod ? null : "true" })}>
             {t("codOnly")}
           </FilterChip>
+          <Select value={f.channel ?? ALL} onValueChange={(v) => set({ channel: v === ALL ? null : v })}>
+            <SelectTrigger className="h-10 w-44" aria-label={t("filterChannel")}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>{t("allChannels")}</SelectItem>
+              {ORDER_CHANNELS.map((channel) => (
+                <SelectItem key={channel} value={channel}>
+                  {channelLabel(channel)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={f.courier ?? ALL} onValueChange={(v) => set({ courier: v === ALL ? null : v })}>
+            <SelectTrigger className="h-10 w-44" aria-label={t("filterCourier")}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>{t("allCouriers")}</SelectItem>
+              {courierNames.map((courier) => (
+                <SelectItem key={courier} value={courier}>
+                  {courier}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {couriers.isError ? (
+            <Button variant="ghost" size="sm" onClick={() => couriers.refetch()}>
+              {t("retryCouriers")}
+            </Button>
+          ) : null}
+          <label htmlFor="orders-date-from" className="flex items-center gap-2 text-sm text-text-500">
+            {t("dateFrom")}
+            <Input
+              type="date"
+              id="orders-date-from"
+              value={f.from ?? ""}
+              max={f.to ?? "9998-12-31"}
+              min="0100-01-01"
+              className="h-10 w-40"
+              onChange={(e) => set({ from: e.target.value || null })}
+            />
+          </label>
+          <label htmlFor="orders-date-to" className="flex items-center gap-2 text-sm text-text-500">
+            {t("dateTo")}
+            <Input
+              type="date"
+              id="orders-date-to"
+              value={f.to ?? ""}
+              min={f.from ?? "0100-01-01"}
+              max="9998-12-31"
+              className="h-10 w-40"
+              onChange={(e) => set({ to: e.target.value || null })}
+            />
+          </label>
           {storeList.length > 1 ? (
             <Select value={f.storeId ?? ALL} onValueChange={(v) => set({ store: v === ALL ? null : v })}>
               <SelectTrigger className="h-10 w-44" aria-label={t("filterStore")}>
@@ -382,7 +459,18 @@ export function OrdersView() {
               size="sm"
               onClick={() => {
                 setSearch("");
-                set({ q: null, due: null, cod: null, store: null, warehouse: null, tag: null });
+                set({
+                  q: null,
+                  due: null,
+                  cod: null,
+                  store: null,
+                  warehouse: null,
+                  tag: null,
+                  channel: null,
+                  courier: null,
+                  from: null,
+                  to: null,
+                });
               }}
             >
               {tCommon("clear")}
@@ -392,7 +480,11 @@ export function OrdersView() {
       )}
 
       <Card className="gap-0 py-0">
-        {list.isPending ? (
+        {invalidPeriod ? (
+          <p role="alert" className="p-4 text-sm text-danger">
+            {t("invalidPeriod")}
+          </p>
+        ) : list.isPending ? (
           <div className="grid gap-2 p-4" aria-busy>
             {[0, 1, 2, 3, 4].map((i) => (
               <Skeleton key={i} className="h-12" />

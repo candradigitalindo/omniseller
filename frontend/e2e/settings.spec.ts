@@ -57,13 +57,15 @@ test("invites a team member and exports all data", async ({ page, business }) =>
   await expect(page.getByRole("switch", { name: /Email untuk Laporan penjualan mingguan/ })).toBeChecked();
 });
 
-test("makes a custom role on the Growth trial, invites with it, and deletes it once nothing needs it", async ({
+test("on Starter creates and edits a custom role, invites with it, and deletes it once nothing needs it", async ({
   page,
   business,
 }) => {
   void business;
   const name = `Packer ${tag()}`;
   const email = `packer-${tag().toLowerCase()}@example.test`;
+  const down = await page.request.post("/v1/billing/subscription", { data: { planCode: "starter" } });
+  expect(down.status(), await down.text()).toBe(200);
   await page.goto("/tim?tab=peran");
   await page.getByRole("button", { name: "Buat peran" }).click();
   const dialog = page.getByRole("dialog", { name: "Buat peran" });
@@ -78,6 +80,14 @@ test("makes a custom role on the Growth trial, invites with it, and deletes it o
   await expect(custom.getByText(name)).toBeVisible();
   await expect(custom.getByText("8 izin · belum ada pemegang")).toBeVisible();
   await expect(page.getByRole("columnheader", { name })).toBeVisible();
+
+  await page.getByRole("button", { name: `Ubah peran ${name}` }).click();
+  const edit = page.getByRole("dialog", { name: `Ubah peran ${name}` });
+  await edit.getByRole("searchbox", { name: "Cari izin" }).fill("Terima pesanan");
+  await edit.getByRole("checkbox", { name: "Terima pesanan" }).check();
+  await edit.getByLabel("Keterangan (opsional)").fill("Tim toko pada paket Starter");
+  await edit.getByRole("button", { name: "Simpan", exact: true }).click();
+  await expect(custom.getByText("Tim toko pada paket Starter")).toBeVisible();
 
   await page.getByRole("button", { name: "Undang anggota" }).click();
   const invite = page.getByRole("dialog", { name: "Undang anggota" });

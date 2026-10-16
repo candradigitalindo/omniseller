@@ -10,11 +10,12 @@ import type * as React from "react";
  * `lg` 48 px on phones and in the warehouse.
  */
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-transparent text-[15px] font-semibold whitespace-nowrap transition-colors duration-150 outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-5",
+  "group/button inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-transparent text-[15px] font-semibold whitespace-nowrap transition-colors duration-150 active:scale-[0.98] motion-reduce:transform-none outline-none select-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-5",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary-700",
+        default:
+          "bg-primary text-primary-foreground shadow-sm shadow-primary/15 hover:bg-primary-700 hover:shadow-md hover:shadow-primary/15",
         secondary: "border-border-strong bg-surface text-text-900 hover:bg-surface-2",
         outline: "border-border-strong bg-surface text-text-900 hover:bg-surface-2",
         ghost: "text-text-700 hover:bg-surface-2 hover:text-text-900 aria-expanded:bg-surface-2",
@@ -43,6 +44,7 @@ function Button({
   size = "default",
   asChild = false,
   loading = false,
+  loadingLabel,
   disabled,
   children,
   ...props
@@ -51,6 +53,7 @@ function Button({
     asChild?: boolean;
     /** Shows a spinner in place of the icon, keeps the text, and disables the button (8.1). */
     loading?: boolean;
+    loadingLabel?: string;
   }) {
   const Comp = asChild ? Slot.Root : "button";
 
@@ -67,7 +70,7 @@ function Button({
       {loading && !asChild ? (
         <>
           <Loader2 className="animate-spin" aria-hidden />
-          {children}
+          {loadingLabel ?? children}
         </>
       ) : (
         children

@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { type ReactNode, useEffect, useState } from "react";
+import { RequestActivity } from "@/components/common/loading-state";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { handleSessionEnded } from "@/lib/api/client";
@@ -48,6 +49,7 @@ export function Providers({ children }: { children: ReactNode }) {
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
         <TooltipProvider delayDuration={300}>
           {children}
+          <RequestActivity />
           <Toaster position="bottom-right" />
         </TooltipProvider>
       </ThemeProvider>

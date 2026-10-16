@@ -172,7 +172,7 @@ const rolePermissions = z
   .min(1, "Pilih minimal satu izin.")
   .describe("kode izin; semuanya harus dimiliki pengguna yang membuat atau mengubah peran");
 
-/** A custom role (backend doc 8.33), from plan Growth on. */
+/** A custom role (backend doc 8.33), available on every plan. */
 export class CreateRoleDto extends createZodDto(
   z.object({ name: roleName, description: roleDescription, permissions: rolePermissions }),
 ) {}

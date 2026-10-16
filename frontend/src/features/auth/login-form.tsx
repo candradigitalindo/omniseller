@@ -97,11 +97,12 @@ export function LoginForm() {
   return (
     <div className="grid gap-6">
       <div className="grid gap-1.5">
+        <p className="mb-1 text-[11px] font-semibold tracking-[0.16em] text-primary">{t("loginEyebrow")}</p>
         <h1 className="text-2xl font-bold text-text-900">{t("loginTitle")}</h1>
         <p className="text-text-500">{t("loginSubtitle")}</p>
       </div>
       <form className="grid gap-4" noValidate onSubmit={form.handleSubmit((values) => login.mutate(values))}>
-        <FormBanner message={errors.root?.message} />
+        <FormBanner message={errors.root?.message} onDismiss={() => form.clearErrors("root")} />
         <Field id="email" label={t("email")} error={errors.email?.message}>
           <Input
             type="email"
@@ -134,7 +135,7 @@ export function LoginForm() {
             </RadioGroup>
           </fieldset>
         ) : null}
-        <Button type="submit" size="lg" className="w-full md:h-10 md:text-[15px]" loading={login.isPending}>
+        <Button type="submit" size="lg" className="w-full" loading={login.isPending} loadingLabel={t("loginProgress")}>
           {t("login")}
         </Button>
         <Link href="/lupa-sandi" className="justify-self-start text-sm font-medium text-primary hover:underline">

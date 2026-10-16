@@ -17,11 +17,7 @@ import {
 import { userCtx } from "../setup/factories";
 import { testHandles } from "../setup/handles";
 
-/**
- * Custom roles (PRD FR-USR-01 and 14; backend doc 8.33): made from plan Growth on with permissions the maker
- * holds, felt by their holders on the next request, deleted once nobody needs them. After a move down they
- * keep working for whoever holds them, but cannot be made, changed, or handed to someone new.
- */
+/** Custom roles on every plan, live permission changes, delegation limits, and tenant isolation. */
 const h = testHandles();
 let app: INestApplication;
 let worker: Awaited<ReturnType<typeof startWorker>>;
@@ -69,8 +65,7 @@ async function addMember(owner: Client, tenantId: string, roleId: string, email 
 describe("custom roles (PRD FR-USR-01, backend doc 8.33)", () => {
   it("makes a role from chosen permissions, and its holders get every change on their next request", async () => {
     const { c, me } = await signup(app);
-    // a new business is on the Growth trial, which has custom roles
-    expect(me.plan).toEqual({ code: "growth", name: "Growth", features: expect.arrayContaining(["custom_roles"]) });
+    expect(me.plan?.code).toBe("growth");
 
     const made = await c.post("/v1/roles", {
       name: "  Packer Malam ",
@@ -168,43 +163,63 @@ describe("custom roles (PRD FR-USR-01, backend doc 8.33)", () => {
     expect((await roles(c)).every((r) => r.isSystem)).toBe(true);
   });
 
-  it("on Starter: none made, changed, or handed out, while holders keep theirs and roles can still go", async () => {
+  it("on Starter: creates, updates, assigns, invites, and deletes roles while keeping the users quota", async () => {
     const { c, me } = await signup(app);
     const role = (
-      await c.post("/v1/roles", { name: "Admin Stok", permissions: ["inventory:read", "inventory:adjust"] })
+      await c.post("/v1/roles", {
+        name: "Admin Stok",
+        permissions: ["inventory:read", "inventory:adjust"],
+      })
     ).body as RoleBody;
     const { member, me: m } = await addMember(c, me.tenant.id, role.id);
-    const { me: other } = await addMember(c, me.tenant.id, await builtIn(c, "Viewer"));
-    // the trial ends early on Starter (backend doc 8.32)
     await worker.runOutbox(me.tenant.id);
     const down = await c.post("/v1/billing/subscription", { planCode: "starter" });
     expect(down.status, JSON.stringify(down.body)).toBe(200);
     expect((await c.get("/v1/me")).body.plan).toEqual({ code: "starter", name: "Starter", features: [] });
 
-    const refused = await c.post("/v1/roles", { name: "Baru", permissions: ["order:read"] });
-    expect(refused.status).toBe(422);
-    expect(refused.body).toMatchObject({
-      code: "billing.feature_unavailable",
-      feature: "custom_roles",
-      plan: "Starter",
-      requiredPlan: "Growth",
-      detail:
-        "Peran kustom tidak termasuk paket Starter. Tersedia mulai paket Growth; naik paket di Langganan & Tagihan.",
-    });
-    const unavailable = "billing.feature_unavailable";
-    expect((await c.patch(`/v1/roles/${role.id}`, { name: "Ubah" })).body.code).toBe(unavailable);
-    // not handed to anyone new: invited, or given to someone who does not hold it
-    expect((await c.post("/v1/invitations", { email: uniqueEmail("x"), roleId: role.id })).body.code).toBe(unavailable);
-    expect((await c.put(`/v1/users/${other.user.id}/roles`, { roleIds: [role.id] })).body.code).toBe(unavailable);
-    // who holds it keeps it, also when their other roles change
-    const kept = await c.put(`/v1/users/${m.user.id}/roles`, { roleIds: [role.id, await builtIn(c, "Viewer")] });
-    expect(kept.status, JSON.stringify(kept.body)).toBe(200);
-    expect((await member.get("/v1/me")).body.permissions).toContain("inventory:adjust");
-    // built-in roles are not a plan feature
-    expect((await c.put(`/v1/users/${other.user.id}/roles`, { roleIds: [await builtIn(c, "CS")] })).status).toBe(200);
-    // and it can still be deleted once nobody holds it
-    expect((await c.put(`/v1/users/${m.user.id}/roles`, { roleIds: [await builtIn(c, "Viewer")] })).status).toBe(200);
+    const changed = await c.patch(`/v1/roles/${role.id}`, { name: "Tim Stok", permissions: ["inventory:read"] });
+    expect(changed.status, JSON.stringify(changed.body)).toBe(200);
+    expect((await member.get("/v1/me")).body.permissions).toEqual(["inventory:read"]);
+    expect((await member.post("/v1/roles", { name: "Ditolak", permissions: ["inventory:read"] })).status).toBe(403);
+    const made = await c.post("/v1/roles", { name: "Kasir", permissions: ["order:read"] });
+    expect(made.status, JSON.stringify(made.body)).toBe(201);
+    const newRole = made.body as RoleBody;
+    expect((await c.put(`/v1/users/${m.user.id}/roles`, { roleIds: [newRole.id] })).status).toBe(200);
+    expect((await member.get("/v1/me")).body.permissions).toEqual(["order:read"]);
     expect((await c.delete(`/v1/roles/${role.id}`)).status).toBe(204);
+
+    // Custom roles are core; the Starter user-seat quota still applies.
+    const full = await c.post("/v1/invitations", { email: uniqueEmail("penuh"), roleId: newRole.id });
+    expect([full.status, full.body.code]).toEqual([422, "billing.limit_reached"]);
+    expect((await c.patch(`/v1/users/${m.user.id}`, { status: "disabled" })).status).toBe(200);
+    const invited = await c.post("/v1/invitations", { email: uniqueEmail("kasir"), roleId: newRole.id });
+    expect(invited.status, JSON.stringify(invited.body)).toBe(201);
+    expect((await c.put(`/v1/users/${m.user.id}/roles`, { roleIds: [await builtIn(c, "Viewer")] })).status).toBe(200);
+    expect((await c.delete(`/v1/roles/${newRole.id}`)).body).toMatchObject({ code: "role.in_use", invitations: 1 });
+    expect((await c.delete(`/v1/invitations/${invited.body.id}`)).status).toBe(204);
+    expect((await c.delete(`/v1/roles/${newRole.id}`)).status).toBe(204);
+  });
+
+  it("keeps roles private to each tenant, including equal names and cross-tenant mutations", async () => {
+    const { c: a, me: ma } = await signup(app);
+    const { c: b } = await signup(app);
+    for (const c of [a, b]) {
+      await worker.runOutbox((await c.get("/v1/me")).body.tenant.id);
+      expect((await c.post("/v1/billing/subscription", { planCode: "starter" })).status).toBe(200);
+    }
+    const ra = await a.post("/v1/roles", { name: "Tim Operasional", permissions: ["order:read"] });
+    const rb = await b.post("/v1/roles", { name: "Tim Operasional", permissions: ["inventory:read"] });
+    expect([ra.status, rb.status]).toEqual([201, 201]);
+    expect((await roles(a)).map((r) => r.id)).not.toContain(rb.body.id);
+    expect((await roles(b)).map((r) => r.id)).not.toContain(ra.body.id);
+    expect((await b.patch(`/v1/roles/${ra.body.id}`, { name: "Dibajak" })).status).toBe(404);
+    expect((await b.delete(`/v1/roles/${ra.body.id}`)).status).toBe(404);
+    expect((await a.put(`/v1/users/${ma.user.id}/roles`, { roleIds: [rb.body.id] })).status).toBe(422);
+    expect((await a.post("/v1/invitations", { email: uniqueEmail("lintas"), roleId: rb.body.id })).status).toBe(422);
+    expect((await a.patch(`/v1/roles/${ra.body.id}`, { name: "Tim Toko A" })).status).toBe(200);
+    expect((await roles(b)).find((r) => r.id === rb.body.id)?.name).toBe("Tim Operasional");
+    expect((await a.delete(`/v1/roles/${ra.body.id}`)).status).toBe(204);
+    expect((await roles(b)).some((r) => r.id === rb.body.id)).toBe(true);
   });
 
   it("never gives what the giver lacks", async () => {

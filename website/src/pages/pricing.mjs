@@ -54,7 +54,7 @@ export default {
         <h2 id="paket-${p.code}">${p.name}</h2>
         <p class="muted">${p.audience}</p>
         <p class="price">${rupiah(p.priceMonthly)}${p.priceMonthly > 0 ? html`<span> per bulan</span>` : ""}</p>
-        <ul class="ticks">${limitLines(p.limits).map((l) => html`<li>${l}</li>`)}<li>Semua fitur inti</li>${p.extras.map(
+        <ul class="ticks">${limitLines(p.limits).map((l) => html`<li>${l}</li>`)}<li>Semua fitur inti</li><li>Peran kustom dan pengaturan izin</li>${p.extras.map(
           (e) => html`<li>${e}</li>`,
         )}</ul>
         <p class="support"><strong>Dukungan:</strong> ${p.support}</p>

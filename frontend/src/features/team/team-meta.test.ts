@@ -101,17 +101,11 @@ describe("team rules", () => {
     expect(roleProblems({ name: ` ${"x".repeat(40)} `, permissions: ["order:read"] })).toEqual({});
   });
 
-  it("gives a custom role only on a plan that has them, unless the user already holds it", () => {
+  it("checks delegation by permissions for built-in and custom roles on any plan", () => {
     const custom = { ...role("Packer", ["shipment:pack"]), isSystem: false };
     const mine = ["shipment:pack", "order:read"];
-    const none = new Set<string>();
-    expect(roleBlock(custom, { mine, customAllowed: true, held: none })).toBeNull();
-    expect(roleBlock(custom, { mine, customAllowed: false, held: none })).toBe("plan");
-    expect(roleBlock(custom, { mine, customAllowed: false, held: new Set(["Packer"]) })).toBeNull();
-    expect(roleBlock(role("Gudang", ["order:read"]), { mine, customAllowed: false, held: none })).toBeNull();
-    // missing permissions come first
-    expect(roleBlock({ ...custom, permissions: ["finance:read"] }, { mine, customAllowed: false, held: none })).toBe(
-      "permissions",
-    );
+    expect(roleBlock(custom, mine)).toBeNull();
+    expect(roleBlock(role("Gudang", ["order:read"]), mine)).toBeNull();
+    expect(roleBlock({ permissions: ["finance:read"] }, mine)).toBe("permissions");
   });
 });

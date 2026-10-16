@@ -11,6 +11,7 @@ test("keeps automatic order rules: made in the dialog, switched off, reordered, 
   await call(page, "POST", "/v1/print-agents", { name: "PC Packing" });
 
   await page.goto("/");
+  await page.getByRole("button", { name: "Penjualan", exact: true }).click();
   await page.getByRole("link", { name: "Aturan Otomatis" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Aturan Otomatis" })).toBeVisible();
   await expect(page.getByText("Belum ada aturan")).toBeVisible();

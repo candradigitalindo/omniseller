@@ -240,7 +240,7 @@ describe("Aturan Otomatis (L55)", () => {
     await user.click(within(dialog).getByLabelText("Terima dan atur drop-off"));
     await user.click(within(dialog).getByLabelText("Pada jam tertentu"));
     const time = within(dialog).getByLabelText("Jam (WIB)");
-    expect(time).toHaveValue("13:00");
+    expect(time).toHaveValue("13.00");
     fireEvent.change(time, { target: { value: "16:30" } });
     await user.click(within(dialog).getByRole("combobox", { name: "Agen cetak" }));
     await user.click(await screen.findByRole("option", { name: "PC Packing · terhubung" }));

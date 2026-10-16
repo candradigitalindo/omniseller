@@ -7,7 +7,6 @@ import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
 import { customRoleNotFound, privilegeEscalation, roleInUse, roleNameTaken, systemRole } from "./identity.errors";
 import { IdentityRepository, type RoleRow } from "./identity.repository";
-import { TenantsService } from "./tenants.service";
 
 export interface RoleInput {
   name: string;
@@ -18,18 +17,15 @@ export interface RoleInput {
 export type RolePatch = Partial<RoleInput>;
 
 /**
- * Roles (PRD FR-USR-01, backend doc 8.33): the built-in ones every business gets at signup, which never
- * change, and custom roles a business makes from plan Growth on (`custom_roles`). Nobody gives what they
- * do not hold: a custom role's permissions, before and after a change, must all be the caller's. After a
- * move down, custom roles keep working for whoever holds them; they cannot be made, changed, or given to
- * someone new, and can still be deleted.
+ * Roles (PRD FR-USR-01, backend doc 8.33): immutable built-in roles and custom roles available to every
+ * tenant on every plan. Nobody gives permissions they do not hold: a custom role's permissions, before
+ * and after a change, must all be the caller's. Roles and their assignments stay inside the tenant.
  */
 @Injectable()
 export class RolesService {
   constructor(
     @Inject(DB_TENANT) private readonly db: DbHandle,
     @Inject(IdentityRepository) private readonly repo: IdentityRepository,
-    @Inject(TenantsService) private readonly tenants: TenantsService,
   ) {}
 
   async list(ctx: RequestContext): Promise<RoleRow[]> {
@@ -42,7 +38,6 @@ export class RolesService {
 
   async create(ctx: RequestContext, input: RoleInput): Promise<RoleRow> {
     return withTenantTx(this.db, ctx, async (tx) => {
-      await this.tenants.requireFeatureIn(tx, ctx, "custom_roles");
       const permissions = [...new Set(input.permissions)];
       if (permissions.some((p) => !ctx.permissions.has(p))) throw privilegeEscalation();
       const name = input.name.trim();
@@ -61,7 +56,6 @@ export class RolesService {
   async update(ctx: RequestContext, id: string, patch: RolePatch): Promise<RoleRow> {
     return withTenantTx(this.db, ctx, async (tx) => {
       const current = await this.customRoleIn(tx, id);
-      await this.tenants.requireFeatureIn(tx, ctx, "custom_roles");
       const permissions = patch.permissions ? [...new Set(patch.permissions)] : current.permissions;
       // what the role gives now and what it would give: the caller must hold both
       if ([...current.permissions, ...permissions].some((p) => !ctx.permissions.has(p))) throw privilegeEscalation();

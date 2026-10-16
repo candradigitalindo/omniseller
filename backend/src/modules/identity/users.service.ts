@@ -20,7 +20,6 @@ import {
   wrongCurrentPassword,
 } from "./identity.errors";
 import { IdentityRepository, type Principal, type UserView } from "./identity.repository";
-import { TenantsService } from "./tenants.service";
 
 /** Failed logins before the account is locked, and for how long (PRD 8.4, 12.3). */
 export const MAX_FAILED_LOGINS = 5;
@@ -32,7 +31,6 @@ export class UsersService {
     @Inject(DB_TENANT) private readonly db: DbHandle,
     @Inject(IdentityRepository) private readonly repo: IdentityRepository,
     @Inject(SESSIONS) private readonly sessions: SessionStore,
-    @Inject(TenantsService) private readonly tenants: TenantsService,
   ) {}
 
   /** Identity of a signed-in user, loaded on every authenticated request by the auth guard. */
@@ -125,10 +123,6 @@ export class UsersService {
       const roles = await this.repo.listRoles(tx, unique);
       if (roles.length !== unique.length) throw roleNotFound();
       if (roles.some((r) => r.permissions.some((p) => !ctx.permissions.has(p)))) throw privilegeEscalation();
-      // a custom role someone already holds stays theirs after a move down; giving one needs the plan
-      const held = new Set(await this.repo.userRoleIds(tx, id));
-      if (roles.some((r) => !r.isSystem && !held.has(r.id)))
-        await this.tenants.requireFeatureIn(tx, ctx, "custom_roles");
       const keepsOwner = roles.some((r) => r.isSystem && r.name === "Owner");
       if (!keepsOwner && (await this.isOwner(tx, id)) && (await this.repo.countActiveOwners(tx, id)) === 0) {
         throw lastOwner();

@@ -207,6 +207,7 @@ function RuleForm({ rule, onClose, onSaved }: { rule: OrderRule | null; onClose:
         <div className="grid grid-cols-2 gap-3">
           <Field id="rule-min" label={t("minTotal")} error={error("minTotal")}>
             <Input
+              currency
               inputMode="numeric"
               placeholder="Rp"
               value={draft.minTotal}
@@ -216,6 +217,7 @@ function RuleForm({ rule, onClose, onSaved }: { rule: OrderRule | null; onClose:
           </Field>
           <Field id="rule-max" label={t("maxTotal")} error={error("maxTotal")}>
             <Input
+              currency
               inputMode="numeric"
               placeholder="Rp"
               value={draft.maxTotal}

@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
+import { LoadingState } from "@/components/common/loading-state";
 import { Button } from "@/components/ui/button";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,6 +28,7 @@ function ShellSkeleton() {
       <div className="flex-1">
         <div className="h-14 border-b bg-surface" />
         <div className="grid gap-4 p-4 md:p-6">
+          <LoadingState />
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-32 w-full" />
         </div>

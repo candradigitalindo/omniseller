@@ -114,7 +114,13 @@ export function TwoFactorStep({
         <div id="two-factor-error">
           <FormBanner message={error} />
         </div>
-        <Button type="submit" size="lg" className="w-full md:h-10 md:text-[15px]" loading={verify.isPending}>
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full md:h-10 md:text-[15px]"
+          loading={verify.isPending}
+          loadingLabel={t("verifyProgress")}
+        >
           {t("verify")}
         </Button>
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">

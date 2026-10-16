@@ -488,6 +488,7 @@ function VariantRow({
   };
   const cell = (key: keyof Omit<VariantDraft, "status">, label: string, extra = "") => (
     <Input
+      currency={key === "basePrice" || key === "costPrice"}
       aria-label={`${label} ${v.sku}`}
       value={d[key]}
       disabled={!editable}
@@ -614,6 +615,7 @@ function AddVariantDialog({
           <div className={seesCost ? "grid grid-cols-3 gap-2" : "grid grid-cols-2 gap-2"}>
             <Field id="nv-price" label={t("price")} error={errors.basePrice}>
               <Input
+                currency
                 inputMode="numeric"
                 className="tabular"
                 {...input("basePrice")}
@@ -623,6 +625,7 @@ function AddVariantDialog({
             {seesCost ? (
               <Field id="nv-cost" label={t("cost")} error={errors.costPrice}>
                 <Input
+                  currency
                   inputMode="numeric"
                   className="tabular"
                   {...input("costPrice")}

@@ -10,6 +10,8 @@ const CHANNELS: Record<string, { label: string; initial: string; className: stri
   lazada: { label: "Lazada", initial: "L", className: "bg-[#0f146d] text-white" },
   blibli: { label: "Blibli", initial: "B", className: "bg-[#0095da] text-white" },
   manual: { label: "Penjualan langsung", initial: "M", className: "bg-text-500 text-surface" },
+  shopify: { label: "Shopify", initial: "S", className: "bg-text-500 text-surface" },
+  woocommerce: { label: "WooCommerce", initial: "W", className: "bg-text-500 text-surface" },
 };
 
 export function channelLabel(channel: string): string {

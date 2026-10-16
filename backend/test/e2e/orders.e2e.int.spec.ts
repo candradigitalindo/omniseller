@@ -209,6 +209,85 @@ async function stockOf(c: Client, sku: string) {
 }
 
 describe("orders from Shopee (FR-ORD-01, 02, 05, 06, 14, FR-STK-03)", () => {
+  it("combines courier, channel, date, store, status, warehouse, and tag filters across cursor pages (FR-ORD-03)", async () => {
+    const { c, tenantId, warehouseId } = await business();
+    const v = await product(c, "KAOS", ["KAOS-M"]);
+    await setStock(c, warehouseId, { [v["KAOS-M"]!]: 30 });
+    const from = Math.floor(Date.now() / 86_400_000) * 86_400_000 - 3 * 86_400_000;
+    const to = from + 86_400_000;
+    const make = (at: number, extra: Partial<MockShopeeOrder> = {}) =>
+      shopeeOrder(997, [{ model: 9971, sku: "KAOS-M", qty: 1 }], {
+        create_time: at / 1000,
+        shipping_carrier: "J&T Express",
+        buyer_user_id: 800_000 + snSeq,
+        buyer_username: `buyer-${snSeq}`,
+        ...extra,
+      });
+    const matches = [make(from, { shipping_carrier: " J&T Express " }), make(to - 1000)];
+    const snapshots = [
+      ...matches,
+      make(from - 1000),
+      make(to),
+      make(from, { shipping_carrier: "JNE" }),
+      make(from, { order_status: "CANCELLED" }),
+    ];
+    const { storeId } = await connectShopee(c, tenantId, [kaosItem(997)], snapshots);
+    expect((await c.patch(`/v1/stores/${storeId}`, { syncMode: "live" })).status).toBe(200);
+    await drain(tenantId);
+    const manual = await c.post("/v1/orders/manual", {
+      warehouseId,
+      buyer: { name: "Pembeli" },
+      items: [{ variantId: v["KAOS-M"], qty: 1 }],
+      paymentMethod: "cod",
+      shippingProvider: "J&T Express",
+      orderedAt: new Date(from).toISOString(),
+    });
+    expect(manual.status).toBe(201);
+    const all = (await c.get(`/v1/orders?storeId=${storeId}`)).body.items as { id: string; externalOrderId: string }[];
+    const ids = all.filter((o) => matches.some((m) => m.order_sn === o.externalOrderId)).map((o) => o.id);
+    expect(ids).toHaveLength(2);
+    const tag = await c.post("/v1/tags", { name: "Prioritas", color: "#E34948" });
+    expect(tag.status).toBe(201);
+    expect((await c.post("/v1/orders/tags", { orderIds: ids, add: [tag.body.id], remove: [] })).status).toBe(200);
+    const query = new URLSearchParams({
+      storeId,
+      channel: "shopee",
+      courier: "J&T Express",
+      status: "new",
+      warehouseId,
+      from: new Date(from).toISOString(),
+      to: new Date(to).toISOString(),
+      q: "KAOS-M",
+    });
+    // Every exclusion must work on its own before narrowing the same result by tag.
+    const combined = await c.get(`/v1/orders?${query}`);
+    expect(combined.status).toBe(200);
+    expect(combined.body.items.map((o: { id: string }) => o.id).sort()).toEqual([...ids].sort());
+    query.set("tagId", tag.body.id);
+    query.set("limit", "1");
+    for (const sort of ["newest", "ship_by"]) {
+      query.set("sort", sort);
+      const first = await c.get(`/v1/orders?${query}`);
+      expect(first.status).toBe(200);
+      expect(first.body.items).toHaveLength(1);
+      expect(first.body.next_cursor).toEqual(expect.any(String));
+      const second = await c.get(`/v1/orders?${query}&cursor=${first.body.next_cursor}`);
+      expect(second.status).toBe(200);
+      expect(second.body.next_cursor).toBeNull();
+      expect([...first.body.items, ...second.body.items].map((o: { id: string }) => o.id).sort()).toEqual(
+        [...ids].sort(),
+      );
+    }
+    expect(
+      (await c.get("/v1/orders?channel=manual&courier=J%26T+Express")).body.items.map((o: { id: string }) => o.id),
+    ).toEqual([manual.body.id]);
+    expect((await c.get("/v1/orders?courier=J%26T")).body.items).toEqual([]);
+    expect((await c.get("/v1/orders?courier=%20")).status).toBe(422);
+    expect((await c.get(`/v1/orders?courier=${"a".repeat(101)}`)).status).toBe(422);
+    const stranger = await business();
+    expect((await stranger.c.get("/v1/orders?courier=J%26T+Express")).body.items).toEqual([]);
+  });
+
   it("takes an order once however often the webhook comes, reserves it, and pushes the same stock everywhere", async () => {
     const { c, tenantId, warehouseId } = await business();
     const v = await product(c, "KAOS", ["KAOS-M", "KAOS-L"]);

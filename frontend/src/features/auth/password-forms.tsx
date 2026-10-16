@@ -51,7 +51,7 @@ export function ForgotPasswordForm() {
         <Done message={t("forgotSent")} />
       ) : (
         <form className="grid gap-4" noValidate onSubmit={form.handleSubmit((values) => request.mutate(values))}>
-          <FormBanner message={errors.root?.message} />
+          <FormBanner message={errors.root?.message} onDismiss={() => form.clearErrors("root")} />
           <Field id="email" label={t("email")} error={errors.email?.message}>
             <Input
               type="email"
@@ -61,7 +61,13 @@ export function ForgotPasswordForm() {
               {...form.register("email")}
             />
           </Field>
-          <Button type="submit" size="lg" className="w-full md:h-10 md:text-[15px]" loading={request.isPending}>
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full md:h-10 md:text-[15px]"
+            loading={request.isPending}
+            loadingLabel={t("resetProgress")}
+          >
             {t("sendLink")}
           </Button>
           <Link href="/masuk" className="justify-self-start text-sm font-medium text-primary hover:underline">
@@ -104,7 +110,7 @@ export function ResetPasswordForm() {
         <Done message={t("resetDone")} />
       ) : (
         <form className="grid gap-4" noValidate onSubmit={form.handleSubmit((values) => reset.mutate(values))}>
-          <FormBanner message={errors.root?.message} />
+          <FormBanner message={errors.root?.message} onDismiss={() => form.clearErrors("root")} />
           <Field id="password" label={t("newPassword")} hint={t("passwordHint")} error={errors.password?.message}>
             <Input
               type="password"
@@ -121,7 +127,13 @@ export function ResetPasswordForm() {
               {...form.register("confirm")}
             />
           </Field>
-          <Button type="submit" size="lg" className="w-full md:h-10 md:text-[15px]" loading={reset.isPending}>
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full md:h-10 md:text-[15px]"
+            loading={reset.isPending}
+            loadingLabel={t("savePasswordProgress")}
+          >
             {t("saveNewPassword")}
           </Button>
         </form>

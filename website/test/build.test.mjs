@@ -166,6 +166,13 @@ test("the pricing page states each plan's price, quotas, trial, and grace days",
   }
 });
 
+test("custom roles are core capabilities in every plan, including Starter", () => {
+  const { out } = built(filled);
+  const plans = [...read(out, "harga/index.html").matchAll(/<article class="card plan[\s\S]*?<\/article>/g)];
+  assert.equal(plans.length, 3);
+  for (const [plan] of plans) assert.ok(plan.includes("Peran kustom dan pengaturan izin"));
+});
+
 test("names the channel Tokopedia &amp; Shop and never TikTok", () => {
   const { out } = built(filled);
   for (const { path, html } of pages(out)) assert.doesNotMatch(html, /tiktok/i, path);

@@ -79,7 +79,6 @@ export class InvitationsService {
       const [targetRole] = await this.repo.listRoles(tx, [input.roleId]);
       if (!targetRole) throw roleNotFound();
       if (targetRole.permissions.some((p) => !ctx.permissions.has(p))) throw privilegeEscalation();
-      if (!targetRole.isSystem) await this.tenants.requireFeatureIn(tx, ctx, "custom_roles");
       if (await this.repo.userIdByEmail(tx, email)) throw emailTaken();
       if (await this.repo.openInvitationByEmail(tx, email)) throw invitationAlreadyOpen();
       // a seat is taken when invited, so the plan's users quota counts open invitations (backend doc 8.32)

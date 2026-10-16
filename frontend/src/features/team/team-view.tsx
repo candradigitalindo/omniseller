@@ -2,7 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, MailPlus, MoreHorizontal, Pencil, Plus, ShieldCheck, Trash2, UsersRound } from "lucide-react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -38,7 +37,7 @@ import { useUrlParams } from "@/hooks/use-url-params";
 import { api, unwrap } from "@/lib/api/client";
 import { ApiError, errorMessage } from "@/lib/api/errors";
 import { formatDateTime, formatRelative } from "@/lib/format";
-import { type Permission, useCan, useHasFeature, useSession, useTimeZone } from "@/lib/session";
+import { meQueryKey, type Permission, useCan, useSession, useTimeZone } from "@/lib/session";
 import {
   copiedPermissions,
   emailProblem,
@@ -81,7 +80,7 @@ function useWarehouses() {
 /**
  * L41 Tim dan Peran (DOKUMEN-UI-UX 14.8): who works in the business, with which roles and over which stores
  * and warehouses; invitations by email; what each role may do. Built-in roles are the same everywhere;
- * custom roles (FR-USR-01, backend doc 8.33) come with plans that have `custom_roles`.
+ * custom roles (FR-USR-01, backend doc 8.33) are available on every plan.
  */
 export function TeamView() {
   const t = useTranslations("team");
@@ -377,16 +376,16 @@ function RolesDialog({ user, onClose }: { user: User; onClose: () => void }) {
   const me = useSession();
   const roles = useRoles();
   const queryClient = useQueryClient();
-  const customAllowed = useHasFeature("custom_roles");
   const held = new Set(user.roles.map((r) => r.id));
   const [chosen, setChosen] = useState<ReadonlySet<string>>(held);
   const [problem, setProblem] = useState<string | null>(null);
-  const blockOf = (r: Role) => roleBlock(r, { mine: me.permissions, customAllowed, held });
+  const blockOf = (r: Role) => roleBlock(r, me.permissions);
   const save = useMutation({
     mutationFn: () =>
       unwrap(api.PUT("/v1/users/{id}/roles", { params: { path: { id: user.id } }, body: { roleIds: [...chosen] } })),
     onSuccess: () => {
       toast.success(t("rolesSaved", { name: user.name }));
+      void queryClient.invalidateQueries({ queryKey: meQueryKey });
       void queryClient.invalidateQueries({ queryKey: ["users"] });
       onClose();
     },
@@ -427,11 +426,7 @@ function RolesDialog({ user, onClose }: { user: User; onClose: () => void }) {
                   {r.isSystem ? null : <StatusPill tone="info">{t("customPill")}</StatusPill>}
                 </span>
                 <span className="text-[13px] text-text-500">
-                  {blockOf(r) === "permissions"
-                    ? t("roleNotGrantable")
-                    : blockOf(r) === "plan"
-                      ? t("customNeedsPlan", { plan: me.plan.name })
-                      : (r.description ?? "")}
+                  {blockOf(r) === "permissions" ? t("roleNotGrantable") : (r.description ?? "")}
                 </span>
               </span>
             </Label>
@@ -573,11 +568,7 @@ function InviteDialog({ onClose, onDone }: { onClose: () => void; onDone: () => 
   const me = useSession();
   const roles = useRoles();
   const queryClient = useQueryClient();
-  const customAllowed = useHasFeature("custom_roles");
-  // a custom role goes to someone new only on a plan that has them
-  const offered = orderedRoles(grantableRoles(roles.data?.items ?? [], me.permissions)).filter(
-    (r) => r.isSystem || customAllowed,
-  );
+  const offered = orderedRoles(grantableRoles(roles.data?.items ?? [], me.permissions));
   const [email, setEmail] = useState("");
   const [roleId, setRoleId] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -743,8 +734,6 @@ function Invitations({ onInvite }: { onInvite: () => void }) {
 function RolesTab() {
   const t = useTranslations("team");
   const me = useSession();
-  const can = useCan();
-  const customAllowed = useHasFeature("custom_roles");
   const roles = useRoles();
   const permissions = usePermissions();
   const [editing, setEditing] = useState<Role | "new" | null>(null);
@@ -769,25 +758,13 @@ function RolesTab() {
       <Card>
         <CardHeader>
           <CardTitle>{t("customTitle")}</CardTitle>
-          <CardDescription>
-            {customAllowed ? t("customBody") : t("customLocked", { plan: me.plan.name })}
-            {!customAllowed && can("settings:billing") ? (
-              <>
-                {" "}
-                <Link href="/langganan" className="font-medium text-primary hover:underline">
-                  {t("seePlans")}
-                </Link>
-              </>
-            ) : null}
-          </CardDescription>
-          {customAllowed ? (
-            <CardAction>
-              <Button onClick={() => setEditing("new")}>
-                <Plus aria-hidden />
-                {t("newRole")}
-              </Button>
-            </CardAction>
-          ) : null}
+          <CardDescription>{t("customBody")}</CardDescription>
+          <CardAction>
+            <Button onClick={() => setEditing("new")}>
+              <Plus aria-hidden />
+              {t("newRole")}
+            </Button>
+          </CardAction>
         </CardHeader>
         <CardContent className="px-0">
           {custom.length === 0 ? (
@@ -808,17 +785,15 @@ function RolesTab() {
                   </div>
                   {manageable(r) ? (
                     <div className="flex gap-1">
-                      {customAllowed ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setEditing(r)}
-                          aria-label={t("editRoleFor", { name: r.name })}
-                        >
-                          <Pencil aria-hidden />
-                          {t("editRole")}
-                        </Button>
-                      ) : null}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditing(r)}
+                        aria-label={t("editRoleFor", { name: r.name })}
+                      >
+                        <Pencil aria-hidden />
+                        {t("editRole")}
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -881,6 +856,7 @@ function RoleEditor({
   const [name, setName] = useState(role?.name ?? "");
   const [description, setDescription] = useState(role?.description ?? "");
   const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set(role?.permissions ?? []));
+  const [search, setSearch] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const save = useMutation({
     mutationFn: () => {
@@ -896,6 +872,7 @@ function RoleEditor({
     onSuccess: (saved) => {
       toast.success(role ? t("roleSaved", { name: saved.name }) : t("roleCreated", { name: saved.name }));
       void queryClient.invalidateQueries({ queryKey: ["roles"] });
+      void queryClient.invalidateQueries({ queryKey: meQueryKey });
       // members show role names
       void queryClient.invalidateQueries({ queryKey: ["users"] });
       onClose();
@@ -906,7 +883,18 @@ function RoleEditor({
       else setErrors({ root: errorMessage(e) });
     },
   });
-  const groups = permissionMatrix(permissions, []);
+  const query = search.trim().toLocaleLowerCase("id-ID");
+  const groups = permissionMatrix(permissions, [])
+    .map((g) => ({
+      ...g,
+      rows: g.rows.filter((p) =>
+        [p.code, p.description ?? "", isKnownModule(g.module) ? t(`module_${g.module}`) : g.module]
+          .join(" ")
+          .toLocaleLowerCase("id-ID")
+          .includes(query),
+      ),
+    }))
+    .filter((g) => g.rows.length > 0);
   const others = roles.filter((r) => r.id !== role?.id);
   const toggle = (code: string, on: boolean) =>
     setChosen((x) => {
@@ -980,35 +968,50 @@ function RoleEditor({
             <p id="role-permissions-count" className="text-[13px] text-text-500">
               {t("permissionsChosen", { count: chosen.size })}
             </p>
-            {groups.map((g) => (
-              <fieldset key={g.module} className="grid gap-1.5">
-                <legend className="mb-1.5 text-[13px] font-semibold text-text-700">
-                  <ModuleName module={g.module} />
-                </legend>
-                {g.rows.map((p) => {
-                  const held = mine.has(p.code);
-                  return (
-                    <Label
-                      key={p.code}
-                      htmlFor={`perm-${p.code}`}
-                      className="flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2 font-normal has-[[data-disabled]]:cursor-not-allowed has-[[data-disabled]]:opacity-60"
-                    >
-                      <Checkbox
-                        id={`perm-${p.code}`}
-                        className="mt-0.5"
-                        checked={chosen.has(p.code)}
-                        disabled={!held}
-                        onCheckedChange={(on) => toggle(p.code, on === true)}
-                      />
-                      <span className="grid gap-0.5">
-                        <span className="text-sm text-text-900">{p.description ?? p.code}</span>
-                        {held ? null : <span className="text-[13px] text-text-500">{t("permissionNotHeld")}</span>}
-                      </span>
-                    </Label>
-                  );
-                })}
-              </fieldset>
-            ))}
+            <Field id="role-search" label={t("searchPermissions")}>
+              <Input
+                id="role-search"
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t("searchPermissionsPlaceholder")}
+              />
+            </Field>
+            <section
+              className="grid max-h-[32dvh] gap-3 overflow-y-auto overscroll-contain rounded-lg border p-2"
+              aria-label={t("permissionsLegend")}
+            >
+              {groups.length === 0 ? <p className="p-2 text-sm text-text-500">{t("noPermissionsFound")}</p> : null}
+              {groups.map((g) => (
+                <fieldset key={g.module} className="grid gap-1.5">
+                  <legend className="mb-1.5 text-[13px] font-semibold text-text-700">
+                    <ModuleName module={g.module} />
+                  </legend>
+                  {g.rows.map((p) => {
+                    const held = mine.has(p.code);
+                    return (
+                      <Label
+                        key={p.code}
+                        htmlFor={`perm-${p.code}`}
+                        className="flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2 font-normal has-[[data-disabled]]:cursor-not-allowed has-[[data-disabled]]:opacity-60"
+                      >
+                        <Checkbox
+                          id={`perm-${p.code}`}
+                          className="mt-0.5"
+                          checked={chosen.has(p.code)}
+                          disabled={!held}
+                          onCheckedChange={(on) => toggle(p.code, on === true)}
+                        />
+                        <span className="grid gap-0.5">
+                          <span className="text-sm text-text-900">{p.description ?? p.code}</span>
+                          {held ? null : <span className="text-[13px] text-text-500">{t("permissionNotHeld")}</span>}
+                        </span>
+                      </Label>
+                    );
+                  })}
+                </fieldset>
+              ))}
+            </section>
           </fieldset>
           {errors.permissions || errors.root ? (
             <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2.5 text-sm text-danger">

@@ -50,6 +50,7 @@ export interface OrderListFilter {
   warehouseScope: string[] | null;
   storeId?: string | undefined;
   channel?: string | undefined;
+  courier?: string | undefined;
   statuses?: OrderStatus[] | undefined;
   from?: Date | undefined;
   to?: Date | undefined;
@@ -505,6 +506,7 @@ export class OrdersRepository {
       f.warehouseScope ? inArray(o.warehouseId, f.warehouseScope.length ? f.warehouseScope : [""]) : undefined,
       f.storeId ? eq(o.storeId, f.storeId) : undefined,
       f.channel ? eq(o.channel, f.channel as OrderRow["channel"]) : undefined,
+      f.courier ? sql`btrim(${o.shippingProvider}) = ${f.courier}` : undefined,
       f.statuses?.length ? inArray(o.status, f.statuses) : undefined,
       f.from ? gte(o.orderedAt, f.from) : undefined,
       f.to ? lt(o.orderedAt, f.to) : undefined,

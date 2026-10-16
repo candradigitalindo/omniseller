@@ -19,7 +19,7 @@ Tenant (bisnis), pengguna, peran bawaan, cakupan toko dan gudang, serta undangan
 - `UsersService.namesIn(tx)`: nama semua pengguna, termasuk yang dinonaktifkan (kolom pelaku di ekspor data).
 - `UsersService.countSeatsIn(tx)`: pengguna yang tidak dinonaktifkan ditambah undangan terbuka, terhadap kuota pengguna paket; `billingContactIn(tx)`: pengguna aktif tertua yang memegang `settings:billing`, penerima tagihan Xendit.
 - `TenantsService.timezone(ctx)`, `TenantsService.profile(ctx)`: zona waktu bisnis (arti "hari ini" di dasbor) dan nama bisnis.
-- `RolesService.list | permissions(ctx)`; peran kustom (backend doc 8.33): `create | update | remove(ctx, ...)` dan `exportSheets` (`peran.csv`). Error: `role.not_found`, `role.system`, `role.name_taken`, `role.in_use`, `role.privilege_escalation`, `billing.feature_unavailable`.
+- `RolesService.list | permissions(ctx)`; peran kustom (backend doc 8.33): `create | update | remove(ctx, ...)` dan `exportSheets` (`peran.csv`). Error: `role.not_found`, `role.system`, `role.name_taken`, `role.in_use`, `role.privilege_escalation`.
 - `TenantsService.requireFeatureIn(tx, ctx, feature)`: menolak (422 `billing.feature_unavailable`) bila paket yang berlaku tidak punya fitur itu (`common/plan-features.ts`), dengan paket termurah yang punya; dipakai modul pemilik fitur di transaksi yang menulis.
 - `GET /v1/me` membawa `plan` (kode, nama, fitur) dari `loadPrincipal`, agar web app menyembunyikan yang tidak termasuk paket.
 - `InvitationsService.invite | resend | revoke | list(ctx, ...)`, `inspect(token)`, `accept(token, input)`, `send(ctx, invitationId)` (job). Error: `user.email_taken`, `invitation.already_open`, `invitation.not_found`, `invitation.invalid`, `billing.limit_reached` (undangan baru melebihi kuota pengguna paket: undangan terbuka ikut dihitung).
@@ -29,7 +29,7 @@ Tenant (bisnis), pengguna, peran bawaan, cakupan toko dan gudang, serta undangan
 ## Aturan
 - **Penutupan akun** (backend doc 8.36): `TenantsService.closureIn | markClosingIn | reopenIn | markPurgeRemindedIn` menulis kolom penutupan `tenant` untuk modul closure; perubahan status tenant diaudit (`audit_tenant`). `InvitationsService.revokeOpenIn` mencabut undangan terbuka, `UsersService.idsIn` dan `endSessions` mengakhiri sesi. Baris tenant tidak pernah dihapus: purge (modul retention) hanya mengganti nama dan slugnya.
 - Pengguna hanya bisa memberi peran (atau mengundang dengan peran) yang seluruh izinnya ia miliki sendiri. Membuat peran kustom butuh semua izinnya; mengubahnya butuh semua izin lama dan barunya; menghapusnya butuh semua izinnya.
-- Peran kustom (`is_system` false) dibuat, diubah, dan diberikan ke orang baru hanya di paket dengan fitur `custom_roles`; yang sudah memegangnya tetap memegangnya setelah turun paket, dan peran itu bisa dihapus di paket apa pun begitu tidak dipegang siapa pun dan tidak ditawarkan undangan terbuka. Peran bawaan tidak pernah berubah. Nama peran unik tanpa membedakan huruf (indeks `lower(name)`).
+- Peran kustom (`is_system` false) tersedia untuk semua tenant dan semua paket, termasuk Starter (ADR-043). Buat, baca, ubah, hapus, pemberian ke anggota, dan undangan tidak memeriksa fitur paket. Berlaku langsung untuk tenant lama maupun baru tanpa backfill role; akses tetap melalui `settings:user` dan `withTenantTx`. Peran hanya milik tenant pembuatnya. Nama unik tanpa membedakan huruf (indeks `lower(name)`), peran bawaan tidak berubah, dan penghapusan menolak peran dengan pemegang atau undangan terbuka. Kuota pengguna tetap berlaku.
 - Izin peran disimpan sebagai selisih (`setRolePermissions`): log audit `role_permission` hanya mencatat izin yang ditambah atau dicabut.
 - Tenant selalu punya minimal satu Owner aktif; pengguna tidak bisa menonaktifkan dirinya sendiri.
 - Menonaktifkan pengguna dan mengganti kata sandi mencabut sesi di Redis.
@@ -66,4 +66,4 @@ Pendaftaran dan penerimaan undangan ada di controller modul auth (`/v1/auth/sign
 
 ## Keputusan khusus modul
 - Controller hanya dimuat proses `api` (`IdentityHttpModule`); service dimuat `api` dan `worker` (`IdentityModule`).
-- Peran kustom (FR-USR-01 S) menyusul di Fase 3.
+- Peran kustom tersedia melalui CRUD tenant; izin dimuat ulang di setiap permintaan. Uji `test/e2e/custom-roles.e2e.int.spec.ts` mencakup CRUD Starter, undangan/kuota, perubahan izin langsung, delegasi, dan penolakan lintas tenant.

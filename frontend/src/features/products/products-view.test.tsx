@@ -47,10 +47,10 @@ describe("ProductsView", () => {
     await user.type(within(dialog).getByLabelText("SKU induk"), "KAOS");
     await user.type(within(dialog).getByLabelText("SKU varian"), "KAOS-HTM-L");
     await user.type(within(dialog).getByLabelText("Nama varian"), "Hitam, L");
-    await user.type(within(dialog).getByLabelText("Harga (Rp)"), "65.000");
+    await user.type(within(dialog).getByLabelText("Harga (Rp)"), "65,50");
     await user.type(within(dialog).getByLabelText("Berat (g)"), "200");
     await user.click(within(dialog).getByRole("button", { name: "Simpan produk" }));
-    expect(await within(dialog).findByText("Isi angka rupiah tanpa titik atau koma.")).toBeInTheDocument();
+    expect(await within(dialog).findByText("Masukkan nominal rupiah bulat tanpa desimal.")).toBeInTheDocument();
     expect(calls.some((c) => c.method === "POST")).toBe(false);
 
     const price = within(dialog).getByLabelText("Harga (Rp)");

@@ -86,7 +86,7 @@ describe("Profil Bisnis & Legalitas", () => {
     expect(
       await screen.findByText(/NIB sedang diurus sejak 20 Apr 2026\. Batasnya 20 Okt 2026 \(13 hari lagi\)/),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("Mulai diurus sejak")).toHaveValue("2026-04-20");
+    expect(screen.getByLabelText("Mulai diurus sejak")).toHaveValue("20/04/2026");
     unmount();
     mockApi({
       "GET /v1/business-profile": () => ({

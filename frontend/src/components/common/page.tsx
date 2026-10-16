@@ -125,8 +125,14 @@ export function EmptyState({
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
   const t = useTranslations("common");
   return (
-    <div role="alert" className="grid justify-items-center gap-2 px-4 py-10 text-center">
-      <AlertOctagon className="size-8 text-danger" aria-hidden />
+    <div
+      role="alert"
+      className="grid justify-items-center gap-3 rounded-2xl border border-danger/10 bg-danger-soft/20 px-5 py-10 text-center"
+    >
+      <span className="grid size-14 place-items-center rounded-2xl border border-danger/10 bg-surface text-danger shadow-sm">
+        <AlertOctagon className="size-6" aria-hidden />
+      </span>
+      <p className="font-semibold text-text-900">{t("errorTitle")}</p>
       <p className="max-w-md text-text-700">{errorMessage(error)}</p>
       {error instanceof ApiError ? <p className="font-mono text-[13px] text-text-500">{error.code}</p> : null}
       {onRetry ? (

@@ -5790,6 +5790,17 @@
             }
           },
           {
+            "name": "courier",
+            "required": false,
+            "in": "query",
+            "description": "nama kurir persis seperti pada pesanan",
+            "schema": {
+              "minLength": 1,
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
             "name": "status",
             "required": false,
             "in": "query",
