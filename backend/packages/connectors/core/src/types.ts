@@ -922,4 +922,38 @@ export interface MarketplaceConnector {
      */
     subscribe?(shop: ShopCredentials, address: string): Promise<string[]>;
   };
+
+  /** Read-only affiliate operations, only where implemented and permitted for the app and shop. */
+  affiliate?: {
+    listOpenCampaignProducts(shop: ShopCredentials, input?: OpenCampaignProductQuery): Promise<OpenCampaignProductPage>;
+  };
+}
+
+export interface OpenCampaignProductQuery {
+  pageSize?: number;
+  cursor?: string | null;
+  sortBy?: "commission_rate" | "-commission_rate";
+  search?: { by: "name" | "id"; value: string };
+}
+
+/** Commission rates are integer basis points: 1.11 percent is 111, not a rupiah amount. */
+export interface OpenCampaignProduct {
+  externalItemId: string;
+  title: string;
+  externalCampaignId: string;
+  status: "upcoming" | "ongoing" | "terminating" | "unknown";
+  externalStatus: string;
+  commissionBasisPoints: number;
+  startsAt: Date;
+  /** null is the marketplace's explicit unlimited period, not an unknown date. */
+  endsAt: Date | null;
+  pendingTerminationAt: Date | null;
+  protections: { commissionBasisPoints: number; endsAt: Date }[];
+  maxCommissionBasisPointsToday: number | null;
+}
+
+export interface OpenCampaignProductPage {
+  items: OpenCampaignProduct[];
+  total: number;
+  nextCursor: string | null;
 }

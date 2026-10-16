@@ -9,6 +9,7 @@ import {
   type ShopProfile,
   type TokenSet,
 } from "@omniseller/connector-core";
+import { shopeeAffiliate } from "./affiliate.js";
 import { shopeeCatalog } from "./catalog.js";
 import { accessExpiry, ShopeeClient, type ShopeeConfig } from "./client.js";
 import { shopeeInventory } from "./inventory.js";
@@ -142,6 +143,8 @@ export function createShopeeConnector(config: ShopeeConfig): MarketplaceConnecto
 
   return {
     manifest: SHOPEE_MANIFEST,
+
+    affiliate: shopeeAffiliate(client),
 
     auth: {
       // New-style link (no signature): open.shopee.com/auth with state echoed back to redirect_uri,
