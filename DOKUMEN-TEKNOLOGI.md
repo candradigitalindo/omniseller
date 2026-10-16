@@ -2,11 +2,11 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.27 |
+| Versi dokumen | 1.28 |
 | Tanggal | 16 Oktober 2026 |
 | Status | Keputusan final untuk implementasi |
 | Pemilik dokumen | Candra Syahputra |
-| Dokumen induk | DOKUMEN-SPESIFIKASI-APLIKASI.md versi 1.11 (PRD); rincian backend di DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.19 |
+| Dokumen induk | DOKUMEN-SPESIFIKASI-APLIKASI.md versi 1.11 (PRD); rincian backend di DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.42 |
 | Audiens | Tech lead, engineer backend, frontend, mobile, DevOps, QA |
 
 Dokumen ini menetapkan teknologi yang dipakai OmniSeller. Setiap lapisan memiliki **satu keputusan**, bukan daftar pilihan. Alasan dan konsekuensinya dicatat agar keputusan dapat ditinjau ulang dengan dasar yang jelas, bukan diganti karena selera. Perubahan keputusan hanya melalui ADR baru (bagian 25).
@@ -478,13 +478,13 @@ Setiap marketplace adalah paket di `packages/connectors/<nama>` yang mengimpleme
 
 | Aspek | Keputusan |
 |---|---|
-| Kerangka | Electron dengan `electron-builder` dan `electron-updater` untuk pembaruan otomatis |
+| Kerangka | Implementasi M51 di `print-agent/` (workspace pnpm sendiri), Electron 44 dengan `electron-builder` dan `electron-updater` untuk pembaruan otomatis |
 | Platform | Windows 10 dan 11 sebagai utama (mayoritas komputer gudang), macOS sekunder |
-| Cetak | Windows: `pdf-to-printer` dengan SumatraPDF yang dibundel, cetak langsung tanpa dialog. macOS: `lp` |
-| Koneksi | WebSocket ke backend dengan token perangkat (`auth.token` saat handshake; `Authorization: Bearer` untuk REST). Menerima `print.job` berisi id pekerjaan, jenis, judul, nama printer tujuan (kosong: printer bawaan komputer), dan jumlah salinan. PDF-nya diunduh dari `GET /v1/agent/print-jobs/{id}/file`, yang mengalihkan ke URL bertanda tangan R2 (kedaluwarsa 10 menit) dan menandai pekerjaan terkirim. Status cetak dilaporkan lewat REST. Daftar pekerjaan tertunda dibaca lagi setelah tersambung dan setiap menit, karena push bisa terlewat (backend 8.24) |
-| Antrean lokal | SQLite kecil untuk antrean cetak, ulang otomatis bila printer sibuk, laporan status kembali ke server |
-| Keamanan | Tidak menyimpan data pesanan selain PDF sementara yang dihapus setelah dicetak. Pembaruan ditandatangani kode |
-| Ukuran | Sekitar 80 MB. Diterima karena dipasang sekali per komputer gudang |
+| Cetak | Windows: `pdf-to-printer` dengan SumatraPDF 3.6.1 portable x64 yang dibundel terpisah (unduhan SHA-256 terkunci, lisensi disertakan; arsip source terkunci dibuat di sebelah installer), cetak langsung tanpa dialog. macOS: `lp` |
+| Koneksi | WebSocket ke backend dengan token perangkat (`auth.token` saat handshake; `Authorization: Bearer` untuk REST). Menerima `print.job` berisi id pekerjaan, nomor percobaan `attempt`, jenis, judul, nama printer tujuan (kosong: printer bawaan komputer), dan jumlah salinan. PDF-nya diunduh dari `GET /v1/agent/print-jobs/{id}/file`, yang mengalihkan ke URL bertanda tangan R2 (kedaluwarsa 10 menit) dan menandai pekerjaan terkirim. Status cetak dilaporkan lewat REST. Daftar pekerjaan tertunda dibaca lagi setelah tersambung dan setiap menit, karena push bisa terlewat (backend 8.24) |
+| Antrean lokal | `node:sqlite` bawaan Electron (tanpa addon native terpisah), WAL dan synchronous FULL; kunci origin/perangkat/id/attempt. Retry sebelum spooler dengan backoff, hasil yang hilang dikirim ulang tanpa cetak ulang. Crash di tengah panggilan OS menjadi perlu diperiksa, tidak dicetak ulang otomatis |
+| Keamanan | Token terenkripsi OS safeStorage, renderer sandbox/contextIsolation/IPC tervalidasi/CSP lokal; tidak menyimpan judul atau data pembeli di SQLite/log. PDF streaming maks. 50 MB, dihapus setelah hasil dan saat start; Bearer tidak ikut redirect R2. Rilis publik wajib code signing, notarization macOS, feed HTTPS; paket internal tanpa feed |
+| Ukuran | Paket internal M51 sekitar 116 MiB NSIS Windows x64 dan 124 MiB DMG macOS arm64; dipasang sekali per komputer gudang |
 
 ---
 
@@ -1060,3 +1060,5 @@ export interface MarketplaceConnector {
 | 1.25 | 8 Oktober 2026 | Situs publik `website/` (ADR-041 baru): beranda, harga, kontak dan pengaduan, Syarat Layanan, Kebijakan Privasi, dan Kebijakan Pengembalian Dana sebagai HTML statis; variabel web `NEXT_PUBLIC_SITE_URL` (26.2) untuk menautkan dokumen itu dari halaman daftar | Candra Syahputra |
 | 1.26 | 13 Oktober 2026 | Penulis .xlsx sendiri di atas `fflate` untuk unduhan laporan dan lampiran email terjadwal, tanpa SheetJS atau exceljs (13) | Candra Syahputra |
 | 1.27 | 16 Oktober 2026 | M50: CLI operasional dan failed set BullMQ (7.1, ADR-042); rotasi DEK worker yang bisa dilanjutkan, versi aktif dibaca tiap penyegelan dan cache per ciphertext untuk transaksi rollback (ADR-035); tidak ada akses KMS di CLI | Candra Syahputra |
+
+| 1.28 | 16 Oktober 2026 | M51 agen cetak desktop (12): Electron, SQLite bawaan, driver OS, protokol attempt, pemulihan crash tanpa cetak otomatis yang ambigu, penyimpanan token OS, paket NSIS/DMG dan alur rilis bertanda tangan; tipe API dan CI workspace sendiri | Candra Syahputra |

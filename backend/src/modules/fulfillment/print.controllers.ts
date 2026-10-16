@@ -11,6 +11,7 @@ import {
   AgentResultDto,
   AgentSelfDto,
   AgentStatusDto,
+  AgentTakeQueryDto,
   CreatePrintAgentDto,
   PairedPrintAgentDto,
   PrintAgentDto,
@@ -175,7 +176,19 @@ export class PrintJobsController {
 @Controller("v1/agent")
 @DeviceRoute("print_agent")
 export class AgentController {
-  constructor(@Inject(PrintService) private readonly print: PrintService) {}
+  constructor(
+    @Inject(PrintService) private readonly print: PrintService,
+    @Inject(PrintAgentsService) private readonly agents: PrintAgentsService,
+  ) {}
+
+  /** A test page on the calling device only; the device cannot select another agent. */
+  @Post("test-print")
+  @Isolation("self")
+  @ZodResponse({ status: 201, type: AgentJobResultDto })
+  async testPrint(@Ctx() ctx: RequestContext, @Body() body: TestPrintDto) {
+    const j = await this.agents.testPrint(ctx, ctx.actor.id, body.printer);
+    return { id: j.id, status: j.status };
+  }
 
   /** On start, every minute, and when printers change: the version and the printers it sees. */
   @Put("status")
@@ -194,6 +207,16 @@ export class AgentController {
     return { items: (await this.print.pending(ctx)).map(agentJobView) };
   }
 
+  /** An explicit local retry of the calling device's failed or unreported job. */
+  @Post("print-jobs/:id/retry")
+  @HttpCode(200)
+  @Isolation({ fixture: "print_job", actor: "device" })
+  @ZodResponse({ type: AgentJobResultDto })
+  async retry(@Ctx() ctx: RequestContext, @Param() p: PrintJobIdParamDto) {
+    const j = await this.print.retry(ctx, p.id);
+    return { id: j.id, status: j.status };
+  }
+
   /**
    * The job's PDF: a redirect to a signed link valid 10 minutes (R2), or the file (local storage).
    * Taking it marks the job `sent`; 409 when the job was cancelled or already reported.
@@ -203,8 +226,13 @@ export class AgentController {
   @ApiProduces("application/pdf")
   @ApiOkResponse({ description: "The file (local storage)." })
   @ApiFoundResponse({ description: "Redirect to a signed link valid for 10 minutes (R2)." })
-  async file(@Ctx() ctx: RequestContext, @Param() p: PrintJobIdParamDto, @Res() res: Response): Promise<void> {
-    const target = await this.print.take(ctx, p.id);
+  async file(
+    @Ctx() ctx: RequestContext,
+    @Param() p: PrintJobIdParamDto,
+    @Query() q: AgentTakeQueryDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    const target = await this.print.take(ctx, p.id, q.attempt);
     res.setHeader("cache-control", "private, no-store");
     if ("url" in target) {
       res.redirect(302, target.url);

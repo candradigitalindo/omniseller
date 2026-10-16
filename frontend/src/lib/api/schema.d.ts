@@ -2612,6 +2612,22 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/agent/test-print": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["AgentController_testPrint"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/agent/status": {
     parameters: {
       query?: never;
@@ -2638,6 +2654,22 @@ export interface paths {
     get: operations["AgentController_pending"];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/agent/print-jobs/{id}/retry": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["AgentController_retry"];
     delete?: never;
     options?: never;
     head?: never;
@@ -7446,13 +7478,21 @@ export interface components {
         statusChangedAt: string;
       };
     };
+    AgentJobResultDto_Output: {
+      id: string;
+      /** @enum {string} */
+      status: "queued" | "sent" | "printed" | "failed" | "cancelled";
+    };
     AgentStatusDto: {
       appVersion: string;
+      name?: string;
       printers: {
         name: string;
         /** @default false */
         isDefault: boolean;
       }[];
+      labelPrinter?: string | null;
+      documentPrinter?: string | null;
     };
     AgentSelfDto_Output: {
       id: string;
@@ -7464,6 +7504,7 @@ export interface components {
       /** @description antrean, terlama dulu; unduh berkas tiap pekerjaan lalu laporkan */
       items: {
         id: string;
+        attempt: number;
         /** @enum {string} */
         kind: "label" | "pick_list" | "packing_list" | "invoice" | "barcode" | "manifest" | "test";
         title: string;
@@ -7477,13 +7518,9 @@ export interface components {
     AgentResultDto: {
       /** @enum {string} */
       status: "printed" | "failed";
+      attempt?: number;
       /** @description pesan printer saat gagal */
       error?: string;
-    };
-    AgentJobResultDto_Output: {
-      id: string;
-      /** @enum {string} */
-      status: "queued" | "sent" | "printed" | "failed" | "cancelled";
     };
     PackingViewDto_Output: {
       order: {
@@ -13607,6 +13644,29 @@ export interface operations {
       };
     };
   };
+  AgentController_testPrint: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TestPrintDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentJobResultDto_Output"];
+        };
+      };
+    };
+  };
   AgentController_status: {
     parameters: {
       query?: never;
@@ -13649,9 +13709,32 @@ export interface operations {
       };
     };
   };
-  AgentController_file: {
+  AgentController_retry: {
     parameters: {
       query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentJobResultDto_Output"];
+        };
+      };
+    };
+  };
+  AgentController_file: {
+    parameters: {
+      query?: {
+        attempt?: number;
+      };
       header?: never;
       path: {
         id: string;

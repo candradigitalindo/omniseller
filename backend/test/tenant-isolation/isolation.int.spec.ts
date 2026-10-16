@@ -163,6 +163,7 @@ const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: s
   PrintJobsController_retry: () => ({}),
   PrintJobsController_cancel: () => ({}),
   AgentController_result: () => ({ status: "printed" }),
+  AgentController_retry: () => ({}),
   PackingController_complete: () => ({ scans: [{ code: "A-KAOS-1", qty: 1 }] }),
   HandoversController_open: ({ a: ids }) => ({ warehouseId: ids.warehouse!, courier: "Penyusup" }),
   HandoversController_scan: () => ({ code: "A-0001" }),

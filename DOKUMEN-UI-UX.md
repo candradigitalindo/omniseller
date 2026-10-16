@@ -2,8 +2,8 @@
 
 | Item | Keterangan |
 |---|---|
-| Versi dokumen | 1.27 |
-| Tanggal | 13 Oktober 2026 |
+| Versi dokumen | 1.28 |
+| Tanggal | 16 Oktober 2026 |
 | Status | Siap dipakai sebagai brief untuk alat desain AI dan desainer |
 | Pemilik dokumen | Candra Syahputra |
 | Dokumen terkait | DOKUMEN-SPESIFIKASI-APLIKASI.md (PRD) versi 1.10, DOKUMEN-UI-UX-MOBILE.md versi 1.0 (aplikasi mobile), DOKUMEN-TEKNOLOGI.md versi 1.1, DOKUMEN-ARSITEKTUR-BACKEND.md versi 1.0 |
@@ -976,6 +976,8 @@ Kontras ditingkatkan: teks `text-900` pada `surface` selalu, tanpa `text-500` un
 
 Jendela kecil 420 x 560 px dari ikon tray: status koneksi (hijau atau merah dengan tombol "Sambungkan ulang"), nama komputer yang dapat diubah, daftar printer terdeteksi dengan pilihan printer default per jenis (label, dokumen), antrean cetak dengan status dan tombol cetak ulang, log 50 baris terakhir, tombol "Cetak halaman percobaan", versi dan pembaruan otomatis. Tanpa data pesanan yang ditampilkan.
 
+Implementasi M51 ada di `print-agent/`. Pengaturan nama dan printer dapat dilipat agar aktivitas terlihat dalam jendela kecil. "Diserahkan ke printer" berarti spooler OS menerima pekerjaan; status "Perlu diperiksa" setelah proses terputus menyediakan "Sudah tercetak" atau "Belum tercetak", dengan konfirmasi. Yang gagal mendapat "Cetak ulang" dengan konfirmasi, membuat percobaan baru lewat backend. Data pembeli dan judul dokumen tidak ditampilkan. Pembaruan rilis bertanda tangan diperiksa saat idle dan dipasang setelah keluar; paket internal menampilkan status belum dikonfigurasi.
+
 ### 16.4 Ekstensi riset (popup Chrome dan Edge)
 
 Popup 360 x 480 px: baris status "Profil riset aman" hijau atau "Tab seller center terbuka, ekstensi dijeda" merah dengan penjelasan; tombol besar "Ambil data halaman ini" (aktif hanya di halaman yang dikenali) dengan hasil ringkas (judul, harga, terjual) dan tombol "Pantau produk ini" yang meminta memilih SKU sendiri; penghitung "312 produk diambil hari ini"; tautan ke OmniSeller. Halaman opsi: akun terhubung, sumber yang diaktifkan, penjelasan privasi.
@@ -1107,3 +1109,5 @@ Sebelum layar dinyatakan selesai:
 | 1.25 | 10 Oktober 2026 | L55 Aturan Otomatis baru (daftar urut diperiksa dengan kalimat Jika dan Maka, sakelar, urutan, dialog kondisi dan tindakan, keadaan Starter dan cakupan toko); sidebar 7.1 Penjualan mendapat "Aturan Otomatis" untuk `order:accept`; L04 riwayat entri aturan otomatis dengan yang ditolak | Candra Syahputra |
 | 1.26 | 13 Oktober 2026 | L55 atur kirim pada jam tertentu ("Kapan pengiriman diatur", isian jam berzona) dan kotak "Cetak label otomatis" (agen, format, templat, daftar kemas); kartu aturan menyebut jam, agen, pesanan yang menunggu, dan agen yang hilang; L04 riwayat dan baris "Atur kirim otomatis pukul", "Pickup dijadwalkan", entri atur kirim dan cetak otomatis; L07 pil "Label sudah dicetak" dan pekerjaan cetak otomatis di antrean; L42 peringatan cabut agen yang dipakai aturan | Candra Syahputra |
 | 1.27 | 13 Oktober 2026 | Unduhan Excel: L30 "Unduh laporan" dengan "Excel (semua bagian)" dan "{bagian} (CSV)", L33 "Excel (per anggota dan per hari)", L24a menu "Unduh" Excel atau CSV; "Jadwalkan email" di L30 dan L33 membuka L44; L44 baris laporan terjadwal "Bersama email", terkunci "Tersedia mulai paket Growth." tanpa fiturnya; notifikasi laporan (L52) membuka laporan pada periodenya | Candra Syahputra |
+
+| 1.28 | 16 Oktober 2026 | M51 agen cetak desktop (16.3): pengaturan dilipat, status penerimaan spooler, pemulihan yang perlu pemeriksaan dan konfirmasi cetak ulang, tanpa data pesanan, pembaruan pada paket rilis | Candra Syahputra |

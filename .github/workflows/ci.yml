@@ -104,6 +104,58 @@ jobs:
       - name: Tests
         run: node --test "test/*.test.mjs"
 
+  print-agent:
+    name: Print agent (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-15]
+    defaults:
+      run:
+        working-directory: print-agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: print-agent/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: API types match backend/openapi.json
+        run: |
+          pnpm api:types
+          git diff --exit-code -- src/api/schema.d.ts
+      - run: pnpm test:e2e
+      - name: Internal Windows installer (no publishing)
+        if: runner.os == 'Windows'
+        run: pnpm dist:win
+      - name: Internal macOS installer (no publishing)
+        if: runner.os == 'macOS'
+        run: pnpm dist:mac
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: print-agent-${{ runner.os }}-internal
+          path: |
+            print-agent/release/*.exe
+            print-agent/release/*.dmg
+            print-agent/release/*-source.tar.gz
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: print-agent-${{ runner.os }}-tests
+          path: print-agent/test-results
+          retention-days: 7
+
   e2e:
     name: End-to-end
     needs: [backend, frontend]

@@ -4,7 +4,7 @@ Read first: `DOKUMEN-ARSITEKTUR-BACKEND.md` section 2 (contract), then the secti
 Product requirements: `DOKUMEN-SPESIFIKASI-APLIKASI.md`. Technology decisions and ADRs: `DOKUMEN-TEKNOLOGI.md`.
 
 The repository root holds only documents. Each component lives in its own folder with its own pnpm workspace:
-`backend/` and `frontend/` exist now, and `website/`, the static public site (ADR-041, no dependencies: `node build.mjs`, `node --test "test/*.test.mjs"`); `mobile/`, `extension/`, `print-agent/` come later (ADR-032).
+`backend/` and `frontend/` exist now, and `website/`, the static public site (ADR-041, no dependencies: `node build.mjs`, `node --test "test/*.test.mjs"`); `print-agent/` is the Electron desktop print agent (read its README and AGENTS.md); `mobile/`, `extension/` come later (ADR-032).
 Paths in the backend document are relative to `backend/`, and every `pnpm` command below runs from `backend/` unless a section says otherwise.
 
 ## Non-negotiable invariants (backend)
@@ -193,3 +193,8 @@ NestJS injection always uses explicit `@Inject(TOKEN)`; do not rely on construct
 
 ## Definition of done
 Tests per section 13.3 (integration tests run as the application roles, never as a superuser), migration checklist 12.3, docs updated (module README and the backend doc section you touched), PR checklist 15.11.
+
+## Desktop print agent (`print-agent/`)
+
+- Read `print-agent/README.md` and `print-agent/AGENTS.md`; its own pnpm workspace, API types generated from `backend/openapi.json`. Regenerate both clients after contract changes.
+- Print occurrences use `(device binding, job id, attempt)`; an ambiguous OS print must never retry automatically. Secrets use OS safeStorage; SQLite excludes buyer data and document titles, PDFs are temporary.

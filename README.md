@@ -15,6 +15,7 @@ Aplikasi manajemen penjualan multi-marketplace. Root repositori hanya berisi dok
 ```
 backend/     NestJS (api, webhook, worker, scheduler), migrasi SQL, paket shared, logging, dan connector marketplace
 frontend/    Next.js: web app penjual
+print-agent/ Electron: agen cetak Windows dan macOS, antrean SQLite dan tray
 website/     situs publik statis: beranda, harga, kontak, dan kebijakan (tanpa dependensi)
 mobile/      Expo (menyusul)
 ```
@@ -66,9 +67,13 @@ pnpm dev                       # http://localhost:3100
 pnpm lint && pnpm typecheck && pnpm test
 ```
 
-Setelah kontrak API berubah: `pnpm openapi:emit` di `backend/`, lalu `pnpm api:types` di `frontend/`.
+Setelah kontrak API berubah: `pnpm openapi:emit` di `backend/`, lalu `pnpm api:types` di `frontend/` dan `print-agent/`.
 
 Uji end-to-end (Playwright) berjalan terhadap backend dan web app yang sedang berjalan: `E2E_CHROME=1 pnpm e2e` di `frontend/`.
+
+## Agen cetak desktop
+
+Implementasi M51 berada di [print-agent/README.md](print-agent/README.md). Pairing memakai token dari Pengaturan → Printer di web; pilihan printer thermal/A4, halaman percobaan, antrean tahan restart, dan konfirmasi hasil yang belum pasti tersedia dari tray. Jalankan `pnpm install && pnpm dev` dari `print-agent/`; `pnpm dist:win` dan `pnpm dist:mac` membuat installer internal. Rilis publik membutuhkan sertifikat penandatanganan dan feed HTTPS, dijelaskan di README komponen.
 
 ## CI
 

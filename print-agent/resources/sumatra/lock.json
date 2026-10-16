@@ -1,0 +1,10 @@
+{
+  "version": "3.6.1",
+  "url": "https://www.sumatrapdfreader.org/dl/rel/3.6.1/SumatraPDF-3.6.1-64.zip",
+  "file": "SumatraPDF-3.6.1-64.exe",
+  "sha256": "98b33a518d42986856d225064b0cd2d3643ecf78cbf84ab873d26cc51877a544",
+  "executableSha256": "719f689b34f47be8ca105ce8484948474dafde0e106bab599e4a89326070c3d0",
+  "source": "https://github.com/sumatrapdfreader/sumatrapdf/tree/16c59fde8b824ab54c56f23aef910a6fdd874ad0",
+  "sourceArchive": "https://github.com/sumatrapdfreader/sumatrapdf/archive/16c59fde8b824ab54c56f23aef910a6fdd874ad0.tar.gz",
+  "sourceSha256": "3fdab83f40a152741aef263b2d10405f5d1094252b456cfbd86f8557ae6b92b2"
+}

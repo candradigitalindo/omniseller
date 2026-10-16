@@ -25,6 +25,8 @@ export interface Realtime {
 /** A job as the agent sees it, pushed and listed alike (`GET /v1/agent/print-jobs`). */
 export interface AgentPrintJob {
   id: string;
+  /** Next download attempt when queued, current attempt once sent; stable across reconnects. */
+  attempt: number;
   kind: PrintJobKind;
   title: string;
   /** The printer to use; null: the computer's default printer. */

@@ -1,5 +1,10 @@
 import { ConflictError, NotFoundError, UnprocessableError, ValidationError } from "../../common/errors/domain-errors";
 
+export const printAttemptStale = () =>
+  new ConflictError("print_job.stale_attempt", "Percobaan cetak ini sudah digantikan. Baca ulang antrean.");
+export const printPrinterInvalid = (path: string) =>
+  new ValidationError([{ path, message: "Pilih printer yang terdeteksi di agen ini." }]);
+
 export const documentNotFound = () => new NotFoundError("document.not_found", "Dokumen tidak ditemukan.");
 export const trackingNotShipped = () =>
   new ConflictError("tracking.not_shipped", "Pesanan ini belum dikirim, atau dikirim oleh marketplace.");

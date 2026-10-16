@@ -1,0 +1,9 @@
+SumatraPDF 3.6.1, copyright the SumatraPDF authors (see AUTHORS).
+Unmodified portable executable, distributed as a separate printing program.
+Licenses: COPYING (GPLv3) and COPYING.BSD; see the upstream source for component notices.
+Corresponding source and build instructions:
+https://github.com/sumatrapdfreader/sumatrapdf/tree/16c59fde8b824ab54c56f23aef910a6fdd874ad0
+https://www.sumatrapdfreader.org/docs/Contribute-code
+Source archive:
+https://github.com/sumatrapdfreader/sumatrapdf/archive/16c59fde8b824ab54c56f23aef910a6fdd874ad0.tar.gz
+The release distributor must provide the corresponding source alongside the installer.

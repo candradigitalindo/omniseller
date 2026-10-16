@@ -1,0 +1,32 @@
+appId: id.omniseller.printagent
+productName: OmniSeller Agen Cetak
+artifactName: OmniSeller-Agen-Cetak-${version}-${os}-${arch}.${ext}
+directories:
+  output: release
+files:
+  - dist/**
+  - '!node_modules/pdf-to-printer/dist/*.exe'
+asar: true
+extraResources:
+  - from: resources/sumatra
+    to: sumatra
+    filter: ['COPYING', 'COPYING.BSD', 'AUTHORS', 'NOTICE.txt', 'lock.json']
+win:
+  target: nsis
+  icon: dist/icon.png
+  signAndEditExecutable: true
+  signExecutable: false
+  extraResources:
+    - from: .local/vendor/SumatraPDF.exe
+      to: sumatra/SumatraPDF.exe
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+mac:
+  target: dmg
+  category: public.app-category.utilities
+  icon: dist/icon.png
+  identity: null
+publish: null

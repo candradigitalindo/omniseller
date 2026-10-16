@@ -1,0 +1,14 @@
+extends: ./electron-builder.yml
+forceCodeSigning: true
+win:
+  signAndEditExecutable: true
+  signExecutable: true
+  publisherName: ${env.WIN_PUBLISHER_NAME}
+mac:
+  target: [dmg, zip]
+  identity: ${env.MAC_SIGNING_IDENTITY}
+  hardenedRuntime: true
+  notarize: true
+publish:
+  provider: generic
+  url: ${env.PRINT_AGENT_UPDATE_URL}

@@ -15,11 +15,13 @@ import {
   documentNotFound,
   documentNotPrintable,
   printAgentInvalid,
+  printAttemptStale,
   printFileExpired,
   printJobNotFound,
   printJobNotPending,
   printJobNotReady,
   printJobNotRetryable,
+  printPrinterInvalid,
 } from "./fulfillment.errors";
 import { type DocumentRow, FulfillmentRepository } from "./fulfillment.repository";
 import { type PrintJobRow, PrintRepository } from "./print.repository";
@@ -37,6 +39,7 @@ export interface PrintTarget {
 
 export const agentJobView = (j: PrintJobRow): AgentPrintJob => ({
   id: j.id,
+  attempt: j.status === "queued" ? j.attempts + 1 : j.attempts,
   kind: j.kind,
   title: j.title,
   printer: j.printerName,
@@ -162,6 +165,7 @@ export class PrintService {
   private async visibleIn(tx: Tx, ctx: RequestContext, id: string, lock = false): Promise<PrintJobRow> {
     const j = await this.repo.get(tx, id, lock);
     if (!j) throw printJobNotFound();
+    if (ctx.actor.type === "device" && j.deviceId !== ctx.actor.id) throw printJobNotFound();
     if (scoped(ctx) && j.requestedBy !== ctx.actor.id) {
       // the system's job: visible when its agent serves a warehouse the caller may see
       const d = j.requestedBy === null ? await this.devices.getIn(tx, j.deviceId) : undefined;
@@ -238,11 +242,12 @@ export class PrintService {
    * The agent takes the file: the job is `sent` (taken again after a restart, it stays so). A file
    * that expired fails the job.
    */
-  async take(ctx: RequestContext, id: string): Promise<DownloadTarget> {
+  async take(ctx: RequestContext, id: string, attempt?: number): Promise<DownloadTarget> {
     const job = await withTenantTx(this.db, ctx, async (tx) => {
       const j = await this.repo.get(tx, id, true);
       if (j?.deviceId !== ctx.actor.id) throw printJobNotFound();
       if (j.status !== "queued" && j.status !== "sent") throw printJobNotPending();
+      if (attempt !== undefined && attempt !== agentJobView(j).attempt) throw printAttemptStale();
       if (!j.fileObjectId) {
         if (j.documentId) throw printJobNotReady();
         throw printFileExpired();
@@ -269,11 +274,13 @@ export class PrintService {
   async report(
     ctx: RequestContext,
     id: string,
-    result: { status: "printed" | "failed"; error?: string | undefined },
+    result: { status: "printed" | "failed"; error?: string | undefined; attempt?: number },
   ): Promise<PrintJobRow> {
     return withTenantTx(this.db, ctx, async (tx) => {
       const j = await this.repo.get(tx, id, true);
       if (j?.deviceId !== ctx.actor.id) throw printJobNotFound();
+      if (result.attempt !== undefined && (result.attempt !== j.attempts || j.status === "queued"))
+        throw printAttemptStale();
       if (j.status === result.status) return j;
       if (j.status !== "sent") throw printJobNotPending();
       return this.repo.update(
@@ -287,7 +294,28 @@ export class PrintService {
   }
 
   /** The agent's status report (`PUT /v1/agent/status`): its version and printers. */
-  async agentStatus(ctx: RequestContext, report: { appVersion: string; printers: ReportedPrinter[] }) {
-    return withTenantTx(this.db, ctx, (tx) => this.devices.reportIn(tx, ctx.actor.id, report));
+  async agentStatus(
+    ctx: RequestContext,
+    report: {
+      appVersion: string;
+      name?: string;
+      printers: ReportedPrinter[];
+      labelPrinter?: string | null;
+      documentPrinter?: string | null;
+    },
+  ) {
+    for (const key of ["labelPrinter", "documentPrinter"] as const) {
+      if (report[key] && !report.printers.some((p) => p.name === report[key])) throw printPrinterInvalid(key);
+    }
+    return withTenantTx(this.db, ctx, async (tx) => {
+      if (report.name !== undefined || report.labelPrinter !== undefined || report.documentPrinter !== undefined) {
+        await this.devices.updateIn(tx, ctx.actor.id, {
+          ...(report.name !== undefined ? { name: report.name } : {}),
+          ...(report.labelPrinter !== undefined ? { labelPrinter: report.labelPrinter } : {}),
+          ...(report.documentPrinter !== undefined ? { documentPrinter: report.documentPrinter } : {}),
+        });
+      }
+      return this.devices.reportIn(tx, ctx.actor.id, report);
+    });
   }
 }

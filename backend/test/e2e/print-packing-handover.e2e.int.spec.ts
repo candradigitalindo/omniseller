@@ -358,6 +358,23 @@ describe("print agents (FR-SHP-17)", () => {
       (await c.patch(`/v1/print-agents/${id}`, { labelPrinter: "Zebra GK420", documentPrinter: "EPSON L3110" })).body,
     ).toMatchObject({ labelPrinter: "Zebra GK420", documentPrinter: "EPSON L3110" });
 
+    // Local settings affect this device only; omitted preferences on a heartbeat stay unchanged.
+    const localSettings = await agentApi.put("/v1/agent/status", {
+      appVersion: "0.1.0",
+      name: "PC Gudang Jakarta",
+      printers: [{ name: "Zebra GK420", isDefault: true }, { name: "EPSON L3110" }],
+      labelPrinter: "Zebra GK420",
+      documentPrinter: "EPSON L3110",
+    });
+    expect(localSettings.status).toBe(200);
+    expect(localSettings.body).toMatchObject({ labelPrinter: "Zebra GK420", documentPrinter: "EPSON L3110" });
+    expect(
+      (await agentApi.put("/v1/agent/status", { appVersion: "0.1.0", printers: [], labelPrinter: "Unknown" })).status,
+    ).toBe(422);
+    expect((await agentApi.put("/v1/agent/status", { appVersion: "0.1.0", printers: [] })).body.labelPrinter).toBe(
+      "Zebra GK420",
+    );
+
     const { events } = await connectAgent(token);
 
     // "Cetak percobaan": queued until the worker renders it, then pushed with the label printer
@@ -377,12 +394,20 @@ describe("print agents (FR-SHP-17)", () => {
     expect(events).toEqual([
       {
         event: "print.job",
-        payload: expect.objectContaining({ id: test.body.id, kind: "test", printer: "Zebra GK420", copies: 1 }),
+        payload: expect.objectContaining({
+          id: test.body.id,
+          attempt: 1,
+          kind: "test",
+          printer: "Zebra GK420",
+          copies: 1,
+        }),
       },
     ]);
     expect((await agentApi.get("/v1/agent/print-jobs")).body.items.map((j: { id: string }) => j.id)).toEqual([
       test.body.id,
     ]);
+
+    expect((await agentApi.get("/v1/agent/print-jobs")).body.items[0].attempt).toBe(1);
 
     // the agent takes the file (sent), prints, and reports
     const page = await pdf(await binary(agentApi.get(`/v1/agent/print-jobs/${test.body.id}/file`)));
@@ -390,7 +415,10 @@ describe("print agents (FR-SHP-17)", () => {
     expect((await c.get(`/v1/print-jobs/${test.body.id}`)).body).toMatchObject({ status: "sent", attempts: 1 });
     // taken again after a restart: still sent, not counted twice
     expect((await binary(agentApi.get(`/v1/agent/print-jobs/${test.body.id}/file`))).status).toBe(200);
-    const printed = await agentApi.post(`/v1/agent/print-jobs/${test.body.id}/result`, { status: "printed" });
+    const printed = await agentApi.post(`/v1/agent/print-jobs/${test.body.id}/result`, {
+      status: "printed",
+      attempt: 1,
+    });
     expect(printed.body).toEqual({ id: test.body.id, status: "printed" });
     expect((await agentApi.post(`/v1/agent/print-jobs/${test.body.id}/result`, { status: "printed" })).status).toBe(
       200,
@@ -415,13 +443,30 @@ describe("print agents (FR-SHP-17)", () => {
       expect.objectContaining({ id: again.id, printer: "EPSON L3110", error: "Kertas habis" }),
     ]);
     expect((await c.post(`/v1/print-jobs/${test.body.id}/retry`)).body.code).toBe("print_job.not_retryable");
-    expect((await gudang.post(`/v1/print-jobs/${again.id}/retry`)).body).toMatchObject({
+    expect((await agentApi.post(`/v1/agent/print-jobs/${again.id}/retry`)).body).toEqual({
+      id: again.id,
       status: "queued",
-      error: null,
     });
+    expect((await c.get(`/v1/print-jobs/${again.id}`)).body.error).toBeNull();
     await until(() => events.filter((e) => e.event === "print.job").length === 3, "retried print.job");
+    expect(
+      (await agentApi.get("/v1/agent/print-jobs")).body.items.find((j: { id: string }) => j.id === again.id).attempt,
+    ).toBe(2);
+    expect((await agentApi.get(`/v1/agent/print-jobs/${again.id}/file?attempt=1`)).body.code).toBe(
+      "print_job.stale_attempt",
+    );
+    expect(
+      (await agentApi.post(`/v1/agent/print-jobs/${again.id}/result`, { status: "printed", attempt: 1 })).body.code,
+    ).toBe("print_job.stale_attempt");
+
     await binary(agentApi.get(`/v1/agent/print-jobs/${again.id}/file`));
     expect((await c.get(`/v1/print-jobs/${again.id}`)).body).toMatchObject({ status: "sent", attempts: 2 });
+    expect(
+      (await agentApi.post(`/v1/agent/print-jobs/${again.id}/result`, { status: "printed", attempt: 1 })).body.code,
+    ).toBe("print_job.stale_attempt");
+    expect(
+      (await agentApi.get("/v1/agent/print-jobs")).body.items.find((j: { id: string }) => j.id === again.id).attempt,
+    ).toBe(2);
 
     // cancelled before it printed: the agent hears it and can no longer take the file
     expect((await c.post(`/v1/print-jobs/${again.id}/cancel`)).body).toMatchObject({ status: "cancelled" });
@@ -431,7 +476,8 @@ describe("print agents (FR-SHP-17)", () => {
     );
 
     // revoked: open jobs are cancelled, the token stops working, the connection closes
-    const pending = (await gudang.post(`/v1/print-agents/${id}/test-print`, {})).body;
+    const pending = (await agentApi.post("/v1/agent/test-print", {})).body;
+    expect(pending.status).toBe("queued");
     const revokedSocket = (await connectAgent(token)).socket;
     expect((await gudang.delete(`/v1/print-agents/${id}`)).body.code).toBe("auth.permission_denied");
     expect((await c.delete(`/v1/print-agents/${id}`)).status).toBe(204);
@@ -498,6 +544,10 @@ describe("print agents (FR-SHP-17)", () => {
       job.id,
       mine.id,
     ]);
+    // A different device of this same business cannot retry this agent's job either.
+    expect((await agentClient(shared.token).post(`/v1/agent/print-jobs/${job.id}/retry`)).body.code).toBe(
+      "print_job.not_found",
+    );
     const stranger = agentClient(theirs.token);
     expect((await stranger.get("/v1/agent/print-jobs")).body.items).toEqual([]);
     expect((await stranger.get(`/v1/agent/print-jobs/${job.id}/file`)).body.code).toBe("print_job.not_found");

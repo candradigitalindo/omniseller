@@ -146,6 +146,7 @@ export class TestPrintDto extends createZodDto(z.object({ printer: printerName.n
 
 export const agentJobSchema = z.object({
   id: ulidSchema,
+  attempt: z.number().int().positive(),
   kind: z.enum(PRINT_KINDS),
   title: z.string(),
   printer: z.string().nullable().describe("null: printer bawaan komputer"),
@@ -161,18 +162,26 @@ export class AgentJobListDto extends createZodDto(
 export class AgentStatusDto extends createZodDto(
   z.object({
     appVersion: z.string().trim().min(1).max(40),
+    name: z.string().trim().min(1).max(80).optional(),
     printers: z.array(z.object({ name: printerName, isDefault: z.boolean().default(false) })).max(50),
+    labelPrinter: printerName.nullable().optional(),
+    documentPrinter: printerName.nullable().optional(),
   }),
 ) {}
 
 export class AgentResultDto extends createZodDto(
   z.object({
     status: z.enum(["printed", "failed"]),
+    attempt: z.number().int().positive().optional(),
     error: z.string().trim().max(500).optional().describe("pesan printer saat gagal"),
   }),
 ) {}
 
 export class AgentJobResultDto extends createZodDto(z.object({ id: ulidSchema, status: z.enum(PRINT_JOB_STATUSES) })) {}
+
+export class AgentTakeQueryDto extends createZodDto(
+  z.object({ attempt: z.coerce.number().int().positive().optional() }),
+) {}
 
 /** What the agent learns about itself after a status report. */
 export class AgentSelfDto extends createZodDto(

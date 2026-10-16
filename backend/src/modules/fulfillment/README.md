@@ -96,14 +96,20 @@ Pengiriman pesanan (PRD 6.5: FR-SHP-01, 02, 03, 04, 05, 06, 07, 16, 17; FR-ORD-0
 | POST | `/v1/print-agents/{id}/test-print` | `shipment:print` |
 | GET, POST | `/v1/print-jobs`, `/v1/print-jobs/{id}`, `/v1/print-jobs/{id}/retry`, `/v1/print-jobs/{id}/cancel` | `shipment:print` |
 | POST | `/v1/print-jobs/scan` | `shipment:print` |
-| PUT, GET, POST | `/v1/agent/status`, `/v1/agent/print-jobs`, `/v1/agent/print-jobs/{id}/file`, `/v1/agent/print-jobs/{id}/result` | token agen cetak (`Bearer`) |
+| PUT, GET, POST | `/v1/agent/status`, `/v1/agent/print-jobs`, `/v1/agent/print-jobs/{id}/file`, `/v1/agent/print-jobs/{id}/result`, `/v1/agent/print-jobs/{id}/retry`, `/v1/agent/test-print` | token agen cetak (`Bearer`) |
 | GET, POST | `/v1/packing/lookup`, `/v1/packing/orders/{id}/complete` | `shipment:pack` |
 | GET, POST, DELETE | `/v1/handovers`, `/v1/handovers/couriers`, `/v1/handovers/{id}`, `.../scan`, `.../items/{itemId}`, `.../complete`, `.../cancel`, `.../manifest` | `shipment:handover` |
 
 ## Keputusan khusus modul
-- PDF dibuat dengan pdf-lib dan Noto Sans (`assets/fonts`), tanpa browser (ADR-038 di DOKUMEN-TEKNOLOGI). Font dan penyesuaian teks (`embedFonts`, `clipText`, `wrapText`, `drawable`) ada di `common/pdf-text.ts`, dipakai bersama PDF tagihan (billing). Menyusul: gelombang ambil (FR-ORD-20), penanganan gagal kirim dan RTO (FR-SHP-13), pelacakan pesanan manual lewat API ekspedisi, dan aplikasi agen cetak itu sendiri (folder `print-agent/`).
+- PDF dibuat dengan pdf-lib dan Noto Sans (`assets/fonts`), tanpa browser (ADR-038 di DOKUMEN-TEKNOLOGI). Font dan penyesuaian teks (`embedFonts`, `clipText`, `wrapText`, `drawable`) ada di `common/pdf-text.ts`, dipakai bersama PDF tagihan (billing). Menyusul: gelombang ambil (FR-ORD-20), penanganan gagal kirim dan RTO (FR-SHP-13), pelacakan pesanan manual lewat API ekspedisi.
 - Pesanan dengan beberapa paket tercatat sekali di manifest, dengan resi yang dipindai pertama.
 - Manifest tidak mengubah status pesanan marketplace: "Dikirim" datang dari marketplace saat kurir memindai paket.
 - Pesanan yang diatur di Seller Center diadopsi saat penjual menekan "Atur kirim" atau "Ambil label", atau saat paketnya pertama kali dilacak setelah dikirim.
 - Shopee tidak punya push pelacakan, jadi pelacakan dibaca lewat pemindaian setiap 30 menit: paket dalam perjalanan dibaca ulang setelah 3 jam, dan paket yang baru terkirim dibaca sekali lagi untuk kejadian terakhirnya. "Perbarui" paling sering sekali per 10 menit per pesanan.
 - Dokumen Batch Ship Packages TikTok Shop tidak bisa dibaca dari portal saat implementasi, sehingga paket TikTok Shop dikirim satu per satu.
+
+## Desktop M51
+
+Agen Electron ada di `print-agent/` (lihat `print-agent/README.md` dari root). Status perangkat menerima nama dan printer opsional, tidak menimpa pilihan saat heartbeat biasa. Halaman percobaan dan cetak ulang perangkat memakai rute Bearer sendiri; device id selalu dari konteks, dan pekerjaan perangkat lain ditolak 404. Push/daftar membawa `attempt` yang tetap pada unduhan ulang dan bertambah saat retry eksplisit. Agen menyertakannya dalam unduhan dan laporan: percobaan lama ditolak 409 `print_job.stale_attempt` sebelum perubahan status. Kolom `attempts` yang sudah ada menjadi sumber nomornya, tanpa migrasi baru.
+
+SQLite desktop menyimpan hasil sebelum ACK; restart dalam jendela OS-call meminta pemeriksaan keluaran. `printed` berarti diterima spooler. Hasil gagal dari agen berupa kode aman, bukan isi PDF/URL atau data pembeli.
