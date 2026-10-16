@@ -30,11 +30,12 @@ Tidak ada. Data dihapus lewat service modul pemiliknya, di transaksi pendek per 
 - Anonimisasi data pembeli: pesanan yang `ordered_at`-nya lebih tua dari masa simpan (3 sampai 24 bulan, bawaan 24) dan tidak lagi berstatus tahan kirim, yang tertua dulu, 500 per transaksi selama paling lama 20 detik per job. Per batch, berurutan: `FulfillmentService.anonymizeIn` (keterangan pelacakan kosong; label dan dokumen kedaluwarsa), `ReturnsService.anonymizeIn` (alasan, foto pembeli, dan foto bukti; berkasnya kedaluwarsa), lalu `OrdersService.anonymizeBuyersIn` (nama, username, telepon, catatan, id pembeli, pengirim dropship; alamat tinggal kota dan provinsi; `buyer_anonymized_at`). Nilai, barang, tanggal, dan riwayat tetap. Log hanya mencatat jumlah.
 
 ## Event
+- `tenant.purge_requested` dari CLI ops: hanya akun ditutup yang telah lewat `purge_after`, melalui outbox; bukan cara menutup akun atau memotong masa simpan. Worker memakai `TenantPurgeService` dan fungsi SQL yang sama dengan jadwal.
 - Dikonsumsi: `store.data_deletion_requested` (modul channel saat diputus tanpa data, dan lanjutan dari modul ini).
 
 ## Job
 | Job | Antrean | Pemicu |
 |---|---|---|
 | `store.data_delete` | `import` | `store.data_deletion_requested` |
-| `tenant.purge` | `import` | Scheduler `account.closure_scan` (setiap 10 menit, `scheduler/closure-scan.ts`), id per bisnis dan slot |
+| `tenant.purge` | `import` | Scheduler `account.closure_scan` (setiap 10 menit, `scheduler/closure-scan.ts`), atau `tenant.purge_requested` dari CLI; id per bisnis dan slot |
 | `retention.buyer_anonymize` | `import` | Scheduler `retention.buyer_scan` (setiap jam, `scheduler/retention-scan.ts`), id per bisnis dan jam |

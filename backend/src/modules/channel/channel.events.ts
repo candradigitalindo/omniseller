@@ -2,6 +2,12 @@ import { ulidSchema } from "@omniseller/shared";
 import { z } from "zod";
 import { defineEvent } from "../../jobs/define";
 
+export const tenantDekRotationRequested = defineEvent({
+  type: "tenant.dek_rotation_requested",
+  aggregate: "tenant",
+  schema: z.object({ rotationId: ulidSchema }),
+});
+
 /**
  * The seller came back from the marketplace with a one-time authorization code. The code is exchanged
  * by the worker (backend doc 8.6, ADR-029); it is useless once exchanged and expires within minutes.

@@ -13,6 +13,7 @@ import { ChannelAlertsService } from "./channel-alerts.service";
 import { ChannelSyncService } from "./channel-sync.service";
 import { CONNECTORS, ConnectorRegistry } from "./connector-registry";
 import { CredentialService } from "./credential.service";
+import { KeyRotationService } from "./key-rotation.service";
 import { MarketplaceGateway } from "./marketplace-gateway";
 import { StoreAuthorizationService } from "./store-authorization.service";
 import { StoreConnectService } from "./store-connect.service";
@@ -55,6 +56,7 @@ export function keyProviderFor(env: EnvFor<"worker">): KeyProvider {
 export class ChannelWorkerModule {
   static forEnv(env: EnvFor<"worker">): DynamicModule {
     const services = [
+      KeyRotationService,
       CredentialService,
       MarketplaceGateway,
       StoreConnectService,

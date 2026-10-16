@@ -4,6 +4,12 @@ import { defineEvent } from "../../jobs/define";
 
 const pair = z.object({ variantId: ulidSchema, warehouseId: ulidSchema });
 
+export const stockPushRequested = defineEvent({
+  type: "stock.push_requested",
+  aggregate: "inventory",
+  schema: pair,
+});
+
 /**
  * Stock of these (variant, warehouse) pairs changed or was confirmed. Every service that calls
  * apply_stock_movement or confirm_stock writes this in the same transaction; the stock pusher marks the

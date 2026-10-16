@@ -6,6 +6,8 @@ import { withTenantTx } from "../../src/db/tenant-tx";
 import { STOCK_DIRTY } from "../../src/infra/tokens";
 import type { StockDirtySet } from "../../src/jobs/stock-dirty";
 import { stockPushJob } from "../../src/modules/inventory/inventory.jobs";
+import { executeOps } from "../../src/ops/execute";
+import { parseOpsCommand } from "../../src/ops/ops-plan";
 import { type Client, signup, startApi, startWorker } from "../setup/app";
 import { userCtx } from "../setup/factories";
 import { testHandles } from "../setup/handles";
@@ -203,6 +205,53 @@ describe("stock adjustments and the stock card (FR-STK-05, 06)", () => {
 });
 
 describe("stock push to Shopee (FR-STK-03, FR-WHS-04, 05, FR-MIG-05)", () => {
+  it("repairs an externally changed marketplace stock through the ops outbox without changing local stock", async () => {
+    const { c, tenantId, warehouseId } = await business();
+    const v = await product(c, "OPS-REPAIR", ["OPS-REPAIR-1"]);
+    const variantId = v["OPS-REPAIR-1"]!;
+    const { shopId, storeId } = await connectShopee(c, tenantId, [
+      {
+        item_id: 599,
+        item_name: "Tas",
+        item_sku: "OPS-REPAIR-1",
+        item_status: "NORMAL",
+        update_time: 1_700_000_000,
+        price: 50_000,
+        stockByLocation: { "": 2 },
+      },
+    ]);
+    await c.post("/v1/inventory/adjustments", {
+      lines: [{ variantId, warehouseId, mode: "set", quantity: 9 }],
+      reason: "correction",
+    });
+    await goLive(c, storeId);
+    expect((await push(tenantId)).errors).toEqual([]);
+    const item = mock.shopeeShops.get(shopId)!.items![0]!;
+    expect(item.stockByLocation).toEqual({ "": 9 });
+    // Another application changed Shopee. OmniSeller's last-sent state still says 9.
+    item.stockByLocation = { "": 1 };
+    const command = parseOpsCommand([
+      "stock:push",
+      "--tenant",
+      tenantId,
+      "--variant",
+      variantId,
+      "--warehouse",
+      warehouseId,
+    ]);
+    await executeOps(command, { worker: h.worker }, { NODE_ENV: "test" });
+    expect((await push(tenantId)).errors).toEqual([]);
+    expect(item.stockByLocation).toEqual({ "": 9 });
+    expect((await c.get("/v1/inventory?q=OPS-REPAIR-1")).body.items[0].warehouses[0].onHand).toBe(9);
+    expect((await c.get(`/v1/inventory/movements?variantId=${variantId}`)).body.items).toHaveLength(1);
+    // Repair is still refused by the normal push planner while the store is read-only.
+    await c.patch(`/v1/stores/${storeId}`, { syncMode: "read_only" });
+    item.stockByLocation = { "": 3 };
+    await executeOps(command, { worker: h.worker }, { NODE_ENV: "test" });
+    expect((await push(tenantId)).errors).toEqual([]);
+    expect(item.stockByLocation).toEqual({ "": 3 });
+  });
+
   it("pushes nothing while read-only, everything once live, then only what changed", async () => {
     const { c, tenantId, warehouseId } = await business();
     const v = await product(c, "KAOS", ["KAOS-M", "KAOS-L"]);

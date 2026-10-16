@@ -1,28 +1,25 @@
+import { createHash } from "node:crypto";
 import { newId } from "@omniseller/shared";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import type { Tx } from "../../db/client";
 import { tenantKey } from "../../db/schema";
 import { type KeyProvider, openAesGcm, sealAesGcm } from "./key-provider";
 
 const DEK_CACHE_MS = 10 * 60 * 1000;
-
 interface CachedKey {
   dek: Buffer;
   version: number;
   until: number;
 }
 
-/**
- * Encrypts secrets of a tenant with that tenant's DEK (technology doc 19.3). Used by the worker only;
- * the api role has no access to tenant_key at all.
- *
- * Ciphertexts are version(1) + nonce(12) + ciphertext + tag(16) with AES-256-GCM, and bound to a
- * purpose string (for example `store:<id>:access`): a token copied onto another store's row fails to
- * decrypt. Unwrapped DEKs are cached for 10 minutes per process.
- */
+/** All token writers and rotations take this transaction lock before choosing an active DEK. */
+export async function lockTenantKeys(tx: Tx, tenantId: string): Promise<void> {
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`tenant_dek:${tenantId}`}, 0))`);
+}
+
+/** Worker-only AES-256-GCM envelope encryption, bound to the tenant, store, and token field. */
 export class TokenVault {
   private readonly cache = new Map<string, CachedKey>();
-
   constructor(private readonly keys: KeyProvider) {}
 
   async seal(
@@ -31,7 +28,14 @@ export class TokenVault {
     plaintext: string,
     purpose: string,
   ): Promise<{ data: Buffer; dekVersion: number }> {
-    const key = await this.activeKey(tx, tenantId);
+    await lockTenantKeys(tx, tenantId);
+    // Read the active version every time: another process may have committed a rotation.
+    const [row] = await tx
+      .select()
+      .from(tenantKey)
+      .where(and(eq(tenantKey.tenantId, tenantId), isNull(tenantKey.retiredAt)))
+      .limit(1);
+    const key = row ? await this.unwrap(tenantId, row) : await this.createKey(tx, tenantId);
     return {
       data: sealAesGcm(key.dek, Buffer.from(plaintext, "utf8"), `${tenantId}:${purpose}`),
       dekVersion: key.version,
@@ -39,40 +43,47 @@ export class TokenVault {
   }
 
   async open(tx: Tx, tenantId: string, data: Buffer, dekVersion: number, purpose: string): Promise<string> {
-    const key = await this.keyByVersion(tx, tenantId, dekVersion);
-    return openAesGcm(key.dek, data, `${tenantId}:${purpose}`).toString("utf8");
-  }
-
-  private cached(tenantId: string, version: number | "active"): CachedKey | undefined {
-    const hit = this.cache.get(`${tenantId}:${version}`);
-    if (hit && hit.until > Date.now()) return hit;
-    return undefined;
-  }
-
-  private remember(tenantId: string, key: Omit<CachedKey, "until">, active: boolean): CachedKey {
-    const entry = { ...key, until: Date.now() + DEK_CACHE_MS };
-    this.cache.set(`${tenantId}:${key.version}`, entry);
-    if (active) this.cache.set(`${tenantId}:active`, entry);
-    return entry;
-  }
-
-  private async activeKey(tx: Tx, tenantId: string): Promise<CachedKey> {
-    const hit = this.cached(tenantId, "active");
-    if (hit) return hit;
     const [row] = await tx
       .select()
       .from(tenantKey)
-      .where(and(eq(tenantKey.tenantId, tenantId), isNull(tenantKey.retiredAt)))
+      .where(and(eq(tenantKey.tenantId, tenantId), eq(tenantKey.version, dekVersion)))
       .limit(1);
-    if (row) {
-      const dek = await this.keys.unwrap(row.wrappedDek, tenantId, row.keyRef);
-      return this.remember(tenantId, { dek, version: row.version }, true);
-    }
-    return this.createKey(tx, tenantId);
+    if (!row) throw new Error(`tenant key version ${dekVersion} not found`);
+    const key = await this.unwrap(tenantId, row);
+    return openAesGcm(key.dek, data, `${tenantId}:${purpose}`).toString("utf8");
   }
 
-  /** First secret of a tenant: generate and store its DEK. Two workers racing both succeed; one row wins. */
-  private async createKey(tx: Tx, tenantId: string): Promise<CachedKey> {
+  /** A rotation occurrence uses its ULID as the key id: retries resume instead of rotating again. */
+  async rotateIn(tx: Tx, tenantId: string, rotationId: string): Promise<number> {
+    await lockTenantKeys(tx, tenantId);
+    const [existing] = await tx
+      .select({ version: tenantKey.version })
+      .from(tenantKey)
+      .where(and(eq(tenantKey.tenantId, tenantId), eq(tenantKey.id, rotationId)));
+    if (existing) return existing.version;
+    await tx
+      .update(tenantKey)
+      .set({ retiredAt: new Date() })
+      .where(and(eq(tenantKey.tenantId, tenantId), isNull(tenantKey.retiredAt)));
+    return (await this.createKey(tx, tenantId, rotationId)).version;
+  }
+
+  private async unwrap(tenantId: string, row: typeof tenantKey.$inferSelect): Promise<CachedKey> {
+    // Include the wrapped bytes: an uncommitted key may have rolled back and its version been reused.
+    const cacheKey = `${tenantId}:${row.version}:${createHash("sha256").update(row.wrappedDek).digest("hex")}`;
+    const hit = this.cache.get(cacheKey);
+    if (hit && hit.until > Date.now()) return hit;
+    for (const [key, entry] of this.cache) if (entry.until <= Date.now()) this.cache.delete(key);
+    const entry = {
+      dek: await this.keys.unwrap(row.wrappedDek, tenantId, row.keyRef),
+      version: row.version,
+      until: Date.now() + DEK_CACHE_MS,
+    };
+    this.cache.set(cacheKey, entry);
+    return entry;
+  }
+
+  private async createKey(tx: Tx, tenantId: string, id = newId()): Promise<CachedKey> {
     const [latest] = await tx
       .select({ version: tenantKey.version })
       .from(tenantKey)
@@ -81,42 +92,14 @@ export class TokenVault {
       .limit(1);
     const version = (latest?.version ?? 0) + 1;
     const generated = await this.keys.generateDataKey(tenantId);
-    try {
-      await tx.transaction(async (sp) => {
-        await sp.insert(tenantKey).values({
-          id: newId(),
-          tenantId,
-          version,
-          provider: this.keys.provider,
-          keyRef: this.keys.keyRef,
-          wrappedDek: generated.wrapped,
-        });
-      });
-    } catch (err) {
-      if ((err as { code?: string }).code !== "23505") throw err;
-      this.cache.delete(`${tenantId}:active`);
-      const [winner] = await tx
-        .select()
-        .from(tenantKey)
-        .where(and(eq(tenantKey.tenantId, tenantId), isNull(tenantKey.retiredAt)))
-        .limit(1);
-      if (!winner) throw err;
-      const dek = await this.keys.unwrap(winner.wrappedDek, tenantId, winner.keyRef);
-      return this.remember(tenantId, { dek, version: winner.version }, true);
-    }
-    return this.remember(tenantId, { dek: generated.plaintext, version }, true);
-  }
-
-  private async keyByVersion(tx: Tx, tenantId: string, version: number): Promise<CachedKey> {
-    const hit = this.cached(tenantId, version);
-    if (hit) return hit;
-    const [row] = await tx
-      .select()
-      .from(tenantKey)
-      .where(and(eq(tenantKey.tenantId, tenantId), eq(tenantKey.version, version)))
-      .limit(1);
-    if (!row) throw new Error(`tenant key version ${version} not found`);
-    const dek = await this.keys.unwrap(row.wrappedDek, tenantId, row.keyRef);
-    return this.remember(tenantId, { dek, version }, row.retiredAt === null);
+    await tx.insert(tenantKey).values({
+      id,
+      tenantId,
+      version,
+      provider: this.keys.provider,
+      keyRef: this.keys.keyRef,
+      wrappedDek: generated.wrapped,
+    });
+    return { dek: generated.plaintext, version, until: Date.now() + DEK_CACHE_MS };
   }
 }

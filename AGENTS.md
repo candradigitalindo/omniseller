@@ -19,6 +19,9 @@ Paths in the backend document are relative to `backend/`, and every `pnpm` comma
 - Schema changes follow expand-and-contract. Applied migrations are never edited.
 
 ## Commands (from `backend/`)
+
+- One-shot operations: read `backend/src/ops/README.md`. `pnpm ops:webhook:replay`, `ops:stock:push`, `ops:crypto:rotate-dek`, and `ops:tenant:purge` require `--tenant` and write outbox requests with the worker role; only partition maintenance uses the system role. `--dry-run` previews; production mutations require `OPS_CONFIRM=1`. `jobs:dlq` and `jobs:retry` use the original queue's BullMQ failed set (ADR-042), never print job payloads or error text, and never delete jobs.
+
 ```
 pnpm install
 pnpm infra:up            # Docker; or: pnpm infra:native start (no Docker)
@@ -65,6 +68,8 @@ Module: section 15.4. Table: 15.5 (write the SQL migration first, then the Drizz
 NestJS injection always uses explicit `@Inject(TOKEN)`; do not rely on constructor type metadata.
 
 ## Traps that already bit this codebase
+
+- Token writes and DEK rotation take `lockTenantKeys` before locking credentials. `TokenVault.seal` must read the active version in the transaction: an active-key cache in another worker would keep writing retired keys. The unwrap cache includes the wrapped DEK's fingerprint, since a rolled-back version may be reused. Rotation retries reuse `rotationId` (the key row id), and only re-encrypt versions older than that rotation; keep retired keys for readers and backups.
 - DTO classes used in `@Body()`, `@Query()`, `@Param()` must be imported as values, never with `type`. A type-only import erases the class from decorator metadata and every request to that route fails with 500 (`ZodSchemaDeclarationException`). `src/common/http/dto-metadata.spec.ts` checks every controller; add new controllers to its list. Biome's `useImportType` is off for this reason.
 - Every endpoint declares `@Isolation(...)` or `@Public()`; the generator in `test/tenant-isolation` fails otherwise. A new fixture kind or mutating operation needs an entry there.
 - Inside a Drizzle `sql` subquery, reference the outer table's columns fully qualified (`sql.raw('"user"."id"')`). In a single-table select Drizzle renders `${user.id}` as a bare `"id"`, which binds to the subquery's own table.

@@ -11,10 +11,12 @@ import {
   storeConnected,
   storeReauthRequired,
   storeWarehousesSyncRequested,
+  tenantDekRotationRequested,
 } from "./channel.events";
 import { ChannelAlertsService } from "./channel-alerts.service";
 import { ChannelSyncService } from "./channel-sync.service";
 import { CredentialService } from "./credential.service";
+import { KeyRotationService } from "./key-rotation.service";
 import { StoreConnectService } from "./store-connect.service";
 import { StoresService } from "./stores.service";
 
@@ -137,7 +139,20 @@ export const storeConnectionCheckJob = defineJob({
   },
 });
 
+export const tenantDekRotateJob = defineJob({
+  queue: "import",
+  name: "tenant.dek_rotate",
+  schema: z.object({ rotationId: ulidSchema }),
+  triggeredBy: [tenantDekRotationRequested],
+  options: { attempts: 5, backoff: { type: "exponential", delay: 30_000 } },
+  jobId: (p) => jobKey("tenant.dek_rotate", p.tenantId, p.rotationId),
+  handler: async (p, run) => {
+    await run.deps.resolve(KeyRotationService).run(run.ctx, p.rotationId);
+  },
+});
+
 export const CHANNEL_JOBS = [
+  tenantDekRotateJob,
   storeAuthorizeJob,
   storeWarehousesSyncJob,
   storeWebhooksSubscribeJob,

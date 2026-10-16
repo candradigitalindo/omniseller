@@ -9,6 +9,7 @@ Log sinkron per toko dan inbox webhook marketplace (technology doc 8.3; backend 
 - `outbox_event` (infra, `src/outbox`).
 
 ## Service publik
+- `replayWebhooksIn(tx, ctx, outbox, pilihan)` (CLI ops): hanya inbox terverifikasi yang telah dirutekan ke tenant itu; filter id atau sumber dan waktu, batch terbatas. `force` untuk yang sudah diproses; reset dan `webhook.replay_requested` satu transaksi, `replayId` membuat permintaan baru tidak dibuang sebagai duplikat job lama. Dry run tidak menulis.
 - `SyncLogService.run(ctx, entri, fn, ringkasan?)`: menulis baris `running`, menjalankan `fn` sambil merekam panggilan connector, lalu `succeeded` atau `failed`. `skipped(ctx, entri, alasan)`. `list(ctx, storeId, cursor, limit)`. `deleteStoreLogIn(tx, storeId, limit)`: log toko yang diputus tanpa menyimpan data (modul retention, backend doc 8.23).
 - `WebhookReceiver.receive(channel, headers, rawBody)` (proses webhook): verifikasi, simpan, enqueue. Error: `webhook.signature_invalid` (401), `channel.not_configured`.
 - `WebhookInboxService.process(ctx, inboxId, konsumen, run)` (worker): normalisasi lalu panggil konsumen per jenis event.
@@ -24,7 +25,7 @@ Log sinkron per toko dan inbox webhook marketplace (technology doc 8.3; backend 
 ## Job dan jadwal
 | Nama | Jenis | Keterangan |
 |---|---|---|
-| `webhook.process` | job, antrean `webhook` | Id `webhook.process\|<inbox_id>` |
+| `webhook.process` | job, antrean `webhook` | Id `webhook.process\|<inbox_id>`; replay operasional menambah `\|replay\|<replayId>` dari `webhook.replay_requested` |
 | `webhook.inbox_sweep` | jadwal 30 detik (scheduler) | Enqueue ulang, rutekan notifikasi toko yang baru terhubung, tutup toko tak dikenal setelah 15 menit |
 
 ## Endpoint

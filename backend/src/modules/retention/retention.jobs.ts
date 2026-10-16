@@ -4,6 +4,7 @@ import { defineJob } from "../../jobs/define";
 import { jobKey } from "../../jobs/job-id";
 import { storeDataDeletionRequested } from "../channel/channel.events";
 import { BuyerDataRetentionService } from "./buyer-data-retention.service";
+import { tenantPurgeRequested } from "./retention.events";
 import { StoreDataDeletionService } from "./store-data-deletion.service";
 import { TenantPurgeService } from "./tenant-purge.service";
 
@@ -48,6 +49,7 @@ export const tenantPurgeJob = defineJob({
   queue: "import",
   name: "tenant.purge",
   schema: z.object({ slot: z.string().min(1) }),
+  triggeredBy: [tenantPurgeRequested],
   options: { attempts: 3, backoff: { type: "exponential", delay: 60_000 } },
   jobId: (p) => jobKey("tenant.purge", p.tenantId, p.slot),
   handler: async (_p, run) => {

@@ -79,6 +79,7 @@ Gudang, stok, pergerakan stok, aturan alokasi, dan push stok ke marketplace (PRD
   - Terlihat oleh pemegang salah satu gudangnya; gudang asal mengubah, mengirim, dan membatalkan, gudang tujuan menerima.
 
 ## Event
+- Operasional: `stock.push_requested` dari CLI setelah stok ditetapkan di gudang aktif. `stock.force_push` melupakan nilai push terakhir varian lalu menandainya dirty melalui `StockTriggersService.forcePair`; perencana biasa tetap memeriksa toko `live` dan stok yang ditetapkan, tanpa mengubah kuantitas.
 - Diterbitkan: `inventory.changed`, `stock.resync_requested`, `stock_count.apply_requested`.
 - Dikonsumsi: `listing.mapped`, `listing.unmapped`, `store.sync_mode_changed`, `channel_warehouse.changed`, `channel_warehouse.mapping_changed`, `stock_count.apply_requested`.
 - Notifikasi: `stock.critical`, `stock_count.review` (pemegang `inventory:adjust` di gudang itu), `stock_transfer.sent` (pemegang `inventory:transfer` di gudang tujuan).
@@ -87,6 +88,7 @@ Gudang, stok, pergerakan stok, aturan alokasi, dan push stok ke marketplace (PRD
 | Job | Pemicu |
 |---|---|
 | `stock.mark_dirty` | `inventory.changed` |
+| `stock.force_push` | `stock.push_requested` (CLI ops), id per kejadian outbox |
 | `inventory.stock_alert` (antrean `notify`) | `inventory.changed` |
 | `stock.push` | scheduler `stock.dirty_flush` (batch 50 kunci per tenant) |
 | `stock.listing_mapped` | `listing.mapped` |

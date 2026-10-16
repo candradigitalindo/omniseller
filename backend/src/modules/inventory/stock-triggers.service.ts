@@ -40,6 +40,18 @@ export class StockTriggersService {
     await this.dirty.markMany(ctx.tenantId, pairs);
   }
 
+  /** Operational repair: recompute this variant through the normal push planner, even if unchanged. */
+  async forcePair(ctx: RequestContext, pair: StockPair): Promise<void> {
+    await withTenantTx(this.db, ctx, async (tx) => {
+      const listings = await this.listings.mappedForVariantsIn(tx, [pair.variantId]);
+      await this.repo.invalidateStates(
+        tx,
+        listings.map((l) => l.id),
+      );
+    });
+    await this.dirty.mark(ctx.tenantId, pair.variantId, pair.warehouseId);
+  }
+
   /** A listing got a (new) variant: whatever was pushed for it before no longer counts. */
   async listingMapped(ctx: RequestContext, listingId: string): Promise<number> {
     const pairs = await withTenantTx(this.db, ctx, async (tx) => {

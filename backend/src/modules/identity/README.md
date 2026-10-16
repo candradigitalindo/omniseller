@@ -8,6 +8,7 @@ Tenant (bisnis), pengguna, peran bawaan, cakupan toko dan gudang, serta undangan
 - `permission` (global, seed).
 
 ## Service publik
+- `tenantForOpsIn(tx, tenantId)` (internal operasional): metadata status dan waktu purge, dengan filter id tenant eksplisit dan lock share. Dipanggil dalam `withTenantTx` oleh CLI dan worker rotasi; tidak membaca profil atau data pribadi. Tenant hilang/sudah dihapus ditolak.
 - `TenantsService.signup(input)`: tenant baru beserta Owner; slug `<nama>-<4 hex>`. Bisnis baru mulai di paket Growth dan menulis event `tenant.created`, sehingga modul `billing` mencatat uji cobanya (backend doc 8.32).
 - Paket (backend doc 8.32): `TenantsService.planIn(tx, ctx)` (paket yang berlaku, `tenant.plan_id`), `listPlansIn`, `planNamesIn` (log audit dan ekspor), dan `setPlanIn` (hanya untuk modul `billing`). `plan` adalah tabel global yang diisi seed.
 - `UsersService.loadPrincipal(tenantId, userId)`: identitas, izin, dan cakupan; dipakai `AuthGuard` di setiap permintaan.

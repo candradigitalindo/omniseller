@@ -9,7 +9,12 @@ import {
   channelWarehouseMappingChanged,
   storeSyncModeChanged,
 } from "../channel/channel.events";
-import { inventoryChanged, stockCountApplyRequested, stockResyncRequested } from "./inventory.events";
+import {
+  inventoryChanged,
+  stockCountApplyRequested,
+  stockPushRequested,
+  stockResyncRequested,
+} from "./inventory.events";
 import { StockAlertsService } from "./stock-alerts.service";
 import { StockCountService } from "./stock-count.service";
 import { StockPushService } from "./stock-push.service";
@@ -130,7 +135,20 @@ export const stockCountApplyJob = defineJob({
   },
 });
 
+export const stockForcePushJob = defineJob({
+  queue: "stock.push",
+  name: "stock.force_push",
+  schema: pair,
+  triggeredBy: [stockPushRequested],
+  options: { attempts: 5, backoff: { type: "exponential", delay: 2_000 } },
+  jobId: (p, meta) => jobKey("stock.force_push", p.tenantId, p.variantId, meta.eventId ?? "direct"),
+  handler: async (p, run) => {
+    await run.deps.resolve(StockTriggersService).forcePair(run.ctx, p);
+  },
+});
+
 export const INVENTORY_JOBS = [
+  stockForcePushJob,
   stockMarkDirtyJob,
   stockAlertJob,
   stockPushJob,

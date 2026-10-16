@@ -32,7 +32,14 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "openapi:emit": "pnpm build && node dist/openapi/emit.cli.js",
-    "test:isolation": "pnpm build:packages && vitest run --project integration test/tenant-isolation"
+    "test:isolation": "pnpm build:packages && vitest run --project integration test/tenant-isolation",
+    "ops:webhook:replay": "tsx --env-file-if-exists=.env.local src/ops/ops.cli.ts webhook:replay",
+    "ops:stock:push": "tsx --env-file-if-exists=.env.local src/ops/ops.cli.ts stock:push",
+    "ops:partition:maintain": "tsx --env-file-if-exists=.env.local src/ops/ops.cli.ts partition:maintain",
+    "ops:crypto:rotate-dek": "tsx --env-file-if-exists=.env.local src/ops/ops.cli.ts crypto:rotate-dek",
+    "ops:tenant:purge": "tsx --env-file-if-exists=.env.local src/ops/ops.cli.ts tenant:purge",
+    "jobs:dlq": "tsx --env-file-if-exists=.env.local src/ops/ops.cli.ts jobs:dlq",
+    "jobs:retry": "tsx --env-file-if-exists=.env.local src/ops/ops.cli.ts jobs:retry"
   },
   "dependencies": {
     "@aws-sdk/client-kms": "3.1144.0",

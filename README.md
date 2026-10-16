@@ -52,6 +52,8 @@ TEST_PG_ADMIN_URL=postgres://postgres@127.0.0.1:5433/postgres TEST_REDIS_URL=red
 
 Paket di `backend/packages` (shared, connector) dipakai backend lewat hasil build-nya (`dist`). Setelah mengubah kode paket, jalankan `pnpm build:packages` (sudah termasuk dalam `pnpm test:int`) sebelum menjalankan satu berkas uji integrasi dengan `vitest run --project integration`. Tanpa itu, tes memakai kode paket yang lama.
 
+Perintah operasional backend (replay webhook, perbaikan push stok, pemeliharaan partisi, rotasi DEK, purge yang sudah waktunya, dan daftar/retry job gagal) ada di [backend/src/ops/README.md](backend/src/ops/README.md). Semua menyediakan pratinjau; operasi tenant mengikuti outbox dan worker.
+
 ## Web app
 
 Butuh backend yang berjalan (`pnpm dev` di `backend/`, api di port 3000). Semua perintah dari folder `frontend/`; rinciannya di `frontend/README.md`.
