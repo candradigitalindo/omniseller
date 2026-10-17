@@ -1,0 +1,97 @@
+{
+  "scope": "Shopee Chat API policy relevant to a new multi-tenant ISV integrator serving Indonesia",
+  "method": "Official public Shopee documents fetched read-only through r.jina.ai reader. Direct open.shopee.com and open.shopee.cn CONNECT requests returned403. No developer login, credentials or account marketplace calls. Public SDK code was inspected as data only; no third-party code executed.",
+  "evidence": [
+    {
+      "id": "announcement1026",
+      "officialUrl": "https://open.shopee.com/announcements/1026",
+      "retrievedSourceUrl": "https://open.shopee.com/announcements/1026",
+      "readerUrl": "https://r.jina.ai/https://open.shopee.com/announcements/1026",
+      "retrievedAt": "2026-10-17T05:36:28.827117+00:00",
+      "sourceUpdatedOn": "2024-11-19",
+      "sha256": "e71ef4af03b7856c9fc5762157d075c99d05d2159951cb46d823eebcabf73897",
+      "bytes": 1305,
+      "quotes": [
+        "Starting from November 18, 2024, we will no longer accept new applications for the following:",
+        "Applications for Customer Service Apps from Individual Third Parties and Third-party Partner Platforms will be closed.",
+        "New Chat OpenAPI applications from Individual Third Parties and Third-party Partner Platforms will be closed."
+      ]
+    },
+    {
+      "id": "faq716",
+      "officialUrl": "https://open.shopee.com/faq/716",
+      "retrievedSourceUrl": "https://open.shopee.com/faq/716",
+      "readerUrl": "https://r.jina.ai/https://open.shopee.com/faq/716",
+      "retrievedAt": "2026-10-17T05:36:28.827254+00:00",
+      "sourceUpdatedOn": "2025-12-12",
+      "sha256": "40e25c8677a4d59fc6d36991b57bba79f65d1c8bc020e257d2d3966eee02c350",
+      "bytes": 1550,
+      "quotes": [
+        "This FAQ is only for developers who already have Chat API access.",
+        "The Chat feature is no longer available for Third-party Partner Platform (ISV) developers."
+      ]
+    },
+    {
+      "id": "guide14",
+      "officialUrl": "https://open.shopee.com/developer-guide/14",
+      "retrievedSourceUrl": "https://open.shopee.com/developer-guide/14",
+      "readerUrl": "https://r.jina.ai/https://open.shopee.com/developer-guide/14",
+      "retrievedAt": "2026-10-17T05:36:28.827340+00:00",
+      "sourceUpdatedOn": null,
+      "sha256": "7766d70c1f238d718ae4d8b3cff8c9a0676da8e9cf183ebb64230bd039d2a95d",
+      "bytes": 11366,
+      "quotes": [
+        "ERP System: Such Apps are for managing key business processes. This App type is suitable if you provide software services to Shopee sellers.",
+        "Seller In-house System: Use this App type if you are a Shopee seller managing your own Apps.",
+        "ERP System | All API except Chat API and Ads API",
+        "Seller In-house System | All API including Chat API"
+      ]
+    },
+    {
+      "id": "faq56",
+      "officialUrl": "https://open.shopee.com/faq/56",
+      "retrievedSourceUrl": "https://open.shopee.com/opservice/api/v1/portal_faq/detail?faq_id=56&language_code=en",
+      "readerUrl": "https://r.jina.ai/https://open.shopee.com/opservice/api/v1/portal_faq/detail?faq_id=56&language_code=en",
+      "retrievedAt": "2026-10-17T05:36:28.827406+00:00",
+      "sourceUpdatedOn": "2026-01-12",
+      "sha256": "f25623da3d4814a42cc433c3657f4300c4a338225a03f427bc335a94c1fb395e",
+      "bytes": 14685,
+      "quotes": [
+        "Applications for Customer Service Apps from Individual Third Parties and Third-party Partner Platforms have been closed since November 18, 2024.",
+        "To continue having access to Chat API, you have to meet the criteria of the market you’re operating in:",
+        "If your account type is Third Party Partner, please create an App of Customer Service type. If your account type is Shopee seller, please create an App of Seller In House System. If you have created such an app before, you can also use that to call the Chat API."
+      ]
+    },
+    {
+      "id": "getMessageDocumentDenied",
+      "officialUrl": "https://open.shopee.com/opservice/api/v1/doc/api/?version=2&api_name=v2.sellerchat.get_message",
+      "retrievedSourceUrl": "https://open.shopee.com/opservice/api/v1/doc/api/?version=2&api_name=v2.sellerchat.get_message",
+      "readerUrl": "https://r.jina.ai/https://open.shopee.com/opservice/api/v1/doc/api/?version=2&api_name=v2.sellerchat.get_message",
+      "retrievedAt": "2026-10-17T05:36:28.827440+00:00",
+      "sourceUpdatedOn": null,
+      "sha256": "d6f6e925e60147b9b1e96aaaefd89b0c3dae1756d06a5e13863bece9f60bbc55",
+      "bytes": 280,
+      "quotes": ["You have no permission of this document. Please login first to confirm your identity"]
+    },
+    {
+      "id": "sendMessageDocumentDenied",
+      "officialUrl": "https://open.shopee.com/opservice/api/v1/doc/api/?version=2&api_name=v2.sellerchat.send_message",
+      "retrievedSourceUrl": "https://open.shopee.com/opservice/api/v1/doc/api/?version=2&api_name=v2.sellerchat.send_message",
+      "readerUrl": "https://r.jina.ai/https://open.shopee.com/opservice/api/v1/doc/api/?version=2&api_name=v2.sellerchat.send_message",
+      "retrievedAt": "2026-10-17T05:36:28.827462+00:00",
+      "sourceUpdatedOn": null,
+      "sha256": "8b2c03baf64610453bef4c6de9083535bf7067a222f52efe39a0209b9d2c3315",
+      "bytes": 281,
+      "quotes": ["You have no permission of this document. Please login first to confirm your identity"]
+    }
+  ],
+  "conclusion": {
+    "newIsvAccess": "Closed by announcement1026 from2024-11-18; both Customer Service app creation and new Chat OpenAPI applications are closed. Announcement contains no Indonesia exemption. FAQ716 repeats unavailability for ISV.",
+    "legacyAccess": "Announcement is scoped to new applications. FAQ56 still describes continuation criteria and legacy app reuse; FAQ716 uses broad no-longer-available wording. These sources do not establish whether a specific legacy whitelisted ISV app still works. Do not claim blanket revocation or guaranteed legacy access.",
+    "sellerInHouse": "Guide14 lists own-shop Seller In-house Systems separately with Chat in app permissions. This is not proof a multi-tenant ISV can switch to that category or gain Chat access. Indonesia new in-house approval criteria were not established by this bounded research. Brazil RM routes do not apply to Indonesia.",
+    "implementationNow": "Can develop ordinary verified commerce API operations without real keys. Cannot honestly add usable Shopee Chat for this new ISV by setting API key or a UI switch; current Chat request/response docs remain error_auth. SDK2022 contracts are stale and incomplete for recent2024–2026 rules.",
+    "liveTesting": "Actual allowed credentials/program permissions are necessary for real account verification. Locally passed mocks cannot substitute.",
+    "messageQuotaWhitelist": "FAQ716 distinguishes daily sending quotas for whitelisted shops that already have Chat API access. This is not proof of new ISV Chat API eligibility."
+  },
+  "reviewedAt": "2026-10-17"
+}

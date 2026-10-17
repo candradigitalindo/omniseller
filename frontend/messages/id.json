@@ -3807,7 +3807,7 @@
     "open": "Buka percakapan {name}",
     "unread": "{count} belum dibaca",
     "noPreview": "Buka untuk melihat pesan yang tersedia.",
-    "unsupported": "Chat Shopee belum tersedia karena autentikasi dan kontrak API chat Indonesia masih perlu diverifikasi.",
+    "unsupported": "Chat Shopee belum tersedia. Shopee menutup pengajuan Chat Open API baru untuk platform integrator pihak ketiga. Menghubungkan toko tidak otomatis membuka akses chat.",
     "scopeMissing": "Toko belum memberi izin Customer Service. Periksa akses aplikasi di Partner Center dan hubungkan ulang toko.",
     "warehouseScope": "Kotak masuk memerlukan izin ke seluruh gudang bisnis karena API chat tidak menyediakan filter gudang.",
     "inactive": "Koneksi toko tidak aktif. Hubungkan ulang melalui Integrasi.",
