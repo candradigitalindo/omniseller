@@ -124,3 +124,11 @@ export async function applyMovement(tx: Tx, tenantId: string, m: MovementInput) 
       ${m.referenceType ?? null}, ${m.referenceId ?? null}, ${m.reason ?? null}, NULL, NULL)`);
   return r.rows[0]!;
 }
+
+export async function createAffiliateQuery(tx: Tx, tenantId: string, storeId: string): Promise<string> {
+  const id = newId();
+  await tx.execute(
+    sql`INSERT INTO affiliate_product_query(id,tenant_id,store_id,query,expires_at) VALUES (${id},${tenantId},${storeId},'{"pageSize":20}',now()+interval '1 day')`,
+  );
+  return id;
+}

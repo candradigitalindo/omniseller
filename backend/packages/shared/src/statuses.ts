@@ -154,3 +154,6 @@ export type StockAdjustmentReason = keyof typeof STOCK_ADJUSTMENT_REASONS;
 export type StatusSource = "app" | "marketplace";
 
 export const LISTING_PRICE_CHANGE_STATUSES = ["queued", "processing", "succeeded", "failed", "cancelled"] as const;
+
+export const AFFILIATE_QUERY_STATUSES = ["queued", "running", "succeeded", "failed"] as const;
+export type AffiliateQueryStatus = (typeof AFFILIATE_QUERY_STATUSES)[number];

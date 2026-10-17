@@ -51,8 +51,9 @@ maksimal 50 item ID. ID int64 dipertahankan sebagai string; 1,11% disimpan sebag
 Periode tanpa batas, perlindungan komisi dan waktu terminasi dipertahankan; cursor macet atau respons
 rusak ditolak. Galat izin/aktivasi/syarat AMS tidak diperlakukan sebagai token kedaluwarsa.
 
-**Statusnya masih parsial:** adapter dan tes tersedia, tetapi belum ada service tenant, job worker,
-HTTP endpoint, penyimpanan hasil atau layar AMS. Ini belum menjadi fitur AMS yang dapat dipakai seller.
+**Statusnya masih parsial:** alur baca kini memiliki service tenant, job worker, API, cache hasil,
+UI `/affiliate`, role dinamis, audit/ekspor dan tes isolasi. Kontrak resmi terbaru dan sandbox nyata
+belum diverifikasi; pembuatan/perubahan campaign belum tersedia.
 Sisa 35 endpoint AMS pada snapshot belum diimplementasikan, termasuk pengaturan kampanye terbuka,
 kampanye terarah, dashboard performa dan laporan validasi/konversi.
 
@@ -65,7 +66,7 @@ fitur bagi toko/tenant.
 
 | Kelompok | Pekerjaan berikutnya |
 |---|---|
-| AMS/Affiliate | Seluruh alur aplikasi untuk adapter baca, operasi Open/Targeted Campaign, komisi, batch task, dashboard dan tagihan/konversi |
+| AMS/Affiliate | Operasi Open/Targeted Campaign, perubahan komisi, batch task, dashboard dan tagihan/konversi |
 | Harga/promosi | Aturan harga otomatis/massal, Discount, Voucher, Add-On Deal, Bundle Deal, Flash Sale, Follow Prize, Top Picks dan kategori toko |
 | Keuangan | Escrow, fee marketplace, payout/settlement, penyesuaian dan rekonsiliasi melalui Payment API |
 | Chat dan kesehatan toko | Adapter Customer Service/Chat, penanganan data pembeli yang sesuai, Account Health dan batas app type |
@@ -101,7 +102,8 @@ Validasi lokal 16 Oktober 2026: `pnpm typecheck`, `pnpm lint` dan `pnpm test --m
 --testTimeout=15000` dari `backend/` lulus. Total 600 tes pada 61 berkas: 414 tes unit aplikasi dan
 186 tes paket, termasuk 104 tes connector Shopee (32 tes AMS baru). Inventaris diperiksa terhadap
 428 entri snapshot dan referensi baris sumber; tidak ada path connector yang tidak tercakup snapshot.
-Tidak ada pengujian sandbox/live, UI AMS atau kontrak resmi terkini yang diklaim lulus.
+Validasi pada audit awal belum mencakup UI AMS. Penambahan alur baca AMS 17 Oktober dicatat pada
+IMPLEMENTASI-MARKETPLACE.md; sandbox/live dan kontrak resmi terkini tetap belum diverifikasi.
 
 ## Implementasi sesudah audit
 17 Oktober 2026: perubahan harga reguler per listing untuk kedua marketplace telah ditambahkan beserta modal, worker, audit/ekspor dan tes lokal. Referensi kode kini 46/428 (382 tanpa referensi), tanpa mengubah tanggal/provenance snapshot. Baca [status implementasi seluruh modul](IMPLEMENTASI-MARKETPLACE.md); semua fitur Shopee tetap belum selesai dan sandbox nyata belum dijalankan.

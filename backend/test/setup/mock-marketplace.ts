@@ -134,7 +134,21 @@ export interface MockShopeeOrder {
   }[];
 }
 
+export interface MockAmsProduct {
+  item_id: number | string;
+  item_name: string;
+  campaign_id: number | string;
+  campaign_status: string;
+  commission_rate: number;
+  period_start_time: number;
+  period_end_time: number;
+  pending_terminated_time?: number;
+  commission_protection_list?: { commission_rate: number; protection_period_end_time: number }[];
+  max_commission_rate_current_day?: number;
+}
 export interface MockShopeeShop {
+  amsProducts?: MockAmsProduct[];
+  amsEnabled?: boolean;
   shopId: string;
   name: string;
   region: string;
@@ -610,6 +624,32 @@ export class MockMarketplace {
           );
         }
         return ok({ response: shop.warehouses.map((w) => ({ ...w, warehouse_type: 1, region: shop.region })) });
+      case "/api/v2/ams/get_open_campaign_added_product": {
+        if (call.method !== "GET") return this.shopeeError("error_param", "GET required", 200);
+        if (shop.amsEnabled === false)
+          return this.shopeeError("error_business", "Please agree to the AMS T&C in Seller Center first.", 200);
+        let all = [...(shop.amsProducts ?? [])];
+        if (q.search_type === "ITEM_NAME")
+          all = all.filter((p) => p.item_name.toLowerCase().includes((q.search_content ?? "").toLowerCase()));
+        if (q.search_type === "ITEM_ID") {
+          const ids = new Set((q.search_content ?? "").split(","));
+          all = all.filter((p) => ids.has(String(p.item_id)));
+        }
+        if (q.sort_by)
+          all.sort((a, b) => (q.sort_by === "-commission_rate" ? -1 : 1) * (a.commission_rate - b.commission_rate));
+        const offset = q.cursor ? Number(q.cursor.replace(/^ams-/, "")) : 0;
+        const size = Number(q.page_size ?? 100);
+        if (!Number.isInteger(offset) || offset < 0 || !Number.isInteger(size) || size < 1 || size > 100)
+          return this.shopeeError("error_param", "Bad page", 200);
+        return ok({
+          response: {
+            item_list: all.slice(offset, offset + size),
+            total_count: all.length,
+            has_more: offset + size < all.length,
+            cursor: offset + size < all.length ? `ams-${offset + size}` : "",
+          },
+        });
+      }
       case "/api/v2/product/get_item_list": {
         const statuses = new URLSearchParams(call.rawQuery).getAll("item_status");
         const from = q.update_time_from ? Number(q.update_time_from) : 0;

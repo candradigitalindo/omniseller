@@ -1,3 +1,4 @@
+export * from "./affiliate";
 export * from "./audit";
 export * from "./automation";
 export * from "./billing";

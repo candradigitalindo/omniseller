@@ -2,6 +2,7 @@ import "reflect-metadata";
 import { ROUTE_ARGS_METADATA } from "@nestjs/common/constants";
 import { RouteParamtypes } from "@nestjs/common/enums/route-paramtypes.enum";
 import { describe, expect, it } from "vitest";
+import { AffiliateProductsController } from "../../modules/affiliate/affiliate.controller";
 import { AuditController } from "../../modules/audit/audit.controller";
 import { AuthController } from "../../modules/auth/auth.controller";
 import { OrderRulesController } from "../../modules/automation/automation.controller";
@@ -53,6 +54,7 @@ import { WebhooksController } from "../../modules/sync/webhooks.controller";
  * and every request to that route fails with a 500. Add new controllers to this list.
  */
 const CONTROLLERS = [
+  AffiliateProductsController,
   HealthController,
   AuthController,
   MeController,

@@ -202,3 +202,8 @@ SELECT ensure_trigger('audit_log', 'audit_log_immutable_trg',
 
 SELECT ensure_trigger('outbox_event', 'outbox_notify_trg',
   'CREATE TRIGGER outbox_notify_trg AFTER INSERT ON outbox_event FOR EACH STATEMENT EXECUTE FUNCTION outbox_notify()');
+
+SELECT ensure_trigger('affiliate_product_query','status_transition_trg',
+ 'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON affiliate_product_query FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''affiliate_product_query'')');
+SELECT ensure_trigger('affiliate_product_query','audit_trg',
+ 'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF status ON affiliate_product_query FOR EACH ROW EXECUTE FUNCTION audit_row()');

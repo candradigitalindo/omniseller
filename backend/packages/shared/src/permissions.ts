@@ -22,6 +22,7 @@ export const PERMISSIONS = {
   "catalog:write": "Ubah produk",
   "catalog:publish": "Terbitkan produk ke toko",
   "catalog:map": "Hubungkan listing ke produk",
+  "affiliate:read": "Lihat produk dan komisi affiliate",
   "price:write": "Ubah harga",
   "promo:write": "Kelola promosi",
   "finance:read": "Lihat keuangan",

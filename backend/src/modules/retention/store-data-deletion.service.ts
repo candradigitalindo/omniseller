@@ -5,6 +5,7 @@ import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
+import { AffiliateService } from "../affiliate/affiliate.service";
 import { ListingsService } from "../catalog/listings.service";
 import { storeDataDeletionRequested } from "../channel/channel.events";
 import { StoresService } from "../channel/stores.service";
@@ -53,6 +54,7 @@ export class StoreDataDeletionService {
     @Inject(ListingCopyService) private readonly copies: ListingCopyService,
     @Inject(CategoriesService) private readonly categories: CategoriesService,
     @Inject(ReturnsService) private readonly returns: ReturnsService,
+    @Inject(AffiliateService) private readonly affiliate: AffiliateService,
     @Inject(OUTBOX) private readonly outbox: Outbox,
   ) {}
 
@@ -72,6 +74,7 @@ export class StoreDataDeletionService {
           return this.orders.deleteOrdersIn(tx, ctx, ids);
         },
       ],
+      ["affiliate_queries", 100, (tx) => this.affiliate.deleteStoreQueriesIn(tx, storeId, 100)],
       ["listings", LISTING_BATCH, (tx) => this.listings.deleteStoreListingsIn(tx, storeId, LISTING_BATCH)],
       ["listing_copies", COPY_BATCH, (tx) => this.copies.deleteStoreCopiesIn(tx, storeId, COPY_BATCH)],
       ["categories", CATEGORY_BATCH, (tx) => this.categories.deleteStoreCategoriesIn(tx, storeId, CATEGORY_BATCH)],

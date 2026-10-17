@@ -51,6 +51,7 @@ const PATH_PARAMS: Record<string, string> = {
 
 /** Bodies for mutating operations, keyed by operationId. `ids` holds A's fixture ids and B's own ids. */
 const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: string; aState: string }) => object> = {
+  AffiliateProductsController_request: () => ({ pageSize: 20 }),
   ListingsController_changePrice: () => ({ price: 1, expectedPrice: 2 }),
   ListingsController_cancelPrice: () => ({ changeId: newId() }),
   UsersController_update: () => ({ name: "Penyusup" }),

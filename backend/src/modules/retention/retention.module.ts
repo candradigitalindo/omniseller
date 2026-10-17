@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AffiliateModule } from "../affiliate/affiliate.module";
 import { BusinessModule } from "../business/business.module";
 import { CatalogModule } from "../catalog/catalog.module";
 import { ChannelModule } from "../channel/channel.module";
@@ -20,6 +21,7 @@ import { TenantPurgeService } from "./tenant-purge.service";
  */
 @Module({
   imports: [
+    AffiliateModule,
     ChannelModule,
     OrdersModule,
     FulfillmentModule,

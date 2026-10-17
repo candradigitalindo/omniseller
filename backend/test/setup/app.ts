@@ -16,6 +16,7 @@ import type { JobDef } from "../../src/jobs/define";
 import { jobContext } from "../../src/jobs/job-context";
 import { JOB_DEFINITIONS, JobRegistry } from "../../src/jobs/registry";
 import type { StockDirtySet } from "../../src/jobs/stock-dirty";
+import { AffiliateWorkerModule } from "../../src/modules/affiliate/affiliate.module";
 import { AuthModule } from "../../src/modules/auth/auth.module";
 import { AutomationModule } from "../../src/modules/automation/automation.module";
 import { BillingModule, BillingWorkerModule } from "../../src/modules/billing/billing.module";
@@ -168,6 +169,7 @@ export async function startWorker(
       ChannelWorkerModule.forEnv(env),
       CatalogModule,
       CatalogWorkerModule,
+      AffiliateWorkerModule,
       ListingCopyModule,
       ListingCopyWorkerModule,
       InventoryWorkerModule,

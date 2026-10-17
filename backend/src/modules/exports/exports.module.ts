@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AffiliateModule } from "../affiliate/affiliate.module";
 import { AutomationModule } from "../automation/automation.module";
 import { BillingModule } from "../billing/billing.module";
 import { BusinessModule } from "../business/business.module";
@@ -25,6 +26,7 @@ export class ExportsModule {}
 /** Worker only: renders an export from the sheets of every module that owns data (backend doc 8.18). */
 @Module({
   imports: [
+    AffiliateModule,
     IdentityModule,
     ChannelModule,
     InventoryModule,

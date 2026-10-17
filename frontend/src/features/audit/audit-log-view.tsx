@@ -317,6 +317,8 @@ function useValueText() {
       return formatNumber(value);
     }
     if (typeof value === "string") {
+      if (entityType === "affiliate_product_query" && field === "status")
+        return tAll(`affiliate.request_${value}` as never);
       if (entityType === "listing_price_change" && field === "status")
         return tAll(`listingPrices.status_${value}` as never);
       if (MOMENT_FIELDS.has(field) && !Number.isNaN(Date.parse(value))) return formatDateTime(value, tz);

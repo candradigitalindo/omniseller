@@ -548,6 +548,24 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/stores/{id}/affiliate/products": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Hasil pembacaan produk open campaign AMS toko */
+    get: operations["AffiliateProductsController_get"];
+    put?: never;
+    /** Antrekan pembacaan satu halaman produk open campaign AMS */
+    post: operations["AffiliateProductsController_request"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/business-profile": {
     parameters: {
       query?: never;
@@ -3566,6 +3584,7 @@ export interface components {
         | "catalog:write"
         | "catalog:publish"
         | "catalog:map"
+        | "affiliate:read"
         | "price:write"
         | "promo:write"
         | "finance:read"
@@ -3779,6 +3798,7 @@ export interface components {
         | "catalog:write"
         | "catalog:publish"
         | "catalog:map"
+        | "affiliate:read"
         | "price:write"
         | "promo:write"
         | "finance:read"
@@ -3833,6 +3853,7 @@ export interface components {
         | "catalog:write"
         | "catalog:publish"
         | "catalog:map"
+        | "affiliate:read"
         | "price:write"
         | "promo:write"
         | "finance:read"
@@ -3950,6 +3971,112 @@ export interface components {
         id: string;
         name: string;
       }[];
+    };
+    AffiliateProductsResultDto_Output: {
+      request: {
+        id: string;
+        storeId: string;
+        query: {
+          /** @default 20 */
+          pageSize: number;
+          cursor?: string | null;
+          /** @enum {string} */
+          sortBy?: "commission_rate" | "-commission_rate";
+          search?: {
+            /** @enum {string} */
+            by: "name" | "id";
+            value: string;
+          };
+        };
+        /** @enum {string} */
+        status: "queued" | "running" | "succeeded" | "failed";
+        items: {
+          externalItemId: string;
+          title: string;
+          externalCampaignId: string;
+          /** @enum {string} */
+          status: "upcoming" | "ongoing" | "terminating" | "unknown";
+          externalStatus: string;
+          commissionBasisPoints: number;
+          /** Format: date-time */
+          startsAt: string;
+          endsAt: string | null;
+          pendingTerminationAt: string | null;
+          protections: {
+            commissionBasisPoints: number;
+            /** Format: date-time */
+            endsAt: string;
+          }[];
+          maxCommissionBasisPointsToday: number | null;
+        }[];
+        total: number | null;
+        nextCursor: string | null;
+        errorCode: string | null;
+        errorMessage: string | null;
+        /** Format: date-time */
+        createdAt: string;
+        finishedAt: string | null;
+        /** Format: date-time */
+        expiresAt: string;
+      } | null;
+    };
+    RequestAffiliateProductsDto: {
+      /** @default 20 */
+      pageSize: number;
+      cursor?: string | null;
+      /** @enum {string} */
+      sortBy?: "commission_rate" | "-commission_rate";
+      search?: {
+        /** @enum {string} */
+        by: "name" | "id";
+        value: string;
+      };
+    };
+    AffiliateProductsDto_Output: {
+      id: string;
+      storeId: string;
+      query: {
+        /** @default 20 */
+        pageSize: number;
+        cursor?: string | null;
+        /** @enum {string} */
+        sortBy?: "commission_rate" | "-commission_rate";
+        search?: {
+          /** @enum {string} */
+          by: "name" | "id";
+          value: string;
+        };
+      };
+      /** @enum {string} */
+      status: "queued" | "running" | "succeeded" | "failed";
+      items: {
+        externalItemId: string;
+        title: string;
+        externalCampaignId: string;
+        /** @enum {string} */
+        status: "upcoming" | "ongoing" | "terminating" | "unknown";
+        externalStatus: string;
+        commissionBasisPoints: number;
+        /** Format: date-time */
+        startsAt: string;
+        endsAt: string | null;
+        pendingTerminationAt: string | null;
+        protections: {
+          commissionBasisPoints: number;
+          /** Format: date-time */
+          endsAt: string;
+        }[];
+        maxCommissionBasisPointsToday: number | null;
+      }[];
+      total: number | null;
+      nextCursor: string | null;
+      errorCode: string | null;
+      errorMessage: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      finishedAt: string | null;
+      /** Format: date-time */
+      expiresAt: string;
     };
     BusinessProfileDto_Output: {
       /** @description ETag untuk If-Match; 0 sebelum profil pertama kali disimpan */
@@ -9928,6 +10055,56 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["AuditPeopleDto_Output"];
+        };
+      };
+    };
+  };
+  AffiliateProductsController_get: {
+    parameters: {
+      query?: {
+        requestId?: string;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AffiliateProductsResultDto_Output"];
+        };
+      };
+    };
+  };
+  AffiliateProductsController_request: {
+    parameters: {
+      query?: never;
+      header: {
+        "Idempotency-Key": string;
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RequestAffiliateProductsDto"];
+      };
+    };
+    responses: {
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AffiliateProductsDto_Output"];
         };
       };
     };

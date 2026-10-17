@@ -14,7 +14,7 @@ masih kosong pada pemeriksaan 17 Oktober 2026; tidak ada panggilan tulis ke toko
 | Aturan produk terbaru | Validasi ulang kategori dari marketplace sebelum membuat listing baru; draf lama tidak melewati atribut wajib yang baru | Verifikasi sandbox perubahan Imported Goods; seluruh edit produk belum tersedia |
 | Produk/media | Tarik, salin/publish, status dan stok sudah ada; masih parsial | Edit/partial edit/hapus, metadata, video, kualitas listing, operasi massal sesuai scope Indonesia |
 | Otorisasi | Seller via link/state tersedia | App Store, principal creator dan affiliate partner, pengelolaan akun/scopes, sandbox dan review |
-| AMS/Affiliate | Adapter baca AMS Shopee tersedia | Alur aplikasi AMS, campaign/komisi, targeted/open collaboration, sample, link dan performa affiliate TikTok; otorisasi tiap principal |
+| AMS/Affiliate | Alur baca AMS Shopee: worker/API/cache/UI, pencarian, komisi/periode, audit, ekspor, role dinamis dan isolasi diuji lokal | Mutasi campaign/komisi, targeted/open collaboration, sample, link dan performa affiliate TikTok; otorisasi tiap principal |
 | Promosi | Belum diimplementasikan | Discount, voucher, flash sale, add-on/bundle, kampanye dan hasil parsial; aturan bentrok dan waktu lokal |
 | Keuangan | Belum ada integrasi settlement | Statement, fee, pembayaran marketplace, transaksi/order/SKU dan rekonsiliasi; bedakan dari langganan Xendit |
 | Chat/engagement | Belum diimplementasikan | Conversation/message, attachment, webhook, atribusi petugas, perlindungan dan retensi data pembeli |
@@ -34,3 +34,7 @@ tidak dipanggil; suite salin listing 12 tes lulus. Ini belum pengujian akun sand
 
 Rujukan: [audit Shopee](AUDIT-INTEGRASI-SHOPEE.md), [audit Tokopedia & Shop](AUDIT-INTEGRASI-TIKTOKSHOP.md),
 [kontrak harga](backend/docs/adr/0045-listing-price-requests.md).
+
+Validasi alur baca AMS: 426 tes unit aplikasi dan 198 tes paket backend lulus; 33 tes integrasi
+AMS/skema/isolasi/retensi, 58 tes UI terkait (3 AMS diulang setelah perbaikan modal), build web dan
+4 tes browser AMS pada 320/390/768/1440 piksel lulus. Tidak ada pengujian sandbox nyata.

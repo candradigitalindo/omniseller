@@ -88,7 +88,7 @@ for (const file of metadataFiles) {
       ?.text.replace(/^API Permissions\s*(?:Collapse|More)?\s*APP types that can call this API\.?\s*/i, "")
       .trim() ?? "Tidak tercatat";
   const flow = evidence.length > 0 ? flows[module] : undefined;
-  const isAms = evidence.length > 0 && module === "ams";
+  const isAms = evidence.length > 0 && metadata.title === "v2.ams.get_open_campaign_added_product";
   apiRows.push({
     api: metadata.title,
     module: metadata.category ?? module,
@@ -97,10 +97,10 @@ for (const file of metadataFiles) {
     connector: evidence.length > 0 ? "Ada referensi kode" : "Belum ada referensi kode",
     evidence: evidence.join("; "),
     application: isAms
-      ? "Adapter baca saja; belum ada service/job/API/UI pemakai"
+      ? "Alur baca AMS: worker/API/cache/UI; sandbox belum diverifikasi"
       : (flow?.[0] ?? "Belum dipetakan ke alur aplikasi"),
-    backend: flow?.[1] ?? "",
-    ui: flow?.[2] ?? "",
+    backend: isAms ? "backend/src/modules/affiliate" : (flow?.[1] ?? ""),
+    ui: isAms ? "/affiliate" : (flow?.[2] ?? ""),
     app_permissions_snapshot: permission,
     official_url: metadata.url,
     snapshot_crawled_at: metadata.crawledAt ?? "",

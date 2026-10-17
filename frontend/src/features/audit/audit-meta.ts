@@ -12,7 +12,16 @@ export const AUDIT_KINDS = {
   stock: ["stock_movement", "stock_count", "stock_transfer", "stock_allocation_rule"],
   orders: ["order_event", "order_rule", "return_request", "handover"],
   access: ["user", "user_role", "user_store_scope", "user_warehouse_scope", "role", "role_permission"],
-  stores: ["store", "channel_warehouse", "warehouse", "device", "courier_cutoff", "courier_holiday", "operating_hours"],
+  stores: [
+    "affiliate_product_query",
+    "store",
+    "channel_warehouse",
+    "warehouse",
+    "device",
+    "courier_cutoff",
+    "courier_holiday",
+    "operating_hours",
+  ],
   data: ["data_export", "migration_job", "store_cutover"],
   business: ["business_profile", "business_document", "subscription", "invoice"],
 } as const satisfies Record<string, readonly string[]>;
@@ -44,6 +53,9 @@ const set = (e: AuditEntry, field: string) => {
 
 /** Every entry message under `audit.title_*` (audit-meta.test.ts checks they exist). */
 export const TITLE_KEYS = [
+  "affiliate_product_query_created",
+  "affiliate_product_query_updated",
+  "affiliate_product_query_deleted",
   "listing_price_change_created",
   "listing_price_change_updated",
   "listing_price_change_deleted",
@@ -166,6 +178,8 @@ export type TitleKey = (typeof TITLE_KEYS)[number];
 
 /** Every field the api names in `changes` that has a label under `audit.field_*`. */
 export const AUDIT_FIELDS = [
+  "total",
+  "errorCode",
   "expectedPrice",
   "requestedPrice",
   "observedPrice",

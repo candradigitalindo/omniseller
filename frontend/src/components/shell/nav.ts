@@ -13,6 +13,7 @@ import {
   History,
   LayoutDashboard,
   type LucideIcon,
+  Megaphone,
   Package,
   PackagePlus,
   Plug,
@@ -30,6 +31,7 @@ import {
 import type { Permission } from "@/lib/session";
 
 type NavKey =
+  | "affiliate"
   | "overview"
   | "orders"
   | "orderRules"
@@ -57,6 +59,7 @@ type NavKey =
   | "businessProfile"
   | "subscription";
 type GroupKey =
+  | "groupMarketing"
   | "groupHome"
   | "groupSales"
   | "groupCatalog"
@@ -112,6 +115,10 @@ export const NAV: readonly NavGroup[] = [
       { key: "listings", href: "/listing", icon: Store, permission: "catalog:read", ready: true },
       { key: "copyListings", href: "/listing/salin", icon: Copy, permission: "catalog:write", ready: true },
     ],
+  },
+  {
+    key: "groupMarketing",
+    items: [{ key: "affiliate", href: "/affiliate", icon: Megaphone, permission: "affiliate:read", ready: true }],
   },
   {
     key: "groupStock",

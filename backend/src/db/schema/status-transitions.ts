@@ -29,3 +29,8 @@ export const stockCountStatusTransition = pgTable("stock_count_status_transition
 export const stockTransferStatusTransition = pgTable("stock_transfer_status_transition", transitionColumns());
 export const subscriptionStatusTransition = pgTable("subscription_status_transition", transitionColumns());
 export const invoiceStatusTransition = pgTable("invoice_status_transition", transitionColumns());
+
+export const affiliateProductQueryStatusTransition = pgTable(
+  "affiliate_product_query_status_transition",
+  transitionColumns(),
+);

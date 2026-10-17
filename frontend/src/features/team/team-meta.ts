@@ -53,6 +53,7 @@ export const PERMISSION_MODULES = [
   "catalog",
   "price",
   "promo",
+  "affiliate",
   "finance",
   "chat",
   "report",

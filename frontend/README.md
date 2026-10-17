@@ -144,3 +144,5 @@ Rincian, cakupan dan hasil validasi: [UI-REFRESH.md](UI-REFRESH.md).
 
 ## Harga listing marketplace
 Pada tab Semua Listing, Harga & riwayat membuka modal harga reguler per varian. Input Rupiah menyimpan bilangan bulat; request memakai harga awal dan Idempotency-Key. Antrean dan hasil dikonfirmasi worker, diperiksa tiap dua detik saat berjalan. Hanya pemegang catalog:publish pada toko live yang mengirim harga; riwayat dapat dibaca catalog:read. Harga yang sudah diterima marketplace menunggu konfirmasi dan tidak menawarkan pembatalan. Modal diuji pada 320, 390, 768 dan 1440 piksel.
+
+AMS Shopee: `/affiliate` dalam Pemasaran, izin `affiliate:read`, pencarian/sorting, status worker, pagination opak dan modal komisi/periode. Snapshot terbaru dipulihkan saat membuka halaman; ini hanya baca AMS seller Indonesia, belum creator/partner TikTok atau perubahan campaign. Kontrak resmi dan sandbox nyata tetap pending.

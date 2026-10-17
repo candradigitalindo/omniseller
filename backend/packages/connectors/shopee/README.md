@@ -56,11 +56,11 @@ The snapshot explicitly lists **Affiliate Marketing Solution Management** as an 
 Current permissions must be confirmed in the developer Console; credentials alone do not establish
 eligibility, country availability or seller AMS activation.
 
-`MarketplaceConnector.affiliate` is optional. The TikTok Shop connector does not advertise it. The AMS
-adapter currently has **no consuming tenant service, worker job, HTTP endpoint, database cache or UI**.
-It is a tested integration building block, not a released AMS screen or a complete AMS module. Its
-future consumer must use `MarketplaceGateway` from a worker, tenant/store scopes and the outbox pattern;
-the API process must never call it directly. Other AMS operations remain unimplemented.
+`MarketplaceConnector.affiliate` is optional. The TikTok Shop connector does not advertise it.
+The affiliate application module now consumes it through an outbox job, MarketplaceGateway,
+tenant/store scopes, `affiliate:read`, persistent one-page results and the `/affiliate` UI. It remains
+read-only; current official contract, app/shop eligibility and real sandbox validation are pending.
+Other AMS operations remain unimplemented (ADR-046).
 
 ## Validation and release gates
 
@@ -69,7 +69,7 @@ the named API's signed request, search/pagination, precision, errors and malform
 the existing product, stock, orders, logistics and return tests. They are not live sandbox tests.
 
 Before making AMS available to users: confirm the latest official contract and eligible app/shop,
-obtain sandbox credentials, implement the owning worker/API/UI flow and tenant isolation tests, and run
+obtain sandbox credentials, and run
 real sandbox verification. Creating/editing affiliate campaigns additionally needs explicit handling
 of commission protection, asynchronous batch results and seller terms; no write operation is added here.
 

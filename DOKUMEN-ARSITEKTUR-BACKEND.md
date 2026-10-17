@@ -747,6 +747,8 @@ Dibuat otomatis oleh worker saat rahasia pertama tenant disimpan. `omniseller_ap
 
 #### 7.8.3 Katalog
 
+**listing_price_change** (0031, ADR-045): permintaan harga reguler per listing, FK `(tenant_id,listing_id,store_id)` ke listing/toko yang sama, target/awal/terkonfirmasi rupiah, `sent_at`, pemohon, status dan lease. Satu queued/processing per listing; riwayat, audit dan ekspor (8.12).
+
 ```mermaid
 erDiagram
     product ||--o{ variant : memiliki
@@ -1138,6 +1140,8 @@ Satu event menghasilkan satu baris per job konsumen (`Outbox.enqueue`), masing-m
 
 #### 7.8.10 Chat, promosi, kesehatan toko, affiliate, dan pelanggan
 
+**affiliate_product_query** (0032, ADR-046, 8.38): store/user FK komposit, query JSON, maksimal 100 hasil produk yang dinormalisasi, total/cursor, queued/running/succeeded/failed, lease, galat dan waktu selesai/kedaluwarsa. Satu query aktif per toko. RLS, audit, ekspor dan penghapusan saat putus toko berlaku. Snapshot berlaku 24 jam; pembersihan query lama saat permintaan berikutnya.
+
 | Tabel | Kolom penting | Batasan dan relasi |
 |---|---|---|
 | `chat_thread` | `store_id`, `external_thread_id text`, `buyer_username text`, `status CHECK IN ('open','assigned','resolved')`, `assigned_user_id`, `last_message_at`, `unread_count integer` | → `store` CASCADE; UNIQUE `(store_id, external_thread_id)`; `assigned_user_id → user` SET NULL |
@@ -1202,6 +1206,8 @@ Semua tabel di skema `research`. `research_source` global. Tidak ada kunci asing
 ### 7.9 Mesin status
 
 Setiap tabel berstatus memiliki tabel transisi `<tabel>_status_transition (from_status, to_status)` yang diisi seed dan dijaga trigger `enforce_status_transition`. Perubahan ke status yang sama diabaikan trigger. Mengubah daftar transisi adalah migrasi data yang ditinjau.
+
+**affiliate_product_query**: queued → running/failed; running → queued/succeeded/failed. Retry boleh kembali queued. **listing_price_change**: queued → processing/cancelled/failed; processing → queued/succeeded/failed. Status terminal tidak dibuka kembali.
 
 **order**
 
@@ -1349,7 +1355,7 @@ Aturan:
 ### 8.6 Connector dan kredensial
 
 - **Batas cakupan Tokopedia & Shop.** Audit `AUDIT-INTEGRASI-TIKTOKSHOP.md` di root memakai navigasi dan isi dokumentasi publik resmi, metadata scope serta dropdown versi yang diambil 16 Oktober 2026 UTC. Sebanyak 317 operasi API Reference tidak berarti seluruh operasi tersedia di aplikasi. Artefak memisahkan method/path, versi, scope dan referensi connector dari alur backend/UI. Fitur inti seller parsial; Finance, Promotion, Analytics marketplace, Customer Service/Engagement dan Affiliate belum memiliki integrasi. Jalur App Store tanpa state belum didukung; tenant-bound state tidak boleh dihilangkan untuk melewatinya. Audit juga mencatat perubahan Imported Goods, Horizon+, event/mapping Tokopedia dan rate limit adaptif. Izin market/principal, sandbox serta review tetap harus diverifikasi sebelum klaim fitur selesai.
-- **Batas cakupan Shopee dan AMS (ADR-044).** Connector tidak berarti seluruh fitur Shopee tersedia. Inventaris di root `AUDIT-INTEGRASI-SHOPEE.md` beserta CSV memetakan 428 endpoint dan 48 panduan dari snapshot sekunder 15 Mei 2026; portal resmi menolak akses lingkungan audit dengan HTTP 403. Sebanyak 46 endpoint memiliki referensi literal kode, bukan bukti 46 fitur lengkap atau lolos sandbox. `MarketplaceConnector.affiliate?` baru menyediakan adapter baca `listOpenCampaignProducts` untuk GET `v2.ams.get_open_campaign_added_product`, dengan pencarian, cursor, ID int64 string dan komisi basis point. **Belum ada service tenant, job, API, cache atau UI pemakai AMS**; adapter parsial yang diminta eksplisit ini merupakan pengecualian terbatas atas aturan 15.8 untuk bagian connector yang belum dipakai. Sebelum menjadi fitur seller, verifikasi kontrak resmi terbaru, izin aplikasi AMS dan aktivasi seller, lalu bangun alur worker/outbox, scope tenant/toko dan UI beserta tes isolasi dan sandbox. Jangan memanggil adapter dari proses API.
+- **Batas cakupan Shopee dan AMS (ADR-044).** Connector tidak berarti seluruh fitur Shopee tersedia. Inventaris di root `AUDIT-INTEGRASI-SHOPEE.md` beserta CSV memetakan 428 endpoint dan 48 panduan dari snapshot sekunder 15 Mei 2026; portal resmi menolak akses lingkungan audit dengan HTTP 403. Sebanyak 46 endpoint memiliki referensi literal kode, bukan bukti 46 fitur lengkap atau lolos sandbox. `MarketplaceConnector.affiliate?` baru menyediakan adapter baca `listOpenCampaignProducts` untuk GET `v2.ams.get_open_campaign_added_product`, dengan pencarian, cursor, ID int64 string dan komisi basis point. Modul `affiliate` kini memakai adapter ini melalui worker/outbox, API, cache satu halaman dan UI `/affiliate` dengan izin/cakupan tenant/toko (8.38, ADR-046). Kontrak resmi terbaru, izin aplikasi AMS, aktivasi seller dan sandbox nyata tetap menjadi gerbang rilis. Jangan memanggil adapter dari proses API.
 - **Paket connector** (`packages/connectors/<marketplace>`) tidak tahu tentang basis data. Masing-masing mengekspor `create<Marketplace>Connector(config)` yang mengimplementasikan `MarketplaceConnector` dari `@omniseller/connector-core` (DOKUMEN-TEKNOLOGI 26.4): `auth` (tautan otorisasi, tautan pencabutan, tukar kode, refresh), `shops.describe`, `warehouses.list`, `catalog` (8.12: `listListings`, `getListings`, `setListingStatus`), `products` (8.25: `get`, `categories`, `recommendCategory`, `categoryRules`, `brands`, `uploadImage`, `prerequisites`, `create`), `orders` (8.14: `listOrders`, `getOrders`, `cancelReasons`, `cancelOrder`), `fulfillment` (8.15: `arrange`, `labels`; 8.22: `tracking`), `returns` (8.26: `listReturns`, `getReturns`, `cancellations`, `details`, `uploadEvidence`, `respond`), `inventory` (9.4: `updateStock`), `webhooks` (verifikasi, parse, dan `subscribe` bila marketplace berlangganan per toko). Bagian lain (harga, promosi, chat) ditambahkan bersama modulnya. Respons JSON diurai dengan `parseJsonSafe`, yang mempertahankan bilangan bulat di luar `Number.MAX_SAFE_INTEGER` sebagai string persis (id produk TikTok Shop 19 digit); jangan memakai `JSON.parse` biasa untuk data marketplace.
 - **`ConnectorRegistry`** (`modules/channel/connector-registry.ts`) dibangun per proses dari env-nya: `api` hanya bisa membangun tautan (id publik), `webhook` hanya memverifikasi tanda tangan, `worker` memanggil API. Marketplace tanpa kunci tidak terdaftar ("belum dikonfigurasi").
 - **`MarketplaceGateway.call(ctx, storeId, entri log, fn)`** adalah satu-satunya jalan worker memanggil marketplace untuk sebuah toko: membatasi **setiap permintaan HTTP** connector dengan bucket per toko (`manifest.shopRateLimit`, Redis; `sync/connector-calls.ts`: `withRequestGate` dan `HttpConfig.beforeRequest`), karena satu operasi bisa ratusan panggilan (tarik katalog); permintaan menunggu token maksimal 30 detik total lalu gagal `transient` agar BullMQ mengulang nanti. Pekerjaan latar (`call(..., { background: true })`, sekarang pelacakan paket 8.22) juga mengambil token dari bucket `...:background` sebesar 30% laju toko (`BACKGROUND_SHARE`, paling sedikit satu panggilan per detik) dan boleh menunggu sampai 2 menit, sehingga push stok dan pekerjaan pesanan selalu punya sisa kuota. Gateway juga mencatat gangguan koneksi: `store.failing_since` diisi pada kegagalan sementara pertama ke marketplace dan dikosongkan pada panggilan berikutnya yang berhasil (FR-INT-08, 8.23). Gateway juga mencatat operasi ke log sinkron, me-refresh lalu mengulang sekali bila marketplace menjawab token kedaluwarsa, dan memindahkan toko ke `reauth_required` bila izinnya hilang.
@@ -2757,6 +2763,28 @@ Belum termasuk: set aturan bertanda kampanye (FR-CMP-07) dan pembekuan perubahan
 
 ---
 
+### 8.38 Pembacaan produk dan komisi AMS Shopee
+
+Modul `affiliate` melayani seller Shopee Indonesia dengan izin dinamis `affiliate:read` (Owner/Admin
+bawaan termasuk tenant yang sudah ada). POST `/v1/stores/{id}/affiliate/products` menerima filter nama
+atau maksimal 50 ID, sorting komisi, pageSize 1–100 dan cursor opak, serta Idempotency-Key wajib.
+Permintaan 202 menulis `affiliate_product_query` dan `affiliate.products_requested` dalam satu transaksi.
+GET pada path yang sama mengambil hasil terakhir atau `requestId` milik toko itu, dengan cakupan toko.
+
+Job `affiliate.products_read` membaca satu halaman melalui MarketplaceGateway, di luar transaksi.
+Izin dan status pemohon diperiksa ulang, lease lima menit menangani proses terhenti, serta retry
+mengikuti backoff marketplace. Entitlement/terms/app permission gagal permanen dengan pesan aman;
+toko tidak diputus hanya karena AMS belum aktif. Toko read_only boleh dibaca. Hasil memakai string ID,
+komisi basis point dan waktu ISO UTC; null tanggal akhir berarti tanpa batas, bukan tanggal tebakan.
+
+Snapshot 24 jam masuk ekspor; query lama dibersihkan saat permintaan baru setelah tujuh hari melewati
+kedaluwarsa. Retention putus toko menghapus query secara bertahap. Query/status masuk audit. Layar
+`/affiliate` berada dalam kategori Pemasaran, select dapat dicari, hasil dipaginasi, detail komisi dan
+periode memakai modal bertab. Sumber resmi masih ditolak; kontrak terbaru, scope/aktivasi, serta sandbox
+nyata belum tervalidasi (ADR-044/046). Ini bukan seluruh AMS atau otorisasi creator/partner TikTok.
+
+---
+
 ## 9. Pekerjaan Latar dan Penjadwalan
 
 ### 9.1 Definisi job
@@ -2836,7 +2864,8 @@ BullMQ menolak job dengan `jobId` yang masih ada di antrean **atau yang sudah se
 | `stock.listing_mapped`, `stock.listing_unmapped` | Per kejadian | `stock.listing_mapped\|<listing_id>\|<outbox_event_id>` |
 | `stock.store_resync` | Per kejadian | `stock.store_resync\|<store_id>\|<outbox_event_id>` |
 | `stock_count.apply` | Per persetujuan dan lanjutannya | `stock_count.apply\|<stock_count_id>\|<outbox_event_id>`: meminta lagi atau melanjutkan 10.000 baris berikutnya adalah kejadian baru; baris yang sudah diterapkan dilewati (8.27) |
-| `listing.price_push` | Per kejadian | `listing.price_push\|<listing_id>\|<outbox_event_id>` |
+| `listing.price_push` | Sekali per permintaan | `listing.price_push\|<change_id>` |
+| `affiliate.products_read` | Sekali per halaman diminta | `affiliate.products_read\|<request_id>` |
 | `settlement.import` | Sekali per periode | `settlement.import\|<store_id>\|<period_start>` |
 | `store.authorize` | Sekali per percobaan | `store.authorize\|<store_authorization_id>` |
 | `store.warehouses_sync` | Per kejadian | `store.warehouses_sync\|<store_id>\|<outbox_event_id>` (event) atau `...\|p<slot 6 jam>` (jadwal) |
@@ -3007,6 +3036,7 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `inventory:read`, `inventory:adjust`, `inventory:count`, `inventory:transfer` | Stok. `inventory:count` memulai stok opname, menghitung, dan mengirimnya untuk ditinjau; `inventory:adjust` juga menghitung ulang, menyetujui, dan membatalkan opname; `inventory:transfer` semua aksi transfer stok (8.27). Peran bawaan Gudang memegang `inventory:count` dan, sejak migrasi 0017 (juga untuk bisnis yang sudah ada, lewat seed), `inventory:transfer` |
 | `catalog:write`, `catalog:publish`, `catalog:map` | Katalog |
 | `price:write`, `promo:write` | Harga dan promosi |
+| `affiliate:read` | Produk dan komisi affiliate |
 | `finance:read`, `finance:reconcile`, `finance:export` | Keuangan; `finance:read` juga membuka laba kotor di dasbor (8.16), HPP produk dan riwayatnya, kolom HPP ekspor produk, dan nilai persediaan (8.24) |
 | `report:read` | Penjualan, grafik, dan produk terlaris di `GET /v1/dashboard` (8.16); laporan penjualan `GET /v1/reports/sales*` (8.20); menerima ringkasan email harian secara bawaan |
 | `data:export` | `/v1/exports*`: ekspor seluruh data bisnis (8.18). Hanya Owner secara bawaan; peran bawaan Owner selalu memegang semua izin, termasuk yang ditambahkan kemudian (seed) |
@@ -3063,6 +3093,9 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `GET /v1/listings/summary` | `catalog:read` | 8.12. `{total, mapped, unmapped}` listing yang belum dihapus, per toko dengan `storeId` (404 di luar cakupan) |
 | `GET /v1/listings/unmapped`, `POST /v1/listings/auto-map`, `PUT /v1/listings/{id}/mapping` | `catalog:map` | Listing belum terpetakan dengan saran; pemetaan otomatis per SKU; pemetaan manual atau lepas |
 | `POST /v1/listings/create-products` | `catalog:write` | Produk master dari listing (8.12); hasil `created`, `mappedToExisting`, `failed` |
+| `GET, POST /v1/stores/{id}/affiliate/products` | `affiliate:read` | Snapshot satu halaman AMS; POST 202 memakai Idempotency-Key |
+| `GET /v1/listings/{id}/price-changes` | `catalog:read` | Riwayat permintaan harga |
+| `POST /v1/listings/{id}/price-changes`, `/cancel` | `price:write` | Permintaan 202 dan pembatalan antrean 204 |
 | `POST /v1/listings/status` | `catalog:publish` | Aktifkan atau nonaktifkan di marketplace (202) |
 | `GET /v1/stores/{id}/categories`, `GET /v1/stores/{id}/categories/{categoryId}` | `catalog:read` | 8.25. Kategori marketplace toko dari cache (teratas, anak `parentId`, atau cari `q`); satu kategori dengan aturannya, atau `rulesPending` dan pembacaannya diantrekan |
 | `POST /v1/stores/{id}/categories/refresh` | `catalog:write` | Baca ulang kategori dari marketplace (202; paling sering sekali per 10 menit) |
@@ -3151,7 +3184,7 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `identity` | `tenant`, `user`, `role`, `permission`, `role_permission`, `user_role`, `user_store_scope`, `user_warehouse_scope`, `invitation`, `api_key`, `device` (peran kustom dan fitur paket lewat `RolesService` dan `TenantsService.requireFeatureIn`, 8.33) (lewat `DevicesService`: token perangkat dan `authenticate`, dipakai `AuthGuard` dan `RealtimeGateway`; aturan agen cetak di `fulfillment`); membuat gudang `UTAMA` saat daftar lewat repository-nya sendiri sampai modul `inventory` ada; `plan` (global) dan paket yang berlaku (`tenant.plan_id`) lewat `TenantsService`, diubah modul `billing` (8.32) | `invitation.send_requested`, `tenant.created`; menyusul `user.role_changed` | | `identity.invite_email` (antrean `notify`) |
 | `auth` | `password_reset_token`, `refresh_token` (menyusul bersama mobile), sesi dan tantangan login di Redis. `TwoFactorService` dan `UserSessionsService` (api saja) untuk verifikasi dua langkah dan perangkat yang masuk; kolom 2FA `user` lewat `UsersService` (8.30) | `password_reset.requested` | | `auth.password_reset_email` (antrean `notify`) |
 | `channel` | `store`, `store_credential`, `store_authorization`, `channel_warehouse`, `sync_cursor`; `tenant_key` lewat `TokenVault` (dipakai bersama rahasia tenant lain) | `store.authorization_received`, `store.connected`, `store.disconnected`, `store.data_deletion_requested`, `store.reauth_required`, `store.warehouses_sync_requested`, `channel_warehouse.changed`, `channel_warehouse.mapping_changed`, `store.sync_mode_changed` | Notifikasi otorisasi dari webhook; `channel_warehouse.changed` (notifikasi) | `store.authorize`, `store.warehouses_sync`, `store.webhooks_subscribe`, `store.token_refresh`, `store.warehouses_notice`, `store.connection_check` (FR-INT-08). Gangguan koneksi dicatat `MarketplaceGateway` di `store.failing_since` (8.23). Impor awal produk dijalankan `catalog` dari `store.connected`; impor pesanan 90 hari oleh `orders`. Saluran pesanan manual (`channel = 'manual'`, 8.21) dibuat di sini dan dilewati semua pekerjaan marketplace |
-| `catalog` | `product`, `variant`, `product_image`, `bundle_component`, `channel_listing`; mengekspor view `catalog_variant_v`. Membaca toko dan `sync_cursor` lewat `StoresService` (milik `channel`) | `listing.pull_requested`, `listing.status_push_requested`, `listing.mapped`, `listing.unmapped`; menyusul `variant.price_changed`, `variant.cost_changed`, `listing.price_push_requested` | `store.connected`; webhook `listing.changed` | `listing.pull`, `listing.status_push`; menyusul `listing.price_push`. Salin listing ada di modul `listing-copy`. Riwayat produk dibaca lewat `AuditService.entriesIn`, nama pelaku lewat `UsersService` (8.23) |
+| `catalog` | `product`, `variant`, `product_image`, `bundle_component`, `channel_listing`, `listing_price_change`; mengekspor view `catalog_variant_v`. Membaca toko dan `sync_cursor` lewat `StoresService` (milik `channel`) | `listing.pull_requested`, `listing.status_push_requested`, `listing.mapped`, `listing.unmapped`, `listing.price_requested`; menyusul `variant.price_changed`, `variant.cost_changed` | `store.connected`; webhook `listing.changed` | `listing.pull`, `listing.status_push`, `listing.price_push`. Salin listing ada di modul `listing-copy`. Riwayat produk dibaca lewat `AuditService.entriesIn`, nama pelaku lewat `UsersService` (8.23) |
 | `listing-copy` | `channel_category`, `category_mapping`, `listing_copy`, `listing_draft` (8.25). Listing asal dan tujuan lewat `ListingsService` (`itemListingsIn`, `storeItemIdsIn`, `listedVariantsIn`, `mapCopiedIn`) dan `ListingSyncService.refreshCopiedItem`, toko lewat `StoresService`, stok awal lewat `StockComparisonService.initialStockIn`, marketplace lewat `MarketplaceGateway` | `listing_copy.requested`, `listing_draft.recheck_requested`, `listing_draft.publish_requested`, `channel_category.refresh_requested`, `channel_category.rules_requested`; `listing.mapped` (lewat `ListingsService.mapCopiedIn`) | Event miliknya sendiri | `listing_copy.prepare`, `listing_draft.recheck` (antrean `mp.poll`), `listing_draft.publish` (antrean `mp.outbound`), `channel_category.refresh`, `channel_category.rules` |
 | `inventory` | `warehouse` (ditulis `WarehouseAdminService`, kecuali gudang pertama saat daftar), `inventory`, `stock_movement`, `stock_allocation_rule`, `listing_stock_state`, `stock_count`, `stock_count_line`, `stock_transfer`, `stock_transfer_line`, `campaign_stock_hold`. Membaca listing lewat `ListingsService`, toko dan gudang marketplace lewat `StoresService`, varian lewat view `catalog_variant_v`, penjualan per varian dan gudang untuk perlu restock lewat `OrdersService.unitsByStockIn` (`InventoryStockModule`, 8.20), dokumen kartu stok lewat `OrdersService.ordersOfItemsIn` dan `ReturnsService.requestsOfItemsIn` (`StockHistoryService`, 8.13). `InventoryModule` (berkas `inventory-core.module.ts`) tidak mengimpor modul lain, karena `channel` bergantung padanya. Stok opname dan transfer (`StockCountService`, `StockTransferService`, `StockOpsRepository`, 8.27) ada di `InventoryStockModule`, yang juga dimuat worker untuk menerapkan opname; zona waktu nomor dokumen lewat `TenantsService`, notifikasi lewat `NotificationInboxService` | `inventory.changed`, `stock.resync_requested`, `stock_count.apply_requested`; menyusul `inventory.low_stock` | `listing.mapped`, `listing.unmapped`, `store.sync_mode_changed`, `channel_warehouse.changed`, `channel_warehouse.mapping_changed`, `stock_count.apply_requested`; menyusul `goods.received`, `campaign.started`, `campaign.ended`. Barang retur diterima lewat panggilan langsung `returnMovementsIn` di transaksi penerimaan (8.26) | `stock.mark_dirty`, `stock.push`, `stock.listing_mapped`, `stock.listing_unmapped`, `stock.store_resync`, `stock_count.apply` (antrean `import`) |
 | `purchasing` | `supplier`, `purchase_order`, `purchase_order_line`, `goods_receipt`, `goods_receipt_line`, `document_sequence` | `goods.received`, `purchase_order.status_changed` | `inventory.low_stock` | |
@@ -3167,6 +3200,7 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `crm` | `customer` | `customer.watchlisted` | `order.created`, `return.status_changed`, `shipment.status_changed` | |
 | `research` | Semua tabel skema `research` | `research.alert` | | `research.capture`, `research.summarize`, `research.parser_check` |
 | `migration` | `migration_job`, `migration_row_error`, `migration_preset`, `store_cutover`. Produk lewat `ProductTransferService.importRecordsIn`, stok awal lewat `InventoryService.importInitialIn`, perbandingan stok lewat `StockComparisonService`, mode toko lewat `StoresService.setSyncModeIn`, pesanan lewat `OrdersService.statusCountsIn` (8.19) | `migration.validate_requested`, `migration.import_requested` | | `migration.validate`, `migration.import` (antrean `import`) |
+| `affiliate` | `affiliate_product_query` (8.38) | `affiliate.products_requested` | | `affiliate.products_read` |
 | `campaign` | `courier_cutoff`, `courier_holiday`, `operating_hours` (8.31; `CourierCalendarService`, gudang lewat `InventoryService.warehousesIn`, zona waktu lewat `TenantsService`); menyusul `campaign`, `campaign_plan` | `courier_calendar.changed`; menyusul `campaign.started`, `campaign.ended` | | menyusul `campaign.tick`, `campaign.evaluate` |
 | `notification` | `notification`, `notification_preference`. `NotificationInboxService` (`notifyIn`, `notifyScopedIn`; api dan worker) menulis notifikasi in-app di transaksi modul yang memutuskan (8.17); `NotificationPreferencesService` (`list`, `set`, `emailChoicesIn`) menyimpan pilihan pengguna (8.20); `EmailSender` (`smtp`, `log`, `memory`) dan templat email hanya di worker | `notification.email_requested` | Tidak langsung: job modul pemilik keputusan (`order.new_notice`, `order.sla_alert`, `inventory.stock_alert`, `store.reauth_notice`, `store.expiry_notice`, `store.connection_check`, `export.render`) | `notification.email` (notifikasi yang juga dikirim lewat email, 8.23); menyusul `notify.send` |
 | `business` | `business_profile`, `business_document` (8.29). Nama dan zona waktu bisnis lewat `TenantsService` (`profileIn`, `updateProfileIn`), berkas lewat `FilesService`, pengingat lewat `NotificationInboxService.notifyScopedIn`; `legalTasksIn` untuk dasbor dan `exportSheets` untuk ekspor | | | `business.legal_alert` (antrean `notify`); di scheduler: `business.legal_scan` |
