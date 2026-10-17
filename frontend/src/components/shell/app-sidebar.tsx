@@ -95,9 +95,6 @@ function SidebarCategory({
           )}
         >
           <span className="min-w-0 flex-1 truncate">{t(group.key)}</span>
-          <span aria-hidden className="text-xs tabular-nums text-text-500">
-            {group.items.length}
-          </span>
           <ChevronDown
             aria-hidden
             className={cn("transition-transform motion-reduce:transition-none", open && "rotate-180")}
