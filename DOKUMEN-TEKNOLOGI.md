@@ -383,7 +383,7 @@ Perubahan harga reguler kini mempunyai alur aplikasi per listing untuk kedua mar
 
 Cakupan Tokopedia & Shop dijelaskan dalam [audit integrasi resmi](AUDIT-INTEGRASI-TIKTOKSHOP.md) dan [inventaris method/path per versi](AUDIT-TIKTOKSHOP-ENDPOINTS.csv), diambil 16 Oktober 2026 UTC. Katalog publik mempunyai 317 operasi API Reference; referensi connector dan alur aplikasi belum mencakup seluruh operasi. Dua endpoint token ada di panduan otorisasi. Scope, market, principal, versi dan sandbox harus dinilai terpisah. Audit mencatat celah App Store, Finance/Promotion/Analytics/Customer Service/Affiliate, serta perubahan Imported Goods dan Horizon+ Indonesia; ini bukan penambahan kemampuan aplikasi.
 
-Cakupan Shopee dipetakan dalam [audit integrasi](AUDIT-INTEGRASI-SHOPEE.md) dan [inventaris endpoint](AUDIT-SHOPEE-ENDPOINTS.csv). Snapshot sekunder 15 Mei 2026 memuat 428 endpoint/28 modul dan 48 panduan; 46 endpoint memiliki referensi kode. Angka ini bukan persentase fitur lengkap atau bukti sandbox, dan snapshot bukan katalog resmi terkini. Portal resmi belum dapat diakses dari lingkungan audit (HTTP 403). Alur baca AMS kini memiliki service/job/API/cache/UI `/affiliate`, izin `affiliate:read`, pagination dan modal komisi/periode (ADR-044/046, backend 8.38). Izin aplikasi AMS, aktivasi toko, kontrak terbaru dan sandbox tetap perlu diverifikasi; creator/partner TikTok belum didukung.
+Cakupan Shopee dipetakan dalam [audit integrasi](AUDIT-INTEGRASI-SHOPEE.md) dan [inventaris endpoint](AUDIT-SHOPEE-ENDPOINTS.csv). Snapshot sekunder 15 Mei 2026 memuat 428 endpoint/28 modul dan 48 panduan; 46 endpoint memiliki referensi kode. Angka ini bukan persentase fitur lengkap atau bukti sandbox, dan snapshot bukan katalog resmi terkini. Portal resmi belum dapat diakses dari lingkungan audit (HTTP 403). Alur baca AMS kini memiliki service/job/API/cache/UI `/affiliate`, izin `affiliate:read`, pagination dan modal komisi/periode (ADR-044/046, backend 8.38). Izin aplikasi AMS, aktivasi toko, kontrak terbaru dan sandbox tetap perlu diverifikasi; koneksi creator/partner Indonesia ditambahkan melalui principal terpisah (ADR-047), tanpa mengklaim seluruh operasi affiliate.
 
 Setiap marketplace adalah paket di `packages/connectors/<nama>` yang mengimplementasikan satu antarmuka yang sama (26.4). Logika inti tidak pernah mengimpor detail marketplace. Menambah marketplace berarti menambah paket, bukan mengubah inti.
 
@@ -867,6 +867,7 @@ Fase 2 menambah satu engineer backend (promosi, chat, kesehatan toko) dan satu e
 | ADR-043 | Peran kustom tersedia pada semua paket | Izin tenant mengikuti kebutuhan operasional | Batas jumlah pengguna tetap mengikuti paket |
 | ADR-044 | Inventaris Shopee dan adapter AMS baca memakai sumber sekunder yang dipin | Portal resmi menolak akses cloud | Kontrak terbaru, entitlement dan sandbox tetap perlu verifikasi |
 | ADR-045 | Permintaan harga terpisah dari harga terkonfirmasi | Hindari menimpa perubahan Seller Center dan ulang tulis setelah diterima | Outbox, lease, harga awal, konfirmasi dan riwayat; sandbox pending |
+| ADR-047 | Principal creator/partner terpisah dengan staged grant | Token seller tidak memberi otorisasi akun lain; kode/refresh sekali pakai tidak boleh hilang saat retry | Worker, scope/region ID, DEK, audit/ekspor metadata dan UI; akses nyata belum tersedia |
 | ADR-046 | Hasil AMS diminta satu halaman melalui worker | API tidak memegang token dan tidak membaca seluruh katalog dalam satu job | Cache 24 jam, cursor opak, izin dinamis dan retensi; kontrak terbaru/sandbox pending |
 
 ---
@@ -1034,6 +1035,22 @@ export interface MarketplaceConnector {
 `NormalizedOrder.packages` membawa paket pesanan (`externalPackageId`, `PackageState`, resi, baris per paket). Unggah gambar dikirim multipart (`fileForm`): Shopee menandatangani URL saja, TikTok Shop menandatangani tanpa body multipart, dan log sinkron hanya mencatat ukuran dan jenis berkas. Bagian `returns` memetakan status retur kedua marketplace ke satu `ReturnState` dan membaca pilihan keputusan dari marketplace (TikTok Shop Get Decision Eligibility, Shopee alasan sanggahan dengan modul buktinya); Shopee tidak punya push retur, jadi pengajuannya ditarik berkala. Bagian berikutnya mengikuti modulnya: `catalog` diperluas dengan ubah harga, lalu `finance`, `chat`, `promotions`, `health` sebagai bagian opsional. Bagian opsional yang tidak didukung marketplace dibiarkan `undefined`, dan UI menyembunyikan fitur terkait untuk toko itu.
 
 Bagian opsional `affiliate.listOpenCampaignProducts(shop, query)` kini tersedia pada connector Shopee untuk GET `v2.ams.get_open_campaign_added_product`. Query mencakup `pageSize`, cursor, sorting komisi dan pencarian nama/item ID; hasil mempertahankan ID sebagai string, komisi sebagai basis point, status dan periode perlindungan. Consumer aplikasi kini berada di modul affiliate: worker/outbox, API/cache satu halaman dan UI `/affiliate`; ini belum seluruh modul AMS. Baca [kontrak dan gerbang rilis](backend/packages/connectors/shopee/README.md) serta [ADR-044](backend/docs/adr/0044-shopee-coverage-and-ams-read-adapter.md).
+
+
+### 26.4.1 Principal creator/partner Indonesia — ADR-047
+
+Connector opsional `accounts` menyediakan authorizeUrl/exchangeCode/refresh/describe untuk principal
+creator (user_type 1) dan affiliate_partner (3). Creator memakai app_key publik di proses API; secret
+hanya webhook/worker. URL bawaan: `TIKTOKSHOP_CREATOR_AUTHORIZE_URL=https://shop.tiktok.com/alliance/creator/auth`
+dan `TIKTOKSHOP_PARTNER_AUTHORIZE_URL=https://partner.tiktokshop.com/open/authorize`.
+Profil dibaca dari GET `/affiliate_creator/202508/profiles` dengan scope `creator.affiliate.info`;
+aset partner dari GET `/authorization/202405/category_assets` dengan `partner.authorization.info`.
+Token seller tidak dipakai. Scope/identitas diperiksa ulang setelah refresh, dan wilayah harus ID.
+
+Modul/API/UI `/affiliate/akun`, staged grant, rotasi DEK, izin dinamis, audit/ekspor metadata, cleanup
+serta scan refresh dijelaskan di backend 8.39 dan ADR-047. Official guides dibaca 17 Oktober 2026;
+pengguna mengonfirmasi belum memiliki akses Creator API/TAP dan meminta pengembangan lokal.
+Approval aplikasi, akun uji/beta dan sandbox nyata tetap prasyarat verifikasi rilis.
 
 ### 26.5 Referensi
 

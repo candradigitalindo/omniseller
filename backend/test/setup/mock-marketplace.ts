@@ -350,6 +350,16 @@ async function labelPdf(texts: string[], widthMm: number, heightMm: number): Pro
   return doc.save();
 }
 
+export interface MockTiktokPrincipal {
+  openId: string;
+  name: string;
+  shops: MockTiktokShop[];
+  userType?: number;
+  scopes?: string[];
+  selectionRegion?: string;
+  categoryAssets?: { cipher: string; target_market: string; category: { id: number; name: string } }[];
+}
+
 export class MockMarketplace {
   url = "";
   readonly calls: Call[] = [];
@@ -366,7 +376,7 @@ export class MockMarketplace {
   private readonly shopeeRefresh = new Map<string, Set<string>>();
 
   // ---- TikTok Shop state ----
-  private readonly tiktokSellers = new Map<string, { openId: string; name: string; shops: MockTiktokShop[] }>();
+  private readonly tiktokSellers = new Map<string, MockTiktokPrincipal>();
   private readonly tiktokCodes = new Map<string, string>();
   private readonly tiktokAccess = new Map<string, { sellerId: string; expiresAt: number }>();
   private readonly tiktokRefresh = new Map<string, string>();
@@ -446,7 +456,7 @@ export class MockMarketplace {
 
   // ---- TikTok Shop setup ----
 
-  addTiktokSeller(input: { openId: string; name: string; shops: MockTiktokShop[] }): string {
+  addTiktokSeller(input: MockTiktokPrincipal): string {
     const id = `seller-${input.openId}`;
     this.tiktokSellers.set(id, input);
     return id;
@@ -1228,7 +1238,7 @@ export class MockMarketplace {
     return { status, body: { code, message, request_id: token("rq"), data } };
   }
 
-  private issueTiktok(sellerId: string, user: { openId: string; name: string }) {
+  private issueTiktok(sellerId: string, user: MockTiktokPrincipal) {
     const access = `TTP_${token("a")}`;
     const refresh = `TTP_${token("r")}`;
     const expiresAt = now() + 7 * 86400;
@@ -1243,8 +1253,8 @@ export class MockMarketplace {
       open_id: user.openId,
       seller_name: user.name,
       seller_base_region: "ID",
-      user_type: 0,
-      granted_scopes: ["seller.authorization.info", "seller.logistics", "seller.fulfillment.basic"],
+      user_type: user.userType ?? 0,
+      granted_scopes: user.scopes ?? ["seller.authorization.info", "seller.logistics", "seller.fulfillment.basic"],
     };
   }
 
@@ -1297,6 +1307,23 @@ export class MockMarketplace {
       return this.tiktokReply(36009004, "Invalid credentials. The x-tts-access-token header is invalid.", {}, 401);
     if (auth.expiresAt <= now()) return this.tiktokReply(105002, "Expired credentials.", {}, 401);
     const seller = this.tiktokSellers.get(auth.sellerId)!;
+
+    if (call.path === "/affiliate_creator/202508/profiles") {
+      if (seller.userType !== 1 || q.shop_cipher !== undefined) return this.tiktokReply(105005, "Wrong principal");
+      return this.tiktokReply(0, "Success", {
+        username: seller.name,
+        selection_region: seller.selectionRegion ?? "ID",
+        register_region: "ID",
+        permissions: ["AFFILIATE"],
+        user_type: "CREATOR",
+        creator_user_open_id: seller.openId,
+      });
+    }
+    if (call.path === "/authorization/202405/category_assets") {
+      if (seller.userType !== 3 || q.shop_cipher !== undefined) return this.tiktokReply(105005, "Wrong principal");
+      return this.tiktokReply(0, "Success", { category_assets: seller.categoryAssets ?? [] });
+    }
+    if ((seller.userType ?? 0) !== 0) return this.tiktokReply(105005, "Seller authorization required");
 
     if (call.path === "/authorization/202309/shops") {
       return this.tiktokReply(0, "Success", {

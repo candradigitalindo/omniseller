@@ -3,7 +3,7 @@
 The connector serves Indonesian sellers under the **Tokopedia & Shop** display name. It implements
 selected seller workflows, not every TikTok Shop API or Partner Center capability. Seller, creator
 and affiliate-partner authorizations are different principals; `exchangeCode` currently accepts only
-seller tokens. An app key alone does not grant every API scope or market.
+seller tokens; the optional `accounts` adapter separately supports creator/affiliate-partner grants. An app key alone does not grant every API scope or market.
 
 ## Application flows
 
@@ -67,3 +67,13 @@ secure flow; removing the existing tenant-bound `state` check is not a fix.
 
 ## Regular price updates
 `catalog.updatePrices` now has an application consumer: persistent per-listing requests, the outbox/worker, read-before-write and confirmation, tenant/store permissions, cancellation of unsent work, audit/export and a rupiah modal. It does not edit promotion prices or implement automatic channel pricing. Authentication/transient errors propagate, business refusals are explicit and local transport tests cover the contract; real sandbox validation remains pending.
+
+## Creator/partner connections
+
+`accounts` implements the current ROW authorization URLs and token exchange/refresh for creator
+(user_type 1) and partner (3). It validates identity/scopes, reads Creator Profile 202508 or Authorized
+Category Assets 202405, and accepts Indonesian selection regions/assets only. No seller shop_cipher
+is sent. Private category ciphers are separated from public metadata and redacted in call summaries.
+The application consumer is `src/modules/affiliate-accounts` and UI `/affiliate/akun` (ADR-047).
+Signed mock tests cover transport; real Creator API/TAP approval/test-account access remains missing.
+This connection foundation does not implement collaboration, samples, links or performance features.

@@ -65,6 +65,8 @@ const r = (column: string, ref: AuditRef): AuditField => ({ column, field: camel
  * audit-view.spec.ts reads the triggers and checks.
  */
 export const AUDIT_ENTITIES: Record<string, EntitySpec> = {
+  affiliate_account: { label: [{ column: "name" }], fields: [f("name"), f("kind"), f("status"), f("error_code")] },
+  affiliate_authorization: { label: [], fields: [f("kind"), f("status"), f("error_code")] },
   affiliate_product_query: { label: [], fields: [r("store_id", "store"), f("status"), f("total"), f("error_code")] },
   listing_price_change: {
     label: [],

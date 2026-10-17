@@ -34,3 +34,9 @@ export const affiliateProductQueryStatusTransition = pgTable(
   "affiliate_product_query_status_transition",
   transitionColumns(),
 );
+
+export const affiliateAccountStatusTransition = pgTable("affiliate_account_status_transition", transitionColumns());
+export const affiliateAuthorizationStatusTransition = pgTable(
+  "affiliate_authorization_status_transition",
+  transitionColumns(),
+);

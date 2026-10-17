@@ -1,4 +1,6 @@
 import {
+  AFFILIATE_ACCOUNT_STATUSES,
+  AFFILIATE_AUTHORIZATION_STATUSES,
   AFFILIATE_QUERY_STATUSES,
   DATA_EXPORT_STATUSES,
   DOCUMENT_JOB_STATUSES,
@@ -215,6 +217,8 @@ describe("schema conventions", () => {
       );
       return [...row!.def.matchAll(/'([a-z_]+)'::text/g)].map((m) => m[1]).sort();
     };
+    expect(await check("affiliate_account")).toEqual([...AFFILIATE_ACCOUNT_STATUSES].sort());
+    expect(await check("affiliate_authorization")).toEqual([...AFFILIATE_AUTHORIZATION_STATUSES].sort());
     expect(await check("affiliate_product_query")).toEqual([...AFFILIATE_QUERY_STATUSES].sort());
     expect(await check("order")).toEqual([...ORDER_STATUSES].sort());
     expect(await check("shipment")).toEqual([...SHIPMENT_STATUSES].sort());
@@ -238,6 +242,8 @@ describe("schema conventions", () => {
   it("every transition uses known statuses", async () => {
     for (const [table, statuses] of [
       ["affiliate_product_query_status_transition", AFFILIATE_QUERY_STATUSES],
+      ["affiliate_account_status_transition", AFFILIATE_ACCOUNT_STATUSES],
+      ["affiliate_authorization_status_transition", AFFILIATE_AUTHORIZATION_STATUSES],
       ["order_status_transition", ORDER_STATUSES],
       ["shipment_status_transition", SHIPMENT_STATUSES],
       ["sync_job_status_transition", SYNC_JOB_STATUSES],
@@ -275,6 +281,8 @@ describe("schema conventions", () => {
       SELECT c.relname AS tbl, pg_get_triggerdef(t.oid) AS def FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
        WHERE t.tgname = 'status_transition_trg' AND NOT c.relispartition ORDER BY 1`);
     expect(rows.map((r) => r.tbl)).toEqual([
+      "affiliate_account",
+      "affiliate_authorization",
       "affiliate_product_query",
       "data_export",
       "document_job",

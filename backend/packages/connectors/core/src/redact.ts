@@ -12,6 +12,9 @@ const SECRET_KEYS = new Set([
   "sign",
   "authorization",
   "x-tts-access-token",
+  "cipher",
+  "shop_cipher",
+  "category_asset_cipher",
 ]);
 
 const PERSONAL_KEYS = new Set([

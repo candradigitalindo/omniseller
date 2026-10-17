@@ -235,13 +235,18 @@ describe("what an entry says", () => {
     expect(TITLE_KEYS.filter((k) => !audit[`title_${k}`])).toEqual([]);
     expect(AUDIT_FIELDS.filter((f) => !audit[`field_${f}`])).toEqual([]);
     for (const k of Object.keys(AUDIT_KINDS)) expect(audit[`kind_${k}`]).toBeTruthy();
-    const all = messages as unknown as Record<string, Record<string, string>>;
-    for (const [where, [ns, prefix]] of Object.entries(VALUE_LABELS)) {
+    const all = messages as unknown as Record<string, unknown>;
+    const leafKeys = (value: unknown, path = ""): string[] => {
+      if (!value || typeof value !== "object") return [];
+      return Object.entries(value).flatMap(([key, child]) =>
+        typeof child === "string" ? [path + key] : leafKeys(child, `${path}${key}.`),
+      );
+    };
+    for (const [where, [ns, prefix]] of Object.entries(VALUE_LABELS))
       expect(
-        Object.keys(all[ns] ?? {}).some((k) => k.startsWith(prefix)),
+        leafKeys(all[ns]).some((k) => k.startsWith(prefix)),
         where,
       ).toBe(true);
-    }
   });
 
   it("says what happened to a file without its id", () => {
@@ -251,6 +256,8 @@ describe("what an entry says", () => {
   });
 
   it("finds the label of a coded value where the screen that sets it keeps it", () => {
+    expect(valueKey("affiliate_account", "status", "active")).toBe("affiliateAccounts.status.active");
+    expect(valueKey("affiliate_authorization", "kind", "creator")).toBe("affiliateAccounts.kind.creator");
     expect(valueKey("store", "status", "disconnected")).toBe("stores.status_disconnected");
     expect(valueKey("stock_movement", "reason", "damaged")).toBe("stock.reason_damaged");
     expect(valueKey("handover", "status", "open")).toBe("shipping.handover_open");

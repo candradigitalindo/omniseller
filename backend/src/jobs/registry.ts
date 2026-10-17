@@ -1,4 +1,5 @@
 import { AFFILIATE_JOBS } from "../modules/affiliate/affiliate.jobs";
+import { AFFILIATE_ACCOUNT_JOBS } from "../modules/affiliate-accounts/accounts.jobs";
 import { AUTOMATION_JOBS } from "../modules/automation/automation.jobs";
 import { BILLING_JOBS } from "../modules/billing/billing.jobs";
 import { BUSINESS_JOBS } from "../modules/business/business.jobs";
@@ -63,6 +64,7 @@ export class JobRegistry {
 /** Registered jobs; each module appends its definitions here. */
 export const JOB_DEFINITIONS: readonly JobDef[] = [
   ...AFFILIATE_JOBS,
+  ...AFFILIATE_ACCOUNT_JOBS,
   ...NOTIFICATION_JOBS,
   ...IDENTITY_JOBS,
   ...CHANNEL_JOBS,

@@ -9,7 +9,7 @@ import { describeSyncError, recordConnectorCalls } from "./connector-calls";
 import { type SyncJobRow, SyncRepository } from "./sync.repository";
 
 export interface SyncLogEntry {
-  storeId: string;
+  storeId: string | null;
   /** What was synced: `auth.exchange`, `auth.refresh`, `warehouses.pull`, `webhooks.subscribe`, ... */
   kind: string;
   direction: "pull" | "push";

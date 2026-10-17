@@ -8,6 +8,7 @@ import { localDate } from "../../common/time-zone";
 import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, RATE_LIMITER } from "../../infra/tokens";
+import { AffiliateAccountsService } from "../affiliate-accounts/accounts.service";
 import { wrongPassword } from "../auth/auth.errors";
 import { CLOSING_PERMISSION } from "../auth/auth.guard";
 import { BillingService } from "../billing/billing.service";
@@ -47,6 +48,7 @@ export class AccountClosureService {
     @Inject(UsersService) private readonly users: UsersService,
     @Inject(InvitationsService) private readonly invitations: InvitationsService,
     @Inject(StoresService) private readonly stores: StoresService,
+    @Inject(AffiliateAccountsService) private readonly affiliateAccounts: AffiliateAccountsService,
     @Inject(BillingService) private readonly billing: BillingService,
     @Inject(NotificationInboxService) private readonly inbox: NotificationInboxService,
     @Inject(RATE_LIMITER) private readonly limiter: RateLimiter,
@@ -75,6 +77,7 @@ export class AccountClosureService {
       await this.tenants.markClosingIn(tx, ctx, { closedBy: ctx.actor.id, at: now, purgeAfter });
       // nothing more is pushed to or read from the marketplaces; the stores' history stays until the purge
       const channels = await this.stores.disconnectAllIn(tx, ctx, CLOSURE_REASON);
+      await this.affiliateAccounts.disconnectAllIn(tx, ctx);
       await this.billing.closeIn(tx, ctx, now);
       await this.invitations.revokeOpenIn(tx, now);
       const { timezone } = await this.tenants.profileIn(tx, ctx);

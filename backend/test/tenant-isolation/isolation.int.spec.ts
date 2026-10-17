@@ -51,6 +51,9 @@ const PATH_PARAMS: Record<string, string> = {
 
 /** Bodies for mutating operations, keyed by operationId. `ids` holds A's fixture ids and B's own ids. */
 const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: string; aState: string }) => object> = {
+  AffiliateAccountsController_rename: () => ({ name: "Penyusup" }),
+  AffiliateAccountsController_disconnect: () => ({}),
+  AffiliateAccountsController_refresh: () => ({}),
   AffiliateProductsController_request: () => ({ pageSize: 20 }),
   ListingsController_changePrice: () => ({ price: 1, expectedPrice: 2 }),
   ListingsController_cancelPrice: () => ({ changeId: newId() }),
@@ -461,6 +464,15 @@ beforeAll(async () => {
   expect(started.status).toBe(201);
   fixtures.store_authorization = { id: started.body.id };
   aState = new URL(started.body.authorizeUrl).searchParams.get("state")!;
+  await withTenantTx(h.worker, userCtx(tenantId), async (tx) => {
+    const id = newId();
+    await tx.execute(sql`INSERT INTO affiliate_account(id,tenant_id,kind,external_principal_id,name)
+      VALUES (${id},${tenantId},'creator',${newId()},'Creator A')`);
+    fixtures.affiliate_account = { id };
+  });
+  const affiliateStart = await a.c.post("/v1/affiliate/authorizations", { kind: "creator" });
+  expect(affiliateStart.status).toBe(201);
+  fixtures.affiliate_authorization = { id: affiliateStart.body.id };
 });
 
 afterAll(async () => {

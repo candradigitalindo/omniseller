@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AffiliateModule } from "../affiliate/affiliate.module";
+import { AffiliateAccountsModule } from "../affiliate-accounts/accounts.module";
 import { AutomationModule } from "../automation/automation.module";
 import { BillingModule } from "../billing/billing.module";
 import { BusinessModule } from "../business/business.module";
@@ -27,6 +28,7 @@ export class ExportsModule {}
 @Module({
   imports: [
     AffiliateModule,
+    AffiliateAccountsModule,
     IdentityModule,
     ChannelModule,
     InventoryModule,

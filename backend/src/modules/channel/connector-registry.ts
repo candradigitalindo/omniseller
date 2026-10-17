@@ -83,6 +83,10 @@ export class ConnectorRegistry {
           apiBaseUrl: str(env, "TIKTOKSHOP_API_BASE_URL") ?? "https://open-api.tiktokglobalshop.com",
           authBaseUrl: str(env, "TIKTOKSHOP_AUTH_BASE_URL") ?? "https://auth.tiktok-shops.com",
           authorizeUrl: str(env, "TIKTOKSHOP_AUTHORIZE_URL") ?? "https://services.tiktokshop.com/open/authorize",
+          creatorAuthorizeUrl:
+            str(env, "TIKTOKSHOP_CREATOR_AUTHORIZE_URL") ?? "https://shop.tiktok.com/alliance/creator/auth",
+          partnerAuthorizeUrl:
+            str(env, "TIKTOKSHOP_PARTNER_AUTHORIZE_URL") ?? "https://partner.tiktokshop.com/open/authorize",
           http,
         }),
       ]);

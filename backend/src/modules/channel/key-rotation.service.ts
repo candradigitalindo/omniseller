@@ -7,6 +7,7 @@ import type { DbHandle } from "../../db/client";
 import { storeCredential } from "../../db/schema/channel";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, TOKEN_VAULT } from "../../infra/tokens";
+import { rotateAffiliateTokensIn } from "../affiliate-accounts/account-token-rotation";
 import { tenantForOpsIn } from "../identity/tenant-ops";
 import { purposeOf } from "./credential.service";
 
@@ -71,6 +72,16 @@ export class KeyRotationService {
             .where(eq(storeCredential.id, row.id));
         }
         return rows.length;
+      });
+      changed += n;
+      if (n < BATCH) break;
+    }
+    for (;;) {
+      const n = await withTenantTx(this.db, ctx, async (tx) => {
+        if ((await tenantForOpsIn(tx, ctx.tenantId)).status !== "active")
+          throw new Error("rotation requires an active tenant");
+        await lockTenantKeys(tx, ctx.tenantId);
+        return rotateAffiliateTokensIn(tx, ctx.tenantId, this.vault, version, BATCH);
       });
       changed += n;
       if (n < BATCH) break;

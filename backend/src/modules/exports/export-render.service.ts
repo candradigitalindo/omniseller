@@ -9,6 +9,7 @@ import type { DbHandle } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT } from "../../infra/tokens";
 import { AffiliateService } from "../affiliate/affiliate.service";
+import { AffiliateAccountsService } from "../affiliate-accounts/accounts.service";
 import { OrderRulesService } from "../automation/order-rules.service";
 import { BillingService } from "../billing/billing.service";
 import { BusinessProfileService } from "../business/business-profile.service";
@@ -80,6 +81,7 @@ export class ExportRenderService {
     @Inject(BusinessProfileService) private readonly business: BusinessProfileService,
     @Inject(CourierCalendarService) private readonly courierCalendar: CourierCalendarService,
     @Inject(BillingService) private readonly billing: BillingService,
+    @Inject(AffiliateAccountsService) private readonly affiliateAccounts: AffiliateAccountsService,
     @Inject(AffiliateService) private readonly affiliate: AffiliateService,
     @Inject(OrderRulesService) private readonly orderRules: OrderRulesService,
   ) {}
@@ -88,6 +90,7 @@ export class ExportRenderService {
   sheets(): ExportSheet[] {
     return [
       ...this.affiliate.exportSheets(),
+      ...this.affiliateAccounts.exportSheets(),
       ...this.business.exportSheets(),
       ...this.roles.exportSheets(),
       ...this.billing.exportSheets(),

@@ -13,8 +13,8 @@ masih kosong pada pemeriksaan 17 Oktober 2026; tidak ada panggilan tulis ke toko
 | Harga reguler listing | Backend, outbox/worker, riwayat, pembatalan antrean, audit, ekspor dan modal untuk kedua marketplace telah diuji lokal | Sandbox nyata; aturan harga otomatis per kanal dan perubahan massal belum tercakup |
 | Aturan produk terbaru | Validasi ulang kategori dari marketplace sebelum membuat listing baru; draf lama tidak melewati atribut wajib yang baru | Verifikasi sandbox perubahan Imported Goods; seluruh edit produk belum tersedia |
 | Produk/media | Tarik, salin/publish, status dan stok sudah ada; masih parsial | Edit/partial edit/hapus, metadata, video, kualitas listing, operasi massal sesuai scope Indonesia |
-| Otorisasi | Seller via link/state tersedia | App Store, principal creator dan affiliate partner, pengelolaan akun/scopes, sandbox dan review |
-| AMS/Affiliate | Alur baca AMS Shopee: worker/API/cache/UI, pencarian, komisi/periode, audit, ekspor, role dinamis dan isolasi diuji lokal | Mutasi campaign/komisi, targeted/open collaboration, sample, link dan performa affiliate TikTok; otorisasi tiap principal |
+| Otorisasi | Seller serta koneksi creator/affiliate partner Indonesia melalui principal terpisah, scope/profil/kategori, refresh, nama, disconnect, audit/ekspor dan UI telah diuji lokal (ADR-047) | Instalasi App Store, akses Creator API/TAP, sandbox nyata dan review platform |
+| AMS/Affiliate | Alur baca AMS Shopee: worker/API/cache/UI, pencarian, komisi/periode, audit, ekspor, role dinamis dan isolasi diuji lokal | Mutasi campaign/komisi, targeted/open collaboration, sample, link dan performa affiliate TikTok; kolaborasi, sample, link dan performa setelah fondasi koneksi principal |
 | Promosi | Belum diimplementasikan | Discount, voucher, flash sale, add-on/bundle, kampanye dan hasil parsial; aturan bentrok dan waktu lokal |
 | Keuangan | Belum ada integrasi settlement | Statement, fee, pembayaran marketplace, transaksi/order/SKU dan rekonsiliasi; bedakan dari langganan Xendit |
 | Chat/engagement | Belum diimplementasikan | Conversation/message, attachment, webhook, atribusi petugas, perlindungan dan retensi data pembeli |
@@ -38,3 +38,16 @@ Rujukan: [audit Shopee](AUDIT-INTEGRASI-SHOPEE.md), [audit Tokopedia & Shop](AUD
 Validasi alur baca AMS: 426 tes unit aplikasi dan 198 tes paket backend lulus; 33 tes integrasi
 AMS/skema/isolasi/retensi, 58 tes UI terkait (3 AMS diulang setelah perbaikan modal), build web dan
 4 tes browser AMS pada 320/390/768/1440 piksel lulus. Tidak ada pengujian sandbox nyata.
+
+Fondasi akun creator/partner: pengguna mengonfirmasi belum memiliki akses Creator API/beta/TAP,
+dan mengizinkan pengembangan lokal. Migrasi 0033 diterapkan hanya pada database lokal; tidak ada
+kredensial atau operasi akun marketplace nyata. Koneksi berbeda dari operasi bisnis affiliate;
+kolaborasi/campaign, sample, link, komisi dan performa belum dikerjakan oleh checkpoint ini.
+
+Validasi checkpoint akun creator/partner: 426 tes unit aplikasi dan 212 tes paket backend,
+45 tes integrasi akun/skema/privilege/isolasi, 5 tes penutupan bisnis, serta 541 tes frontend lulus.
+Sembilan tes akun diulang setelah penguatan kondisi balapan, ikatan pemohon dan konfigurasi publik.
+Typecheck/lint, build web, empat uji browser akun dengan axe pada 320/390/768/1440 piksel serta
+empat regresi browser AMS lulus. Halaman akun dan modal pada fixture tetap di dalam tinggi/lebar
+viewport; mobile membaca satu kartu per halaman sejak permintaan pertama. Generator OpenAPI dan
+kedua SDK diperbarui. Pemeriksaan PRD tetap 259 FR, 294 kriteria dan 811 evidence anchors.

@@ -14,7 +14,7 @@ describe("sidebar (DOKUMEN-UI-UX 7.1)", () => {
       ["groupHome", ["overview", "notifications"]],
       ["groupSales", ["orders", "orderRules", "returns"]],
       ["groupCatalog", ["products", "listings", "copyListings"]],
-      ["groupMarketing", ["affiliate"]],
+      ["groupMarketing", ["affiliate", "affiliateAccounts"]],
       ["groupStock", ["stock", "warehouses", "stockHistory", "stockCounts", "transfers", "restock"]],
       ["groupShipping", ["shipping", "printers", "courierHours"]],
       ["groupAnalytics", ["salesReport", "teamPerformance", "dataExport"]],

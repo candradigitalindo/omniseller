@@ -756,6 +756,8 @@ export interface ConnectorManifest {
 }
 
 export interface MarketplaceConnector {
+  /** Optional non-seller principal authorization, only when an application consumer exists. */
+  accounts?: MarketplaceAccountAuth;
   readonly manifest: ConnectorManifest;
 
   auth: {
@@ -974,4 +976,33 @@ export interface OpenCampaignProductPage {
   items: OpenCampaignProduct[];
   total: number;
   nextCursor: string | null;
+}
+
+/** Creator/partner identities are separate from seller shops and their credentials. */
+export type MarketplaceAccountKind = "creator" | "affiliate_partner";
+export interface MarketplaceAccountGrant {
+  kind: MarketplaceAccountKind;
+  externalPrincipalId: string;
+  tokens: TokenSet;
+}
+export interface MarketplaceAccountProfile {
+  displayName: string | null;
+  region: string;
+  info: Record<string, unknown>;
+  /** Worker-only opaque asset identifiers, kept separately from public profile metadata. */
+  categoryAssets: { cipher: string; categoryId: number; categoryName: string; market: string }[];
+}
+export interface MarketplaceAccountAuth {
+  authorizeUrl(input: { state: string; kind: MarketplaceAccountKind }): string;
+  exchangeCode(input: { code: string; kind: MarketplaceAccountKind }): Promise<MarketplaceAccountGrant>;
+  refresh(input: {
+    refreshToken: string;
+    kind: MarketplaceAccountKind;
+    externalPrincipalId: string;
+  }): Promise<MarketplaceAccountGrant>;
+  describe(input: {
+    accessToken: string;
+    kind: MarketplaceAccountKind;
+    scopes: readonly string[];
+  }): Promise<MarketplaceAccountProfile>;
 }

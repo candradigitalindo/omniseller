@@ -46,6 +46,9 @@ const shopeeSecret = { SHOPEE_PARTNER_KEY: z.string().min(8).optional() };
 const shopeeApi = { SHOPEE_API_BASE_URL: z.url().default("https://partner.shopeemobile.com") };
 
 const tiktokLink = {
+  TIKTOKSHOP_APP_KEY: z.string().min(1).optional(),
+  TIKTOKSHOP_CREATOR_AUTHORIZE_URL: z.url().default("https://shop.tiktok.com/alliance/creator/auth"),
+  TIKTOKSHOP_PARTNER_AUTHORIZE_URL: z.url().default("https://partner.tiktokshop.com/open/authorize"),
   TIKTOKSHOP_SERVICE_ID: z.string().min(1).optional(),
   TIKTOKSHOP_AUTHORIZE_URL: z.url().default("https://services.tiktokshop.com/open/authorize"),
 };

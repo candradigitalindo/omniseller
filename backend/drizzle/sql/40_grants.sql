@@ -35,7 +35,9 @@ BEGIN
                            'listing_copy_status_transition', 'listing_draft_status_transition',
                            'return_request_status_transition', 'stock_count_status_transition',
                            'stock_transfer_status_transition', 'subscription_status_transition',
-                           'invoice_status_transition']
+                           'invoice_status_transition', 'listing_price_change_status_transition',
+                           'affiliate_product_query_status_transition', 'affiliate_account_status_transition',
+                           'affiliate_authorization_status_transition']
   LOOP
     EXECUTE format('REVOKE INSERT, UPDATE, DELETE ON TABLE %I FROM omniseller_api, omniseller_worker, omniseller_system', t);
   END LOOP;
@@ -116,3 +118,12 @@ GRANT EXECUTE ON FUNCTION maintain_partitions(timestamptz) TO omniseller_system;
 GRANT EXECUTE ON FUNCTION begin_tenant_purge(text) TO omniseller_worker;
 GRANT EXECUTE ON FUNCTION purge_tenant_step(text, text, integer) TO omniseller_worker;
 GRANT EXECUTE ON FUNCTION finish_tenant_purge(text) TO omniseller_worker;
+
+-- Non-seller tokens and staged grants are exclusively worker-readable/writable.
+REVOKE ALL ON TABLE affiliate_account_credential FROM omniseller_api;
+GRANT SELECT(id,tenant_id,created_at,updated_at,row_version,account_id),DELETE ON TABLE affiliate_account_credential TO omniseller_api;
+REVOKE INSERT ON TABLE affiliate_account FROM omniseller_api;
+REVOKE ALL ON TABLE affiliate_authorization FROM omniseller_api;
+GRANT SELECT(id,tenant_id,created_at,updated_at,row_version,kind,account_id,requested_by,state_hash,status,status_changed_at,expires_at,callback_at,completed_at,error_code,error_message),
+ INSERT(id,tenant_id,kind,account_id,requested_by,state_hash,expires_at),
+ UPDATE(status,callback_at,completed_at,error_code,error_message) ON TABLE affiliate_authorization TO omniseller_api;

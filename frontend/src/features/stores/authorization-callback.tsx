@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 import { channelLabel } from "@/components/common/channel";
 import { Button } from "@/components/ui/button";
+import { AffiliateAccountCallback } from "@/features/affiliate-accounts/authorization-callback";
 import { api, unwrap } from "@/lib/api/client";
 import { errorMessage } from "@/lib/api/errors";
 import { type Authorization, callbackBody, isFinal } from "./store-meta";
@@ -20,6 +21,15 @@ const POLL_MS = 2_000;
  * the shops (backend 8.2, steps 2 to 5).
  */
 export function AuthorizationCallback({ channel }: { channel: string }) {
+  const params = useSearchParams();
+  return channel === "tiktokshop" && params.get("state")?.startsWith("a1_") ? (
+    <AffiliateAccountCallback />
+  ) : (
+    <SellerAuthorizationCallback channel={channel} />
+  );
+}
+
+function SellerAuthorizationCallback({ channel }: { channel: string }) {
   const t = useTranslations("stores");
   const params = useSearchParams();
   const queryClient = useQueryClient();

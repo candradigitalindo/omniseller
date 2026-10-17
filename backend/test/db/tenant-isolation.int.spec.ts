@@ -151,6 +151,29 @@ describe("role privileges (invariants I2, I12, backend doc 7.5)", () => {
     await expect(api.query(`SELECT * FROM "${name}"`)).rejects.toMatchObject({ code: "42501" });
   });
 
+  it("keeps affiliate grants and asset ciphers worker-only and transition rules read-only", async () => {
+    const api = await h.raw("api");
+    const worker = await h.raw("worker");
+    for (const query of [
+      "SELECT access_token_enc, refresh_token_enc, category_assets FROM affiliate_account_credential",
+      "SELECT grant_access_token_enc, grant_refresh_token_enc FROM affiliate_authorization",
+      "UPDATE affiliate_authorization SET grant_access_token_enc=NULL",
+      "DELETE FROM affiliate_authorization",
+    ])
+      await expect(api.query(query)).rejects.toMatchObject({ code: "42501" });
+    await expect(api.query("SELECT id,status FROM affiliate_authorization")).resolves.toBeDefined();
+    await expect(worker.query("SELECT grant_access_token_enc FROM affiliate_authorization")).resolves.toBeDefined();
+    await expect(worker.query("SELECT category_assets FROM affiliate_account_credential")).resolves.toBeDefined();
+    for (const role of [api, worker])
+      for (const table of [
+        "listing_price_change_status_transition",
+        "affiliate_product_query_status_transition",
+        "affiliate_account_status_transition",
+        "affiliate_authorization_status_transition",
+      ])
+        await expect(role.query(`UPDATE ${table} SET via='any'`)).rejects.toMatchObject({ code: "42501" });
+  });
+
   it("application roles cannot write the ledger, the audit log, or stock quantities directly", async () => {
     const worker = await h.raw("worker");
     await worker.query("BEGIN");

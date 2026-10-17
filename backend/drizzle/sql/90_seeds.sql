@@ -43,6 +43,8 @@ SELECT gen_ulid(), p.code, split_part(p.code, ':', 1), p.description
     ('catalog:write', 'Ubah produk'),
     ('catalog:publish', 'Terbitkan produk ke toko'),
     ('catalog:map', 'Hubungkan listing ke produk'),
+    ('affiliate:account_read', 'Lihat akun creator dan partner bisnis'),
+    ('affiliate:account_write', 'Kelola koneksi akun creator dan partner bisnis'),
     ('affiliate:read', 'Lihat produk dan komisi affiliate'),
     ('price:write', 'Ubah harga'),
     ('promo:write', 'Kelola promosi'),
@@ -78,7 +80,7 @@ ON CONFLICT (role_id, permission_id) DO NOTHING;
 INSERT INTO role_permission (id, tenant_id, role_id, permission_id)
 SELECT gen_ulid(), r.tenant_id, r.id, p.id
   FROM role r
-  JOIN (VALUES ('Admin', 'affiliate:read'), ('Admin', 'return:respond'), ('Admin', 'return:receive'), ('CS', 'return:respond'),
+  JOIN (VALUES ('Admin', 'affiliate:account_read'), ('Admin', 'affiliate:account_write'), ('Admin', 'affiliate:read'), ('Admin', 'return:respond'), ('Admin', 'return:receive'), ('CS', 'return:respond'),
                ('Gudang', 'return:receive'), ('Gudang', 'inventory:transfer')) AS g(role_name, code)
     ON g.role_name = r.name
   JOIN permission p ON p.code = g.code
@@ -359,3 +361,16 @@ INSERT INTO affiliate_product_query_status_transition(id,from_status,to_status,v
 SELECT gen_ulid(),f,t,'any' FROM (VALUES
  ('queued','running'),('queued','failed'),('running','queued'),('running','succeeded'),('running','failed')
 ) AS x(f,t) ON CONFLICT (from_status,to_status) DO NOTHING;
+
+INSERT INTO affiliate_account_status_transition(id,from_status,to_status,via)
+SELECT gen_ulid(),f,t,'any' FROM (VALUES
+ ('active','verifying'),('active','reauth_required'),('active','disconnected'),
+ ('verifying','active'),('verifying','reauth_required'),('verifying','disconnected'),
+ ('reauth_required','active'),('reauth_required','disconnected'),('disconnected','active')
+) AS x(f,t) ON CONFLICT(from_status,to_status) DO NOTHING;
+INSERT INTO affiliate_authorization_status_transition(id,from_status,to_status,via)
+SELECT gen_ulid(),f,t,'any' FROM (VALUES
+ ('pending','exchanging'),('pending','failed'),('pending','expired'),
+ ('exchanging','verifying'),('exchanging','failed'),('exchanging','expired'),
+ ('verifying','succeeded'),('verifying','failed'),('verifying','expired')
+) AS x(f,t) ON CONFLICT(from_status,to_status) DO NOTHING;

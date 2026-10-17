@@ -1,4 +1,5 @@
 export * from "./affiliate";
+export * from "./affiliate-accounts";
 export * from "./audit";
 export * from "./automation";
 export * from "./billing";

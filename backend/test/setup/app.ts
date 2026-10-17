@@ -17,6 +17,7 @@ import { jobContext } from "../../src/jobs/job-context";
 import { JOB_DEFINITIONS, JobRegistry } from "../../src/jobs/registry";
 import type { StockDirtySet } from "../../src/jobs/stock-dirty";
 import { AffiliateWorkerModule } from "../../src/modules/affiliate/affiliate.module";
+import { AffiliateAccountsWorkerModule } from "../../src/modules/affiliate-accounts/accounts.module";
 import { AuthModule } from "../../src/modules/auth/auth.module";
 import { AutomationModule } from "../../src/modules/automation/automation.module";
 import { BillingModule, BillingWorkerModule } from "../../src/modules/billing/billing.module";
@@ -72,6 +73,9 @@ function marketplaceEnv(mock: MockMarketplace | undefined, role: "api" | "webhoo
     ...ids,
     SHOPEE_AUTH_BASE_URL: mock.url,
     TIKTOKSHOP_SERVICE_ID: TIKTOK.serviceId,
+    TIKTOKSHOP_APP_KEY: TIKTOK.appKey,
+    TIKTOKSHOP_CREATOR_AUTHORIZE_URL: `${mock.url}/alliance/creator/auth`,
+    TIKTOKSHOP_PARTNER_AUTHORIZE_URL: `${mock.url}/partner/open/authorize`,
     TIKTOKSHOP_AUTHORIZE_URL: `${mock.url}/open/authorize`,
   };
   const secrets = {
@@ -170,6 +174,7 @@ export async function startWorker(
       CatalogModule,
       CatalogWorkerModule,
       AffiliateWorkerModule,
+      AffiliateAccountsWorkerModule,
       ListingCopyModule,
       ListingCopyWorkerModule,
       InventoryWorkerModule,

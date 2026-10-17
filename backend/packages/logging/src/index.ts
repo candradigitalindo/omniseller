@@ -20,6 +20,9 @@ const SENSITIVE_KEYS = [
   "refresh_token",
   "accessToken",
   "refreshToken",
+  "cipher",
+  "shop_cipher",
+  "category_asset_cipher",
 ];
 
 function redactPaths(): string[] {
@@ -38,7 +41,9 @@ function stripSuffixed(value: unknown, depth = 0): unknown {
   if (Array.isArray(value)) return value.map((v) => stripSuffixed(v, depth + 1));
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-    out[k] = SUFFIX_PATTERN.test(k) ? "[Redacted]" : stripSuffixed(v, depth + 1);
+    // SQL bindings can contain serialized OAuth codes or PII without a recognizable secret key.
+    const sqlBindings = k === "params" && "query" in value && typeof value.query === "string";
+    out[k] = SUFFIX_PATTERN.test(k) || sqlBindings ? "[Redacted]" : stripSuffixed(v, depth + 1);
   }
   return out;
 }

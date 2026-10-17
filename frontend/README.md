@@ -146,3 +146,11 @@ Rincian, cakupan dan hasil validasi: [UI-REFRESH.md](UI-REFRESH.md).
 Pada tab Semua Listing, Harga & riwayat membuka modal harga reguler per varian. Input Rupiah menyimpan bilangan bulat; request memakai harga awal dan Idempotency-Key. Antrean dan hasil dikonfirmasi worker, diperiksa tiap dua detik saat berjalan. Hanya pemegang catalog:publish pada toko live yang mengirim harga; riwayat dapat dibaca catalog:read. Harga yang sudah diterima marketplace menunggu konfirmasi dan tidak menawarkan pembatalan. Modal diuji pada 320, 390, 768 dan 1440 piksel.
 
 AMS Shopee: `/affiliate` dalam Pemasaran, izin `affiliate:read`, pencarian/sorting, status worker, pagination opak dan modal komisi/periode. Snapshot terbaru dipulihkan saat membuka halaman; ini hanya baca AMS seller Indonesia, belum creator/partner TikTok atau perubahan campaign. Kontrak resmi dan sandbox nyata tetap pending.
+
+## Akun creator/partner Indonesia
+
+`/affiliate/akun` di kategori Pemasaran memakai izin dinamis `affiliate:account_read/write` tenant,
+terpisah dari toko seller. Pilihan jenis akun dapat dicari; daftar dipaginasi, detail/izin/kategori,
+nama lokal, refresh dan konfirmasi putus tampil di modal. Callback state `a1_` memakai URL terdaftar
+Tokopedia & Shop, lalu memantau worker. Token/cipher tidak dikirim ke browser. Akses Creator API/TAP
+dan sandbox nyata belum tersedia; belum ada operasi kolaborasi/sample/link/performa affiliate.

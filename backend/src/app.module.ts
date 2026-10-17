@@ -8,6 +8,10 @@ import { ConfigModule } from "./config/config.module";
 import type { Env } from "./config/env.schema";
 import { InfraModule } from "./infra/infra.module";
 import { AffiliateHttpModule, AffiliateWorkerModule } from "./modules/affiliate/affiliate.module";
+import {
+  AffiliateAccountsHttpModule,
+  AffiliateAccountsWorkerModule,
+} from "./modules/affiliate-accounts/accounts.module";
 import { AuditHttpModule } from "./modules/audit/audit-http.module";
 import { AuthHttpModule, AuthModule } from "./modules/auth/auth.module";
 import { AutomationHttpModule, AutomationModule } from "./modules/automation/automation.module";
@@ -107,6 +111,7 @@ export class AppModule {
             IdentityHttpModule,
             AuditHttpModule,
             AffiliateHttpModule,
+            AffiliateAccountsHttpModule,
             BusinessHttpModule,
             BillingHttpModule,
             CampaignHttpModule,
@@ -159,6 +164,7 @@ export class AppModule {
             CatalogModule,
             CatalogWorkerModule,
             AffiliateWorkerModule,
+            AffiliateAccountsWorkerModule,
             ListingCopyModule,
             ListingCopyWorkerModule,
             InventoryWorkerModule,

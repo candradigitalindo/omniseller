@@ -207,3 +207,12 @@ SELECT ensure_trigger('affiliate_product_query','status_transition_trg',
  'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON affiliate_product_query FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''affiliate_product_query'')');
 SELECT ensure_trigger('affiliate_product_query','audit_trg',
  'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF status ON affiliate_product_query FOR EACH ROW EXECUTE FUNCTION audit_row()');
+
+SELECT ensure_trigger('affiliate_account','status_transition_trg',
+ 'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON affiliate_account FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''affiliate_account'')');
+SELECT ensure_trigger('affiliate_authorization','status_transition_trg',
+ 'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON affiliate_authorization FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''affiliate_authorization'')');
+SELECT ensure_trigger('affiliate_account','audit_trg',
+ 'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF name,status ON affiliate_account FOR EACH ROW EXECUTE FUNCTION audit_row()');
+SELECT ensure_trigger('affiliate_authorization','audit_trg',
+ 'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF status ON affiliate_authorization FOR EACH ROW EXECUTE FUNCTION audit_row(''affiliate_authorization'',''state_hash'',''claim_id'',''claimed_at'',''external_principal_id'',''grant_access_token_enc'',''grant_refresh_token_enc'',''grant_dek_version'',''grant_access_expires_at'',''grant_refresh_expires_at'',''grant_scopes'')');

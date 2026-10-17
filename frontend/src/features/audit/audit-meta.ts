@@ -14,6 +14,8 @@ export const AUDIT_KINDS = {
   access: ["user", "user_role", "user_store_scope", "user_warehouse_scope", "role", "role_permission"],
   stores: [
     "affiliate_product_query",
+    "affiliate_account",
+    "affiliate_authorization",
     "store",
     "channel_warehouse",
     "warehouse",
@@ -53,6 +55,12 @@ const set = (e: AuditEntry, field: string) => {
 
 /** Every entry message under `audit.title_*` (audit-meta.test.ts checks they exist). */
 export const TITLE_KEYS = [
+  "affiliate_account_created",
+  "affiliate_account_updated",
+  "affiliate_account_deleted",
+  "affiliate_authorization_created",
+  "affiliate_authorization_updated",
+  "affiliate_authorization_deleted",
   "affiliate_product_query_created",
   "affiliate_product_query_updated",
   "affiliate_product_query_deleted",
@@ -370,6 +378,10 @@ function stepKey(e: AuditEntry): string {
  * log says what those screens say.
  */
 export const VALUE_LABELS: Record<string, [namespace: string, prefix: string]> = {
+  "affiliate_account.status": ["affiliateAccounts", "status."],
+  "affiliate_account.kind": ["affiliateAccounts", "kind."],
+  "affiliate_authorization.kind": ["affiliateAccounts", "kind."],
+  "affiliate_authorization.status": ["affiliateAccounts", "authorizationStatus."],
   "product.status": ["products", "status_"],
   "variant.status": ["products", "status_"],
   "channel_listing.status": ["listings", "status_"],

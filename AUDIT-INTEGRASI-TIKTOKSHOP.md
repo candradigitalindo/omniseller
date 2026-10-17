@@ -16,8 +16,8 @@ Navigasi resmi yang diambil memuat **973 entri: 104 direktori dan 869 dokumen**,
 API Reference dalam 19 modul**. Isi seluruh dokumen leaf dan daftar versi API diambil; API overview
 dibedakan dari endpoint, dan dua endpoint token berada di dalam panduan otorisasi. Rincian jumlah
 versi dan pencocokan method/path kode ada di [ringkasan hasil generator](AUDIT-TIKTOKSHOP-RINGKASAN.md).
-Ada **390 dokumen versi API**, ditambah dua endpoint token. Kode merujuk **35 dari 317 operasi katalog**
-dan kedua endpoint token (37 kombinasi method/path); **282 operasi katalog belum memiliki referensi**.
+Ada **390 dokumen versi API**, ditambah dua endpoint token. Kode merujuk **37 dari 317 operasi katalog**
+dan kedua endpoint token (39 kombinasi method/path); **280 operasi katalog belum memiliki referensi**.
 Empat API baru tidak menyediakan body markdown; kontraknya diambil dari metadata dan contoh cURL
 resmi, tanpa menebak arti kode numerik metode HTTP. Metadata publik empat API tersebut juga belum
 mencantumkan scope; kolomnya tetap ditandai perlu verifikasi melalui Console/dukungan platform.
@@ -52,7 +52,7 @@ Keputusan kompatibilitas tiap field/operasi lain tetap memerlukan pengujian kont
 | Finance | Belum ditemukan integrasi | Belum ada settlement, payout, biaya dan rekonsiliasi transaksi/order/SKU TikTok. Pembayaran langganan aplikasi lewat Xendit adalah alur berbeda. |
 | Analytics | Belum ditemukan integrasi API TikTok | Laporan internal penjualan/restock/kinerja tim bukan integrasi seluruh analitik toko, produk, LIVE atau video dari TikTok. |
 | Customer service/engagement | Belum ditemukan integrasi | Belum ada chat/conversation, pengiriman pesan, session dan campaign pelanggan TikTok. |
-| Affiliate creator/partner/seller | Belum ditemukan integrasi | Belum ada otorisasi creator/partner, kolaborasi, open/target collaboration, sample, komisi, link dan performa affiliate TikTok. Adapter AMS Shopee tidak menyediakan fitur ini. |
+| Affiliate creator/partner/seller | Fondasi koneksi creator/partner diuji lokal; operasi bisnis belum tersedia | [Akun terpisah](backend/src/modules/affiliate-accounts/README.md), [UI](frontend/src/features/affiliate-accounts), [ADR-047](backend/docs/adr/0047-affiliate-account-principals.md). Otorisasi, scope/profil/aset kategori ID, refresh/disconnect tersedia. Kolaborasi, open/target collaboration, sample, komisi, link dan performa tetap backlog. Adapter AMS Shopee terpisah. |
 | Supply chain/Tools | Belum ditemukan integrasi | Termasuk pemetaan ID Tokopedia/TikTok dalam API terkait; jangan menyamakan API creator dengan API seller. |
 | Partner Center | Proses eksternal; belum dibuktikan selesai | Registrasi, legalitas, app/scopes, review, publikasi, akun sandbox, dashboard/log/testing tool dikelola di portal. Tidak semuanya perlu disalin menjadi halaman OmniSeller. |
 
@@ -119,3 +119,9 @@ persetujuan marketplace diterima.
 
 ## Implementasi sesudah audit
 17 Oktober 2026: perubahan harga reguler per listing kini memiliki backend/worker/UI/riwayat dan tes lokal. Sebanyak 35/317 operasi katalog dirujuk kode (ditambah dua endpoint token); 282 belum. Worker publish kini membaca aturan kategori terbaru untuk menolak draf yang kehilangan atribut wajib. Provenance katalog tetap snapshot resmi audit 16 Oktober. Rincian dan modul yang masih terbuka ada pada [status implementasi](IMPLEMENTASI-MARKETPLACE.md).
+
+Kontrak Authorization overview, Creator authorization guide, Partner authorization guide,
+Get Creator Profile 202508 dan Get Authorized Category Assets 202405 dibaca langsung dari sumber
+publik resmi pada 17 Oktober 2026. Ini menambahkan dua operasi katalog yang dirujuk kode, tanpa
+mengubah snapshot navigasi 16 Oktober. Pengguna mengonfirmasi belum ada akses Creator API/beta/TAP;
+seluruh verifikasi koneksi baru memakai server simulasi lokal dan bukan bukti persetujuan platform.

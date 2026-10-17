@@ -31,6 +31,7 @@ import {
 import type { Permission } from "@/lib/session";
 
 type NavKey =
+  | "affiliateAccounts"
   | "affiliate"
   | "overview"
   | "orders"
@@ -118,7 +119,16 @@ export const NAV: readonly NavGroup[] = [
   },
   {
     key: "groupMarketing",
-    items: [{ key: "affiliate", href: "/affiliate", icon: Megaphone, permission: "affiliate:read", ready: true }],
+    items: [
+      { key: "affiliate", href: "/affiliate", icon: Megaphone, permission: "affiliate:read", ready: true },
+      {
+        key: "affiliateAccounts",
+        href: "/affiliate/akun",
+        icon: UsersRound,
+        permission: "affiliate:account_read",
+        ready: true,
+      },
+    ],
   },
   {
     key: "groupStock",

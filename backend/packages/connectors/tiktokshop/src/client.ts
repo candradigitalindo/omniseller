@@ -32,6 +32,8 @@ export interface TiktokShopConfig {
   authBaseUrl: string;
   /** https://services.tiktokshop.com/open/authorize (the US market uses services.us.tiktokshop.com) */
   authorizeUrl: string;
+  creatorAuthorizeUrl?: string;
+  partnerAuthorizeUrl?: string;
   http?: HttpConfig;
 }
 

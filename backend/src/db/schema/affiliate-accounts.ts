@@ -1,0 +1,53 @@
+import type { MarketplaceAccountKind, MarketplaceAccountProfile } from "@omniseller/connector-core";
+import type { AffiliateAccountStatus, AffiliateAuthorizationStatus } from "@omniseller/shared";
+import { integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
+import { baseColumns, bytea, tstz, ulid } from "../columns";
+export const affiliateAccount = pgTable("affiliate_account", {
+  ...baseColumns(),
+  kind: text("kind").$type<MarketplaceAccountKind>().notNull(),
+  externalPrincipalId: text("external_principal_id").notNull(),
+  name: text("name").notNull(),
+  region: text("region").notNull().default("ID"),
+  status: text("status").$type<AffiliateAccountStatus>().notNull().default("active"),
+  statusChangedAt: tstz("status_changed_at").notNull().defaultNow(),
+  scopes: text("scopes").array().notNull().default([]),
+  profile: jsonb("profile").$type<Record<string, unknown>>().notNull().default({}),
+  connectedAt: tstz("connected_at").notNull().defaultNow(),
+  disconnectedAt: tstz("disconnected_at"),
+  accessExpiresAt: tstz("access_expires_at"),
+  authorizationExpiresAt: tstz("authorization_expires_at"),
+  lastRefreshedAt: tstz("last_refreshed_at"),
+  errorCode: text("error_code"),
+  errorMessage: text("error_message"),
+});
+export const affiliateAccountCredential = pgTable("affiliate_account_credential", {
+  ...baseColumns(),
+  accountId: ulid("account_id").notNull(),
+  accessTokenEnc: bytea("access_token_enc").notNull(),
+  refreshTokenEnc: bytea("refresh_token_enc").notNull(),
+  dekVersion: integer("dek_version").notNull(),
+  categoryAssets: jsonb("category_assets").$type<MarketplaceAccountProfile["categoryAssets"]>().notNull().default([]),
+});
+export const affiliateAuthorization = pgTable("affiliate_authorization", {
+  ...baseColumns(),
+  kind: text("kind").$type<MarketplaceAccountKind>().notNull(),
+  accountId: ulid("account_id"),
+  requestedBy: ulid("requested_by"),
+  stateHash: text("state_hash").notNull(),
+  status: text("status").$type<AffiliateAuthorizationStatus>().notNull().default("pending"),
+  statusChangedAt: tstz("status_changed_at").notNull().defaultNow(),
+  expiresAt: tstz("expires_at").notNull(),
+  callbackAt: tstz("callback_at"),
+  completedAt: tstz("completed_at"),
+  errorCode: text("error_code"),
+  errorMessage: text("error_message"),
+  claimId: ulid("claim_id"),
+  claimedAt: tstz("claimed_at"),
+  externalPrincipalId: text("external_principal_id"),
+  grantAccessTokenEnc: bytea("grant_access_token_enc"),
+  grantRefreshTokenEnc: bytea("grant_refresh_token_enc"),
+  grantDekVersion: integer("grant_dek_version"),
+  grantAccessExpiresAt: tstz("grant_access_expires_at"),
+  grantRefreshExpiresAt: tstz("grant_refresh_expires_at"),
+  grantScopes: text("grant_scopes").array(),
+});

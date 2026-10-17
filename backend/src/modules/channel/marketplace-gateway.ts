@@ -96,6 +96,32 @@ export class MarketplaceGateway {
     }
   }
 
+  /** Non-seller principals use their own bucket and a tenant sync log without a store id. */
+  async callPrincipal<T>(
+    ctx: RequestContext,
+    principalKey: string,
+    entry: Omit<SyncLogEntry, "storeId">,
+    fn: (connector: MarketplaceConnector) => Promise<T>,
+    summarize?: (result: T) => Record<string, unknown>,
+  ): Promise<T> {
+    const connector = this.connectors.get("tiktokshop");
+    return this.syncLog.run(
+      ctx,
+      { ...entry, storeId: null },
+      () =>
+        withRequestGate(
+          {
+            limiter: this.limiter,
+            key: `mp:principal:${ctx.tenantId}:${principalKey}`,
+            rule: connector.manifest.shopRateLimit,
+            background: false,
+          },
+          () => fn(connector),
+        ),
+      summarize,
+    );
+  }
+
   private async revokedGuard<T>(ctx: RequestContext, storeId: string, fn: () => Promise<T>): Promise<T> {
     try {
       return await fn();

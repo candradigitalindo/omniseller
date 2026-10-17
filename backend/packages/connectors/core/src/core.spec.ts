@@ -6,6 +6,13 @@ import { REDACTED, redactUrl, redactValue, summarize } from "./redact.js";
 import { type TrackingStage, trackingStageOf } from "./types.js";
 
 describe("redaction", () => {
+  it("masks category asset and shop ciphers in nested responses and request URLs", () => {
+    expect(redactValue({ data: { category_assets: [{ cipher: "private-asset", category: { id: 123 } }] } })).toEqual({
+      data: { category_assets: [{ cipher: REDACTED, category: { id: 123 } }] },
+    });
+    const url = new URL("https://example.test/x?shop_cipher=private-shop&category_asset_cipher=private-asset");
+    expect(decodeURIComponent(redactUrl(url))).toBe(`/x?shop_cipher=${REDACTED}&category_asset_cipher=${REDACTED}`);
+  });
   it("masks secrets and personal data at any depth, keeps the rest", () => {
     const out = redactValue({
       access_token: "a",

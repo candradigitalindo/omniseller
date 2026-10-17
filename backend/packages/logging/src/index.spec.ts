@@ -14,6 +14,21 @@ function capture() {
 }
 
 describe("logging", () => {
+  it("hides category asset ciphers and SQL bindings containing serialized authorization codes", () => {
+    const { lines, logger } = capture();
+    logger.error(
+      {
+        assets: [{ cipher: "private-fixture-cipher" }],
+        err: {
+          query: "INSERT INTO outbox_event(payload) VALUES ($1)",
+          params: ['{"code":"private-fixture-code"}'],
+        },
+      },
+      "database operation failed",
+    );
+    expect(JSON.stringify(lines)).not.toContain("private-fixture");
+    expect(lines[0]).toMatchObject({ err: { params: "[Redacted]" } });
+  });
   it("redacts buyer PII and secrets at any depth", () => {
     const { lines, logger } = capture();
     logger.info(

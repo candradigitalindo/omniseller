@@ -548,6 +548,144 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/stores/{id}/affiliate/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Hasil pembacaan produk open campaign AMS toko */
+        get: operations["AffiliateProductsController_get"];
+        put?: never;
+        /** Antrekan pembacaan satu halaman produk open campaign AMS */
+        post: operations["AffiliateProductsController_request"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/affiliate/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Akun creator dan partner bisnis, terpisah dari cakupan toko seller */
+        get: operations["AffiliateAccountsController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/affiliate/accounts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Profil dan scope akun affiliate tanpa kredensial */
+        get: operations["AffiliateAccountsController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Ubah nama akun di OmniSeller */
+        patch: operations["AffiliateAccountsController_rename"];
+        trace?: never;
+    };
+    "/v1/affiliate/accounts/{id}/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Putuskan akun dari OmniSeller dan hapus token tersimpan */
+        post: operations["AffiliateAccountsController_disconnect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/affiliate/accounts/{id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Perbarui token/profil akun melalui worker */
+        post: operations["AffiliateAccountsController_refresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/affiliate/authorizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Buat tautan otorisasi creator/partner dengan state sekali pakai */
+        post: operations["AffiliateAuthorizationsController_start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/affiliate/authorizations/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validasi callback akun affiliate dan antrekan penukaran kode */
+        post: operations["AffiliateAuthorizationsController_callback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/affiliate/authorizations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Status penukaran kode dan verifikasi akun affiliate */
+        get: operations["AffiliateAuthorizationsController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/business-profile": {
         parameters: {
             query?: never;
@@ -1618,6 +1756,41 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["ProductsController_updateVariant"];
+        trace?: never;
+    };
+    "/v1/listings/{id}/price-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Riwayat perubahan harga reguler listing */
+        get: operations["ListingsController_priceHistory"];
+        put?: never;
+        /** Antrekan perubahan harga reguler dan konfirmasinya */
+        post: operations["ListingsController_changePrice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/listings/{id}/price-changes/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Batalkan perubahan harga yang belum dikirim */
+        post: operations["ListingsController_cancelPrice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/listings": {
@@ -3511,7 +3684,7 @@ export interface components {
                 features: string[];
             };
             /** @description izin efektif pengguna; klien menyembunyikan aksi yang tidak diizinkan */
-            permissions: ("order:read" | "order:accept" | "order:cancel" | "order:tag" | "order:write" | "shipment:arrange" | "shipment:print" | "shipment:pack" | "shipment:handover" | "return:respond" | "return:receive" | "inventory:read" | "inventory:adjust" | "inventory:count" | "inventory:transfer" | "catalog:read" | "catalog:write" | "catalog:publish" | "catalog:map" | "price:write" | "promo:write" | "finance:read" | "finance:reconcile" | "finance:export" | "chat:read" | "chat:write" | "chat:assign" | "report:read" | "settings:store" | "settings:warehouse" | "settings:user" | "settings:billing" | "research:read" | "research:write" | "audit:read" | "data:export")[];
+            permissions: ("order:read" | "order:accept" | "order:cancel" | "order:tag" | "order:write" | "shipment:arrange" | "shipment:print" | "shipment:pack" | "shipment:handover" | "return:respond" | "return:receive" | "inventory:read" | "inventory:adjust" | "inventory:count" | "inventory:transfer" | "catalog:read" | "catalog:write" | "catalog:publish" | "catalog:map" | "affiliate:account_read" | "affiliate:account_write" | "affiliate:read" | "price:write" | "promo:write" | "finance:read" | "finance:reconcile" | "finance:export" | "chat:read" | "chat:write" | "chat:assign" | "report:read" | "settings:store" | "settings:warehouse" | "settings:user" | "settings:billing" | "research:read" | "research:write" | "audit:read" | "data:export")[];
             roles: {
                 id: string;
                 name: string;
@@ -3687,7 +3860,7 @@ export interface components {
             name: string;
             description?: string | null;
             /** @description kode izin; semuanya harus dimiliki pengguna yang membuat atau mengubah peran */
-            permissions: ("order:read" | "order:accept" | "order:cancel" | "order:tag" | "order:write" | "shipment:arrange" | "shipment:print" | "shipment:pack" | "shipment:handover" | "return:respond" | "return:receive" | "inventory:read" | "inventory:adjust" | "inventory:count" | "inventory:transfer" | "catalog:read" | "catalog:write" | "catalog:publish" | "catalog:map" | "price:write" | "promo:write" | "finance:read" | "finance:reconcile" | "finance:export" | "chat:read" | "chat:write" | "chat:assign" | "report:read" | "settings:store" | "settings:warehouse" | "settings:user" | "settings:billing" | "research:read" | "research:write" | "audit:read" | "data:export")[];
+            permissions: ("order:read" | "order:accept" | "order:cancel" | "order:tag" | "order:write" | "shipment:arrange" | "shipment:print" | "shipment:pack" | "shipment:handover" | "return:respond" | "return:receive" | "inventory:read" | "inventory:adjust" | "inventory:count" | "inventory:transfer" | "catalog:read" | "catalog:write" | "catalog:publish" | "catalog:map" | "affiliate:account_read" | "affiliate:account_write" | "affiliate:read" | "price:write" | "promo:write" | "finance:read" | "finance:reconcile" | "finance:export" | "chat:read" | "chat:write" | "chat:assign" | "report:read" | "settings:store" | "settings:warehouse" | "settings:user" | "settings:billing" | "research:read" | "research:write" | "audit:read" | "data:export")[];
         };
         RoleDto_Output: {
             id: string;
@@ -3704,7 +3877,7 @@ export interface components {
             name?: string;
             description?: string | null;
             /** @description kode izin; semuanya harus dimiliki pengguna yang membuat atau mengubah peran */
-            permissions?: ("order:read" | "order:accept" | "order:cancel" | "order:tag" | "order:write" | "shipment:arrange" | "shipment:print" | "shipment:pack" | "shipment:handover" | "return:respond" | "return:receive" | "inventory:read" | "inventory:adjust" | "inventory:count" | "inventory:transfer" | "catalog:read" | "catalog:write" | "catalog:publish" | "catalog:map" | "price:write" | "promo:write" | "finance:read" | "finance:reconcile" | "finance:export" | "chat:read" | "chat:write" | "chat:assign" | "report:read" | "settings:store" | "settings:warehouse" | "settings:user" | "settings:billing" | "research:read" | "research:write" | "audit:read" | "data:export")[];
+            permissions?: ("order:read" | "order:accept" | "order:cancel" | "order:tag" | "order:write" | "shipment:arrange" | "shipment:print" | "shipment:pack" | "shipment:handover" | "return:respond" | "return:receive" | "inventory:read" | "inventory:adjust" | "inventory:count" | "inventory:transfer" | "catalog:read" | "catalog:write" | "catalog:publish" | "catalog:map" | "affiliate:account_read" | "affiliate:account_write" | "affiliate:read" | "price:write" | "promo:write" | "finance:read" | "finance:reconcile" | "finance:export" | "chat:read" | "chat:write" | "chat:assign" | "report:read" | "settings:store" | "settings:warehouse" | "settings:user" | "settings:billing" | "research:read" | "research:write" | "audit:read" | "data:export")[];
         };
         PermissionListDto_Output: {
             items: {
@@ -3804,6 +3977,204 @@ export interface components {
                 id: string;
                 name: string;
             }[];
+        };
+        AffiliateProductsResultDto_Output: {
+            request: {
+                id: string;
+                storeId: string;
+                query: {
+                    /** @default 20 */
+                    pageSize: number;
+                    cursor?: string | null;
+                    /** @enum {string} */
+                    sortBy?: "commission_rate" | "-commission_rate";
+                    search?: {
+                        /** @enum {string} */
+                        by: "name" | "id";
+                        value: string;
+                    };
+                };
+                /** @enum {string} */
+                status: "queued" | "running" | "succeeded" | "failed";
+                items: {
+                    externalItemId: string;
+                    title: string;
+                    externalCampaignId: string;
+                    /** @enum {string} */
+                    status: "upcoming" | "ongoing" | "terminating" | "unknown";
+                    externalStatus: string;
+                    commissionBasisPoints: number;
+                    /** Format: date-time */
+                    startsAt: string;
+                    endsAt: string | null;
+                    pendingTerminationAt: string | null;
+                    protections: {
+                        commissionBasisPoints: number;
+                        /** Format: date-time */
+                        endsAt: string;
+                    }[];
+                    maxCommissionBasisPointsToday: number | null;
+                }[];
+                total: number | null;
+                nextCursor: string | null;
+                errorCode: string | null;
+                errorMessage: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                finishedAt: string | null;
+                /** Format: date-time */
+                expiresAt: string;
+            } | null;
+        };
+        RequestAffiliateProductsDto: {
+            /** @default 20 */
+            pageSize: number;
+            cursor?: string | null;
+            /** @enum {string} */
+            sortBy?: "commission_rate" | "-commission_rate";
+            search?: {
+                /** @enum {string} */
+                by: "name" | "id";
+                value: string;
+            };
+        };
+        AffiliateProductsDto_Output: {
+            id: string;
+            storeId: string;
+            query: {
+                /** @default 20 */
+                pageSize: number;
+                cursor?: string | null;
+                /** @enum {string} */
+                sortBy?: "commission_rate" | "-commission_rate";
+                search?: {
+                    /** @enum {string} */
+                    by: "name" | "id";
+                    value: string;
+                };
+            };
+            /** @enum {string} */
+            status: "queued" | "running" | "succeeded" | "failed";
+            items: {
+                externalItemId: string;
+                title: string;
+                externalCampaignId: string;
+                /** @enum {string} */
+                status: "upcoming" | "ongoing" | "terminating" | "unknown";
+                externalStatus: string;
+                commissionBasisPoints: number;
+                /** Format: date-time */
+                startsAt: string;
+                endsAt: string | null;
+                pendingTerminationAt: string | null;
+                protections: {
+                    commissionBasisPoints: number;
+                    /** Format: date-time */
+                    endsAt: string;
+                }[];
+                maxCommissionBasisPointsToday: number | null;
+            }[];
+            total: number | null;
+            nextCursor: string | null;
+            errorCode: string | null;
+            errorMessage: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            finishedAt: string | null;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        AffiliateAccountPageDto_Output: {
+            items: {
+                id: string;
+                /** @enum {string} */
+                kind: "creator" | "affiliate_partner";
+                name: string;
+                externalPrincipalId: string;
+                region: string;
+                /** @enum {string} */
+                status: "active" | "verifying" | "reauth_required" | "disconnected";
+                scopes: string[];
+                profile: {
+                    [key: string]: unknown;
+                };
+                /** Format: date-time */
+                connectedAt: string;
+                disconnectedAt: string | null;
+                accessExpiresAt: string | null;
+                authorizationExpiresAt: string | null;
+                errorCode: string | null;
+                errorMessage: string | null;
+                rowVersion: number;
+            }[];
+            next_cursor: string | null;
+        };
+        AffiliateAccountDto_Output: {
+            id: string;
+            /** @enum {string} */
+            kind: "creator" | "affiliate_partner";
+            name: string;
+            externalPrincipalId: string;
+            region: string;
+            /** @enum {string} */
+            status: "active" | "verifying" | "reauth_required" | "disconnected";
+            scopes: string[];
+            profile: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            connectedAt: string;
+            disconnectedAt: string | null;
+            accessExpiresAt: string | null;
+            authorizationExpiresAt: string | null;
+            errorCode: string | null;
+            errorMessage: string | null;
+            rowVersion: number;
+        };
+        RenameAffiliateAccountDto: {
+            name: string;
+        };
+        StartAffiliateAuthorizationDto: {
+            /** @enum {string} */
+            kind: "creator" | "affiliate_partner";
+            accountId?: string;
+        };
+        StartedAffiliateAuthorizationDto_Output: {
+            id: string;
+            /** @enum {string} */
+            kind: "creator" | "affiliate_partner";
+            accountId: string | null;
+            /** @enum {string} */
+            status: "pending" | "exchanging" | "verifying" | "succeeded" | "failed" | "expired";
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            createdAt: string;
+            completedAt: string | null;
+            errorCode: string | null;
+            errorMessage: string | null;
+            /** Format: uri */
+            authorizeUrl: string;
+        };
+        AffiliateAccountCallbackDto: {
+            state: string;
+            code?: string;
+            error?: string;
+        };
+        AffiliateAuthorizationDto_Output: {
+            id: string;
+            /** @enum {string} */
+            kind: "creator" | "affiliate_partner";
+            accountId: string | null;
+            /** @enum {string} */
+            status: "pending" | "exchanging" | "verifying" | "succeeded" | "failed" | "expired";
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            createdAt: string;
+            completedAt: string | null;
+            errorCode: string | null;
+            errorMessage: string | null;
         };
         BusinessProfileDto_Output: {
             /** @description ETag untuk If-Match; 0 sebelum profil pertama kali disimpan */
@@ -5560,6 +5931,47 @@ export interface components {
             imageUrl?: string | null;
             /** @enum {string} */
             status?: "active" | "archived";
+        };
+        ListingPriceHistoryDto_Output: {
+            items: {
+                id: string;
+                listingId: string;
+                expectedPrice: number;
+                requestedPrice: number;
+                observedPrice: number | null;
+                /** @enum {string} */
+                status: "queued" | "processing" | "succeeded" | "failed" | "cancelled";
+                canCancel: boolean;
+                errorCode: string | null;
+                errorMessage: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                updatedAt: string;
+            }[];
+        };
+        RequestListingPriceDto: {
+            price: number;
+            expectedPrice: number;
+        };
+        ListingPriceChangeDto_Output: {
+            id: string;
+            listingId: string;
+            expectedPrice: number;
+            requestedPrice: number;
+            observedPrice: number | null;
+            /** @enum {string} */
+            status: "queued" | "processing" | "succeeded" | "failed" | "cancelled";
+            canCancel: boolean;
+            errorCode: string | null;
+            errorMessage: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CancelListingPriceDto: {
+            changeId: string;
         };
         ListingPageDto_Output: {
             items: {
@@ -9496,6 +9908,234 @@ export interface operations {
             };
         };
     };
+    AffiliateProductsController_get: {
+        parameters: {
+            query?: {
+                requestId?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AffiliateProductsResultDto_Output"];
+                };
+            };
+        };
+    };
+    AffiliateProductsController_request: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestAffiliateProductsDto"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AffiliateProductsDto_Output"];
+                };
+            };
+        };
+    };
+    AffiliateAccountsController_list: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AffiliateAccountPageDto_Output"];
+                };
+            };
+        };
+    };
+    AffiliateAccountsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AffiliateAccountDto_Output"];
+                };
+            };
+        };
+    };
+    AffiliateAccountsController_rename: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenameAffiliateAccountDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AffiliateAccountDto_Output"];
+                };
+            };
+        };
+    };
+    AffiliateAccountsController_disconnect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AffiliateAccountsController_refresh: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AffiliateAuthorizationsController_start: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartAffiliateAuthorizationDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartedAffiliateAuthorizationDto_Output"];
+                };
+            };
+        };
+    };
+    AffiliateAuthorizationsController_callback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AffiliateAccountCallbackDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AffiliateAuthorizationDto_Output"];
+                };
+            };
+        };
+    };
+    AffiliateAuthorizationsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AffiliateAuthorizationDto_Output"];
+                };
+            };
+        };
+    };
     BusinessProfileController_get: {
         parameters: {
             query?: never;
@@ -11544,6 +12184,77 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ProductDto_Output"];
                 };
+            };
+        };
+    };
+    ListingsController_priceHistory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListingPriceHistoryDto_Output"];
+                };
+            };
+        };
+    };
+    ListingsController_changePrice: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestListingPriceDto"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListingPriceChangeDto_Output"];
+                };
+            };
+        };
+    };
+    ListingsController_cancelPrice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancelListingPriceDto"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

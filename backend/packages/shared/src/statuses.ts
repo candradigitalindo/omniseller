@@ -157,3 +157,15 @@ export const LISTING_PRICE_CHANGE_STATUSES = ["queued", "processing", "succeeded
 
 export const AFFILIATE_QUERY_STATUSES = ["queued", "running", "succeeded", "failed"] as const;
 export type AffiliateQueryStatus = (typeof AFFILIATE_QUERY_STATUSES)[number];
+
+export const AFFILIATE_ACCOUNT_STATUSES = ["active", "verifying", "reauth_required", "disconnected"] as const;
+export type AffiliateAccountStatus = (typeof AFFILIATE_ACCOUNT_STATUSES)[number];
+export const AFFILIATE_AUTHORIZATION_STATUSES = [
+  "pending",
+  "exchanging",
+  "verifying",
+  "succeeded",
+  "failed",
+  "expired",
+] as const;
+export type AffiliateAuthorizationStatus = (typeof AFFILIATE_AUTHORIZATION_STATUSES)[number];

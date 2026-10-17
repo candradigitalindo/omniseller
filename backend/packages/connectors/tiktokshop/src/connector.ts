@@ -9,6 +9,7 @@ import {
   type ShopProfile,
   type TokenSet,
 } from "@omniseller/connector-core";
+import { tiktokAccounts } from "./accounts.js";
 import { tiktokCatalog } from "./catalog.js";
 import { TiktokShopClient, type TiktokShopConfig } from "./client.js";
 import { tiktokFulfillment } from "./fulfillment.js";
@@ -130,6 +131,7 @@ export function createTiktokShopConnector(config: TiktokShopConfig): Marketplace
 
   return {
     manifest: TIKTOKSHOP_MANIFEST,
+    accounts: tiktokAccounts(client),
 
     auth: {
       // The redirect URL is fixed in Partner Center; the seller comes back with ?code=...&state=...

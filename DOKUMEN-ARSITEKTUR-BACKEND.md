@@ -235,6 +235,7 @@ backend/
 │   │   ├── chat/
 │   │   ├── promo/
 │   │   ├── health/
+│   │   ├── affiliate-accounts/
 │   │   ├── affiliate/
 │   │   ├── crm/
 │   │   ├── research/
@@ -1140,6 +1141,8 @@ Satu event menghasilkan satu baris per job konsumen (`Outbox.enqueue`), masing-m
 
 #### 7.8.10 Chat, promosi, kesehatan toko, affiliate, dan pelanggan
 
+**affiliate_account**, **affiliate_account_credential**, **affiliate_authorization** (0033, ADR-047, 8.39): principal creator/partner terpisah dari toko, region ID, metadata/scope/profil, token terenkripsi hanya worker, private category assets, state hash sekali pakai terikat tenant/pemohon, masa berlaku dan lease, staged grant terenkripsi untuk melanjutkan verifikasi. FK komposit/RLS/audit dan ekspor metadata berlaku. Satu principal aktif hanya pada satu tenant; API tidak membaca grant/token/cipher dan tidak menghapus riwayat otorisasi.
+
 **affiliate_product_query** (0032, ADR-046, 8.38): store/user FK komposit, query JSON, maksimal 100 hasil produk yang dinormalisasi, total/cursor, queued/running/succeeded/failed, lease, galat dan waktu selesai/kedaluwarsa. Satu query aktif per toko. RLS, audit, ekspor dan penghapusan saat putus toko berlaku. Snapshot berlaku 24 jam; pembersihan query lama saat permintaan berikutnya.
 
 | Tabel | Kolom penting | Batasan dan relasi |
@@ -1206,6 +1209,8 @@ Semua tabel di skema `research`. `research_source` global. Tidak ada kunci asing
 ### 7.9 Mesin status
 
 Setiap tabel berstatus memiliki tabel transisi `<tabel>_status_transition (from_status, to_status)` yang diisi seed dan dijaga trigger `enforce_status_transition`. Perubahan ke status yang sama diabaikan trigger. Mengubah daftar transisi adalah migrasi data yang ditinjau.
+
+**affiliate_account**: active → verifying/reauth_required/disconnected; verifying → active/reauth_required/disconnected; reauth_required → active/disconnected; disconnected → active melalui otorisasi baru. **affiliate_authorization**: pending → exchanging/failed/expired; exchanging → verifying/failed/expired; verifying → succeeded/failed/expired. Status terminal tidak dibuka kembali.
 
 **affiliate_product_query**: queued → running/failed; running → queued/succeeded/failed. Retry boleh kembali queued. **listing_price_change**: queued → processing/cancelled/failed; processing → queued/succeeded/failed. Status terminal tidak dibuka kembali.
 
@@ -2785,6 +2790,26 @@ nyata belum tervalidasi (ADR-044/046). Ini bukan seluruh AMS atau otorisasi crea
 
 ---
 
+### 8.39 Akun creator dan affiliate partner Indonesia (ADR-047)
+
+Modul `affiliate-accounts` mengelola principal creator/partner melalui izin tenant tersendiri
+`affiliate:account_read` dan `affiliate:account_write`; Owner/Admin semua tenant menerima keduanya.
+Cakupan toko seller tidak dipakai untuk akun ini. `/affiliate/akun` menyediakan daftar berpaginasi,
+pencarian, modal profil/izin/kategori, nama lokal, refresh dan konfirmasi putus koneksi. Nama kategori
+bukan bukti entitlement TAP. Callback terdaftar `/integrasi/callback/tiktokshop` memakai state `a1_`
+terikat tenant/pemohon, hash, sekali pakai dan 30 menit. Seluruh HTTP berjalan pada worker/outbox.
+
+Worker memeriksa user_type 1/3, identitas/scope, selection_region ID atau aset kategori Indonesia.
+Grant hasil pertukaran disegel sebelum profil dibaca; retry melanjutkan grant yang sama. Refresh
+menyimpan token pengganti sebelum verifikasi, identitas tidak boleh berubah. Rotasi DEK mencakup
+grant dan kredensial, dengan urutan lock kunci tenant sebelum akun; perbandingan token dalam lock
+memisahkan rotasi ciphertext dari pergantian otorisasi. Status bisnis aktif diperiksa sebelum commit.
+Putus koneksi/penutupan bisnis menghapus kredensial dan membatalkan status, mempertahankan riwayat.
+Cleanup worker membersihkan staged grant terminal; scan 15 menit juga menangani otorisasi kedaluwarsa
+tanpa lease aktif dan refresh akun yang waktunya tiba pada bisnis aktif. Audit/ekspor hanya metadata;
+log HTTP menyamarkan cipher, logger menyembunyikan parameter SQL. Real Creator API/TAP belum tersedia;
+pengujian lokal tidak berarti persetujuan platform atau seluruh fitur affiliate selesai.
+
 ## 9. Pekerjaan Latar dan Penjadwalan
 
 ### 9.1 Definisi job
@@ -2865,6 +2890,9 @@ BullMQ menolak job dengan `jobId` yang masih ada di antrean **atau yang sudah se
 | `stock.store_resync` | Per kejadian | `stock.store_resync\|<store_id>\|<outbox_event_id>` |
 | `stock_count.apply` | Per persetujuan dan lanjutannya | `stock_count.apply\|<stock_count_id>\|<outbox_event_id>`: meminta lagi atau melanjutkan 10.000 baris berikutnya adalah kejadian baru; baris yang sudah diterapkan dilewati (8.27) |
 | `listing.price_push` | Sekali per permintaan | `listing.price_push\|<change_id>` |
+| `affiliate_account.authorize` | Callback akun terpisah | `affiliate_account.authorize\|<authorization_id>` |
+| `affiliate_account.refresh` | Permintaan atau scan 15 menit | id akun + occurrence/slot |
+| `affiliate_account.grant_cleanup` | Pembatalan atau scan | id otorisasi + occurrence/slot |
 | `affiliate.products_read` | Sekali per halaman diminta | `affiliate.products_read\|<request_id>` |
 | `settlement.import` | Sekali per periode | `settlement.import\|<store_id>\|<period_start>` |
 | `store.authorize` | Sekali per percobaan | `store.authorize\|<store_authorization_id>` |
@@ -3036,6 +3064,8 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `inventory:read`, `inventory:adjust`, `inventory:count`, `inventory:transfer` | Stok. `inventory:count` memulai stok opname, menghitung, dan mengirimnya untuk ditinjau; `inventory:adjust` juga menghitung ulang, menyetujui, dan membatalkan opname; `inventory:transfer` semua aksi transfer stok (8.27). Peran bawaan Gudang memegang `inventory:count` dan, sejak migrasi 0017 (juga untuk bisnis yang sudah ada, lewat seed), `inventory:transfer` |
 | `catalog:write`, `catalog:publish`, `catalog:map` | Katalog |
 | `price:write`, `promo:write` | Harga dan promosi |
+| `affiliate:account_read` | Membaca akun creator/partner tenant |
+| `affiliate:account_write` | Otorisasi, nama, refresh dan putus akun creator/partner |
 | `affiliate:read` | Produk dan komisi affiliate |
 | `finance:read`, `finance:reconcile`, `finance:export` | Keuangan; `finance:read` juga membuka laba kotor di dasbor (8.16), HPP produk dan riwayatnya, kolom HPP ekspor produk, dan nilai persediaan (8.24) |
 | `report:read` | Penjualan, grafik, dan produk terlaris di `GET /v1/dashboard` (8.16); laporan penjualan `GET /v1/reports/sales*` (8.20); menerima ringkasan email harian secara bawaan |
@@ -3093,7 +3123,12 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `GET /v1/listings/summary` | `catalog:read` | 8.12. `{total, mapped, unmapped}` listing yang belum dihapus, per toko dengan `storeId` (404 di luar cakupan) |
 | `GET /v1/listings/unmapped`, `POST /v1/listings/auto-map`, `PUT /v1/listings/{id}/mapping` | `catalog:map` | Listing belum terpetakan dengan saran; pemetaan otomatis per SKU; pemetaan manual atau lepas |
 | `POST /v1/listings/create-products` | `catalog:write` | Produk master dari listing (8.12); hasil `created`, `mappedToExisting`, `failed` |
-| `GET, POST /v1/stores/{id}/affiliate/products` | `affiliate:read` | Snapshot satu halaman AMS; POST 202 memakai Idempotency-Key |
+| `GET /v1/affiliate/accounts`, `GET /v1/affiliate/accounts/{id}` | `affiliate:account_read` | Metadata akun terpisah, tanpa token/cipher |
+| `PATCH /v1/affiliate/accounts/{id}`, `POST .../{id}/disconnect`, `POST .../{id}/refresh` | `affiliate:account_write` | Nama dengan If-Match; putus 204; refresh 202 Idempotency-Key |
+| `POST /v1/affiliate/authorizations`, `POST .../callback`, `GET .../{id}` | `affiliate:account_write` | Link state, callback sekali pakai, status worker |
+| `GET, POST /v1/stores/{id}/affiliate/products` | `affiliate:account_read` | Membaca akun creator/partner tenant |
+| `affiliate:account_write` | Otorisasi, nama, refresh dan putus akun creator/partner |
+| `affiliate:read` | Snapshot satu halaman AMS; POST 202 memakai Idempotency-Key |
 | `GET /v1/listings/{id}/price-changes` | `catalog:read` | Riwayat permintaan harga |
 | `POST /v1/listings/{id}/price-changes`, `/cancel` | `price:write` | Permintaan 202 dan pembatalan antrean 204 |
 | `POST /v1/listings/status` | `catalog:publish` | Aktifkan atau nonaktifkan di marketplace (202) |
@@ -3201,6 +3236,7 @@ Kode izin berbentuk `modul:aksi`. Daftar lengkap ada di `permission` (seed) dan 
 | `research` | Semua tabel skema `research` | `research.alert` | | `research.capture`, `research.summarize`, `research.parser_check` |
 | `migration` | `migration_job`, `migration_row_error`, `migration_preset`, `store_cutover`. Produk lewat `ProductTransferService.importRecordsIn`, stok awal lewat `InventoryService.importInitialIn`, perbandingan stok lewat `StockComparisonService`, mode toko lewat `StoresService.setSyncModeIn`, pesanan lewat `OrdersService.statusCountsIn` (8.19) | `migration.validate_requested`, `migration.import_requested` | | `migration.validate`, `migration.import` (antrean `import`) |
 | `affiliate` | `affiliate_product_query` (8.38) | `affiliate.products_requested` | | `affiliate.products_read` |
+| `affiliate-accounts` | `affiliate_account`, `affiliate_account_credential`, `affiliate_authorization` (8.39) | `affiliate_account.authorization_received`, `.refresh_requested`, `.grant_cleanup_requested` | | `affiliate_account.authorize`, `.refresh`, `.grant_cleanup` |
 | `campaign` | `courier_cutoff`, `courier_holiday`, `operating_hours` (8.31; `CourierCalendarService`, gudang lewat `InventoryService.warehousesIn`, zona waktu lewat `TenantsService`); menyusul `campaign`, `campaign_plan` | `courier_calendar.changed`; menyusul `campaign.started`, `campaign.ended` | | menyusul `campaign.tick`, `campaign.evaluate` |
 | `notification` | `notification`, `notification_preference`. `NotificationInboxService` (`notifyIn`, `notifyScopedIn`; api dan worker) menulis notifikasi in-app di transaksi modul yang memutuskan (8.17); `NotificationPreferencesService` (`list`, `set`, `emailChoicesIn`) menyimpan pilihan pengguna (8.20); `EmailSender` (`smtp`, `log`, `memory`) dan templat email hanya di worker | `notification.email_requested` | Tidak langsung: job modul pemilik keputusan (`order.new_notice`, `order.sla_alert`, `inventory.stock_alert`, `store.reauth_notice`, `store.expiry_notice`, `store.connection_check`, `export.render`) | `notification.email` (notifikasi yang juga dikirim lewat email, 8.23); menyusul `notify.send` |
 | `business` | `business_profile`, `business_document` (8.29). Nama dan zona waktu bisnis lewat `TenantsService` (`profileIn`, `updateProfileIn`), berkas lewat `FilesService`, pengingat lewat `NotificationInboxService.notifyScopedIn`; `legalTasksIn` untuk dasbor dan `exportSheets` untuk ekspor | | | `business.legal_alert` (antrean `notify`); di scheduler: `business.legal_scan` |
