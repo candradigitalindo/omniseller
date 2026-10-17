@@ -14,7 +14,7 @@ import {
   Req,
   Res,
 } from "@nestjs/common";
-import { ApiOkResponse, ApiProduces, ApiTags } from "@nestjs/swagger";
+import { ApiHeader, ApiOkResponse, ApiOperation, ApiProduces, ApiTags } from "@nestjs/swagger";
 import type { Response } from "express";
 import { ZodResponse } from "nestjs-zod";
 import type { RequestContext } from "../../common/context/request-context";
@@ -63,6 +63,14 @@ import {
   unmappedView,
   VariantParamDto,
 } from "./dto";
+import {
+  CancelListingPriceDto,
+  ListingPriceChangeDto,
+  ListingPriceHistoryDto,
+  priceChangeView,
+  RequestListingPriceDto,
+} from "./listing-price.dto";
+import { ListingPriceService } from "./listing-price.service";
 import { ListingsService } from "./listings.service";
 import { ProductTransferService } from "./product-transfer.service";
 import { ProductsService } from "./products.service";
@@ -213,7 +221,44 @@ export class ProductsController {
 @ApiTags("listings")
 @Controller("v1/listings")
 export class ListingsController {
-  constructor(@Inject(ListingsService) private readonly listings: ListingsService) {}
+  constructor(
+    @Inject(ListingsService) private readonly listings: ListingsService,
+    @Inject(ListingPriceService) private readonly prices: ListingPriceService,
+  ) {}
+
+  @Get(":id/price-changes")
+  @ApiOperation({ summary: "Riwayat perubahan harga reguler listing" })
+  @RequirePermission("catalog:read")
+  @Isolation({ fixture: "listing" })
+  @ZodResponse({ type: ListingPriceHistoryDto })
+  async priceHistory(@Ctx() ctx: RequestContext, @Param() p: ListingIdParamDto) {
+    return { items: (await this.prices.history(ctx, p.id)).map(priceChangeView) };
+  }
+
+  @Post(":id/price-changes")
+  @ApiOperation({ summary: "Antrekan perubahan harga reguler dan konfirmasinya" })
+  @ApiHeader({ name: "Idempotency-Key", required: true, schema: { type: "string", minLength: 8, maxLength: 100 } })
+  @HttpCode(202)
+  @RequirePermission("price:write")
+  @Isolation({ fixture: "listing" })
+  @ZodResponse({ status: 202, type: ListingPriceChangeDto })
+  async changePrice(
+    @Ctx() ctx: RequestContext,
+    @Param() p: ListingIdParamDto,
+    @Body() body: RequestListingPriceDto,
+    @Req() req: AuthedRequest,
+  ) {
+    return priceChangeView(await this.prices.request(ctx, p.id, body, req.get("Idempotency-Key")));
+  }
+
+  @Post(":id/price-changes/cancel")
+  @ApiOperation({ summary: "Batalkan perubahan harga yang belum dikirim" })
+  @HttpCode(204)
+  @RequirePermission("price:write")
+  @Isolation({ fixture: "listing" })
+  async cancelPrice(@Ctx() ctx: RequestContext, @Param() p: ListingIdParamDto, @Body() body: CancelListingPriceDto) {
+    await this.prices.cancel(ctx, p.id, body.changeId);
+  }
 
   @Get()
   @RequirePermission("catalog:read")

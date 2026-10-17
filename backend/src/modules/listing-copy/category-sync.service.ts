@@ -87,6 +87,7 @@ export class CategorySyncService {
     storeId: string,
     categoryIds: string[],
     queueJobId?: string,
+    options: { force?: boolean } = {},
   ): Promise<Map<string, CategoryRules>> {
     const ids = [...new Set(categoryIds.filter(Boolean))];
     const out = new Map<string, CategoryRules>();
@@ -97,7 +98,8 @@ export class CategorySyncService {
       const row = cached.get(id);
       if (!row?.isLeaf) continue;
       const rules = rulesOf(row);
-      if (rules && row.rulesReadAt && Date.now() - row.rulesReadAt.getTime() < RULES_TTL_MS) out.set(id, rules);
+      if (!options.force && rules && row.rulesReadAt && Date.now() - row.rulesReadAt.getTime() < RULES_TTL_MS)
+        out.set(id, rules);
       else stale.push(id);
     }
     if (stale.length === 0) return out;

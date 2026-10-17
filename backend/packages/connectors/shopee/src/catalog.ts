@@ -7,6 +7,7 @@ import {
   toRupiah,
 } from "@omniseller/connector-core";
 import type { ShopeeClient } from "./client.js";
+import { shopeePrices } from "./prices.js";
 
 /**
  * Shopee product APIs (v2.product.*):
@@ -220,6 +221,7 @@ export function shopeeCatalog(client: ShopeeClient, warehouseIds: { fbs: string;
   }
 
   return {
+    ...shopeePrices(client),
     async listListings(
       shop: ShopCredentials,
       input: { cursor?: string | null; updatedSince?: Date | null },

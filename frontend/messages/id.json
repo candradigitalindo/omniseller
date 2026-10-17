@@ -2783,7 +2783,13 @@
     "rule_dropoff": "atur drop-off",
     "rule_arrangeAt": "pada pukul {time}",
     "rule_print": "cetak label otomatis",
-    "rule_nothing": "tidak ada"
+    "rule_nothing": "tidak ada",
+    "title_listing_price_change_created": "Meminta perubahan harga marketplace",
+    "title_listing_price_change_updated": "Memperbarui hasil perubahan harga marketplace",
+    "title_listing_price_change_deleted": "Menghapus riwayat harga marketplace",
+    "field_expectedPrice": "Harga sebelum perubahan",
+    "field_requestedPrice": "Harga yang diminta",
+    "field_observedPrice": "Harga terkonfirmasi"
   },
   "account": {
     "title": "Akun saya",
@@ -3200,5 +3206,33 @@
     "method_PAYLATER": "paylater",
     "returnedPaid": "Terima kasih. Paket aktif begitu Xendit mengonfirmasi pembayaran, biasanya dalam satu menit.",
     "returnedFailed": "Pembayaran belum selesai. Anda bisa membayar lagi dari tagihan yang menunggu."
+  },
+  "listingPrices": {
+    "title": "Harga marketplace",
+    "description": "Ubah harga reguler dan pantau konfirmasinya dari marketplace.",
+    "current": "Harga reguler:",
+    "newPrice": "Harga reguler baru",
+    "hint": "Harga dalam Rupiah utuh. Harga promo tidak diubah; marketplace dapat menolak perubahan saat ada promosi aktif.",
+    "queued": "Perubahan harga masuk antrean. Hasilnya diperbarui otomatis.",
+    "cancelled": "Antrean perubahan harga dibatalkan.",
+    "readOnly": "Toko masih dalam mode uji berdampingan. Ubah harga di Seller Center.",
+    "cannotEdit": "Status listing atau izin Anda belum mengizinkan perubahan harga.",
+    "history": "Permintaan terakhir",
+    "empty": "Belum ada permintaan perubahan harga.",
+    "status_queued": "Menunggu worker",
+    "status_processing": "Memeriksa marketplace",
+    "status_succeeded": "Harga terkonfirmasi",
+    "status_failed": "Perlu diperiksa",
+    "status_cancelled": "Dibatalkan",
+    "cancel": "Batalkan antrean",
+    "previous": "Sebelumnya",
+    "next": "Berikutnya",
+    "waiting": "Status diperiksa otomatis setiap dua detik. Anda boleh menutup dialog ini.",
+    "close": "Tutup",
+    "submit": "Kirim harga baru",
+    "open": "Harga & riwayat",
+    "unknown": "Belum diketahui",
+    "editTab": "Atur harga",
+    "historyTab": "Riwayat"
   }
 }

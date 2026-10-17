@@ -347,3 +347,9 @@ SELECT gen_ulid(), t.f, t.t, 'any' FROM (VALUES
   ('expired', 'paid'), ('void', 'paid')
 ) AS t(f, t)
 ON CONFLICT (from_status, to_status) DO NOTHING;
+-- Regular marketplace price requests: retries remain absolute and only confirmed prices are shown.
+INSERT INTO listing_price_change_status_transition(id, from_status, to_status, via)
+SELECT gen_ulid(), f, t, 'any' FROM (VALUES
+ ('queued','processing'), ('queued','cancelled'), ('queued','failed'),
+ ('processing','queued'), ('processing','succeeded'), ('processing','failed')
+) AS edges(f,t) ON CONFLICT (from_status,to_status) DO NOTHING;

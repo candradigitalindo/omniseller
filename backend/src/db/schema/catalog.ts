@@ -85,3 +85,21 @@ export const channelListing = pgTable("channel_listing", {
   mappingSource: text("mapping_source").$type<MappingSource>(),
   mappedAt: tstz("mapped_at"),
 });
+
+export type ListingPriceChangeStatus = "queued" | "processing" | "succeeded" | "failed" | "cancelled";
+export const listingPriceChange = pgTable("listing_price_change", {
+  ...baseColumns(),
+  listingId: ulid("listing_id").notNull(),
+  storeId: ulid("store_id").notNull(),
+  requestedBy: ulid("requested_by"),
+  expectedPrice: money("expected_price").notNull(),
+  requestedPrice: money("requested_price").notNull(),
+  observedPrice: money("observed_price"),
+  sentAt: tstz("sent_at"),
+  status: text("status").$type<ListingPriceChangeStatus>().notNull().default("queued"),
+  statusChangedAt: tstz("status_changed_at").notNull().defaultNow(),
+  errorCode: text("error_code"),
+  errorMessage: text("error_message"),
+  claimedAt: tstz("claimed_at"),
+  claimId: ulid("claim_id"),
+});

@@ -16,8 +16,8 @@ Navigasi resmi yang diambil memuat **973 entri: 104 direktori dan 869 dokumen**,
 API Reference dalam 19 modul**. Isi seluruh dokumen leaf dan daftar versi API diambil; API overview
 dibedakan dari endpoint, dan dua endpoint token berada di dalam panduan otorisasi. Rincian jumlah
 versi dan pencocokan method/path kode ada di [ringkasan hasil generator](AUDIT-TIKTOKSHOP-RINGKASAN.md).
-Ada **390 dokumen versi API**, ditambah dua endpoint token. Kode merujuk **34 dari 317 operasi katalog**
-dan kedua endpoint token (36 kombinasi method/path); **283 operasi katalog belum memiliki referensi**.
+Ada **390 dokumen versi API**, ditambah dua endpoint token. Kode merujuk **35 dari 317 operasi katalog**
+dan kedua endpoint token (37 kombinasi method/path); **282 operasi katalog belum memiliki referensi**.
 Empat API baru tidak menyediakan body markdown; kontraknya diambil dari metadata dan contoh cURL
 resmi, tanpa menebak arti kode numerik metode HTTP. Metadata publik empat API tersebut juga belum
 mencantumkan scope; kolomnya tetap ditandai perlu verifikasi melalui Console/dukungan platform.
@@ -40,7 +40,7 @@ Keputusan kompatibilitas tiap field/operasi lain tetap memerlukan pengujian kont
 | Area | Status aplikasi | Bukti dan batasnya |
 |---|---|---|
 | Otorisasi seller | Ada alur; parsial terhadap seluruh metode platform | [Connector](backend/packages/connectors/tiktokshop/src/connector.ts), [channel](backend/src/modules/channel/README.md), [UI toko](frontend/src/features/stores). Link/state, token, refresh dan cabut koneksi internal ada; pemasangan langsung dari App Store belum didukung. |
-| Produk dan listing | Parsial | [Katalog](backend/packages/connectors/tiktokshop/src/catalog.ts), [salin listing](backend/src/modules/listing-copy/README.md), [UI](frontend/src/features/listing-copy). Tarik listing/varian, aktif/nonaktif, kategori/atribut/merek, gambar dan pembuatan salinan ada. Bukan seluruh CRUD produk, partial edit, penghapusan, harga, kualitas listing atau global products. |
+| Produk dan listing | Parsial | [Katalog](backend/packages/connectors/tiktokshop/src/catalog.ts), [salin listing](backend/src/modules/listing-copy/README.md), [UI](frontend/src/features/listing-copy). Tarik listing/varian, aktif/nonaktif, kategori/atribut/merek, gambar dan pembuatan salinan ada. Bukan seluruh CRUD produk, partial edit, penghapusan, aturan harga otomatis/massal, kualitas listing atau global products. |
 | Stok dan gudang | Ada alur inti; parsial | [Inventory adapter](backend/packages/connectors/tiktokshop/src/inventory.ts), [modul stok](backend/src/modules/inventory/README.md), [UI stok](frontend/src/features/stock). Sinkron stok/pemetaan gudang tersedia; bukan seluruh Logistics atau FBT. |
 | Pesanan | Ada alur inti; parsial | [Order adapter](backend/packages/connectors/tiktokshop/src/orders.ts), [modul](backend/src/modules/orders/README.md), [UI](frontend/src/features/orders). Tarik daftar/detail, pembatalan dan status tersedia; bukan seluruh operasi Order dan skenario program regional. |
 | Pengiriman | Ada alur inti; parsial | [Fulfillment adapter](backend/packages/connectors/tiktokshop/src/fulfillment.ts), [modul](backend/src/modules/fulfillment/README.md), [UI](frontend/src/features/shipping). Slot serah terima, ship package, label dan tracking; belum seluruh split/combine/reroute, seller shipping atau pembelian label regional. |
@@ -110,9 +110,12 @@ sandbox yang berizin. Tes lokal dengan respons tiruan tidak menggantikan sandbox
 `pnpm --filter @omniseller/connector-tiktokshop test` lulus **57 tes dalam tiga berkas**. Ini menguji
 perilaku connector yang sudah ada, bukan semua API platform. `pnpm lint` lulus, inventaris dapat
 digenerasi ulang dengan hasil identik, dan snapshot yang checksum-nya berubah ditolak. Pengecekan
-independen mencocokkan 392 baris method/path dengan kontrak resmi, 36 referensi kode, 94 aturan review
+independen mencocokkan 392 baris method/path dengan kontrak resmi, 37 referensi kode, 94 aturan review
 dan tautan bukti; empat scope yang tidak tercantum tetap belum terverifikasi. Audit hanya menambah inventaris, alat
 pemetaan dan dokumentasi; tidak mengubah perilaku aplikasi atau menambahkan menu/adapter semu.
 [README connector](backend/packages/connectors/tiktokshop/README.md) memuat format snapshot dan cara
 mengulang inventaris. Tidak ada klaim seluruh fitur selesai, sandbox lulus, public app terbit atau
 persetujuan marketplace diterima.
+
+## Implementasi sesudah audit
+17 Oktober 2026: perubahan harga reguler per listing kini memiliki backend/worker/UI/riwayat dan tes lokal. Sebanyak 35/317 operasi katalog dirujuk kode (ditambah dua endpoint token); 282 belum. Worker publish kini membaca aturan kategori terbaru untuk menolak draf yang kehilangan atribut wajib. Provenance katalog tetap snapshot resmi audit 16 Oktober. Rincian dan modul yang masih terbuka ada pada [status implementasi](IMPLEMENTASI-MARKETPLACE.md).

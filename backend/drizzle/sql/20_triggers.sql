@@ -18,6 +18,10 @@ BEGIN
 END $$;
 
 -- Status machines: the base table name is passed as the trigger argument
+SELECT ensure_trigger('listing_price_change', 'status_transition_trg',
+  'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON listing_price_change FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''listing_price_change'')');
+SELECT ensure_trigger('listing_price_change', 'audit_trg',
+  'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF status ON listing_price_change FOR EACH ROW EXECUTE FUNCTION audit_row()');
 SELECT ensure_trigger('"order"', 'status_transition_trg',
   'CREATE TRIGGER status_transition_trg BEFORE UPDATE OF status ON "order" FOR EACH ROW EXECUTE FUNCTION enforce_status_transition(''order'')');
 SELECT ensure_trigger('shipment', 'status_transition_trg',

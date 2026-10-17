@@ -521,6 +521,35 @@ export class CopyWorkerService {
     const warnings: string[] = [];
     let d = draft;
     try {
+      // Required attributes may change while a draft waits, e.g. Indonesia's Imported Goods rule.
+      // Resuming an already-created item keeps its original payload and never creates another item.
+      if (!d.externalTargetItemId && d.externalCategoryId) {
+        const fresh = await this.categorySync.rulesFor(ctx, target.id, [d.externalCategoryId], queueJobId, {
+          force: true,
+        });
+        const category = await withTenantTx(this.db, ctx, (tx) =>
+          this.repo.category(tx, target.id, d.externalCategoryId!),
+        );
+        const problems = problemsOf(contentOf(d), {
+          targetChannel: target.channel,
+          category: category ? { isLeaf: category.isLeaf, permitted: category.permitted } : null,
+          rules: fresh.get(d.externalCategoryId) ?? null,
+          readOnly: target.syncMode !== "live",
+          notes: d.source.notes ?? [],
+        });
+        const blocked = problems.filter((p) => p.blocking);
+        if (blocked.length) {
+          await withTenantTx(this.db, ctx, (tx) => this.repo.updateDraft(tx, d.id, { problems }));
+          return this.failDraft(
+            ctx,
+            d.id,
+            `Aturan kategori terbaru belum terpenuhi: ${blocked
+              .slice(0, 3)
+              .map((p) => p.message)
+              .join(" ")}`,
+          );
+        }
+      }
       if (target.channel === "tiktokshop") {
         const reasons = await this.gateway.call(
           ctx,

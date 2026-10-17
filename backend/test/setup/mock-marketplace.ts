@@ -57,6 +57,7 @@ export interface MockShopeeItem {
   }[];
   /** unlist_item refuses this item, like an item under promotion */
   lockedForUnlist?: boolean;
+  lockedForPrice?: boolean;
   /** Stock reserved for a promotion: update_stock refuses less than this per model. */
   reservedStock?: number;
   // what get_item_base_info adds for a copy (FR-PRD-13)
@@ -687,6 +688,39 @@ export class MockMarketplace {
             })),
           },
         });
+      }
+      case "/api/v2/product/update_price": {
+        const body = JSON.parse(call.body) as {
+          item_id: number;
+          price_list: { model_id: number; original_price: number }[];
+        };
+        if (
+          call.method !== "POST" ||
+          !Array.isArray(body.price_list) ||
+          body.price_list.length < 1 ||
+          body.price_list.length > 50
+        )
+          return this.shopeeError("error_param", "Invalid price list", 200);
+        const item = shop.items?.find((i) => i.item_id === body.item_id);
+        if (!item) return this.shopeeError("error_item_not_found", "Item not found", 200);
+        const success_list: object[] = [];
+        const failure_list: object[] = [];
+        for (const row of body.price_list) {
+          const model = item.models?.find((m) => m.model_id === row.model_id);
+          if (
+            item.lockedForPrice ||
+            !Number.isSafeInteger(row.original_price) ||
+            row.original_price < 1 ||
+            (row.model_id !== 0 && !model)
+          ) {
+            failure_list.push({ model_id: row.model_id, failed_reason: "Price locked or invalid" });
+          } else {
+            if (model) model.price = row.original_price;
+            else item.price = row.original_price;
+            success_list.push(row);
+          }
+        }
+        return ok({ response: { success_list, failure_list } });
       }
       case "/api/v2/product/unlist_item": {
         const body = JSON.parse(call.body) as { item_list: { item_id: number; unlist: boolean }[] };
@@ -1394,6 +1428,26 @@ export class MockMarketplace {
           const o = (shop.orders ?? []).find((x) => x.id === tracked[1]);
           if (!o) return this.tiktokReply(21011001, "order is not exist");
           return this.tiktokReply(0, "Success", { tracking: o.tracking ?? [] });
+        }
+        const prices = /^\/product\/202309\/products\/(\d+)\/prices\/update$/.exec(call.path);
+        if (call.method === "POST" && prices) {
+          const product = shop.products?.find((p) => p.id === prices[1]);
+          if (product?.status !== "ACTIVATE") return this.tiktokReply(12019113, "product status is invalid");
+          const body = JSON.parse(call.body) as {
+            skus: { id: string; price: { amount?: string; sale_price?: string; currency: string } }[];
+          };
+          if (
+            body.skus.some(
+              (r) =>
+                !product.skus.some((sku) => sku.id === r.id) ||
+                r.price.currency !== "IDR" ||
+                !/^[1-9]\d*$/.test(r.price.sale_price ?? r.price.amount ?? ""),
+            )
+          )
+            return this.tiktokReply(12052012, "Incorrect price format");
+          for (const row of body.skus)
+            product.skus.find((sku) => sku.id === row.id)!.price = Number(row.price.sale_price ?? row.price.amount);
+          return this.tiktokReply(0, "Success");
         }
         const inv = /^\/product\/202309\/products\/(\d+)\/inventory\/update$/.exec(call.path);
         if (call.method === "POST" && inv) return this.tiktokInventory(shop, inv[1]!, call.body);

@@ -49,6 +49,10 @@ describe("sidebar (DOKUMEN-UI-UX 7.1)", () => {
       ["groupHome", ["overview", "notifications"]],
       ["groupBusiness", ["businessProfile", "subscription"]],
     ]);
+    expect(categories(["catalog:read", "price:write"])).toEqual([
+      ["groupHome", ["overview", "notifications"]],
+      ["groupCatalog", ["products", "listings"]],
+    ]);
     for (const permission of ["shipment:pack", "shipment:print", "shipment:handover"] as const) {
       expect(
         visibleNav(holding(permission))

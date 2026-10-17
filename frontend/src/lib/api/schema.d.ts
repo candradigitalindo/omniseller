@@ -1620,6 +1620,41 @@ export interface paths {
     patch: operations["ProductsController_updateVariant"];
     trace?: never;
   };
+  "/v1/listings/{id}/price-changes": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Riwayat perubahan harga reguler listing */
+    get: operations["ListingsController_priceHistory"];
+    put?: never;
+    /** Antrekan perubahan harga reguler dan konfirmasinya */
+    post: operations["ListingsController_changePrice"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/listings/{id}/price-changes/cancel": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Batalkan perubahan harga yang belum dikirim */
+    post: operations["ListingsController_cancelPrice"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/listings": {
     parameters: {
       query?: never;
@@ -5713,6 +5748,47 @@ export interface components {
       imageUrl?: string | null;
       /** @enum {string} */
       status?: "active" | "archived";
+    };
+    ListingPriceHistoryDto_Output: {
+      items: {
+        id: string;
+        listingId: string;
+        expectedPrice: number;
+        requestedPrice: number;
+        observedPrice: number | null;
+        /** @enum {string} */
+        status: "queued" | "processing" | "succeeded" | "failed" | "cancelled";
+        canCancel: boolean;
+        errorCode: string | null;
+        errorMessage: string | null;
+        /** Format: date-time */
+        createdAt: string;
+        /** Format: date-time */
+        updatedAt: string;
+      }[];
+    };
+    RequestListingPriceDto: {
+      price: number;
+      expectedPrice: number;
+    };
+    ListingPriceChangeDto_Output: {
+      id: string;
+      listingId: string;
+      expectedPrice: number;
+      requestedPrice: number;
+      observedPrice: number | null;
+      /** @enum {string} */
+      status: "queued" | "processing" | "succeeded" | "failed" | "cancelled";
+      canCancel: boolean;
+      errorCode: string | null;
+      errorMessage: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    CancelListingPriceDto: {
+      changeId: string;
     };
     ListingPageDto_Output: {
       items: {
@@ -11919,6 +11995,77 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["ProductDto_Output"];
         };
+      };
+    };
+  };
+  ListingsController_priceHistory: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ListingPriceHistoryDto_Output"];
+        };
+      };
+    };
+  };
+  ListingsController_changePrice: {
+    parameters: {
+      query?: never;
+      header: {
+        "Idempotency-Key": string;
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RequestListingPriceDto"];
+      };
+    };
+    responses: {
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ListingPriceChangeDto_Output"];
+        };
+      };
+    };
+  };
+  ListingsController_cancelPrice: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CancelListingPriceDto"];
+      };
+    };
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

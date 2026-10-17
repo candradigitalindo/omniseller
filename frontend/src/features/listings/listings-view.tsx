@@ -46,6 +46,7 @@ import { api, unwrap } from "@/lib/api/client";
 import { errorMessage } from "@/lib/api/errors";
 import { formatNumber, formatRupiah } from "@/lib/format";
 import { useCan } from "@/lib/session";
+import { ListingPriceDialog } from "./listing-price-dialog";
 import { marketplaceItems, switchable } from "./listing-status";
 
 const PAGE = 50;
@@ -407,6 +408,8 @@ function UnmappedList({ storeId, q, onChanged }: { storeId: string | null; q: st
 
 function AllList({ storeId, q, onChanged }: { storeId: string | null; q: string; onChanged: () => void }) {
   const t = useTranslations("listings");
+  const tPrices = useTranslations("listingPrices");
+  const [pricing, setPricing] = useState<Listing | null>(null);
   const tCommon = useTranslations("common");
   const can = useCan();
   const queryClient = useQueryClient();
@@ -485,6 +488,7 @@ function AllList({ storeId, q, onChanged }: { storeId: string | null; q: string;
   };
   return (
     <>
+      {pricing ? <ListingPriceDialog listing={pricing} onClose={() => setPricing(null)} /> : null}
       {selected.size > 0 ? (
         <SelectionBar count={t("selected", { count: selected.size })}>
           <Button size="sm" variant="secondary" onClick={() => setConfirm({ open: true, active: true })}>
@@ -528,6 +532,21 @@ function AllList({ storeId, q, onChanged }: { storeId: string | null; q: string;
                 <div className="grid min-w-0 gap-0.5 text-sm">
                   <span className="line-clamp-2 font-medium text-text-900">{l.title}</span>
                   {l.variantName ? <span className="text-[13px] text-text-700">{l.variantName}</span> : null}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span>
+                      {l.originalPrice === null && l.price === null
+                        ? tPrices("unknown")
+                        : formatRupiah((l.originalPrice ?? l.price)!)}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      aria-label={`${tPrices("open")} ${l.title}`}
+                      onClick={() => setPricing(l)}
+                    >
+                      {tPrices("open")}
+                    </Button>
+                  </div>
                   <span className="flex flex-wrap items-center gap-x-2 text-[13px] text-text-500">
                     {l.store ? (
                       <span className="flex items-center gap-1">

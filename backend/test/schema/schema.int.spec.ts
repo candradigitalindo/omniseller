@@ -5,6 +5,7 @@ import {
   INVOICE_STATUSES,
   LISTING_COPY_STATUSES,
   LISTING_DRAFT_STATUSES,
+  LISTING_PRICE_CHANGE_STATUSES,
   MIGRATION_JOB_STATUSES,
   ORDER_STATUSES,
   PERMISSION_CODES,
@@ -167,7 +168,9 @@ describe("schema conventions", () => {
     for (const fk of fks) {
       if (fk.parent === "tenant" || !tenantTables.has(fk.parent)) continue; // global parent
       expect(fk.cols[0], `${fk.name} must start with tenant_id`).toBe("tenant_id");
-      expect(fk.cols.length, `${fk.name} must be composite`).toBe(2);
+      if (fk.name === "listing_price_change_listing_fk") {
+        expect(fk.cols).toEqual(["tenant_id", "listing_id", "store_id"]);
+      } else expect(fk.cols.length, `${fk.name} must be composite`).toBe(2);
       if (fk.action === "n") {
         // ON DELETE SET NULL must name the column, or PostgreSQL would null tenant_id as well
         expect(fk.set_null_cols, `${fk.name} SET NULL column list`).toEqual([fk.cols[1]]);
@@ -222,6 +225,7 @@ describe("schema conventions", () => {
     expect(await check("handover")).toEqual([...HANDOVER_STATUSES].sort());
     expect(await check("listing_copy")).toEqual([...LISTING_COPY_STATUSES].sort());
     expect(await check("listing_draft")).toEqual([...LISTING_DRAFT_STATUSES].sort());
+    expect(await check("listing_price_change")).toEqual([...LISTING_PRICE_CHANGE_STATUSES].sort());
     expect(await check("return_request")).toEqual([...RETURN_REQUEST_STATUSES].sort());
     expect(await check("stock_count")).toEqual([...STOCK_COUNT_STATUSES].sort());
     expect(await check("stock_transfer")).toEqual([...STOCK_TRANSFER_STATUSES].sort());
@@ -242,6 +246,7 @@ describe("schema conventions", () => {
       ["handover_status_transition", HANDOVER_STATUSES],
       ["listing_copy_status_transition", LISTING_COPY_STATUSES],
       ["listing_draft_status_transition", LISTING_DRAFT_STATUSES],
+      ["listing_price_change_status_transition", LISTING_PRICE_CHANGE_STATUSES],
       ["return_request_status_transition", RETURN_REQUEST_STATUSES],
       ["stock_count_status_transition", STOCK_COUNT_STATUSES],
       ["stock_transfer_status_transition", STOCK_TRANSFER_STATUSES],
@@ -273,6 +278,7 @@ describe("schema conventions", () => {
       "invoice",
       "listing_copy",
       "listing_draft",
+      "listing_price_change",
       "migration_job",
       "order",
       "print_job",

@@ -290,6 +290,8 @@ export interface CreatedShopeeItem {
 
 /** What the product endpoints remember between calls; tests read it to check what was sent. */
 export class MockProductState {
+  /** Simulate an Indonesian category policy becoming mandatory after a draft was reviewed. */
+  tiktokImportedGoodsRequired = true;
   /** Image ids Shopee's media space handed out. */
   readonly shopeeImages = new Set<string>();
   /** Image uris TikTok Shop handed out, with the use case they were uploaded for. */
@@ -681,7 +683,12 @@ export async function tiktokProductCall(
     if (!v2()) return reply(12019001, "category_version must be v2 for this region");
     const category = TIKTOK_CATEGORIES.find((c) => c.id === leaf[1]);
     if (!category?.is_leaf) return reply(12019003, "The category is not a leaf category.");
-    if (leaf[2] === "attributes") return reply(0, "Success", { attributes: TIKTOK_ATTRIBUTES });
+    if (leaf[2] === "attributes")
+      return reply(0, "Success", {
+        attributes: TIKTOK_ATTRIBUTES.map((attribute) =>
+          attribute.id === "102254" ? { ...attribute, is_requried: state.tiktokImportedGoodsRequired } : attribute,
+        ),
+      });
     return reply(0, "Success", {
       product_certifications: [],
       size_chart: { is_supported: true, is_required: false },

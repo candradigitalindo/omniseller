@@ -118,6 +118,18 @@ export interface ListingStatusResult {
   error?: string;
 }
 
+export interface ListingPriceUpdate {
+  externalItemId: string;
+  externalVariantId: string;
+  /** Absolute regular price in whole rupiah; promotion prices are not overwritten. */
+  price: number;
+}
+
+export interface ListingPriceResult extends ListingPriceUpdate {
+  ok: boolean;
+  errorCode?: string;
+}
+
 // ---- products: copying listings between shops (PRD FR-PRD-13, backend doc 8.25) ----
 
 /** A category of the marketplace's tree as the shop sees it. */
@@ -777,6 +789,12 @@ export interface MarketplaceConnector {
     getListings(shop: ShopCredentials, externalItemIds: string[]): Promise<ListingPage>;
     /** Activates or deactivates whole items; per-item results, partial success is normal. */
     setListingStatus(shop: ShopCredentials, externalItemIds: string[], active: boolean): Promise<ListingStatusResult[]>;
+    /** Sets regular SKU prices; explicit per-SKU results. Authentication/transient failures throw. */
+    updatePrices?(
+      shop: ShopCredentials,
+      updates: ListingPriceUpdate[],
+      context?: { crossBorder: boolean },
+    ): Promise<ListingPriceResult[]>;
   };
 
   /**

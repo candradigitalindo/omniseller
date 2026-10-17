@@ -64,3 +64,6 @@ Before releasing additional functionality, check the operation's current officia
 principal/market/scope, implement the tenant service/worker/outbox/API/UI flow and appropriate tests,
 then validate against authorized sandbox accounts. App Store initiated authorization needs its own
 secure flow; removing the existing tenant-bound `state` check is not a fix.
+
+## Regular price updates
+`catalog.updatePrices` now has an application consumer: persistent per-listing requests, the outbox/worker, read-before-write and confirmation, tenant/store permissions, cancellation of unsent work, audit/export and a rupiah modal. It does not edit promotion prices or implement automatic channel pricing. Authentication/transient errors propagate, business refusals are explicit and local transport tests cover the contract; real sandbox validation remains pending.

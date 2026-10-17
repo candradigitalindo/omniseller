@@ -7,6 +7,7 @@ import { attachContext, runWithAmbient } from "../common/context/request-context
 import { JOB_REGISTRY, QUEUES, REDIS_QUEUE } from "../infra/tokens";
 import type { JobDeps } from "../jobs/define";
 import { jobContext } from "../jobs/job-context";
+import { marketplaceBackoff } from "../jobs/marketplace-backoff";
 import { isQueueName, QUEUE_CONCURRENCY, type QueueRegistry } from "../jobs/queues";
 import type { JobRegistry } from "../jobs/registry";
 
@@ -59,6 +60,7 @@ export class WorkerRunner implements OnApplicationBootstrap, OnApplicationShutdo
           connection: this.connection,
           concurrency: isQueueName(queue) ? QUEUE_CONCURRENCY[queue] : 10,
           prefix: this.queues.prefix,
+          settings: { backoffStrategy: marketplaceBackoff },
         },
       );
       worker.on("failed", (job, err) => log.warn({ err, job_id: job?.id, queue }, "job failed"));

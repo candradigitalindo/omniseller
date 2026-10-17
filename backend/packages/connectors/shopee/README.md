@@ -72,3 +72,6 @@ Before making AMS available to users: confirm the latest official contract and e
 obtain sandbox credentials, implement the owning worker/API/UI flow and tenant isolation tests, and run
 real sandbox verification. Creating/editing affiliate campaigns additionally needs explicit handling
 of commission protection, asynchronous batch results and seller terms; no write operation is added here.
+
+## Regular price updates
+`catalog.updatePrices` now has an application consumer: persistent per-listing requests, the outbox/worker, read-before-write and confirmation, tenant/store permissions, cancellation of unsent work, audit/export and a rupiah modal. It does not edit promotion prices or implement automatic channel pricing. Authentication/transient errors propagate, business refusals are explicit and local transport tests cover the contract; real sandbox validation remains pending.

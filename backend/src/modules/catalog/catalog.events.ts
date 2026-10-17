@@ -2,6 +2,12 @@ import { ulidSchema } from "@omniseller/shared";
 import { z } from "zod";
 import { defineEvent } from "../../jobs/define";
 
+export const listingPriceRequested = defineEvent({
+  type: "listing.price_requested",
+  aggregate: "listing_price_change",
+  schema: z.object({ changeId: ulidSchema }),
+});
+
 /** A listing pull should run (or continue with the next page). */
 export const listingPullRequested = defineEvent({
   type: "listing.pull_requested",

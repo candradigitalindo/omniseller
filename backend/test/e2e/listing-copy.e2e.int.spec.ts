@@ -232,6 +232,34 @@ const recommendCalls = () =>
   );
 
 describe("copying Shopee listings to Tokopedia & Shop (FR-PRD-13)", () => {
+  it("revalidates current required attributes before publishing a draft with still-fresh cached rules", async () => {
+    const { c, tenantId, warehouseId } = await business();
+    await kaosProduct(c, warehouseId, { "KAOS-HTM-M": 2, "KAOS-HTM-L": 2, "KAOS-PTH-M": 2 });
+    const src = await connectShopee(c, tenantId, [shopeeKaos(5199)]);
+    const dst = await connectTiktok(c, tenantId, [], warehouseId);
+    await goLive(c, dst.storeId);
+    try {
+      mock.products.tiktokImportedGoodsRequired = false;
+      const created = await c.post("/v1/listing-copies", { sourceStoreId: src.storeId, targetStoreIds: [dst.storeId] });
+      await drain(tenantId);
+      const [draft] = await draftsOf(c, created.body.items[0].id);
+      expect(draft).toBeTruthy();
+      const accepted = await c.post("/v1/listing-drafts/publish", { draftIds: [draft!.id] });
+      expect(accepted.body.queued).toContain(draft!.id);
+      mock.products.tiktokImportedGoodsRequired = true;
+      const before = mock.callsTo("POST", "/product/202309/products").length;
+      await drain(tenantId);
+      const result = (await c.get(`/v1/listing-drafts/${draft!.id}`)).body;
+      expect(result.status).toBe("failed");
+      expect(result.problems).toContainEqual(
+        expect.objectContaining({ code: "attribute_required", field: "attributes.102254", blocking: true }),
+      );
+      expect(mock.callsTo("POST", "/product/202309/products")).toHaveLength(before);
+    } finally {
+      mock.products.tiktokImportedGoodsRequired = true;
+    }
+  });
+
   it("drafts with a recommended category, attributes and brand by name, then publishes with uploaded images and OmniSeller stock", async () => {
     const { c, me, tenantId, warehouseId } = await business();
     const variants = await kaosProduct(c, warehouseId, { "KAOS-HTM-M": 7, "KAOS-HTM-L": 0, "KAOS-PTH-M": 3 });

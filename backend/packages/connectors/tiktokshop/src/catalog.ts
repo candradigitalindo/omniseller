@@ -8,6 +8,7 @@ import {
   toRupiah,
 } from "@omniseller/connector-core";
 import type { TiktokShopClient } from "./client.js";
+import { tiktokPrices } from "./prices.js";
 
 /**
  * TikTok Shop product APIs:
@@ -155,7 +156,7 @@ export function detailToListings(p: ProductDetail): NormalizedListing[] {
         variantName: Object.values(attributes).join(", ") || null,
         attributes,
         price: toRupiah(s.price?.tax_exclusive_price ?? s.price?.sale_price),
-        originalPrice: null,
+        originalPrice: toRupiah(s.price?.sale_price),
         status: tiktokListingStatus(p.status, p.integrated_platform_statuses, s.status_info),
         statusDetail: { ...statusDetail, sku: s.status_info?.status ?? null },
         stock: s.inventory ? total : null,
@@ -206,6 +207,7 @@ export function tiktokCatalog(client: TiktokShopClient) {
   }
 
   return {
+    ...tiktokPrices(client),
     async listListings(
       shop: ShopCredentials,
       input: { cursor?: string | null; updatedSince?: Date | null },

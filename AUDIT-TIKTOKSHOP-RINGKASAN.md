@@ -2,14 +2,14 @@
 
 Sumber: https://partner.tiktokshop.com/docv2/page/about-partner-center-console. Snapshot publik workspace 3 diambil 2026-10-16T23:55:10.159351+00:00. SHA-256 tree: `b1005604b13fc9052c89812176caaa07da58b69b4c1a0c8223cc7c363a7b6ec7`.
 
-973 entri navigasi: 104 direktori dan 869 dokumen. API Reference memuat 317 operasi dengan 390 dokumen versi; 2 endpoint token berada di panduan otorisasi. 36 kombinasi method/path kode ditemukan; 36 cocok dengan dokumentasi. Referensi kode tidak membuktikan kelengkapan fitur, market Indonesia, scope aktual atau keberhasilan sandbox.
+973 entri navigasi: 104 direktori dan 869 dokumen. API Reference memuat 317 operasi dengan 390 dokumen versi; 2 endpoint token berada di panduan otorisasi. 37 kombinasi method/path kode ditemukan; 37 cocok dengan dokumentasi. Referensi kode tidak membuktikan kelengkapan fitur, market Indonesia, scope aktual atau keberhasilan sandbox.
 
 | Modul API Reference | Operasi katalog | Ada referensi pada salah satu versi | Referensi pada versi default katalog |
 |---|---:|---:|---:|
 | Authorization | 2 | 1 | 1 |
 | Event | 3 | 2 | 2 |
 | Seller | 3 | 0 | 0 |
-| Products | 69 | 13 | 13 |
+| Products | 69 | 14 | 14 |
 | Promotion | 10 | 0 | 0 |
 | Orders | 8 | 2 | 2 |
 | Fulfillment | 29 | 4 | 4 |

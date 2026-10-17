@@ -4,7 +4,8 @@ import { defineJob } from "../../jobs/define";
 import { jobKey } from "../../jobs/job-id";
 import { storeConnected } from "../channel/channel.events";
 import type { WebhookConsumers } from "../sync/webhook-consumer";
-import { listingPullRequested, listingStatusPushRequested } from "./catalog.events";
+import { listingPriceRequested, listingPullRequested, listingStatusPushRequested } from "./catalog.events";
+import { ListingPriceWorkerService } from "./listing-price-worker.service";
 import { ListingSyncService } from "./listing-sync.service";
 
 /**
@@ -44,7 +45,19 @@ export const listingStatusPushJob = defineJob({
   },
 });
 
-export const CATALOG_JOBS = [listingPullJob, listingStatusPushJob];
+export const listingPricePushJob = defineJob({
+  queue: "mp.outbound",
+  name: "listing.price_push",
+  schema: z.object({ changeId: ulidSchema }),
+  triggeredBy: [listingPriceRequested],
+  actsForRequester: true,
+  options: { attempts: 5, backoff: { type: "marketplace" } },
+  jobId: (p) => jobKey("listing.price_push", p.changeId),
+  handler: async (p, run) => {
+    await run.deps.resolve(ListingPriceWorkerService).push(run.ctx, p.changeId, run.attemptsMade);
+  },
+});
+export const CATALOG_JOBS = [listingPullJob, listingStatusPushJob, listingPricePushJob];
 
 /** A marketplace says an item changed (banned, audited, price): read that item again. */
 export const CATALOG_WEBHOOK_CONSUMERS: WebhookConsumers = {

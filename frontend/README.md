@@ -141,3 +141,6 @@ Penyempurnaan autentikasi dan komponen bersama mengikuti revisi 1.29 `DOKUMEN-UI
 Pendaftaran memakai tiga langkah; pesanan manual pada `/pesanan/baru` memakai modal tiga langkah dengan konfirmasi keluar jika ada isian. Dialog memiliki batas tinggi viewport dan footer aksi. `RequestActivity` memberi status fetch/simpan yang sebenarnya; untuk loading awal/route gunakan `LoadingState`. Kesalahan formulir menggunakan `FormBanner`; berikan `onDismiss` untuk menghapus error melalui state pemilik formulir.
 
 Rincian, cakupan dan hasil validasi: [UI-REFRESH.md](UI-REFRESH.md).
+
+## Harga listing marketplace
+Pada tab Semua Listing, Harga & riwayat membuka modal harga reguler per varian. Input Rupiah menyimpan bilangan bulat; request memakai harga awal dan Idempotency-Key. Antrean dan hasil dikonfirmasi worker, diperiksa tiap dua detik saat berjalan. Hanya pemegang catalog:publish pada toko live yang mengirim harga; riwayat dapat dibaca catalog:read. Harga yang sudah diterima marketplace menunggu konfirmasi dan tidak menawarkan pembatalan. Modal diuji pada 320, 390, 768 dan 1440 piksel.

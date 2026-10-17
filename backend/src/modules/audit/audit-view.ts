@@ -65,6 +65,10 @@ const r = (column: string, ref: AuditRef): AuditField => ({ column, field: camel
  * audit-view.spec.ts reads the triggers and checks.
  */
 export const AUDIT_ENTITIES: Record<string, EntitySpec> = {
+  listing_price_change: {
+    label: [],
+    fields: [r("store_id", "store"), f("expected_price"), f("requested_price"), f("observed_price"), f("status")],
+  },
   product: {
     label: [{ column: "name" }],
     fields: [f("name"), f("sku"), f("description"), f("brand"), f("category_path"), f("status"), f("attribute_names")],

@@ -152,3 +152,5 @@ export type StockAdjustmentReason = keyof typeof STOCK_ADJUSTMENT_REASONS;
  * (for example `ready_to_pack -> shipped` when the courier picks up a parcel that was never scanned).
  */
 export type StatusSource = "app" | "marketplace";
+
+export const LISTING_PRICE_CHANGE_STATUSES = ["queued", "processing", "succeeded", "failed", "cancelled"] as const;

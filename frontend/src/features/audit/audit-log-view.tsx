@@ -317,6 +317,8 @@ function useValueText() {
       return formatNumber(value);
     }
     if (typeof value === "string") {
+      if (entityType === "listing_price_change" && field === "status")
+        return tAll(`listingPrices.status_${value}` as never);
       if (MOMENT_FIELDS.has(field) && !Number.isNaN(Date.parse(value))) return formatDateTime(value, tz);
       if (DATE_FIELDS.has(field) && /^\d{4}-\d{2}-\d{2}$/.test(value)) return formatDate(value, tz);
       if (field === "channel") return channelLabel(value);

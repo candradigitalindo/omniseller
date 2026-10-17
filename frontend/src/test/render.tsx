@@ -28,6 +28,7 @@ export const ALL_PERMISSIONS: Permission[] = [
   "catalog:write",
   "catalog:map",
   "catalog:publish",
+  "price:write",
   "finance:read",
   "report:read",
   "settings:store",

@@ -20,7 +20,7 @@ modul masing-masing.
 - Audit memproses seluruh entri snapshot untuk inventaris. Tinjauan kontrak mendalam pada irisan ini
   berfokus pada AMS yang diminta serta panduan pendaftaran, aplikasi, otorisasi dan sandbox; entri lain
   masih membutuhkan peninjauan kontrak per operasi sebelum implementasi.
-- Pada revisi ini **45 endpoint memiliki referensi kode, 383 belum memiliki referensi**. Angka 45
+- Pada revisi ini **46 endpoint memiliki referensi kode, 382 belum memiliki referensi**. Angka 46
   mencakup adapter AMS baru; satu referensi bukan bukti fitur lengkap, UI tersedia, atau sandbox lulus.
 
 Rincian: [seluruh endpoint](AUDIT-SHOPEE-ENDPOINTS.csv), [seluruh panduan dalam snapshot](AUDIT-SHOPEE-GUIDES.csv),
@@ -34,7 +34,7 @@ dipakai untuk menebak metode HTTP.
 |---|---|---|
 | Otorisasi | Hubungkan toko, callback/state, token dan refresh, cabut otorisasi | Kredensial dan app permission nyata belum diverifikasi dalam audit ini |
 | Toko/gudang | Profil dan pemetaan gudang, deteksi stok fulfillment | Bukan seluruh Merchant/GlobalProduct/FBS/SBS API |
-| Produk/stok | Tarik listing/varian, pemetaan, aktif/nonaktif, update stok | Update harga dan seluruh operasi pengelolaan produk belum tersedia |
+| Produk/stok | Tarik listing/varian, pemetaan, aktif/nonaktif, update stok | Harga reguler per listing kini dapat diminta/dikonfirmasi; aturan otomatis dan seluruh CRUD produk belum tersedia |
 | Salin listing | Kategori, atribut, merek, upload gambar, buat item/variasi | Bukan seluruh Media/MediaSpace/Video atau CRUD produk marketplace |
 | Pesanan | Sinkronisasi, pembatalan, tanggapan permintaan pembatalan | Bukan seluruh Order/Payment API |
 | Pengiriman | Pickup/drop-off, resi, label, pelacakan dan alur kemas internal | First Mile dan semua skenario logistik regional belum tersedia |
@@ -66,7 +66,7 @@ fitur bagi toko/tenant.
 | Kelompok | Pekerjaan berikutnya |
 |---|---|
 | AMS/Affiliate | Seluruh alur aplikasi untuk adapter baca, operasi Open/Targeted Campaign, komisi, batch task, dashboard dan tagihan/konversi |
-| Harga/promosi | Update harga, Discount, Voucher, Add-On Deal, Bundle Deal, Flash Sale, Follow Prize, Top Picks dan kategori toko |
+| Harga/promosi | Aturan harga otomatis/massal, Discount, Voucher, Add-On Deal, Bundle Deal, Flash Sale, Follow Prize, Top Picks dan kategori toko |
 | Keuangan | Escrow, fee marketplace, payout/settlement, penyesuaian dan rekonsiliasi melalui Payment API |
 | Chat dan kesehatan toko | Adapter Customer Service/Chat, penanganan data pembeli yang sesuai, Account Health dan batas app type |
 | Media dan pemasaran | Video, livestream, media lengkap dan Ads dengan izin aplikasi yang sesuai |
@@ -102,3 +102,6 @@ Validasi lokal 16 Oktober 2026: `pnpm typecheck`, `pnpm lint` dan `pnpm test --m
 186 tes paket, termasuk 104 tes connector Shopee (32 tes AMS baru). Inventaris diperiksa terhadap
 428 entri snapshot dan referensi baris sumber; tidak ada path connector yang tidak tercakup snapshot.
 Tidak ada pengujian sandbox/live, UI AMS atau kontrak resmi terkini yang diklaim lulus.
+
+## Implementasi sesudah audit
+17 Oktober 2026: perubahan harga reguler per listing untuk kedua marketplace telah ditambahkan beserta modal, worker, audit/ekspor dan tes lokal. Referensi kode kini 46/428 (382 tanpa referensi), tanpa mengubah tanggal/provenance snapshot. Baca [status implementasi seluruh modul](IMPLEMENTASI-MARKETPLACE.md); semua fitur Shopee tetap belum selesai dan sandbox nyata belum dijalankan.

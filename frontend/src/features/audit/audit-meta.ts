@@ -8,7 +8,7 @@ export type AuditChange = AuditEntry["changes"][number];
  * connections), each as the tables the api audits (backend doc 8.28).
  */
 export const AUDIT_KINDS = {
-  catalog: ["product", "variant", "channel_listing", "listing_copy", "listing_draft"],
+  catalog: ["product", "variant", "channel_listing", "listing_copy", "listing_draft", "listing_price_change"],
   stock: ["stock_movement", "stock_count", "stock_transfer", "stock_allocation_rule"],
   orders: ["order_event", "order_rule", "return_request", "handover"],
   access: ["user", "user_role", "user_store_scope", "user_warehouse_scope", "role", "role_permission"],
@@ -44,6 +44,9 @@ const set = (e: AuditEntry, field: string) => {
 
 /** Every entry message under `audit.title_*` (audit-meta.test.ts checks they exist). */
 export const TITLE_KEYS = [
+  "listing_price_change_created",
+  "listing_price_change_updated",
+  "listing_price_change_deleted",
   "product_created",
   "product_updated",
   "product_deleted",
@@ -163,6 +166,9 @@ export type TitleKey = (typeof TITLE_KEYS)[number];
 
 /** Every field the api names in `changes` that has a label under `audit.field_*`. */
 export const AUDIT_FIELDS = [
+  "expectedPrice",
+  "requestedPrice",
+  "observedPrice",
   "name",
   "sku",
   "description",
@@ -386,7 +392,17 @@ export function valueKey(entityType: string, field: string, value: unknown): str
 }
 
 /** Fields shown as Rupiah, as a signed quantity, or as a moment in the business's time zone. */
-export const MONEY_FIELDS = new Set(["costPrice", "basePrice", "price", "amount", "paidAmount", "creditAmount"]);
+export const MONEY_FIELDS = new Set([
+  "expectedPrice",
+  "requestedPrice",
+  "observedPrice",
+  "costPrice",
+  "basePrice",
+  "price",
+  "amount",
+  "paidAmount",
+  "creditAmount",
+]);
 export const DELTA_FIELDS = new Set(["onHandDelta", "damagedDelta", "bufferDelta"]);
 export const MOMENT_FIELDS = new Set([
   "undoUntil",

@@ -12,6 +12,7 @@ import { OrderRulesService } from "../automation/order-rules.service";
 import { BillingService } from "../billing/billing.service";
 import { BusinessProfileService } from "../business/business-profile.service";
 import { CourierCalendarService } from "../campaign/courier-calendar.service";
+import { ListingPriceService } from "../catalog/listing-price.service";
 import { ListingsService } from "../catalog/listings.service";
 import { ProductTransferService } from "../catalog/product-transfer.service";
 import { StoresService } from "../channel/stores.service";
@@ -65,6 +66,7 @@ export class ExportRenderService {
     @Inject(WarehousesService) private readonly warehouses: WarehousesService,
     @Inject(ProductTransferService) private readonly products: ProductTransferService,
     @Inject(ListingsService) private readonly listings: ListingsService,
+    @Inject(ListingPriceService) private readonly listingPrices: ListingPriceService,
     @Inject(InventoryService) private readonly inventory: InventoryService,
     @Inject(OrdersService) private readonly orders: OrdersService,
     @Inject(FulfillmentService) private readonly fulfillment: FulfillmentService,
@@ -91,6 +93,7 @@ export class ExportRenderService {
       ...this.courierCalendar.exportSheets(),
       ...this.products.exportSheets(),
       ...this.listings.exportSheets(),
+      ...this.listingPrices.exportSheets(),
       ...this.listingCopies.exportSheets(),
       ...this.inventory.exportSheets(),
       ...this.stockCounts.exportSheets(),

@@ -72,3 +72,6 @@ Menyalin listing antar toko milik seller sendiri (PRD FR-PRD-13, backend doc 8.2
 - Kategori marketplace lain: pilihan seller sebelumnya, lalu rekomendasi marketplace tujuan (TikTok Shop diberi kategori dan merek asal). Merek dicari per nama di kategori tujuan; tidak ketemu berarti tanpa merek, dengan catatan.
 - Tidak disalin: `listing_platforms` Tokopedia (bawaan TikTok Shop), video, sertifikat, harga grosir, tabel ukuran templat Shopee, gambar di dalam deskripsi. Pre-order tidak disalin ke TikTok Shop.
 - Cache kategori adalah data rujukan marketplace, jadi tidak ikut ekspor data penuh.
+
+## Aturan terbaru sebelum publish
+Sebelum membuat listing baru, worker memaksa pembacaan aturan kategori terbaru dan memvalidasi ulang draf sebelum unggah gambar/API create. Atribut wajib yang baru menghentikan publikasi dan muncul sebagai masalah draf (termasuk Imported Goods Indonesia). Kelanjutan item yang sudah dibuat tidak membuat item baru atau membuang resume. Uji e2e mengubah kebutuhan atribut sesudah draf ditinjau dan memastikan tidak ada API create yang dipanggil.

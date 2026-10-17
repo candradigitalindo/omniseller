@@ -20,6 +20,10 @@ export const printJobStatusTransition = pgTable("print_job_status_transition", t
 export const handoverStatusTransition = pgTable("handover_status_transition", transitionColumns());
 export const listingCopyStatusTransition = pgTable("listing_copy_status_transition", transitionColumns());
 export const listingDraftStatusTransition = pgTable("listing_draft_status_transition", transitionColumns());
+export const listingPriceChangeStatusTransition = pgTable(
+  "listing_price_change_status_transition",
+  transitionColumns(),
+);
 export const returnRequestStatusTransition = pgTable("return_request_status_transition", transitionColumns());
 export const stockCountStatusTransition = pgTable("stock_count_status_transition", transitionColumns());
 export const stockTransferStatusTransition = pgTable("stock_transfer_status_transition", transitionColumns());

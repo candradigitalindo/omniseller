@@ -374,6 +374,57 @@ describe("listing pull and mapping (FR-INT-04, FR-PRD-02, 03)", () => {
   });
 });
 
+describe("marketplace price changes", () => {
+  it("requires a live shop, keeps idempotency, confirms real prices and rejects stale external changes", async () => {
+    const { c, me } = await signup(api);
+    const items = shopeeItems(1800);
+    const { storeId } = await connectShopee(c, me.tenant.id, items);
+    const listing = (await c.get(`/v1/listings?storeId=${storeId}`)).body.items[0];
+    const path = `/v1/listings/${listing.id}/price-changes`;
+    const expected = listing.originalPrice ?? listing.price;
+    expect((await c.post(path, { price: 99000, expectedPrice: expected }).set("Idempotency-Key", newId())).status).toBe(
+      409,
+    );
+    await h.system.db.execute(sql`UPDATE store SET sync_mode='live' WHERE id=${storeId}`);
+    expect((await c.post(path, { price: 99000, expectedPrice: expected })).status).toBe(422);
+    expect((await c.post(path, { price: 1.5, expectedPrice: expected }).set("Idempotency-Key", newId())).status).toBe(
+      422,
+    );
+    const key = newId();
+    const first = await c.post(path, { price: 99000, expectedPrice: expected }).set("Idempotency-Key", key);
+    expect(first.status).toBe(202);
+    expect((await c.post(path, { price: 99000, expectedPrice: expected }).set("Idempotency-Key", key)).body.id).toBe(
+      first.body.id,
+    );
+    expect((await c.post(path, { price: 88000, expectedPrice: expected }).set("Idempotency-Key", newId())).status).toBe(
+      409,
+    );
+    await drain(me.tenant.id);
+    expect((await c.get(path)).body.items[0]).toMatchObject({ status: "succeeded", observedPrice: 99000 });
+    expect((await c.get(`/v1/listings/${listing.id}`)).body.originalPrice).toBe(99000);
+    const later = await c.post(path, { price: 88000, expectedPrice: 99000 }).set("Idempotency-Key", newId());
+    expect(later.status).toBe(202);
+    const item = items.find((i) => String(i.item_id) === listing.externalItemId)!;
+    const model = item.models?.find((m) => String(m.model_id) === listing.externalVariantId);
+    if (model) model.price = 77000;
+    else item.price = 77000;
+    const before = mock.calls.filter((call) => call.path === "/api/v2/product/update_price").length;
+    await drain(me.tenant.id);
+    expect((await c.get(path)).body.items[0]).toMatchObject({ status: "failed", errorCode: "price_changed" });
+    expect(mock.calls.filter((call) => call.path === "/api/v2/product/update_price")).toHaveLength(before);
+    const cancelled = await c.post(path, { price: 66000, expectedPrice: 77000 }).set("Idempotency-Key", newId());
+    expect(cancelled.status).toBe(202);
+    expect((await c.post(`${path}/cancel`, { changeId: cancelled.body.id })).status).toBe(204);
+    await drain(me.tenant.id);
+    expect((await c.get(path)).body.items[0].status).toBe("cancelled");
+    const stranger = await signup(api);
+    expect((await stranger.c.get(path)).status).toBe(404);
+    expect(
+      (await stranger.c.post(path, { price: 1, expectedPrice: 77000 }).set("Idempotency-Key", newId())).status,
+    ).toBe(404);
+  });
+});
+
 describe("marketplace changes (FR-PRD-09, 10)", () => {
   it("deactivates items on Shopee, reports refusals, and reads the result back", async () => {
     const { c, me } = await signup(api);
@@ -528,6 +579,18 @@ describe("Tokopedia & Shop listings", () => {
       statusDetail: { tiktok_shop: "ACTIVATE", tokopedia: "ACTIVATE" },
       store: { channelName: "Tokopedia & Shop" },
     });
+
+    await h.system.db.execute(sql`UPDATE store SET sync_mode='live' WHERE id=${storeId}`);
+    const price = await c
+      .post(`/v1/listings/${listing.id}/price-changes`, { price: 75000, expectedPrice: 65000 })
+      .set("Idempotency-Key", newId());
+    expect(price.status).toBe(202);
+    await drain(me.tenant.id);
+    expect((await c.get(`/v1/listings/${listing.id}/price-changes`)).body.items[0]).toMatchObject({
+      status: "succeeded",
+      observedPrice: 75000,
+    });
+    expect(products[0]!.skus[0]!.price).toBe(75000);
 
     await c.post("/v1/listings/status", { listingIds: [listing.id], active: false });
     await drain(me.tenant.id);

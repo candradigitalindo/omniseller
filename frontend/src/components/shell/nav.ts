@@ -109,7 +109,7 @@ export const NAV: readonly NavGroup[] = [
     key: "groupCatalog",
     items: [
       { key: "products", href: "/produk", icon: Package, permission: "catalog:read", ready: true },
-      { key: "listings", href: "/listing", icon: Store, permission: "catalog:map", ready: true },
+      { key: "listings", href: "/listing", icon: Store, permission: "catalog:read", ready: true },
       { key: "copyListings", href: "/listing/salin", icon: Copy, permission: "catalog:write", ready: true },
     ],
   },
