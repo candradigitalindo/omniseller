@@ -4682,7 +4682,7 @@
         "tags": [
           "channels"
         ],
-        "x-isolation": "global"
+        "x-isolation": "self"
       }
     },
     "/v1/store-authorizations": {
@@ -5263,6 +5263,106 @@
         "x-isolation": {
           "fixture": "store"
         }
+      }
+    },
+    "/v1/marketplace-applications": {
+      "get": {
+        "operationId": "MarketplaceApplicationsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketplaceApplicationListDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "channels"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/marketplace-applications/{channel}": {
+      "put": {
+        "operationId": "MarketplaceApplicationsController_save",
+        "parameters": [
+          {
+            "name": "channel",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "shopee",
+                "tiktokshop"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarketplaceApplicationInputDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketplaceApplicationDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "channels"
+        ],
+        "x-isolation": "self"
+      },
+      "delete": {
+        "operationId": "MarketplaceApplicationsController_remove",
+        "parameters": [
+          {
+            "name": "channel",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "shopee",
+                "tiktokshop"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketplaceApplicationDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "channels"
+        ],
+        "x-isolation": "self"
       }
     },
     "/v1/products": {
@@ -22074,6 +22174,10 @@
       "CaptureStoreInstallationDto": {
         "type": "object",
         "properties": {
+          "applicationId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
           "code": {
             "type": "string",
             "minLength": 1,
@@ -23469,6 +23573,279 @@
         "required": [
           "items",
           "next_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "MarketplaceApplicationListDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "channel": {
+                  "type": "string",
+                  "enum": [
+                    "shopee",
+                    "tiktokshop"
+                  ]
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "tenant",
+                    "platform",
+                    "unconfigured"
+                  ]
+                },
+                "applicationId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "configured": {
+                  "type": "boolean"
+                },
+                "environment": {
+                  "type": "string",
+                  "enum": [
+                    "production",
+                    "sandbox"
+                  ]
+                },
+                "partnerId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "appKey": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "serviceId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "secretConfigured": {
+                  "type": "boolean"
+                },
+                "rowVersion": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "redirectUrl": {
+                  "type": "string"
+                },
+                "webhookUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "settingsEnabled": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "channel",
+                "source",
+                "applicationId",
+                "configured",
+                "environment",
+                "partnerId",
+                "appKey",
+                "serviceId",
+                "secretConfigured",
+                "rowVersion",
+                "redirectUrl",
+                "webhookUrl",
+                "settingsEnabled"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "MarketplaceApplicationInputDto": {
+        "type": "object",
+        "properties": {
+          "environment": {
+            "default": "production",
+            "type": "string",
+            "enum": [
+              "production",
+              "sandbox"
+            ]
+          },
+          "partnerId": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,14}$"
+          },
+          "appKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "serviceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "secret": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 4096
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "secret"
+        ],
+        "additionalProperties": false
+      },
+      "MarketplaceApplicationDto_Output": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string",
+            "enum": [
+              "shopee",
+              "tiktokshop"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "tenant",
+              "platform",
+              "unconfigured"
+            ]
+          },
+          "applicationId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "environment": {
+            "type": "string",
+            "enum": [
+              "production",
+              "sandbox"
+            ]
+          },
+          "partnerId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "appKey": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "serviceId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "secretConfigured": {
+            "type": "boolean"
+          },
+          "rowVersion": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "redirectUrl": {
+            "type": "string"
+          },
+          "webhookUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "settingsEnabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "channel",
+          "source",
+          "applicationId",
+          "configured",
+          "environment",
+          "partnerId",
+          "appKey",
+          "serviceId",
+          "secretConfigured",
+          "rowVersion",
+          "redirectUrl",
+          "webhookUrl",
+          "settingsEnabled"
         ],
         "additionalProperties": false
       },

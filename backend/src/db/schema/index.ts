@@ -14,6 +14,7 @@ export * from "./exports";
 export * from "./identity";
 export * from "./inventory";
 export * from "./listing-copy";
+export * from "./marketplace-applications";
 export * from "./migration";
 export * from "./notification";
 export * from "./orders";

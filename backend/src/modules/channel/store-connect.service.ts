@@ -133,7 +133,7 @@ export class StoreConnectService {
     let grant: AuthorizationGrant;
     let profiles: ShopProfile[];
     const channel = row.channel as SupportedChannel;
-    const connector = this.connectors.get(channel);
+    const connector = (await this.connectors.forTenant(jobCtx)).get(channel);
     const request = <T>(fn: () => Promise<T>) =>
       withRequestGate(
         {

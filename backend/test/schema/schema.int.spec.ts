@@ -112,6 +112,8 @@ describe("schema conventions", () => {
                             AND coalesce(domain_name, '') <> 'ulid'
                             -- Registry keys identify static API contracts, not database entities.
                             AND NOT (table_name IN ('commerce_operation', 'commerce_file') AND column_name = 'operation_id')
+                            -- Provider-issued application identifiers are not local entity references.
+                            AND NOT (table_name = 'marketplace_application' AND column_name IN ('partner_id','service_id'))
                             AND table_name NOT IN (SELECT relname FROM pg_class WHERE relispartition)`);
     expect(bad).toEqual([]);
   });

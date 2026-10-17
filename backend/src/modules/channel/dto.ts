@@ -66,6 +66,7 @@ export class AuthorizationCallbackDto extends createZodDto(
 export class CaptureStoreInstallationDto extends createZodDto(
   z
     .object({
+      applicationId: ulidSchema.optional(),
       code: z
         .string()
         .trim()

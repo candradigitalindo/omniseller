@@ -56,6 +56,7 @@ export const WEBHOOK_URL = "https://hooks.omniseller.test";
 export const TEST_TOKEN_KEY = Buffer.alloc(32, 42).toString("base64");
 /** The api's key for TOTP secrets and backup codes (backend doc 8.30). */
 export const TEST_TOTP_KEY = Buffer.alloc(32, 43).toString("base64");
+export const TEST_MARKETPLACE_APP_KEY = Buffer.alloc(32, 44).toString("base64");
 
 /**
  * Listens on 127.0.0.1 before supertest sees the server. Left to supertest, the server binds `::` on a
@@ -105,11 +106,13 @@ export async function startApi(
 ): Promise<INestApplication> {
   const env = parseEnv({
     APP_ROLE: "api",
+    MARKETPLACE_APP_ENCRYPTION_KEY: TEST_MARKETPLACE_APP_KEY,
     NODE_ENV: "test",
     DATABASE_URL: infra.urls.api,
     REDIS_QUEUE_URL: infra.redisUrl,
     REDIS_CACHE_URL: infra.redisUrl,
     PUBLIC_WEB_URL: WEB_URL,
+    PUBLIC_WEBHOOK_URL: WEBHOOK_URL,
     FILE_STORAGE: "local",
     FILE_STORAGE_LOCAL_DIR: testFilesDir(infra.keyPrefix),
     TOTP_ENCRYPTION_KEY: TEST_TOTP_KEY,
@@ -141,6 +144,7 @@ export async function startWorker(
 ) {
   const env = parseEnv({
     APP_ROLE: "worker",
+    MARKETPLACE_APP_ENCRYPTION_KEY: TEST_MARKETPLACE_APP_KEY,
     NODE_ENV: "test",
     DATABASE_URL_WORKER: infra.urls.worker,
     REDIS_QUEUE_URL: infra.redisUrl,
@@ -291,6 +295,7 @@ export async function startWorker(
 export async function startWebhook(infra: TestInfra, opts: { marketplace?: MockMarketplace; xendit?: boolean } = {}) {
   const env = parseEnv({
     APP_ROLE: "webhook",
+    MARKETPLACE_APP_ENCRYPTION_KEY: TEST_MARKETPLACE_APP_KEY,
     NODE_ENV: "test",
     DATABASE_URL: infra.urls.api,
     REDIS_QUEUE_URL: infra.redisUrl,

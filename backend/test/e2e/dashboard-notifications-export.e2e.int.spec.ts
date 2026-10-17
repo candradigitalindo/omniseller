@@ -532,6 +532,13 @@ describe("full data export (FR-MIG-09) and the audit of sensitive actions (FR-US
     await pushOrder(tenantId, store.shopId, sold);
     const order = await orderBy(c, sold.order_sn);
 
+    const application = await c.put("/v1/marketplace-applications/tiktokshop", {
+      appKey: "PRIVATE_EXPORT_APP",
+      serviceId: "PRIVATE_EXPORT_SERVICE",
+      secret: "PRIVATE_EXPORT_SECRET",
+    });
+    expect(application.status).toBe(200);
+
     // FR-USR-04: a stock adjustment is in the audit log under its table, not the partition
     const adjusted = await c.get(`/v1/audit-logs?entity_type=stock_movement&entity_id=${movements[0]!.movementId}`);
     expect(adjusted.body.items).toEqual([
@@ -560,18 +567,25 @@ describe("full data export (FR-MIG-09) and the audit of sensitive actions (FR-US
     expect(ready.sizeBytes).toBeGreaterThan(0);
     expect(Date.parse(ready.expiresAt) - Date.parse(ready.finishedAt)).toBeGreaterThan(6.9 * 86_400_000);
     const files = [
+      "pencarian_produk_affiliate.csv",
+      "berkas_commerce.csv",
+      "operasi_commerce.csv",
+      "akun_affiliate.csv",
+      "otorisasi_akun_affiliate.csv",
       "profil_bisnis.csv",
       "dokumen_legalitas.csv",
       "peran.csv",
       "langganan.csv",
       "tagihan.csv",
       "toko.csv",
+      "aplikasi_marketplace.csv",
       "gudang.csv",
       "cutoff_kurir.csv",
       "libur_kurir.csv",
       "jam_operasional.csv",
       "produk.csv",
       "listing.csv",
+      "perubahan_harga_listing.csv",
       "draf_listing.csv",
       "pemetaan_kategori.csv",
       "stok.csv",
@@ -599,6 +613,10 @@ describe("full data export (FR-MIG-09) and the audit of sensitive actions (FR-US
     const zip = await zipOf(c, ready.downloadUrl);
     expect(zip.names).toEqual(["README.txt", ...files]);
     expect(zip.text("README.txt")).toContain("- pesanan.csv (1 baris): ");
+    const applications = lines(zip.text("aplikasi_marketplace.csv"));
+    expect(applications).toHaveLength(2);
+    expect(applications[1]).toContain(`${application.body.applicationId};tiktokshop;production;ya;`);
+    for (const name of zip.names) expect(zip.text(name)).not.toContain("PRIVATE_EXPORT_");
 
     const orders = lines(zip.text("pesanan.csv"));
     expect(orders[0]).toBe(

@@ -133,7 +133,7 @@ describe("StoresView", () => {
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("button", { name: /Shopee/ })).toBeDisabled();
     expect(within(dialog).getByRole("button", { name: /Tokopedia & Shop/ })).toBeDisabled();
-    expect(within(dialog).getByText(/Pengelola aplikasi perlu menyiapkan kredensial/)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Pengaturan marketplace" })).toBeInTheDocument();
     expect(calls.some((call) => call.method === "POST")).toBe(false);
 
     configured = true;

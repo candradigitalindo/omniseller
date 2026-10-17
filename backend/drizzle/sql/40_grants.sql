@@ -145,3 +145,8 @@ GRANT SELECT(id,tenant_id,created_at,updated_at,row_version,channel,store_id,req
 -- Pre-tenant routing metadata only; the signed raw body is verified before the lookup.
 REVOKE ALL ON FUNCTION resolve_affiliate_account(text,text,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION resolve_affiliate_account(text,text,text) TO omniseller_api,omniseller_worker;
+
+REVOKE ALL ON FUNCTION resolve_marketplace_application(text,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION resolve_marketplace_application(text,text) TO omniseller_api;
+REVOKE ALL ON FUNCTION resolve_tenant_marketplace_application(text,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION resolve_tenant_marketplace_application(text,text) TO omniseller_api;

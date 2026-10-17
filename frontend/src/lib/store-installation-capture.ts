@@ -13,12 +13,20 @@ export function isAppStoreRedirect(url: URL): boolean {
 export async function captureAppStoreInstallation(request: NextRequest): Promise<NextResponse> {
   const destination = new URL(INSTALLATION_PATH, request.url);
   const code = request.nextUrl.searchParams.get("code")?.trim();
+  const applicationId = request.nextUrl.searchParams.get("application_id");
   let cookie: string | undefined;
-  if (code && code.length <= 512 && code !== "null" && request.nextUrl.searchParams.getAll("code").length === 1) {
+  if (
+    code &&
+    code.length <= 512 &&
+    code !== "null" &&
+    request.nextUrl.searchParams.getAll("code").length === 1 &&
+    request.nextUrl.searchParams.getAll("application_id").length <= 1 &&
+    (!applicationId || /^[0-9A-HJKMNP-TV-Z]{26}$/.test(applicationId))
+  ) {
     try {
       const serverApi = createApi({ baseUrl: process.env.API_ORIGIN ?? "http://localhost:3000" });
       const captured = await serverApi.POST("/v1/store-installations/tiktokshop/capture", {
-        body: { code },
+        body: { code, ...(applicationId ? { applicationId } : {}) },
         headers: {
           Origin: request.nextUrl.origin,
           ...(request.headers.get("cf-connecting-ip")

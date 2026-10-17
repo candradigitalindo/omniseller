@@ -4,6 +4,7 @@ import { baseColumns, tstz, ulid } from "../columns";
 
 /** Global: written by the webhook process before the tenant is known. */
 export const webhookInbox = pgTable("webhook_inbox", {
+  applicationId: ulid("application_id"),
   id: ulid("id").primaryKey(),
   source: text("source").notNull(),
   eventId: text("event_id").notNull(),

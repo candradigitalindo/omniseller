@@ -11,6 +11,7 @@ import { lockTenantKeys, TokenVault } from "../../common/security/token-vault";
 import type { DbHandle } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, TOKEN_VAULT } from "../../infra/tokens";
+import { MarketplaceApplicationsService } from "../channel/marketplace-applications.service";
 import { MarketplaceGateway } from "../channel/marketplace-gateway";
 import { UsersService } from "../identity/users.service";
 import { SyncRepository } from "../sync/sync.repository";
@@ -29,6 +30,7 @@ export class AffiliateAccountConnectService {
     @Inject(UsersService) private readonly users: UsersService,
     @Inject(MarketplaceGateway) private readonly gateway: MarketplaceGateway,
     @Inject(AffiliateAccountCredentialsService) private readonly credentials: AffiliateAccountCredentialsService,
+    @Inject(MarketplaceApplicationsService) private readonly applications: MarketplaceApplicationsService,
   ) {}
   async clearCancelledGrant(ctx: RequestContext, authorizationId: string) {
     await withTenantTx(this.db, ctx, async (tx) => {
@@ -219,7 +221,13 @@ export class AffiliateAccountConnectService {
           });
         if (
           stagedRow.channel === "tiktokshop" &&
-          (await this.sync.accountRevokedSince(tx, kind, grant.externalPrincipalId, held.callbackAt ?? held.createdAt))
+          (await this.sync.accountRevokedSince(
+            tx,
+            kind,
+            grant.externalPrincipalId,
+            held.callbackAt ?? held.createdAt,
+            await this.applications.id(ctx, stagedRow.channel, tx),
+          ))
         )
           throw new PermanentConnectorError({
             code: "authorization_revoked",

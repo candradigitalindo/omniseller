@@ -68,4 +68,39 @@ describe("App Store callback capture before login", () => {
     expect(calls).toHaveLength(0);
     expect(response.headers.get("location")).toContain("capture=failed");
   });
+
+  it("carries the application's public routing ID server-side without retaining callback parameters", async () => {
+    const applicationId = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
+    const calls = mockApi({
+      "POST /v1/store-installations/tiktokshop/capture": () =>
+        Response.json(
+          { expiresAt: "2026-10-18T00:10:00Z" },
+          {
+            status: 201,
+            headers: { "Set-Cookie": "os_tiktok_install=receipt; Path=/v1/store-installations; HttpOnly" },
+          },
+        ),
+    });
+    const response = await proxy(
+      new NextRequest(
+        `http://localhost:3100/integrasi/callback/tiktokshop?code=private&application_id=${applicationId}`,
+      ),
+    );
+    expect(calls[0]?.body).toEqual({ code: "private", applicationId });
+    expect(response.headers.get("location")).toBe(`http://localhost:3100${INSTALLATION_PATH}`);
+  });
+
+  it("rejects malformed or ambiguous application routing before capturing a private code", async () => {
+    const calls = mockApi({});
+    for (const suffix of [
+      "application_id=invalid",
+      "application_id=01ARZ3NDEKTSV4RRFFQ69G5FAV&application_id=01ARZ3NDEKTSV4RRFFQ69G5FAW",
+    ]) {
+      const response = await proxy(
+        new NextRequest(`http://localhost:3100/integrasi/callback/tiktokshop?code=private&${suffix}`),
+      );
+      expect(response.headers.get("location")).toContain("capture=failed");
+    }
+    expect(calls).toHaveLength(0);
+  });
 });

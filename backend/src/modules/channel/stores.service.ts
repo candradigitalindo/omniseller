@@ -233,7 +233,7 @@ export class StoresService {
       await this.disconnectIn(tx, ctx, store, keepData, "disconnected_by_user");
       return (await this.view(tx, [(await this.repo.getStore(tx, id))!]))[0]!;
     });
-    return { view, revokeUrl: this.revokeLinks([view.store.channel])[0]?.url ?? null };
+    return { view, revokeUrl: (await this.revokeLinks(ctx, [view.store.channel]))[0]?.url ?? null };
   }
 
   /**
@@ -262,11 +262,16 @@ export class StoresService {
    * Where the seller withdraws OmniSeller's authorization at each marketplace: marketplaces keep the app
    * authorized after a local disconnect until the seller revokes it there (Shopee gives a link).
    */
-  revokeLinks(channels: readonly string[]): { channel: string; url: string }[] {
+  async revokeLinks(
+    ctx: RequestContext,
+    channels: readonly string[],
+    tx?: Tx,
+  ): Promise<{ channel: string; url: string }[]> {
+    const connectors = await this.connectors.forTenant(ctx, tx);
     const links: { channel: string; url: string }[] = [];
     for (const channel of new Set(channels)) {
-      if (!isSupportedChannel(channel) || !this.connectors.isConfigured(channel)) continue;
-      const url = this.connectors.get(channel).auth.revokeUrl({ redirectUri: `${publicWebUrl(this.env)}/integrasi` });
+      if (!isSupportedChannel(channel) || !connectors.isConfigured(channel)) continue;
+      const url = connectors.get(channel).auth.revokeUrl({ redirectUri: `${publicWebUrl(this.env)}/integrasi` });
       if (url) links.push({ channel, url });
     }
     return links;

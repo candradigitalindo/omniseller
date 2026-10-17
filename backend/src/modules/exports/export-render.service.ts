@@ -17,6 +17,7 @@ import { CourierCalendarService } from "../campaign/courier-calendar.service";
 import { ListingPriceService } from "../catalog/listing-price.service";
 import { ListingsService } from "../catalog/listings.service";
 import { ProductTransferService } from "../catalog/product-transfer.service";
+import { MarketplaceApplicationsService } from "../channel/marketplace-applications.service";
 import { StoresService } from "../channel/stores.service";
 import { CommerceService } from "../commerce/commerce.service";
 import { FilesService } from "../files/files.service";
@@ -66,6 +67,7 @@ export class ExportRenderService {
     @Inject(UsersService) private readonly users: UsersService,
     @Inject(RolesService) private readonly roles: RolesService,
     @Inject(StoresService) private readonly stores: StoresService,
+    @Inject(MarketplaceApplicationsService) private readonly marketplaceApplications: MarketplaceApplicationsService,
     @Inject(WarehousesService) private readonly warehouses: WarehousesService,
     @Inject(ProductTransferService) private readonly products: ProductTransferService,
     @Inject(ListingsService) private readonly listings: ListingsService,
@@ -98,6 +100,7 @@ export class ExportRenderService {
       ...this.roles.exportSheets(),
       ...this.billing.exportSheets(),
       ...this.stores.exportSheets(),
+      ...this.marketplaceApplications.exportSheets(),
       ...this.warehouses.exportSheets(),
       ...this.courierCalendar.exportSheets(),
       ...this.products.exportSheets(),

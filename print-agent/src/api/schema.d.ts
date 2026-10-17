@@ -1883,6 +1883,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/marketplace-applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["MarketplaceApplicationsController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/marketplace-applications/{channel}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["MarketplaceApplicationsController_save"];
+        post?: never;
+        delete: operations["MarketplaceApplicationsController_remove"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/products": {
         parameters: {
             query?: never;
@@ -6019,6 +6051,7 @@ export interface components {
             } | null;
         };
         CaptureStoreInstallationDto: {
+            applicationId?: string;
             code: string;
         };
         CapturedStoreInstallationDto_Output: {
@@ -6277,6 +6310,56 @@ export interface components {
                 }[];
             }[];
             next_cursor: string | null;
+        };
+        MarketplaceApplicationListDto_Output: {
+            items: {
+                /** @enum {string} */
+                channel: "shopee" | "tiktokshop";
+                /** @enum {string} */
+                source: "tenant" | "platform" | "unconfigured";
+                applicationId: string | null;
+                configured: boolean;
+                /** @enum {string} */
+                environment: "production" | "sandbox";
+                partnerId: string | null;
+                appKey: string | null;
+                serviceId: string | null;
+                secretConfigured: boolean;
+                rowVersion: number | null;
+                redirectUrl: string;
+                webhookUrl: string | null;
+                settingsEnabled: boolean;
+            }[];
+        };
+        MarketplaceApplicationInputDto: {
+            /**
+             * @default production
+             * @enum {string}
+             */
+            environment: "production" | "sandbox";
+            partnerId?: string;
+            appKey?: string;
+            serviceId?: string;
+            secret: string;
+            expectedVersion?: number;
+        };
+        MarketplaceApplicationDto_Output: {
+            /** @enum {string} */
+            channel: "shopee" | "tiktokshop";
+            /** @enum {string} */
+            source: "tenant" | "platform" | "unconfigured";
+            applicationId: string | null;
+            configured: boolean;
+            /** @enum {string} */
+            environment: "production" | "sandbox";
+            partnerId: string | null;
+            appKey: string | null;
+            serviceId: string | null;
+            secretConfigured: boolean;
+            rowVersion: number | null;
+            redirectUrl: string;
+            webhookUrl: string | null;
+            settingsEnabled: boolean;
         };
         ProductPageDto_Output: {
             items: {
@@ -12883,6 +12966,71 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SyncJobPageDto_Output"];
+                };
+            };
+        };
+    };
+    MarketplaceApplicationsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketplaceApplicationListDto_Output"];
+                };
+            };
+        };
+    };
+    MarketplaceApplicationsController_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel: "shopee" | "tiktokshop";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarketplaceApplicationInputDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketplaceApplicationDto_Output"];
+                };
+            };
+        };
+    };
+    MarketplaceApplicationsController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel: "shopee" | "tiktokshop";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarketplaceApplicationDto_Output"];
                 };
             };
         };

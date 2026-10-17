@@ -18,6 +18,7 @@ import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, OUTBOX } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
 import { CONNECTORS, type ConnectorRegistry } from "../channel/connector-registry";
+import { lockMarketplaceApplication } from "../channel/marketplace-applications.service";
 import {
   affiliateAccountRefreshRequested,
   affiliateAuthorizationReceived,
@@ -133,22 +134,23 @@ export class AffiliateAccountsService {
         throw new ConflictError("affiliate_account.kind_mismatch", "Jenis akun otorisasi tidak sesuai.");
     }
     const state = ACCOUNT_STATE_PREFIX + newSecretToken();
-    const connector = this.connectors.get(channel);
-    if (!connector.accounts)
-      throw new UnprocessableError("affiliate_account.unsupported", "Koneksi akun ini belum tersedia.");
-    let authorizeUrl: string;
-    try {
-      authorizeUrl = connector.accounts.authorizeUrl({ kind: input.kind, state, program });
-    } catch (error) {
-      if (isConnectorError(error) && error.code === "not_configured")
-        throw new UnprocessableError(
-          "affiliate_account.not_configured",
-          "Koneksi akun ini belum diaktifkan. Hubungi pengelola aplikasi.",
-        );
-      throw error;
-    }
-    const row = await withTenantTx(this.db, ctx, (tx) =>
-      this.repo.insertAuth(tx, {
+    return withTenantTx(this.db, ctx, async (tx) => {
+      await lockMarketplaceApplication(tx, ctx.tenantId, channel);
+      const connector = (await this.connectors.forTenant(ctx, tx)).get(channel);
+      if (!connector.accounts)
+        throw new UnprocessableError("affiliate_account.unsupported", "Koneksi akun ini belum tersedia.");
+      let authorizeUrl: string;
+      try {
+        authorizeUrl = connector.accounts.authorizeUrl({ kind: input.kind, state, program });
+      } catch (error) {
+        if (isConnectorError(error) && error.code === "not_configured")
+          throw new UnprocessableError(
+            "affiliate_account.not_configured",
+            "Koneksi akun ini belum diaktifkan. Hubungi pengelola aplikasi.",
+          );
+        throw error;
+      }
+      const row = await this.repo.insertAuth(tx, {
         id: newId(),
         tenantId: ctx.tenantId,
         channel,
@@ -158,15 +160,16 @@ export class AffiliateAccountsService {
         requestedBy: ctx.actor.type === "user" ? ctx.actor.id : null,
         stateHash: hashToken(state),
         expiresAt: new Date(Date.now() + (channel === "shopee" ? 10 : 30) * 60_000),
-      }),
-    );
-    return { row, authorizeUrl };
+      });
+      return { row, authorizeUrl };
+    });
   }
   async callback(
     ctx: RequestContext,
     input: { state: string; channel?: "tiktokshop" | "shopee"; code?: string; error?: string },
   ) {
     return withTenantTx(this.db, ctx, async (tx) => {
+      await lockMarketplaceApplication(tx, ctx.tenantId, input.channel ?? "tiktokshop");
       const row = await this.repo.authByState(tx, hashToken(input.state));
       if (
         row?.status !== "pending" ||

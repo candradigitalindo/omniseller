@@ -451,3 +451,21 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public,pg_temp AS $$
    AND a.external_principal_id=p_external_id AND a.status<>'disconnected'
  LIMIT 1
 $$;
+
+-- A public callback identifier resolves only routing metadata; no secret leaves this lookup.
+CREATE OR REPLACE FUNCTION resolve_marketplace_application(p_id text,p_channel text)
+RETURNS TABLE(tenant_id text)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public,pg_temp AS $$
+ SELECT a.tenant_id FROM marketplace_application a
+ WHERE a.id=p_id AND a.channel=p_channel AND a.enabled AND a.secret_enc IS NOT NULL
+ LIMIT 1
+$$;
+
+-- Signature-verified webhook routing uses this metadata lookup on its existing connection.
+CREATE OR REPLACE FUNCTION resolve_tenant_marketplace_application(p_tenant text,p_channel text)
+RETURNS TABLE(application_id text)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public,pg_temp AS $$
+ SELECT a.id FROM marketplace_application a
+ WHERE a.tenant_id=p_tenant AND a.channel=p_channel AND a.enabled AND a.secret_enc IS NOT NULL
+ LIMIT 1
+$$;

@@ -8,7 +8,7 @@ Juga saluran pesanan manual: toko berkanal `manual` untuk pesanan WhatsApp, Inst
 Marketplace yang didukung: Shopee dan TikTok Shop. Di Indonesia TikTok Shop dan Tokopedia adalah satu toko, dan seller melihatnya sebagai "Tokopedia & Shop" (pedoman platform melarang merek TikTok di antarmuka pihak ketiga). Lazada dan Blibli menyusul di Fase 2.
 
 ## Tabel yang dimiliki
-- `store`, `store_credential`, `store_authorization`, `channel_warehouse`, `sync_cursor`.
+- `marketplace_application`, `store`, `store_credential`, `store_authorization`, `channel_warehouse`, `sync_cursor`.
 - `tenant_key` ditulis lewat `TokenVault` (`common/security`), dipakai bersama rahasia tenant lain.
 
 ## Service publik
@@ -85,6 +85,9 @@ Marketplace yang didukung: Shopee dan TikTok Shop. Di Indonesia TikTok Shop dan 
 | GET | `/v1/stores/{id}/sync-jobs` | `settings:store` |
 
 ## Pengaturan di konsol marketplace
+
+- Tenant menyimpan aplikasi sendiri melalui **Toko Terhubung → Pengaturan marketplace**. GET `/v1/marketplace-applications`, PUT/DELETE `/v1/marketplace-applications/{channel}` membutuhkan `settings:store` dan cakupan seluruh toko/gudang. Secret AES-GCM terikat tenant/channel/record dan tidak dikembalikan API. Shopee: Partner ID/Key dan produksi/sandbox. Tokopedia & Shop: App Key/Secret/Service ID. Aplikasi tenant dipakai oleh OAuth seller/creator, exchange, refresh, gateway dan webhook. Save langsung berlaku; perubahan/penghapusan ditolak selama koneksi atau otorisasi masih berjalan. DELETE meninggalkan pengaturan nonaktif tanpa fallback. Kunci infrastruktur `MARKETPLACE_APP_ENCRYPTION_KEY` diperlukan di staging/produksi; lokal/test dapat memakai derivasi terpisah dari kunci TOTP existing. Environment marketplace lama adalah bawaan opsional bagi tenant tanpa record (ADR-050).
+- Salin **Alamat callback** dari modal: webhook `/webhooks/{channel}/apps/{applicationId}` memverifikasi secret aplikasi itu dan menolak pemilik toko/akun berbeda. Redirect TikTok menyertakan `?application_id=...`; receipt instalasi App Store terikat aplikasi dan tenant. Jangan menghapus parameter ketika mendaftarkannya. Jalur webhook lama di bawah hanya untuk aplikasi bawaan pengelola.
 - Audit Tokopedia & Shop: `AUDIT-INTEGRASI-TIKTOKSHOP.md` di root dan CSV inventaris memetakan dokumen resmi, versi API, scope dan referensi kode. Alur seller inti tersedia sebagian; bukan seluruh API/Partner Center, metode pemasangan App Store atau program Indonesia. Perubahan Imported Goods (27 Oktober 2026), Horizon+, pembatas laju adaptif dan scope perlu ditindaklanjuti sesuai audit; tes connector lokal tidak membuktikan lolos sandbox/review.
 - Audit cakupan Shopee: lihat `AUDIT-INTEGRASI-SHOPEE.md` di root. Snapshot sekunder memuat 428 endpoint; referensi connector tidak berarti seluruh fitur API/UI selesai. Adapter opsional `affiliate.listOpenCampaignProducts` kini tersedia di paket Shopee, dipakai modul affiliate melalui worker/outbox, cache satu halaman, API dan UI `/affiliate`; jangan dipanggil dari proses API. Izin AMS dan sandbox nyata tetap perlu diverifikasi (ADR-044).
 - Shopee: daftarkan domain `PUBLIC_WEB_URL` sebagai Redirect URL Domain (callback `/integrasi/callback/shopee`), dan atur push ke `${PUBLIC_WEBHOOK_URL}/webhooks/shopee` untuk kode 1, 2, 3, 4, 5, 6, 12, 15, 16, 22 (`SHOPEE_SUBSCRIBED_PUSH_CODES`, `setShopeePushConfig` di paket connector). Kode 15 (dokumen pengiriman siap) dipakai sejak pengiriman; konsol aplikasi yang sudah diatur perlu diatur ulang.
@@ -93,7 +96,7 @@ Marketplace yang didukung: Shopee dan TikTok Shop. Di Indonesia TikTok Shop dan 
 ## Keputusan khusus modul
 - Impor awal produk (FR-INT-04) dijalankan modul `catalog` sebagai konsumen `store.connected` (`listing.pull` penuh), dan impor pesanan 90 hari oleh modul `orders` (`order.pull` awal).
 - `sync_cursor` milik modul ini; modul lain membaca dan memajukannya lewat `StoresService.syncCursor`, `recordPull` (resource `listings` juga mengisi `store.last_product_sync_at`), dan `saveSyncCursor` (`returns`).
-- Pemasangan dari TikTok Shop App Store (tanpa `state`) belum didukung; butuh aplikasi publik yang lolos review.
+- Pemasangan TikTok Shop App Store tanpa `state` menggunakan capture/consent/preview/pilihan toko yang dijelaskan di atas; publikasi aplikasinya tetap memerlukan review platform.
 - Notifikasi seketika `store.reauth_required` tetap ada; peringatan 15 menit (FR-INT-08) adalah eskalasinya dengan email. Kegagalan karena pembatas laju OmniSeller sendiri (`local_rate_limit`) dan penolakan permintaan (`permanent`) tidak dihitung sebagai koneksi terputus.
 
 ## API scopes on existing TikTok seller operations

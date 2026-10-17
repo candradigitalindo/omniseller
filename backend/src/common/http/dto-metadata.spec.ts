@@ -16,6 +16,7 @@ import {
   StoreAuthorizationsController,
   StoresController,
 } from "../../modules/channel/channel.controllers";
+import { MarketplaceApplicationsController } from "../../modules/channel/marketplace-applications.controller";
 import { StoreInstallationsController } from "../../modules/channel/store-installation.controller";
 import { AccountClosureController } from "../../modules/closure/closure.controller";
 import { CommerceController } from "../../modules/commerce/commerce.controller";
@@ -69,6 +70,7 @@ const CONTROLLERS = [
   CommerceFilesController,
   CommerceInboxController,
   StoreInstallationsController,
+  MarketplaceApplicationsController,
   HealthController,
   AuthController,
   MeController,

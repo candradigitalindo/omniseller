@@ -1,3 +1,4 @@
+import { hkdfSync } from "node:crypto";
 import { z } from "zod";
 
 /**
@@ -15,6 +16,10 @@ const base = z.object({
   REDIS_CACHE_URL: z.url(),
   OTEL_EXPORTER_OTLP_ENDPOINT: z.url().optional(),
   SENTRY_DSN: z.string().optional(),
+  MARKETPLACE_APP_ENCRYPTION_KEY: z
+    .string()
+    .refine((v) => Buffer.from(v, "base64").length === 32, "must be 32 random bytes, base64")
+    .optional(),
 });
 
 /** omniseller_api: RLS enforced, cannot read marketplace tokens. */
@@ -175,6 +180,7 @@ const apiEnv = base
     ...apiRoleDb,
     ...publicWebUrl,
     ...shopeeLink,
+    PUBLIC_WEBHOOK_URL: z.url().optional(),
     ...tiktokLink,
     ...fileStorage,
     ...twoFactor,
@@ -313,6 +319,24 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
   }
   // An empty value in an env file means "not set" (optional marketplace keys, KMS outside AWS).
   const present = Object.fromEntries(Object.entries(source).filter(([, v]) => v !== undefined && v !== ""));
+  // Local development reuses existing infrastructure material through a one-way, separate domain.
+  // Workers receive only the derived application key, never the API's TOTP key.
+  if (
+    !present.MARKETPLACE_APP_ENCRYPTION_KEY &&
+    ["local", "test"].includes(source.NODE_ENV ?? "") &&
+    source.TOTP_ENCRYPTION_KEY &&
+    Buffer.from(source.TOTP_ENCRYPTION_KEY, "base64").length === 32
+  ) {
+    present.MARKETPLACE_APP_ENCRYPTION_KEY = Buffer.from(
+      hkdfSync(
+        "sha256",
+        Buffer.from(source.TOTP_ENCRYPTION_KEY, "base64"),
+        Buffer.alloc(0),
+        "omniseller marketplace application credentials v1",
+        32,
+      ),
+    ).toString("base64");
+  }
   const result = envSchema.safeParse(present);
   if (!result.success) {
     throw new InvalidEnvError(result.error.issues.map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`));

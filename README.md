@@ -37,24 +37,24 @@ pnpm db:migrate                # migrasi, fungsi, trigger, RLS, grant, seed, par
 pnpm dev                       # api :3000, webhook :3001, worker, scheduler
 ```
 
-Menghubungkan toko marketplace butuh kunci aplikasi dari Shopee Open Platform dan TikTok Shop Partner Center (`SHOPEE_*`, `TIKTOKSHOP_*` di `.env.local`; penjelasannya di `.env.example`). Tanpa kunci, marketplace itu tampil "belum dikonfigurasi". Push dan webhook hanya sampai ke mesin lokal lewat tunnel yang diarahkan ke port 3001 (`PUBLIC_WEBHOOK_URL`). Uji integrasi tidak butuh kunci sungguhan: memakai server marketplace tiruan.
+Setiap tenant dapat menyimpan aplikasi marketplace sendiri melalui **Toko Terhubung → Pengaturan marketplace**. Kredensial aplikasi tidak perlu diisi di `.env.local` untuk alur ini. Push dan webhook hanya sampai ke mesin lokal lewat tunnel yang diarahkan ke port 3001 (`PUBLIC_WEBHOOK_URL`). Uji integrasi tidak butuh kunci sungguhan: memakai transport marketplace tiruan bertanda tangan.
 
-### Koneksi marketplace belum diaktifkan
+### Kredensial marketplace per tenant
 
-Isi kredensial aplikasi yang sebenarnya di **`backend/.env.local`**, bukan di file environment frontend. Pengelola integrator mengatur aplikasi satu kali; tiap tenant kemudian menghubungkan toko melalui consent marketplace.
+Pengguna dengan izin `settings:store` dan cakupan seluruh toko/gudang bisnis mengisi kredensial melalui modal **Pengaturan marketplace**. Satu aplikasi per marketplace dipakai oleh toko dan akun creator/partner tenant tersebut, sesuai izin program yang diberikan platform.
 
-| Marketplace | Variabel yang harus disiapkan | Sumber |
+| Marketplace | Kolom pada pengaturan tenant | Sumber |
 |---|---|---|
-| Shopee | `SHOPEE_PARTNER_ID`, `SHOPEE_PARTNER_KEY` | Aplikasi di [Shopee Open Platform](https://open.shopee.com/) |
-| Tokopedia & Shop | `TIKTOKSHOP_SERVICE_ID`, `TIKTOKSHOP_APP_KEY`, `TIKTOKSHOP_APP_SECRET` | Aplikasi/layanan di [TikTok Shop Partner Center](https://partner.tiktokshop.com/) |
+| Shopee | Partner ID, Partner Key, pilihan Produksi/Sandbox | Aplikasi di [Shopee Open Platform](https://open.shopee.com/) |
+| Tokopedia & Shop | App Key, App Secret, Service ID | Aplikasi/layanan di [TikTok Shop Partner Center](https://partner.tiktokshop.com/) |
 
-Shopee baru ditawarkan oleh API setelah Partner ID diisi. Tokopedia & Shop memerlukan **Service ID** untuk tautan otorisasi seller; mengisi App Key/Secret saja belum mengaktifkan pilihan tersebut. Worker dan webhook juga membutuhkan key/secret agar penukaran token dan verifikasi dapat berjalan. Nilai contoh atau acak tidak dapat menghubungkan toko nyata.
+Secret disimpan terenkripsi, tidak dikembalikan oleh API dan tidak ditampilkan ulang pada formulir. Penyimpanan berlaku langsung tanpa restart backend. Putuskan seluruh koneksi toko dan akun creator/partner marketplace serta selesaikan otorisasi yang berjalan sebelum mengganti atau menghapus key. Penghapusan tidak otomatis beralih ke aplikasi bawaan pengelola.
 
-Setelah menyimpan konfigurasi, hentikan backend lama dan jalankan kembali `pnpm dev` dari `backend/` agar api, webhook, worker dan scheduler membaca konfigurasi baru. Tombol **Periksa ulang koneksi** pada dialog Hubungkan toko mengambil status terbaru tanpa menunggu cache lima menit. `pnpm start` membaca environment proses; perintah tersebut tidak otomatis memuat `.env.local` seperti runner `pnpm dev`.
+Setelah menyimpan, buka **Alamat callback** dan salin redirect/webhook persis ke konsol aplikasi developer. Webhook berbentuk `${PUBLIC_WEBHOOK_URL}/webhooks/{channel}/apps/{applicationId}`. Redirect Tokopedia & Shop menyertakan `?application_id=...` untuk mengikat instalasi App Store ke tenant yang tepat; pertahankan parameter ini saat mendaftarkannya. Lalu pilih **Hubungkan toko** dan berikan persetujuan OAuth. Tokopedia & Shop memerlukan **Service ID** selain App Key/Secret untuk tautan izin seller. Menyimpan key belum membuktikan validitas akun atau persetujuan program.
 
-Daftarkan redirect `${PUBLIC_WEB_URL}/integrasi/callback/shopee` dan `${PUBLIC_WEB_URL}/integrasi/callback/tiktokshop` pada konsol aplikasi masing-masing. Domain/protokol harus sesuai pengaturan platform; untuk pengujian lokal yang memerlukan HTTPS publik, gunakan domain tunnel yang sama pada `PUBLIC_WEB_URL` dan akses web app. `PUBLIC_WEBHOOK_URL` mengarah ke proses webhook port 3001. Kredensial sandbox harus memakai endpoint sandbox yang sesuai. Status tersedia hanya membuktikan konfigurasi dasar terbaca, bukan persetujuan program atau keberhasilan otorisasi akun.
+Domain/protokol callback harus sesuai ketentuan platform. Untuk pengujian lokal yang memerlukan HTTPS publik, gunakan domain tunnel pada `PUBLIC_WEB_URL` dan akses web app melalui domain itu. `PUBLIC_WEBHOOK_URL` mengarah ke proses webhook port 3001. Pilihan Sandbox Shopee menggunakan host sandbox resmi; akun uji Tokopedia & Shop mengikuti pengaturan uji Partner Center.
 
-Key/secret tetap di konfigurasi backend dan tidak dimasukkan ke chat, frontend atau Git.
+Environment tetap menyimpan konfigurasi infrastruktur: staging/produksi membutuhkan `MARKETPLACE_APP_ENCRYPTION_KEY` (32 byte acak, base64) yang konsisten pada api/webhook/worker dan disimpan bersama cadangan database. Lokal/test menurunkan kunci terpisah dari kunci TOTP yang sudah ada jika variabel tersebut kosong; jangan mengganti material enkripsi setelah menyimpan kredensial. `SHOPEE_*` dan `TIKTOKSHOP_*` tetap tersedia sebagai aplikasi bawaan opsional untuk tenant yang belum mempunyai pengaturan sendiri. Jangan memasukkan secret ke chat atau Git. Detail keputusan: [ADR-050](backend/docs/adr/0050-tenant-marketplace-applications.md).
 
 Pengujian:
 

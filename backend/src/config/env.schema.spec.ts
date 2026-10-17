@@ -199,6 +199,44 @@ describe("parseEnv", () => {
     expect(worker).not.toHaveProperty("TOTP_ENCRYPTION_KEY");
   });
 
+  it("derives a separate local application key consistently without giving workers the TOTP key", () => {
+    const api = parseEnv({
+      ...common,
+      APP_ROLE: "api",
+      DATABASE_URL: "postgres://a@localhost/db",
+      PUBLIC_WEB_URL: "http://localhost:3100",
+      FILE_STORAGE: "local",
+      ...totp,
+    });
+    const worker = parseEnv({
+      ...common,
+      APP_ROLE: "worker",
+      DATABASE_URL_WORKER: "postgres://w@localhost/db",
+      PUBLIC_WEB_URL: "http://localhost:3100",
+      PUBLIC_WEBHOOK_URL: "https://hooks.example.test",
+      FILE_STORAGE: "local",
+      EMAIL_TRANSPORT: "memory",
+      TOKEN_KEY_PROVIDER: "local",
+      TOKEN_LOCAL_MASTER_KEY: Buffer.alloc(32, 7).toString("base64"),
+      ...totp,
+    });
+    expect(Buffer.from(api.MARKETPLACE_APP_ENCRYPTION_KEY!, "base64")).toHaveLength(32);
+    expect(api.MARKETPLACE_APP_ENCRYPTION_KEY).not.toBe(totp.TOTP_ENCRYPTION_KEY);
+    expect(worker.MARKETPLACE_APP_ENCRYPTION_KEY).toBe(api.MARKETPLACE_APP_ENCRYPTION_KEY);
+    expect(worker).not.toHaveProperty("TOTP_ENCRYPTION_KEY");
+    expect(() =>
+      parseEnv({
+        ...common,
+        APP_ROLE: "api",
+        DATABASE_URL: "postgres://a@localhost/db",
+        PUBLIC_WEB_URL: "http://localhost:3100",
+        FILE_STORAGE: "local",
+        ...totp,
+        MARKETPLACE_APP_ENCRYPTION_KEY: "short",
+      }),
+    ).toThrow(/MARKETPLACE_APP_ENCRYPTION_KEY/);
+  });
+
   it("rejects an unknown role with a readable message", () => {
     expect(() => parseEnv({ ...common, APP_ROLE: "cron" })).toThrow(InvalidEnvError);
     expect(() => parseEnv({ ...common })).toThrow(/APP_ROLE must be one of/);

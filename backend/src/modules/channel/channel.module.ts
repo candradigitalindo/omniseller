@@ -14,6 +14,8 @@ import { ChannelSyncService } from "./channel-sync.service";
 import { CONNECTORS, ConnectorRegistry } from "./connector-registry";
 import { CredentialService } from "./credential.service";
 import { KeyRotationService } from "./key-rotation.service";
+import { MarketplaceApplicationsController } from "./marketplace-applications.controller";
+import { MarketplaceApplicationsService } from "./marketplace-applications.service";
 import { MarketplaceGateway } from "./marketplace-gateway";
 import { StoreAuthorizationService } from "./store-authorization.service";
 import { StoreConnectService } from "./store-connect.service";
@@ -30,8 +32,25 @@ export class ConnectorsModule {
   static forEnv(env: Env, fetchImpl?: typeof fetch): DynamicModule {
     return {
       module: ConnectorsModule,
-      providers: [{ provide: CONNECTORS, useValue: ConnectorRegistry.fromEnv(env, fetchImpl) }],
-      exports: [CONNECTORS],
+      providers: [
+        MarketplaceApplicationsService,
+        {
+          provide: CONNECTORS,
+          inject: [MarketplaceApplicationsService],
+          useFactory: (applications: MarketplaceApplicationsService) => {
+            let registry: ConnectorRegistry;
+            registry = ConnectorRegistry.fromEnv(env, fetchImpl).withTenants(
+              async (ctx, tx) => {
+                const custom = await applications.environment(ctx, tx);
+                return custom ? ConnectorRegistry.fromEnv(custom, fetchImpl) : registry;
+              },
+              (id, channel) => applications.owner(id, channel),
+            );
+            return registry;
+          },
+        },
+      ],
+      exports: [CONNECTORS, MarketplaceApplicationsService],
     };
   }
 }
@@ -76,6 +95,12 @@ export class ChannelWorkerModule {
 
 @Module({
   imports: [ChannelModule, SyncModule],
-  controllers: [ChannelsController, StoreAuthorizationsController, StoreInstallationsController, StoresController],
+  controllers: [
+    ChannelsController,
+    StoreAuthorizationsController,
+    StoreInstallationsController,
+    StoresController,
+    MarketplaceApplicationsController,
+  ],
 })
 export class ChannelHttpModule {}

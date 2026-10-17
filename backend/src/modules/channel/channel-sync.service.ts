@@ -2,8 +2,6 @@ import { Inject, Injectable } from "@nestjs/common";
 import type { MarketplaceWarehouse } from "@omniseller/connector-core";
 import { newId } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
-import { ENV } from "../../config/config.module";
-import type { Env } from "../../config/env.schema";
 import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, OUTBOX } from "../../infra/tokens";
@@ -13,6 +11,7 @@ import { SyncLogService } from "../sync/sync-log.service";
 import { channelWarehouseChanged } from "./channel.events";
 import { ChannelRepository } from "./channel.repository";
 import { CONNECTORS, type ConnectorRegistry } from "./connector-registry";
+import { MarketplaceApplicationsService } from "./marketplace-applications.service";
 import { MarketplaceGateway } from "./marketplace-gateway";
 
 export interface WarehouseSyncSummary {
@@ -38,7 +37,7 @@ export class ChannelSyncService {
     @Inject(CONNECTORS) private readonly connectors: ConnectorRegistry,
     @Inject(WarehousesService) private readonly warehouses: WarehousesService,
     @Inject(SyncLogService) private readonly syncLog: SyncLogService,
-    @Inject(ENV) private readonly env: Env,
+    @Inject(MarketplaceApplicationsService) private readonly applications: MarketplaceApplicationsService,
   ) {}
 
   /** The store, or null when it does not exist (a job that outlived its store does nothing). */
@@ -146,10 +145,10 @@ export class ChannelSyncService {
   async subscribeWebhooks(ctx: RequestContext, storeId: string, queueJobId?: string): Promise<string[] | null> {
     const store = await this.store(ctx, storeId);
     if (!store || !USABLE.has(store.status)) return null;
-    const connector = this.connectors.get(store.channel);
+    const connector = (await this.connectors.forTenant(ctx)).get(store.channel);
     const subscribe = connector.webhooks.subscribe;
     if (!subscribe) return null;
-    const address = `${"PUBLIC_WEBHOOK_URL" in this.env ? this.env.PUBLIC_WEBHOOK_URL : ""}/webhooks/${store.channel}`;
+    const address = await this.applications.webhookAddress(ctx, store.channel);
     return this.gateway.call(
       ctx,
       storeId,

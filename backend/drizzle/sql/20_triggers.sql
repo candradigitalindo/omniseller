@@ -220,3 +220,6 @@ SELECT ensure_trigger('affiliate_account','audit_trg',
  'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF name,status ON affiliate_account FOR EACH ROW EXECUTE FUNCTION audit_row()');
 SELECT ensure_trigger('affiliate_authorization','audit_trg',
  'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OF status ON affiliate_authorization FOR EACH ROW EXECUTE FUNCTION audit_row(''affiliate_authorization'',''state_hash'',''claim_id'',''claimed_at'',''external_principal_id'',''grant_access_token_enc'',''grant_refresh_token_enc'',''grant_dek_version'',''grant_access_expires_at'',''grant_refresh_expires_at'',''grant_scopes'')');
+
+SELECT ensure_trigger('marketplace_application','audit_trg',
+ 'CREATE TRIGGER audit_trg AFTER INSERT OR UPDATE OR DELETE ON marketplace_application FOR EACH ROW EXECUTE FUNCTION audit_row(''marketplace_application'',''secret_enc'',''partner_id'',''app_key'',''service_id'')');

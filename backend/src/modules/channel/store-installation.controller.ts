@@ -61,7 +61,7 @@ export class StoreInstallationsController {
     this.sameOrigin(req, true);
     const decision = await this.limiter.take(`store-install:ip:${clientIp(req)}`, RATE_RULES.loginPerIp);
     if (!decision.allowed) throw new RateLimitedError(decision.retryAfterSeconds);
-    const captured = await this.authorizations.captureInstallation(body.code);
+    const captured = await this.authorizations.captureInstallation(body.code, body.applicationId);
     res.cookie(INSTALLATION_COOKIE, captured.token, {
       httpOnly: true,
       sameSite: "lax",

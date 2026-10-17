@@ -149,7 +149,7 @@ export class AccountClosureService {
       closingAt: c.closingAt,
       purgeAfter: c.purgeAfter,
       closedBy,
-      revokeLinks: this.stores.revokeLinks(channels),
+      revokeLinks: await this.stores.revokeLinks(ctx, channels, tx),
       purgeAfterDays: PURGE_AFTER_DAYS,
     };
   }

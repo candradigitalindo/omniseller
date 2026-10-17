@@ -50,9 +50,13 @@ export class WebhookReceiver {
     channel: SupportedChannel,
     headers: Record<string, string | undefined>,
     rawBody: Buffer,
+    applicationId?: string,
   ): Promise<ReceiveResult> {
-    const connector = this.connectors.get(channel);
-    const url = `${this.env.PUBLIC_WEBHOOK_URL}/webhooks/${channel}`;
+    const application = applicationId ? await this.connectors.forApplication(applicationId, channel) : undefined;
+    if (applicationId && !application)
+      throw new UnauthorizedError("webhook.signature_invalid", "Tanda tangan webhook tidak valid.");
+    const connector = application?.connector ?? this.connectors.get(channel);
+    const url = `${this.env.PUBLIC_WEBHOOK_URL}/webhooks/${channel}${applicationId ? `/apps/${applicationId}` : ""}`;
     if (!connector.webhooks.verify({ url, headers, rawBody })) {
       log.warn({ channel, bytes: rawBody.length }, "webhook signature rejected");
       throw new UnauthorizedError("webhook.signature_invalid", "Tanda tangan webhook tidak valid.");
@@ -74,7 +78,8 @@ export class WebhookReceiver {
       const account = event.externalAccount;
       const shops = account ? [null] : event.externalShopIds.length ? event.externalShopIds : [null];
       for (const shop of shops) {
-        const eventId = shops.length > 1 ? `${event.eventId}:${shop}` : event.eventId;
+        const localEventId = shops.length > 1 ? `${event.eventId}:${shop}` : event.eventId;
+        const eventId = applicationId ? `${applicationId}:${localEventId}` : localEventId;
         const inboxId = newId();
         const persist = async (connection: Pick<Tx, "execute">) => {
           const owner = account
@@ -82,12 +87,27 @@ export class WebhookReceiver {
             : shop
               ? await this.resolveStore(channel, shop, connection)
               : null;
+          if (application && owner && owner.tenantId !== application.tenantId)
+            throw new UnauthorizedError("webhook.signature_invalid", "Tanda tangan webhook tidak valid.");
+          if (owner) {
+            const routed = await connection.execute<{ application_id: string }>(
+              sql`SELECT application_id FROM resolve_tenant_marketplace_application(${owner.tenantId},${channel})`,
+            );
+            const expected = routed.rows[0]?.application_id;
+            if ((expected ?? null) !== (applicationId ?? null)) {
+              if (application)
+                throw new UnauthorizedError("webhook.signature_invalid", "Tanda tangan webhook tidak valid.");
+              result.unknownShop++;
+              return { inserted: false, owner: null };
+            }
+          }
           const inserted = await connection.execute<{ id: string }>(sql`
-            INSERT INTO webhook_inbox (id,source,event_id,event_type,external_shop_id,tenant_id,store_id,
+            INSERT INTO webhook_inbox (id,source,event_id,event_type,external_shop_id,tenant_id,store_id,application_id,
                                        external_account_kind,external_account_id,account_id,occurred_at,
                                        signature_valid,headers,payload)
-            VALUES (${inboxId},${channel},${eventId},${event.code},${shop},${owner?.tenantId ?? null},
+            VALUES (${inboxId},${channel},${eventId},${event.code},${shop},${owner?.tenantId ?? application?.tenantId ?? null},
                     ${owner && "storeId" in owner ? owner.storeId : null},
+                    ${applicationId ?? null},
                     ${account?.kind ?? null},${account?.id ?? null},
                     ${owner && "accountId" in owner ? owner.accountId : null},${account ? event.occurredAt : null},
                     true,${JSON.stringify(kept)}::jsonb,${JSON.stringify(payload)}::jsonb)

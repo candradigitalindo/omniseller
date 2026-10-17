@@ -44,14 +44,15 @@ export class ChannelsController {
 
   /** Marketplaces a store can be connected to, and whether OmniSeller is set up for each. */
   @Get()
-  @Isolation("global")
+  @Isolation("self")
   @ZodResponse({ type: ChannelListDto })
-  list() {
+  async list(@Ctx() ctx: RequestContext) {
+    const connectors = await this.connectors.forTenant(ctx);
     return {
       items: SUPPORTED_CHANNELS.map((id) => ({
         id,
         name: MANIFESTS[id].displayName,
-        available: this.connectors.isConfigured(id),
+        available: connectors.isConfigured(id),
         regions: [...MANIFESTS[id].supportedRegions],
       })),
     };

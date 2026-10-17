@@ -68,7 +68,7 @@ export class MarketplaceGateway {
         async () => {
           let { store, shop, scopes } = await this.credentials.forShop(ctx, storeId);
           seen = store;
-          const connector = this.connectors.get(store.channel);
+          const connector = (await this.connectors.forTenant(ctx)).get(store.channel);
           const gate = {
             limiter: this.limiter,
             key: `mp:${connector.manifest.id}:${storeId}`,
@@ -115,7 +115,7 @@ export class MarketplaceGateway {
     summarize?: (result: T) => Record<string, unknown>,
     channel: "tiktokshop" | "shopee" = "tiktokshop",
   ): Promise<T> {
-    const connector = this.connectors.get(channel);
+    const connector = (await this.connectors.forTenant(ctx)).get(channel);
     return this.syncLog.run(
       ctx,
       { ...entry, storeId: null },

@@ -1,7 +1,9 @@
 import type { ConnectorManifest, HttpConfig, MarketplaceConnector } from "@omniseller/connector-core";
 import { createShopeeConnector, SHOPEE_MANIFEST } from "@omniseller/connector-shopee";
 import { createTiktokShopConnector, TIKTOKSHOP_MANIFEST } from "@omniseller/connector-tiktokshop";
+import { type RequestContext, systemContext } from "../../common/context/request-context";
 import type { Env } from "../../config/env.schema";
+import type { Tx } from "../../db/client";
 import { connectorCallObserver, connectorRateFeedback, connectorRequestGate } from "../sync/connector-calls";
 import { channelNotConfigured } from "./channel.errors";
 
@@ -38,8 +40,31 @@ function num(env: Env, key: string): number | undefined {
 export class ConnectorRegistry {
   private readonly connectors = new Map<SupportedChannel, MarketplaceConnector>();
 
-  constructor(entries: [SupportedChannel, MarketplaceConnector][] = []) {
+  constructor(
+    entries: [SupportedChannel, MarketplaceConnector][] = [],
+    private readonly tenantResolver?: (ctx: RequestContext, tx?: Tx) => Promise<ConnectorRegistry>,
+    private readonly applicationOwner?: (id: string, channel: SupportedChannel) => Promise<string | undefined>,
+  ) {
     for (const [ch, c] of entries) this.connectors.set(ch, c);
+  }
+
+  withTenants(
+    resolve: (ctx: RequestContext, tx?: Tx) => Promise<ConnectorRegistry>,
+    owner: (id: string, channel: SupportedChannel) => Promise<string | undefined>,
+  ) {
+    return new ConnectorRegistry([...this.connectors], resolve, owner);
+  }
+  async forTenant(ctx: RequestContext, tx?: Tx): Promise<ConnectorRegistry> {
+    return this.tenantResolver ? this.tenantResolver(ctx, tx) : this;
+  }
+  async ownerOfApplication(id: string, channel: SupportedChannel) {
+    return this.applicationOwner?.(id, channel);
+  }
+  async forApplication(id: string, channel: SupportedChannel) {
+    const tenantId = await this.ownerOfApplication(id, channel);
+    if (!tenantId) return undefined;
+    const registry = await this.forTenant(systemContext(tenantId));
+    return { tenantId, connector: registry.get(channel) };
   }
 
   static fromEnv(env: Env, fetchImpl?: typeof fetch): ConnectorRegistry {

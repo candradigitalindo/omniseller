@@ -16,6 +16,7 @@ export interface InstallationReview {
 }
 
 interface Receipt {
+  applicationId?: string;
   sealedCode?: string;
   codeHash: string;
   expiresAt: number;
@@ -65,16 +66,20 @@ export class StoreInstallationStore {
     return receipt;
   }
 
-  async capture(code: string): Promise<{ token: string; expiresAt: Date }> {
+  async capture(code: string, applicationId?: string): Promise<{ token: string; expiresAt: Date }> {
     const token = newSecretToken();
     const expiresAt = new Date(Date.now() + INSTALLATION_TTL_SECONDS * 1000);
     const receipt: Receipt = {
+      ...(applicationId ? { applicationId } : {}),
       sealedCode: sealAesGcm(this.key, Buffer.from(code), this.receiptKey(token)).toString("base64"),
-      codeHash: hashToken(code),
+      codeHash: applicationId ? hashToken(`${applicationId}:${code}`) : hashToken(code),
       expiresAt: expiresAt.getTime(),
     };
     await this.redis.set(this.receiptKey(token), JSON.stringify(receipt), "EX", INSTALLATION_TTL_SECONDS);
     return { token, expiresAt };
+  }
+  async applicationId(token: string): Promise<string | undefined> {
+    return (await this.receipt(token)).applicationId;
   }
 
   async challenge(token: string, session: string): Promise<{ confirmationToken: string; expiresAt: Date }> {
@@ -92,7 +97,7 @@ export class StoreInstallationStore {
     tenantId: string;
     userId: string;
     authorizationId: string;
-  }): Promise<{ authorizationId: string; code?: string; expiresAt: Date }> {
+  }): Promise<{ authorizationId: string; code?: string; expiresAt: Date; applicationId?: string }> {
     const receipt = await this.receipt(input.token);
     if (!looksLikeSecretToken(input.confirmationToken)) throw authorizationInvalid();
     const authorizationId = await this.redis.eval(
@@ -109,6 +114,7 @@ export class StoreInstallationStore {
     if (typeof authorizationId !== "string") throw authorizationInvalid();
     return {
       authorizationId,
+      ...(receipt.applicationId ? { applicationId: receipt.applicationId } : {}),
       ...(receipt.sealedCode
         ? {
             code: openAesGcm(

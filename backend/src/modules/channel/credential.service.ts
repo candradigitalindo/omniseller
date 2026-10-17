@@ -135,7 +135,7 @@ export class CredentialService {
       if (current === null) return "not_connected";
       if (current === "fresh") return "fresh";
 
-      const connector = this.connectors.get(current.store.channel);
+      const connector = (await this.connectors.forTenant(ctx)).get(current.store.channel);
       let tokens: TokenSet;
       try {
         if (

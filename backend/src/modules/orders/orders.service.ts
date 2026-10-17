@@ -670,7 +670,7 @@ export class OrdersService {
     if (!SELLER_CANCELLABLE.has(o.status) || o.fulfillmentMode === "marketplace") return [];
     if (isManualChannel(o.channel)) return MANUAL_CANCEL_REASONS.map((r) => ({ ...r }));
     try {
-      return this.connectors.get(o.channel).orders.cancelReasons(o.externalStatus ?? "");
+      return (await this.connectors.forTenant(ctx)).get(o.channel).orders.cancelReasons(o.externalStatus ?? "");
     } catch {
       return [];
     }

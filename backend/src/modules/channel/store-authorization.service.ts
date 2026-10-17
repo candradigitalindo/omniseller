@@ -25,6 +25,7 @@ import {
 import { storeAuthorizationReceived, storeInstallationSelected } from "./channel.events";
 import { ChannelRepository, type StoreAuthorizationRow } from "./channel.repository";
 import { CONNECTORS, type ConnectorRegistry, isSupportedChannel } from "./connector-registry";
+import { lockMarketplaceApplication, MarketplaceApplicationsService } from "./marketplace-applications.service";
 import { type InstallationReview, StoreInstallationStore } from "./store-installation.store";
 import { isManualChannel, publicWebUrl, StoresService } from "./stores.service";
 
@@ -61,6 +62,7 @@ export class StoreAuthorizationService {
     @Inject(TenantsService) private readonly tenants: TenantsService,
     @Inject(ENV) private readonly env: Env,
     @Inject(REDIS_CACHE) private readonly redis: Redis,
+    @Inject(MarketplaceApplicationsService) private readonly applications: MarketplaceApplicationsService,
   ) {}
 
   private withStatus(row: StoreAuthorizationRow): AuthorizationView {
@@ -81,13 +83,18 @@ export class StoreAuthorizationService {
       throw new ForbiddenError("auth.permission_denied", "Anda tidak memiliki izin mengelola toko.");
   }
 
-  async captureInstallation(code: string): Promise<{ token: string; expiresAt: Date }> {
-    this.connectors.get("tiktokshop");
-    return this.installations().capture(code);
+  async captureInstallation(code: string, applicationId?: string): Promise<{ token: string; expiresAt: Date }> {
+    if (applicationId) {
+      if (!(await this.connectors.ownerOfApplication(applicationId, "tiktokshop"))) throw authorizationInvalid();
+    } else this.connectors.get("tiktokshop");
+    return this.installations().capture(code, applicationId);
   }
 
   async inspectInstallation(ctx: RequestContext, receipt: string, session: string) {
     this.interactive(ctx, session);
+    const applicationId = await this.installations().applicationId(receipt);
+    if ((applicationId ?? null) !== ((await this.applications.id(ctx, "tiktokshop")) ?? null))
+      throw authorizationInvalid();
     return this.installations().challenge(receipt, session);
   }
 
@@ -107,6 +114,9 @@ export class StoreAuthorizationService {
       authorizationId: newId(),
     });
     const view = await withTenantTx(this.db, ctx, async (tx) => {
+      await lockMarketplaceApplication(tx, ctx.tenantId, "tiktokshop");
+      if ((claim.applicationId ?? null) !== ((await this.applications.id(ctx, "tiktokshop", tx)) ?? null))
+        throw authorizationInvalid();
       // Concurrent confirmations and response-loss retries share one durable attempt and one outbox event.
       await tx.execute(
         sql`SELECT pg_advisory_xact_lock(hashtextextended(${`store-install:${claim.authorizationId}`}, 0))`,
@@ -117,7 +127,7 @@ export class StoreAuthorizationService {
         return this.withStatus(existing);
       }
       if (!claim.code || claim.expiresAt.getTime() <= Date.now()) throw authorizationInvalid();
-      this.connectors.get("tiktokshop");
+      (await this.connectors.forTenant(ctx, tx)).get("tiktokshop");
       // Verification creates no stores. At quota the verified identity may still reconnect an existing
       // shop; the worker checks the live quota while locking the tenant before each actual connection.
       await this.repo.insertAuthorization(tx, {
@@ -219,7 +229,8 @@ export class StoreAuthorizationService {
         if (store.channel !== channel) throw reauthorizeChannelMismatch();
       }
       // Checked after the store so that another tenant's store id answers 404 whatever is configured.
-      const connector = this.connectors.get(channel);
+      await lockMarketplaceApplication(tx, ctx.tenantId, channel);
+      const connector = (await this.connectors.forTenant(ctx, tx)).get(channel);
       if (!input.storeId) {
         // a new store counts against the plan (backend doc 8.32); reconnecting never does
         const plan = await this.tenants.planIn(tx, ctx);
@@ -268,6 +279,8 @@ export class StoreAuthorizationService {
     },
   ): Promise<AuthorizationView> {
     return withTenantTx(this.db, ctx, async (tx) => {
+      // An attempt crossing its expiry boundary must not race a credential replacement.
+      await lockMarketplaceApplication(tx, ctx.tenantId, input.channel);
       // RLS limits the lookup to the caller's tenant: another tenant's state is simply not found.
       const row = await this.repo.authorizationByStateHash(tx, hashToken(input.state), true);
       if (!row || row.channel !== input.channel || ctx.actor.type !== "user" || row.requestedBy !== ctx.actor.id)

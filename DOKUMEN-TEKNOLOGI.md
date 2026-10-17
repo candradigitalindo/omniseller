@@ -926,8 +926,9 @@ marketplace/
 | `MEILISEARCH_URL`, `MEILISEARCH_KEY` | api, worker | |
 | `FILE_STORAGE`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_BUCKET_DOCUMENTS` | api, worker | `FILE_STORAGE=r2` (default) memakai R2, atau MinIO lokal lewat `R2_ENDPOINT`; `local` dengan `FILE_STORAGE_LOCAL_DIR` hanya untuk local dan test |
 | `TOKEN_KEY_PROVIDER`, `KMS_KEY_ID_TOKENS`, `AWS_REGION` | worker | Envelope encryption; tidak pernah diberikan ke api. `TOKEN_LOCAL_MASTER_KEY` hanya untuk local dan test |
-| `PUBLIC_WEBHOOK_URL` | webhook, worker | Origin publik proses webhook; Shopee menandatangani URL callback lengkap |
-| `SHOPEE_PARTNER_ID` (api, webhook, worker), `SHOPEE_PARTNER_KEY` (webhook, worker), `SHOPEE_API_BASE_URL`, `SHOPEE_AUTH_BASE_URL` | lihat kolom kiri | Kosong berarti marketplace belum dikonfigurasi |
+| `PUBLIC_WEBHOOK_URL` | api, webhook, worker | Origin publik proses webhook; api menampilkan callback tenant, Shopee menandatangani URL lengkap |
+| `MARKETPLACE_APP_ENCRYPTION_KEY` | api, webhook, worker | 32 byte base64, kunci infrastruktur untuk aplikasi tenant; produksi khusus, lokal/test dapat memakai derivasi HKDF terpisah. Bukan API key marketplace (ADR-050) |
+| `SHOPEE_PARTNER_ID` (api, webhook, worker), `SHOPEE_PARTNER_KEY` (webhook, worker), `SHOPEE_API_BASE_URL`, `SHOPEE_AUTH_BASE_URL` | lihat kolom kiri | Bawaan opsional; tenant mengisi aplikasi sendiri melalui UI. Kosong dan tanpa aplikasi tenant berarti belum dikonfigurasi |
 | `TIKTOKSHOP_SERVICE_ID` (api), `TIKTOKSHOP_APP_KEY`, `TIKTOKSHOP_APP_SECRET` (webhook, worker), `TIKTOKSHOP_AUTHORIZE_URL`, `TIKTOKSHOP_API_BASE_URL`, `TIKTOKSHOP_AUTH_BASE_URL` | lihat kolom kiri | Sama |
 | `SHOPEE_VARIANT_DELAY_MS`, `PRODUCT_IMAGE_HOSTS` | worker | Salin listing: jeda Shopee antara membuat item dan variasinya (bawaan 5000 ms), dan host gambar tambahan selain host gambar marketplace |
 | `LAZADA_*`, `BLIBLI_*` | webhook, worker | Per marketplace, pola yang sama untuk TikTok Shop, Lazada, Blibli |
@@ -1064,6 +1065,10 @@ Kontrak diturunkan dari data dokumentasi yang dipin; kode pihak ketiga tidak dij
 Shopee `accounts` memakai user OAuth resmi dan `externalAccountId=user_id` untuk Video/LIVE. Field channel/program/regionVerified menjaga pemisahan principal; ID hanya target deklarasi karena region user tidak tersedia dari provider. Program aplikasi tidak dijadikan scope OAuth. Video seller/creator memakai protokol berbeda, sedangkan push key/URL LIVE hanya dikirim sebagai artifact OBS privat berizin tulis tambahan. Review schema bertingkat memiliki hash sumber dan tes kondisi wajib. Array query TikTok memakai encoding per endpoint; mapper Tokopedia GET JSON body hanya diizinkan pada path yang ditinjau. Field file terpisah menjaga binding dua PDF retur.
 
 Inbox `/commerce/pesan` menjadi antarmuka bisnis atas CommerceService/outbox, tanpa ledger chat atau akses token baru. App Store callback tanpa state ditangkap sebelum login, memakai receipt terenkripsi/HttpOnly dan consent tenant/sesi; preview identitas mendahului binding toko terpilih. Kuota diperiksa dengan lock tenant. Gate HTTP menggunakan Redis bersama untuk pacing aplikasi/principal/endpoint, menanggapi throttling/Retry-After serta memulihkan laju bertahap. Feedback dibatasi waktu dan tanpa data privat; hasil perubahan yang tidak pasti tidak dikirim ulang otomatis. Detail implementasi dan konsekuensi berada pada backend 8.39–8.43 dan [ADR-049](backend/docs/adr/0049-commerce-contract-completion.md).
+
+### 26.4.4 Aplikasi developer milik tenant — ADR-050
+
+Kredensial aplikasi marketplace dapat disimpan melalui UI tenant, terpisah dari token OAuth. `marketplace_application` menyimpan satu aplikasi per channel/tenant dengan RLS, revision dan AES-GCM terikat tenant/channel/record. Kunci infrastruktur `MARKETPLACE_APP_ENCRYPTION_KEY` 32 byte base64 dibagikan api/webhook/worker; lokal/test dapat memakai HKDF terpisah dari material TOTP existing. Environment marketplace lama hanya menjadi bawaan opsional. API tidak membuka secret; worker/webhook memakai identitas tenant untuk exchange/refresh, commerce dan signature. Penggantian/penghapusan memerlukan semua koneksi dan otorisasi selesai diputus. Webhook serta receipt instalasi App Store terikat application ID dan tenant; OAuth/izin program tetap wajib. Lihat backend 8.44 dan [ADR-050](backend/docs/adr/0050-tenant-marketplace-applications.md).
 
 ### 26.5 Referensi
 

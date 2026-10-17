@@ -60,7 +60,7 @@ export class SyncRepository {
   }
 
   /** Verified creator revocations also fence a staged grant before it creates/reauthorizes an account. */
-  async accountRevokedSince(tx: Tx, kind: string, externalId: string, authorizedAt: Date) {
+  async accountRevokedSince(tx: Tx, kind: string, externalId: string, authorizedAt: Date, applicationId?: string) {
     // The provider reports cancel_time in seconds. A same-second cancellation wins conservatively.
     const since = new Date(Math.floor(authorizedAt.getTime() / 1000) * 1000);
     const rows = await tx
@@ -73,6 +73,7 @@ export class SyncRepository {
           eq(webhookInbox.eventType, "CREATOR_DEAUTHORIZATION"),
           eq(webhookInbox.externalAccountKind, kind),
           eq(webhookInbox.externalAccountId, externalId),
+          applicationId ? eq(webhookInbox.applicationId, applicationId) : isNull(webhookInbox.applicationId),
           sql`${webhookInbox.occurredAt} >= ${since}`,
         ),
       )

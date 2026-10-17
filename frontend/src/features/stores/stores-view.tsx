@@ -29,7 +29,8 @@ import { api, unwrap } from "@/lib/api/client";
 import { errorMessage } from "@/lib/api/errors";
 import { formatRelative } from "@/lib/format";
 import { leaveTo } from "@/lib/navigate";
-import { useCan, useTimeZone } from "@/lib/session";
+import { useCan, useSession, useTimeZone } from "@/lib/session";
+import { MarketplaceSettings } from "./marketplace-settings";
 import { type MarketplaceChannel, needsReconnect, STORE_TONE, type Store, sortStores } from "./store-meta";
 
 /** Sends the browser to the marketplace's consent page; it comes back to /integrasi/callback/{channel}. */
@@ -50,6 +51,7 @@ export function StoresView() {
   const t = useTranslations("stores");
   const can = useCan();
   const [connecting, setConnecting] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const stores = useQuery({ queryKey: ["stores"], queryFn: () => unwrap(api.GET("/v1/stores")) });
   const manage = can("settings:store");
   const list = sortStores(stores.data?.items ?? []);
@@ -61,10 +63,16 @@ export function StoresView() {
         description={t("subtitle")}
         actions={
           manage ? (
-            <Button onClick={() => setConnecting(true)}>
-              <Plug aria-hidden />
-              {t("connect")}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => setSettingsOpen(true)}>
+                <Settings2 aria-hidden />
+                {t("marketplaceSettings")}
+              </Button>
+              <Button onClick={() => setConnecting(true)}>
+                <Plug aria-hidden />
+                {t("connect")}
+              </Button>
+            </div>
           ) : null
         }
       />
@@ -94,7 +102,15 @@ export function StoresView() {
           ))}
         </ul>
       )}
-      <ConnectDialog open={connecting} onClose={() => setConnecting(false)} />
+      <ConnectDialog
+        open={connecting}
+        onClose={() => setConnecting(false)}
+        onSettings={() => {
+          setConnecting(false);
+          setSettingsOpen(true);
+        }}
+      />
+      <MarketplaceSettings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </>
   );
 }
@@ -186,7 +202,7 @@ type Step =
   | { kind: "manual" };
 
 /** The connect wizard of L40: choose a marketplace (or a manual sales channel), read what happens, go. */
-function ConnectDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function ConnectDialog({ open, onClose, onSettings }: { open: boolean; onClose: () => void; onSettings: () => void }) {
   const [step, setStep] = useState<Step>({ kind: "choose" });
   const close = () => {
     onClose();
@@ -196,7 +212,7 @@ function ConnectDialog({ open, onClose }: { open: boolean; onClose: () => void }
     <Dialog open={open} onOpenChange={(v) => !v && close()}>
       <DialogContent className="sm:max-w-[560px]">
         {step.kind === "choose" ? (
-          <ChooseChannel onPick={setStep} />
+          <ChooseChannel onPick={setStep} onSettings={onSettings} />
         ) : step.kind === "marketplace" ? (
           <ConfirmMarketplace channel={step.channel} name={step.name} onBack={() => setStep({ kind: "choose" })} />
         ) : (
@@ -207,10 +223,11 @@ function ConnectDialog({ open, onClose }: { open: boolean; onClose: () => void }
   );
 }
 
-function ChooseChannel({ onPick }: { onPick: (step: Step) => void }) {
+function ChooseChannel({ onPick, onSettings }: { onPick: (step: Step) => void; onSettings: () => void }) {
   const t = useTranslations("stores");
+  const tenantId = useSession().tenant.id;
   const channels = useQuery({
-    queryKey: ["channels"],
+    queryKey: ["channels", tenantId],
     queryFn: () => unwrap(api.GET("/v1/channels")),
     staleTime: 300_000,
   });
@@ -250,6 +267,10 @@ function ChooseChannel({ onPick }: { onPick: (step: Step) => void }) {
       {channels.data?.items.some((channel) => !channel.available) ? (
         <div className="grid gap-3 rounded-xl border border-warning/20 bg-warning/5 p-3 text-sm text-text-700">
           <p>{t("configurationHint")}</p>
+          <Button type="button" onClick={onSettings} className="w-full sm:w-fit">
+            <Settings2 aria-hidden />
+            {t("marketplaceSettings")}
+          </Button>
           <Button
             type="button"
             variant="outline"
