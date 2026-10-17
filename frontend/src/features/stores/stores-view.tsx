@@ -247,6 +247,22 @@ function ChooseChannel({ onPick }: { onPick: (step: Step) => void }) {
           </li>
         </ul>
       )}
+      {channels.data?.items.some((channel) => !channel.available) ? (
+        <div className="grid gap-3 rounded-xl border border-warning/20 bg-warning/5 p-3 text-sm text-text-700">
+          <p>{t("configurationHint")}</p>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full sm:w-fit"
+            onClick={() => channels.refetch()}
+            loading={channels.isFetching}
+            loadingLabel={t("checkingChannels")}
+          >
+            <RefreshCw aria-hidden />
+            {t("recheckChannels")}
+          </Button>
+        </div>
+      ) : null}
     </>
   );
 }

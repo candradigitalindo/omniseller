@@ -39,6 +39,23 @@ pnpm dev                       # api :3000, webhook :3001, worker, scheduler
 
 Menghubungkan toko marketplace butuh kunci aplikasi dari Shopee Open Platform dan TikTok Shop Partner Center (`SHOPEE_*`, `TIKTOKSHOP_*` di `.env.local`; penjelasannya di `.env.example`). Tanpa kunci, marketplace itu tampil "belum dikonfigurasi". Push dan webhook hanya sampai ke mesin lokal lewat tunnel yang diarahkan ke port 3001 (`PUBLIC_WEBHOOK_URL`). Uji integrasi tidak butuh kunci sungguhan: memakai server marketplace tiruan.
 
+### Koneksi marketplace belum diaktifkan
+
+Isi kredensial aplikasi yang sebenarnya di **`backend/.env.local`**, bukan di file environment frontend. Pengelola integrator mengatur aplikasi satu kali; tiap tenant kemudian menghubungkan toko melalui consent marketplace.
+
+| Marketplace | Variabel yang harus disiapkan | Sumber |
+|---|---|---|
+| Shopee | `SHOPEE_PARTNER_ID`, `SHOPEE_PARTNER_KEY` | Aplikasi di [Shopee Open Platform](https://open.shopee.com/) |
+| Tokopedia & Shop | `TIKTOKSHOP_SERVICE_ID`, `TIKTOKSHOP_APP_KEY`, `TIKTOKSHOP_APP_SECRET` | Aplikasi/layanan di [TikTok Shop Partner Center](https://partner.tiktokshop.com/) |
+
+Shopee baru ditawarkan oleh API setelah Partner ID diisi. Tokopedia & Shop memerlukan **Service ID** untuk tautan otorisasi seller; mengisi App Key/Secret saja belum mengaktifkan pilihan tersebut. Worker dan webhook juga membutuhkan key/secret agar penukaran token dan verifikasi dapat berjalan. Nilai contoh atau acak tidak dapat menghubungkan toko nyata.
+
+Setelah menyimpan konfigurasi, hentikan backend lama dan jalankan kembali `pnpm dev` dari `backend/` agar api, webhook, worker dan scheduler membaca konfigurasi baru. Tombol **Periksa ulang koneksi** pada dialog Hubungkan toko mengambil status terbaru tanpa menunggu cache lima menit. `pnpm start` membaca environment proses; perintah tersebut tidak otomatis memuat `.env.local` seperti runner `pnpm dev`.
+
+Daftarkan redirect `${PUBLIC_WEB_URL}/integrasi/callback/shopee` dan `${PUBLIC_WEB_URL}/integrasi/callback/tiktokshop` pada konsol aplikasi masing-masing. Domain/protokol harus sesuai pengaturan platform; untuk pengujian lokal yang memerlukan HTTPS publik, gunakan domain tunnel yang sama pada `PUBLIC_WEB_URL` dan akses web app. `PUBLIC_WEBHOOK_URL` mengarah ke proses webhook port 3001. Kredensial sandbox harus memakai endpoint sandbox yang sesuai. Status tersedia hanya membuktikan konfigurasi dasar terbaca, bukan persetujuan program atau keberhasilan otorisasi akun.
+
+Key/secret tetap di konfigurasi backend dan tidak dimasukkan ke chat, frontend atau Git.
+
 Pengujian:
 
 ```bash

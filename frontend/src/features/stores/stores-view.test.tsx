@@ -114,6 +114,40 @@ describe("StoresView", () => {
     await waitFor(() => expect(calls.find((c) => c.path === "/v1/stores/manual")?.body).toEqual({ name: "WhatsApp" }));
   });
 
+  it("rechecks unconfigured channels and uses fresh availability before starting seller consent", async () => {
+    let configured = false;
+    const authorizeUrl = "https://open.shopee.com/auth?partner_id=123&state=test-state";
+    const calls = mockApi({
+      "GET /v1/stores": () => ({ items: [] }),
+      "GET /v1/channels": () => ({
+        items: [
+          { id: "shopee", name: "Shopee", available: configured, regions: ["ID"] },
+          { id: "tiktokshop", name: "Tokopedia & Shop", available: configured, regions: ["ID"] },
+        ],
+      }),
+      "POST /v1/store-authorizations": () => ({ authorizeUrl }),
+    });
+    const user = userEvent.setup();
+    renderApp(<StoresView />);
+    await user.click((await screen.findAllByRole("button", { name: "Hubungkan toko" }))[0]!);
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("button", { name: /Shopee/ })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: /Tokopedia & Shop/ })).toBeDisabled();
+    expect(within(dialog).getByText(/Pengelola aplikasi perlu menyiapkan kredensial/)).toBeInTheDocument();
+    expect(calls.some((call) => call.method === "POST")).toBe(false);
+
+    configured = true;
+    await user.click(within(dialog).getByRole("button", { name: "Periksa ulang koneksi" }));
+    await waitFor(() => expect(within(dialog).getByRole("button", { name: /Shopee/ })).toBeEnabled());
+    expect(within(dialog).getByRole("button", { name: /Tokopedia & Shop/ })).toBeEnabled();
+    expect(calls.filter((call) => call.path === "/v1/channels")).toHaveLength(2);
+    expect(within(dialog).queryByRole("button", { name: "Periksa ulang koneksi" })).toBeNull();
+    await user.click(within(dialog).getByRole("button", { name: /Shopee/ }));
+    await user.click(within(dialog).getByRole("button", { name: "Lanjut ke Shopee" }));
+    await waitFor(() => expect(leaveTo).toHaveBeenCalledWith(authorizeUrl));
+    expect(calls.find((call) => call.path === "/v1/store-authorizations")?.body).toEqual({ channel: "shopee" });
+  });
+
   it("lets people without settings:store look but not change", async () => {
     mockApi({ "GET /v1/stores": () => ({ items: stores }) });
     renderApp(<StoresView />, { me: testMe(["order:read"]) });
