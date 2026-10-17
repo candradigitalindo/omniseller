@@ -1,5 +1,6 @@
 import type { INestApplication } from "@nestjs/common";
 import type { OpenAPIObject } from "@nestjs/swagger";
+import { TIKTOK_COMMERCE_OPERATIONS } from "@omniseller/connector-tiktokshop";
 import { newId, PERMISSION_CODES } from "@omniseller/shared";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -51,6 +52,19 @@ const PATH_PARAMS: Record<string, string> = {
 
 /** Bodies for mutating operations, keyed by operationId. `ids` holds A's fixture ids and B's own ids. */
 const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: string; aState: string }) => object> = {
+  CommerceController_request: ({ a: ids }) => ({
+    operationId: TIKTOK_COMMERCE_OPERATIONS.find(
+      (operation) => operation.principalKind === "creator" && operation.available,
+    )!.id,
+    principalId: ids.affiliate_account!,
+    input: {},
+  }),
+  CommerceFilesController_upload: ({ a: ids }) => ({
+    operationId: TIKTOK_COMMERCE_OPERATIONS.find(
+      (operation) => operation.fields.some((field) => field.type === "file") && operation.available,
+    )!.id,
+    principalId: ids.affiliate_account!,
+  }),
   AffiliateAccountsController_rename: () => ({ name: "Penyusup" }),
   AffiliateAccountsController_disconnect: () => ({}),
   AffiliateAccountsController_refresh: () => ({}),
@@ -469,6 +483,14 @@ beforeAll(async () => {
     await tx.execute(sql`INSERT INTO affiliate_account(id,tenant_id,kind,external_principal_id,name)
       VALUES (${id},${tenantId},'creator',${newId()},'Creator A')`);
     fixtures.affiliate_account = { id };
+    fixtures.commerce_principal = { id };
+    const requestId = newId();
+    const operationId = TIKTOK_COMMERCE_OPERATIONS.find(
+      (operation) => operation.principalKind === "creator" && operation.available,
+    )!.id;
+    await tx.execute(sql`INSERT INTO commerce_operation(id,tenant_id,operation_id,principal_kind,account_id,requested_by,is_write,input,expires_at)
+      VALUES (${requestId},${tenantId},${operationId},'creator',${id},${a.me.user.id},false,'{}'::jsonb,now()+interval '1 day')`);
+    fixtures.commerce_operation = { id: requestId };
   });
   const affiliateStart = await a.c.post("/v1/affiliate/authorizations", { kind: "creator" });
   expect(affiliateStart.status).toBe(201);

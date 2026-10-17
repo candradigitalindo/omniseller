@@ -30,27 +30,41 @@ export class WebhookInboxService {
   async process(ctx: RequestContext, inboxId: string, consumers: WebhookConsumers, run: JobRun): Promise<InboxOutcome> {
     const row = await withTenantTx(this.db, ctx, (tx) => this.repo.inboxRow(tx, inboxId));
     // The inbox is global: a row of another tenant is never touched from this tenant's job.
-    if (!row || row.processedAt || row.tenantId !== ctx.tenantId || !row.storeId) return "not_found";
-    const storeId = row.storeId;
+    if (!row || row.processedAt || row.tenantId !== ctx.tenantId || (!row.storeId && !row.accountId))
+      return "not_found";
     try {
       const [event] = this.connectors.get(row.source).webhooks.parse(Buffer.from(JSON.stringify(row.payload)));
-      const list = event ? (consumers[event.kind] ?? []) : [];
-      if (event) {
-        for (const consume of list) {
+      let consumed = 0;
+      if (event?.kind === "account.authorization_revoked" && row.accountId && event.externalAccount) {
+        const list = consumers["account.authorization_revoked"] ?? [];
+        for (const consume of list)
           await consume(run, {
-            storeId,
+            accountId: row.accountId,
+            externalAccount: event.externalAccount,
             inboxId,
             kind: event.kind,
             code: event.code,
             data: event.data,
             occurredAt: event.occurredAt,
           });
-        }
+        consumed = list.length;
+      } else if (event && event.kind !== "account.authorization_revoked" && row.storeId) {
+        const list = consumers[event.kind] ?? [];
+        for (const consume of list)
+          await consume(run, {
+            storeId: row.storeId,
+            inboxId,
+            kind: event.kind,
+            code: event.code,
+            data: event.data,
+            occurredAt: event.occurredAt,
+          });
+        consumed = list.length;
       }
       await withTenantTx(this.db, ctx, (tx) =>
-        this.repo.markInbox(tx, inboxId, { processed: true, error: list.length ? null : "no_consumer" }),
+        this.repo.markInbox(tx, inboxId, { processed: true, error: consumed ? null : "no_consumer" }),
       );
-      return list.length ? "processed" : "ignored";
+      return consumed ? "processed" : "ignored";
     } catch (err) {
       const { code, message } = describeSyncError(err);
       log.warn({ err, inbox_id: inboxId }, "webhook processing failed");

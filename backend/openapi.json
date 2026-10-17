@@ -2409,6 +2409,271 @@
         }
       }
     },
+    "/v1/commerce/operations": {
+      "get": {
+        "operationId": "CommerceController_operations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommerceOperationsDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Operasi commerce dan kontrak field yang telah ditinjau",
+        "tags": [
+          "commerce"
+        ],
+        "x-isolation": "global"
+      }
+    },
+    "/v1/commerce/principals": {
+      "get": {
+        "operationId": "CommerceController_principals",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommercePrincipalsDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Akun commerce yang dapat diakses pengguna",
+        "tags": [
+          "commerce"
+        ],
+        "x-isolation": {
+          "fixture": "commerce_principal"
+        }
+      }
+    },
+    "/v1/commerce/requests": {
+      "post": {
+        "operationId": "CommerceController_request",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 100
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestCommerceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommerceRequestDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Jalankan satu operasi commerce melalui worker",
+        "tags": [
+          "commerce"
+        ],
+        "x-isolation": {
+          "fixture": "commerce_operation"
+        }
+      },
+      "get": {
+        "operationId": "CommerceController_list",
+        "parameters": [
+          {
+            "name": "principalId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommerceRequestsDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Riwayat permintaan commerce dalam masa simpan",
+        "tags": [
+          "commerce"
+        ],
+        "x-isolation": {
+          "fixture": "commerce_operation"
+        }
+      }
+    },
+    "/v1/commerce/requests/{id}": {
+      "get": {
+        "operationId": "CommerceController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommerceRequestDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Status dan hasil operasi commerce",
+        "tags": [
+          "commerce"
+        ],
+        "x-isolation": {
+          "fixture": "commerce_operation"
+        }
+      }
+    },
+    "/v1/commerce/files": {
+      "post": {
+        "operationId": "CommerceFilesController_upload",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "operationId",
+                  "principalId",
+                  "file"
+                ],
+                "properties": {
+                  "operationId": {
+                    "type": "string"
+                  },
+                  "principalId": {
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommerceFileDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Unggah berkas privat untuk satu akun dan fitur commerce",
+        "tags": [
+          "commerce"
+        ],
+        "x-isolation": {
+          "fixture": "commerce_operation"
+        }
+      }
+    },
+    "/v1/commerce/requests/{id}/download": {
+      "get": {
+        "operationId": "CommerceFilesController_download",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Berkas privat."
+          },
+          "302": {
+            "description": "Tautan unduh privat sementara."
+          }
+        },
+        "summary": "Unduh berkas hasil commerce selama masa simpan privat",
+        "tags": [
+          "commerce"
+        ],
+        "x-isolation": {
+          "fixture": "commerce_operation"
+        }
+      }
+    },
     "/v1/warehouses": {
       "get": {
         "operationId": "WarehousesController_list",
@@ -10882,6 +11147,9 @@
                 "affiliate:account_read",
                 "affiliate:account_write",
                 "affiliate:read",
+                "affiliate:write",
+                "commerce:read",
+                "commerce:write",
                 "price:write",
                 "promo:write",
                 "finance:read",
@@ -11739,6 +12007,9 @@
                 "affiliate:account_read",
                 "affiliate:account_write",
                 "affiliate:read",
+                "affiliate:write",
+                "commerce:read",
+                "commerce:write",
                 "price:write",
                 "promo:write",
                 "finance:read",
@@ -11861,6 +12132,9 @@
                 "affiliate:account_read",
                 "affiliate:account_write",
                 "affiliate:read",
+                "affiliate:write",
+                "commerce:read",
+                "commerce:write",
                 "price:write",
                 "promo:write",
                 "finance:read",
@@ -15986,6 +16260,894 @@
             "description": "tujuh hari dari Minggu"
           }
         }
+      },
+      "CommerceOperationsDto_Output__schema0_Output": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "string",
+              "integer",
+              "number",
+              "boolean",
+              "enum",
+              "object",
+              "array",
+              "file"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "minimum": {
+            "type": "number"
+          },
+          "maximum": {
+            "type": "number"
+          },
+          "maxLength": {
+            "type": "number"
+          },
+          "maxBytes": {
+            "type": "number"
+          },
+          "minBytes": {
+            "type": "number"
+          },
+          "maxBytesByMime": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "accept": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "allowEmpty": {
+            "type": "boolean"
+          },
+          "timestampUnit": {
+            "type": "string",
+            "enum": [
+              "seconds",
+              "milliseconds"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "money",
+              "date",
+              "datetime",
+              "time"
+            ]
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommerceOperationsDto_Output__schema0_Output"
+            }
+          },
+          "itemType": {
+            "type": "string",
+            "enum": [
+              "string",
+              "integer",
+              "number",
+              "boolean",
+              "object"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "label",
+          "type",
+          "required"
+        ],
+        "additionalProperties": false
+      },
+      "CommerceOperationsDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "channel": {
+                  "type": "string",
+                  "enum": [
+                    "tiktokshop",
+                    "shopee"
+                  ]
+                },
+                "principalKind": {
+                  "type": "string",
+                  "enum": [
+                    "seller",
+                    "creator",
+                    "affiliate_partner"
+                  ]
+                },
+                "title": {
+                  "type": "string"
+                },
+                "group": {
+                  "type": "string"
+                },
+                "method": {
+                  "type": "string",
+                  "enum": [
+                    "GET",
+                    "POST",
+                    "PUT",
+                    "DELETE"
+                  ]
+                },
+                "path": {
+                  "type": "string"
+                },
+                "scopes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "scopeMode": {
+                  "type": "string",
+                  "enum": [
+                    "all",
+                    "any"
+                  ]
+                },
+                "accountRequirements": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "cross_border",
+                      "local"
+                    ]
+                  }
+                },
+                "write": {
+                  "type": "boolean"
+                },
+                "officialUrl": {
+                  "type": "string"
+                },
+                "fields": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CommerceOperationsDto_Output__schema0_Output"
+                  }
+                },
+                "available": {
+                  "type": "boolean"
+                },
+                "requiredPermissions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "unavailableReason": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "responseFields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "categoryAsset": {
+                  "type": "boolean"
+                },
+                "transport": {
+                  "type": "string",
+                  "enum": [
+                    "json",
+                    "multipart",
+                    "private_download",
+                    "large_upload"
+                  ]
+                },
+                "authMode": {
+                  "type": "string",
+                  "enum": [
+                    "oauth_scope",
+                    "shopee_app_program"
+                  ]
+                },
+                "appPrograms": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "eligibility": {
+                  "type": "string",
+                  "const": "unverified"
+                },
+                "eligibilityReason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "channel",
+                "principalKind",
+                "title",
+                "group",
+                "method",
+                "path",
+                "scopes",
+                "write",
+                "officialUrl",
+                "fields",
+                "available",
+                "unavailableReason"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "CommercePrincipalsDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "seller",
+                    "creator",
+                    "affiliate_partner"
+                  ]
+                },
+                "channel": {
+                  "type": "string",
+                  "enum": [
+                    "tiktokshop",
+                    "shopee"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "scopes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "region": {
+                  "type": "string"
+                },
+                "readOnly": {
+                  "type": "boolean"
+                },
+                "sellerType": {
+                  "type": "string",
+                  "enum": [
+                    "cross_border",
+                    "local",
+                    "unknown"
+                  ]
+                },
+                "categories": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "channel",
+                "name",
+                "status",
+                "scopes",
+                "region",
+                "readOnly",
+                "sellerType",
+                "categories"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "RequestCommerceDto__schema0": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RequestCommerceDto__schema0"
+            }
+          },
+          {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RequestCommerceDto__schema0"
+            }
+          }
+        ]
+      },
+      "RequestCommerceDto": {
+        "type": "object",
+        "properties": {
+          "operationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "principalId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "input": {
+            "type": "object",
+            "properties": {
+              "categoryAssetId": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              "path": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/RequestCommerceDto__schema0"
+                }
+              },
+              "query": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/RequestCommerceDto__schema0"
+                }
+              },
+              "body": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/RequestCommerceDto__schema0"
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "confirmed": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "operationId",
+          "principalId",
+          "input"
+        ],
+        "additionalProperties": false
+      },
+      "CommerceRequestDto_Output__schema0_Output": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommerceRequestDto_Output__schema0_Output"
+            }
+          },
+          {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CommerceRequestDto_Output__schema0_Output"
+            }
+          }
+        ]
+      },
+      "CommerceRequestDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "operationId": {
+            "type": "string"
+          },
+          "principalId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "principalKind": {
+            "type": "string",
+            "enum": [
+              "seller",
+              "creator",
+              "affiliate_partner"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "uncertain"
+            ]
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "$ref": "#/components/schemas/CommerceRequestDto_Output__schema0_Output"
+                  },
+                  "nextCursor": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "acknowledgement": {
+                    "type": "string",
+                    "enum": [
+                      "read",
+                      "accepted"
+                    ]
+                  },
+                  "artifact": {
+                    "type": "object",
+                    "properties": {
+                      "fileId": {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                      },
+                      "mime": {
+                        "type": "string"
+                      },
+                      "sizeBytes": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "expiresAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      }
+                    },
+                    "required": [
+                      "fileId",
+                      "mime",
+                      "sizeBytes",
+                      "expiresAt"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "data",
+                  "nextCursor",
+                  "acknowledgement"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errorCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errorMessage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "finishedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "id",
+          "operationId",
+          "principalId",
+          "principalKind",
+          "status",
+          "result",
+          "nextCursor",
+          "errorCode",
+          "errorMessage",
+          "createdAt",
+          "finishedAt",
+          "expiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "CommerceRequestsDto_Output__schema0_Output": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommerceRequestsDto_Output__schema0_Output"
+            }
+          },
+          {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CommerceRequestsDto_Output__schema0_Output"
+            }
+          }
+        ]
+      },
+      "CommerceRequestsDto_Output": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "operationId": {
+                  "type": "string"
+                },
+                "principalId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                },
+                "principalKind": {
+                  "type": "string",
+                  "enum": [
+                    "seller",
+                    "creator",
+                    "affiliate_partner"
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "queued",
+                    "running",
+                    "succeeded",
+                    "failed",
+                    "uncertain"
+                  ]
+                },
+                "result": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/CommerceRequestsDto_Output__schema0_Output"
+                        },
+                        "nextCursor": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "acknowledgement": {
+                          "type": "string",
+                          "enum": [
+                            "read",
+                            "accepted"
+                          ]
+                        },
+                        "artifact": {
+                          "type": "object",
+                          "properties": {
+                            "fileId": {
+                              "type": "string",
+                              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                            },
+                            "mime": {
+                              "type": "string"
+                            },
+                            "sizeBytes": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "expiresAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            }
+                          },
+                          "required": [
+                            "fileId",
+                            "mime",
+                            "sizeBytes",
+                            "expiresAt"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "data",
+                        "nextCursor",
+                        "acknowledgement"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "nextCursor": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "errorCode": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "errorMessage": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                },
+                "finishedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "expiresAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                }
+              },
+              "required": [
+                "id",
+                "operationId",
+                "principalId",
+                "principalKind",
+                "status",
+                "result",
+                "nextCursor",
+                "errorCode",
+                "errorMessage",
+                "createdAt",
+                "finishedAt",
+                "expiresAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "CommerceFileDto_Output": {
+        "type": "object",
+        "properties": {
+          "fileId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "mime": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "fileId",
+          "filename",
+          "mime",
+          "sizeBytes",
+          "expiresAt"
+        ],
+        "additionalProperties": false
       },
       "WarehouseListDto_Output": {
         "type": "object",

@@ -89,3 +89,10 @@ export const storeSyncModeChanged = defineEvent({
   aggregate: "store",
   schema: z.object({ storeId: ulidSchema, syncMode: z.enum(["read_only", "live"]) }),
 });
+
+/** Clear encrypted staged grants after local cancellation; authorization history remains. */
+export const storeAuthorizationCleanupRequested = defineEvent({
+  type: "store.authorization_cleanup_requested",
+  aggregate: "store_authorization",
+  schema: z.object({ authorizationId: ulidSchema }),
+});

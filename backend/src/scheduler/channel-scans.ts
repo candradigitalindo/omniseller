@@ -55,13 +55,23 @@ export async function sweepWebhookInbox(system: DbHandle, queues: QueueRegistry,
          AND s.channel = w.source AND s.external_shop_id = w.external_shop_id
       RETURNING w.id, w.tenant_id`);
 
+    const routedAccounts = await tx.execute<{ id: string; tenant_id: string }>(sql`
+      UPDATE webhook_inbox w SET tenant_id=a.tenant_id,account_id=a.id
+        FROM affiliate_account a
+       WHERE w.processed_at IS NULL AND w.tenant_id IS NULL AND w.source='tiktokshop'
+         AND w.event_type='CREATOR_DEAUTHORIZATION' AND w.external_shop_id IS NULL
+         AND a.kind=w.external_account_kind AND a.external_principal_id=w.external_account_id
+         AND a.status<>'disconnected'
+      RETURNING w.id,w.tenant_id`);
+
     const dropped = await tx.execute(sql`
       UPDATE webhook_inbox SET processed_at = now(),
-             last_error = CASE WHEN external_shop_id IS NULL THEN 'no_shop' ELSE 'unknown_shop' END
+             last_error = CASE WHEN external_account_id IS NOT NULL THEN 'unknown_account'
+                               WHEN external_shop_id IS NULL THEN 'no_shop' ELSE 'unknown_shop' END
        WHERE processed_at IS NULL AND tenant_id IS NULL
          AND received_at < now() - ${sql.raw(`interval '${UNKNOWN_SHOP_GRACE}'`)}`);
 
-    return { rows: [...pending.rows, ...routed.rows], dropped: dropped.rowCount ?? 0 };
+    return { rows: [...pending.rows, ...routed.rows, ...routedAccounts.rows], dropped: dropped.rowCount ?? 0 };
   });
   for (const r of work.rows) {
     await add(
@@ -223,5 +233,36 @@ export async function scanConnectionAlerts(
       jobKey("store.connection_check", r.tenant_id, slot),
     );
   }
+  return rows.length;
+}
+
+/** Expired or cancelled seller authorizations retain history; workers clear private staged tokens. */
+export async function scanStoreAuthorizations(
+  system: DbHandle,
+  queues: QueueRegistry,
+  registry: JobRegistry,
+  now = new Date(),
+) {
+  const rows = await withSystemTx(
+    system,
+    async (tx) =>
+      (
+        await tx.execute<{ id: string; tenant_id: string }>(sql`
+    SELECT id,tenant_id FROM store_authorization
+    WHERE (status IN ('pending','exchanging') AND expires_at<=${now})
+       OR (status IN ('succeeded','failed','expired') AND grant_enc IS NOT NULL)
+    ORDER BY id LIMIT 2000`)
+      ).rows,
+  );
+  const slot = `a${Math.floor(now.getTime() / TOKEN_REFRESH_SLOT_MS)}`;
+  for (const row of rows)
+    await add(
+      queues,
+      registry,
+      "mp.outbound",
+      "store.authorization_cleanup",
+      { authorizationId: row.id, tenantId: row.tenant_id },
+      jobKey("store.authorization_cleanup", row.id, slot),
+    );
   return rows.length;
 }

@@ -1,5 +1,7 @@
 # Audit integrasi Shopee Open Platform
 
+> Status implementasi terbaru: [Pusat Commerce](IMPLEMENTASI-MARKETPLACE.md) dan [matriks per operasi](IMPLEMENTASI-COMMERCE-OPERASI.csv). Penilaian kekurangan pada narasi audit di bawah berasal dari checkpoint sebelum Pusat Commerce (`834f22d`); sumber/ketentuan platform tetap menjadi rujukan. Inventaris referensi literal dibedakan dari operasi executable.
+
 **Kesimpulan: seluruh fitur Shopee belum tersedia di OmniSeller.** Menyebut connector Shopee aktif
 berarti sejumlah alur sudah dibuat, bukan semua API, UI, app permission, region dan program Shopee.
 

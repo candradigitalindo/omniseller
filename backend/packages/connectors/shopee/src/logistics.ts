@@ -14,6 +14,7 @@ import {
   trackingStageOf,
 } from "@omniseller/connector-core";
 import type { ShopeeClient } from "./client.js";
+import { numericId } from "./identifiers.js";
 import { SHOPEE_PACKAGE_STATES, type ShopeePackage } from "./orders.js";
 
 /**
@@ -77,9 +78,6 @@ const unavailable = (need: NonNullable<ShippingParameter["info_needed"]>, method
 
 const fail = (code: string, message: string): Choice => ({ ok: false, code, message });
 
-/** Shopee ids are int64; ids that fit a JavaScript number are sent as numbers, as documented. */
-const int64 = (v: number | string) => (Number.isSafeInteger(Number(v)) ? Number(v) : v);
-
 /**
  * Pickup or drop-off parameters from get_(mass_)shipping_parameter. Pickup goes to the address Shopee
  * marks as the current one for the warehouse (multi-warehouse sellers; another address may cost more),
@@ -107,7 +105,7 @@ export function chooseShopeeHandover(param: ShippingParameter, method: HandoverM
       return fail("no_pickup_slot", "Belum ada jadwal pickup yang tersedia. Coba lagi nanti atau pilih drop-off.");
     }
     const pickup: Record<string, unknown> = {};
-    if (address?.address_id !== undefined) pickup.address_id = int64(address.address_id);
+    if (address?.address_id !== undefined) pickup.address_id = numericId(address.address_id);
     if (slot?.pickup_time_id) pickup.pickup_time_id = slot.pickup_time_id;
     return { ok: true, body: { pickup }, pickupAt: slot?.date ? new Date(slot.date * 1000) : null };
   }
@@ -320,7 +318,7 @@ export function shopeeLogistics(client: ShopeeClient) {
     method: HandoverMethod,
   ): Promise<ArrangedPackage[]> {
     const routing = {
-      ...(group.channel !== undefined ? { logistics_channel_id: int64(group.channel) } : {}),
+      ...(group.channel !== undefined ? { logistics_channel_id: numericId(group.channel) } : {}),
       ...(group.location ? { product_location_id: group.location } : {}),
     };
     const failed = (code: string, message: string, numbers: string[]) =>

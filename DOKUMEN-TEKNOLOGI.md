@@ -868,6 +868,7 @@ Fase 2 menambah satu engineer backend (promosi, chat, kesehatan toko) dan satu e
 | ADR-044 | Inventaris Shopee dan adapter AMS baca memakai sumber sekunder yang dipin | Portal resmi menolak akses cloud | Kontrak terbaru, entitlement dan sandbox tetap perlu verifikasi |
 | ADR-045 | Permintaan harga terpisah dari harga terkonfirmasi | Hindari menimpa perubahan Seller Center dan ulang tulis setelah diterima | Outbox, lease, harga awal, konfirmasi dan riwayat; sandbox pending |
 | ADR-047 | Principal creator/partner terpisah dengan staged grant | Token seller tidak memberi otorisasi akun lain; kode/refresh sekali pakai tidak boleh hilang saat retry | Worker, scope/region ID, DEK, audit/ekspor metadata dan UI; akses nyata belum tersedia |
+| ADR-048 | Pusat Commerce memakai kontrak statis, role/domain, worker dan artifact privat | Operasi baru tidak menjadi proxy bebas atau mengulang perubahan dengan hasil tidak pasti | Registry bersumber/hash, hasil batch, media streaming/chunk, TTL, scope runtime, matriks executable dan UI mobile; izin/sandbox nyata terpisah |
 | ADR-046 | Hasil AMS diminta satu halaman melalui worker | API tidak memegang token dan tidak membaca seluruh katalog dalam satu job | Cache 24 jam, cursor opak, izin dinamis dan retensi; kontrak terbaru/sandbox pending |
 
 ---
@@ -1051,6 +1052,12 @@ Modul/API/UI `/affiliate/akun`, staged grant, rotasi DEK, izin dinamis, audit/ek
 serta scan refresh dijelaskan di backend 8.39 dan ADR-047. Official guides dibaca 17 Oktober 2026;
 pengguna mengonfirmasi belum memiliki akses Creator API/TAP dan meminta pengembangan lokal.
 Approval aplikasi, akun uji/beta dan sandbox nyata tetap prasyarat verifikasi rilis.
+
+### 26.4.2 Operasi commerce — ADR-048
+
+`MarketplaceConnector.commerce` menyediakan `operations` statis dan `execute(credentials, operationId, input)`. Descriptor `CommerceOperation` menentukan principal, method/path, scope/program, field/transport, batas file dan ketersediaan. `CommerceExecutionResult` memisahkan acknowledgment, cursor lengkap dan byte artifact privat; worker menyimpan file lalu hanya mempertahankan metadata publik. Registry tidak menerima URL bebas atau credential dari formulir. Detail API/worker, role domain, TTL, hasil `uncertain`, streaming/chunk video dan pemisahan stok/harga berada pada backend 8.40 dan [ADR-048](backend/docs/adr/0048-commerce-operation-workspace.md).
+
+Kontrak diturunkan dari data dokumentasi yang dipin; kode pihak ketiga tidak dijalankan. Scope TikTok diperiksa sebelum setiap HTTP sesuai method/path/principal, sedangkan izin program marketplace tetap otoritas akhir. TikTok sukses membutuhkan HTTP sukses dan `code: 0` numerik serta tidak ada penolakan batch terverifikasi. Shopee ID int64 dikirim persis dan ack stok harus cocok per model/lokasi/jumlah. Seller staged grant dan webhook creator revocation menjaga retry dan koneksi yang dicabut. Semua pengujian marketplace pada checkpoint ini memakai transport tiruan; akses Creator API/TAP dan persetujuan program nyata belum tersedia.
 
 ### 26.5 Referensi
 

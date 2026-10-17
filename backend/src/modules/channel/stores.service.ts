@@ -27,6 +27,7 @@ import {
 } from "./channel.errors";
 import {
   channelWarehouseMappingChanged,
+  storeAuthorizationCleanupRequested,
   storeAuthorizationExpiring,
   storeDataDeletionRequested,
   storeDisconnected,
@@ -224,6 +225,8 @@ export class StoresService {
     keepData = true,
   ): Promise<{ view: StoreView; revokeUrl: string | null }> {
     const view = await withTenantTx(this.db, ctx, async (tx) => {
+      await this.load(tx, ctx, id);
+      await this.cancelAuthorizationsIn(tx, ctx, id);
       const store = await this.load(tx, ctx, id, true);
       // a manual sales channel has no marketplace: disconnecting it archives it
       if (store.status === "disconnected") throw storeAlreadyDisconnected();
@@ -239,6 +242,7 @@ export class StoresService {
    * order is read any more. Manual sales channels stay. Returns the channels disconnected.
    */
   async disconnectAllIn(tx: Tx, ctx: RequestContext, reason: string): Promise<string[]> {
+    await this.cancelAuthorizationsIn(tx, ctx);
     const stores = (await this.repo.listStores(tx, null)).filter(
       (s) => s.status !== "disconnected" && !isManualChannel(s.channel),
     );
@@ -284,6 +288,11 @@ export class StoresService {
     });
     await this.outbox.enqueue(tx, ctx, storeDisconnected, { storeId: store.id, reason, keepData }, store.id);
     if (!keepData) await this.outbox.enqueue(tx, ctx, storeDataDeletionRequested, { storeId: store.id }, store.id);
+  }
+
+  private async cancelAuthorizationsIn(tx: Tx, ctx: RequestContext, storeId?: string) {
+    for (const authorizationId of await this.repo.cancelAuthorizations(tx, storeId))
+      await this.outbox.enqueue(tx, ctx, storeAuthorizationCleanupRequested, { authorizationId }, authorizationId);
   }
 
   async requestWarehouseSync(ctx: RequestContext, id: string): Promise<void> {
@@ -486,18 +495,21 @@ export class StoresService {
    * disconnect guide asks for immediate removal.
    */
   async markReauthRequired(ctx: RequestContext, storeId: string, reason: StoreStatusReason): Promise<void> {
-    await withTenantTx(this.db, ctx, async (tx) => {
-      const store = await this.repo.getStore(tx, storeId, true);
-      if (!store || store.status === "disconnected") return;
-      if (store.status === "reauth_required" && store.statusReason === reason) return;
-      await this.repo.deleteCredential(tx, storeId);
-      await this.repo.updateStore(tx, storeId, {
-        status: "reauth_required",
-        statusReason: reason,
-        statusChangedAt: new Date(),
-      });
-      await this.outbox.enqueue(tx, ctx, storeReauthRequired, { storeId, reason }, storeId);
+    await withTenantTx(this.db, ctx, (tx) => this.markReauthRequiredIn(tx, ctx, storeId, reason));
+  }
+
+  /** Caller holds the store lock and has checked the token generation that failed. */
+  async markReauthRequiredIn(tx: Tx, ctx: RequestContext, storeId: string, reason: StoreStatusReason): Promise<void> {
+    const store = await this.repo.getStore(tx, storeId, true);
+    if (!store || store.status === "disconnected") return;
+    if (store.status === "reauth_required" && store.statusReason === reason) return;
+    await this.repo.deleteCredential(tx, storeId);
+    await this.repo.updateStore(tx, storeId, {
+      status: "reauth_required",
+      statusReason: reason,
+      statusChangedAt: new Date(),
     });
+    await this.outbox.enqueue(tx, ctx, storeReauthRequired, { storeId, reason }, storeId);
   }
 
   /**

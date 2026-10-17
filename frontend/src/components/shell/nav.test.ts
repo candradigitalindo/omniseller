@@ -19,7 +19,7 @@ describe("sidebar (DOKUMEN-UI-UX 7.1)", () => {
       ["groupShipping", ["shipping", "printers", "courierHours"]],
       ["groupAnalytics", ["salesReport", "teamPerformance", "dataExport"]],
       ["groupAccess", ["team", "auditLog"]],
-      ["groupBusiness", ["stores", "migration", "businessProfile", "subscription"]],
+      ["groupBusiness", ["stores", "commerce", "migration", "businessProfile", "subscription"]],
     ]);
     const hrefs = NAV.flatMap((g) => g.items.map((i) => i.href));
     expect(new Set(hrefs).size).toBe(hrefs.length);

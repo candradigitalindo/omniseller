@@ -52,3 +52,30 @@ must also be revoked at the platform when required. History follows the existing
 Tests: TikTok account connector contract tests and `test/e2e/affiliate-accounts.e2e.int.spec.ts`, schema,
 DB role privileges, generated tenant isolation, closure, UI/callback and responsive browser tests.
 Real access remains unavailable; campaign/collaboration/sample/link/performance operations are backlog.
+
+## Creator consent revocation
+
+TikTok webhook [20 Creator deauthorization](https://partner.tiktokshop.com/docv2/page/20-creator-deauthorization)
+uses top-level `creator_open_id` and `data.cancel_time`; it never identifies a seller shop. The
+receiver verifies the current application's raw-body HMAC, resolves only account routing metadata
+through `resolve_affiliate_account(source, kind, id)`, then stores/deduplicates/enqueues the inbox.
+Creator notifications are configured for the application in Partner Center, separately from seller
+shop webhook subscriptions. Current deployment configuration supports one TikTok application.
+
+`account.authorization_revoked` is consumed by the worker-only `AffiliateAccountRevocationService`.
+It rechecks the tenant and principal under tenant-key/principal/account locks, marks `reauth_required`,
+removes credential material and soft-fails matching pending/staged grants while retaining history.
+A refresh/probe cannot restore these credentials because it checks the live account and token again.
+
+Inbox routing/insertion and grant commit serialize on the principal lock. A staged grant also checks
+verified cancellation facts before commit, including notifications received before its first account
+row exists. `connected_at` records the accepted callback time for this generation. A delayed event or
+forced replay older than that authorization is ignored. Provider cancellation timestamps have second
+precision: within one second cancellation conservatively wins, so reconnect in a later second when
+necessary. Inbox sweep repairs failed enqueue and routes unknown creators that connect within the
+existing 15-minute grace; operational replay accepts account-routed events as well as store events.
+
+Migration 0035 expands only the global inbox metadata. Public routing returns tenant/account ids;
+profile, scope, credentials and private assets remain unavailable through that lookup. Parser contract
+coverage is in `packages/connectors/tiktokshop/src/webhooks.spec.ts`; real-role end-to-end coverage is
+`test/e2e/creator-revocation.e2e.int.spec.ts`. Real marketplace delivery remains an approval/test gate.

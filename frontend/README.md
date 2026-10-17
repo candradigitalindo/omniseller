@@ -153,4 +153,32 @@ AMS Shopee: `/affiliate` dalam Pemasaran, izin `affiliate:read`, pencarian/sorti
 terpisah dari toko seller. Pilihan jenis akun dapat dicari; daftar dipaginasi, detail/izin/kategori,
 nama lokal, refresh dan konfirmasi putus tampil di modal. Callback state `a1_` memakai URL terdaftar
 Tokopedia & Shop, lalu memantau worker. Token/cipher tidak dikirim ke browser. Akses Creator API/TAP
-dan sandbox nyata belum tersedia; belum ada operasi kolaborasi/sample/link/performa affiliate.
+dan sandbox nyata belum tersedia. Operasi commerce yang kontrak dan izinnya tersedia diakses melalui `/commerce`.
+
+
+## Fitur commerce seller, creator, dan partner
+
+`/commerce` di kategori Bisnis & Integrasi mengikuti izin dinamis `commerce:read/write`.
+Pemilih akun menuliskan platform dan jenis akun; daftar fitur dapat dicari dan disaring per kategori.
+Fitur mengikuti kontrak server, status koneksi, mode baca toko, izin tenant, scope marketplace, dan
+program yang disetujui. Akun partner dengan beberapa kategori memakai pemilih kategori publik;
+cipher aset tetap dikelola server. Ketersediaan lokal belum membuktikan persetujuan program atau
+pengujian akun nyata.
+
+Formulir memakai isian resmi yang diizinkan server, dua isian per langkah. Rincian dan daftar item
+diedit melalui modal; tidak ada editor JSON atau kolom kunci rahasia marketplace. Uang yang diberi
+format IDR tampil sebagai Rupiah. Tanggal/jam tampil dalam format Indonesia dan timestamp Unix
+mengikuti zona waktu bisnis, termasuk perbedaan detik dan milidetik. Cursor kosong yang diwajibkan
+untuk halaman pertama tetap dikirim bila dinyatakan kontrak. Unggah berkas mengirim multipart asli,
+memeriksa jenis/ukuran, menampilkan status unggah, dan mengirim ID berkas sementara yang terikat akun
+serta operasi. Navigasi formulir menunggu unggah selesai.
+
+Perubahan marketplace memerlukan persetujuan eksplisit dan memakai satu Idempotency-Key per formulir.
+Nomor permintaan, riwayat, status worker, hasil terstruktur dan unduhan privat tampil di modal dengan
+pagination. Status sukses tulis berarti marketplace menerima permintaan; UI tidak menyatakan hasil
+akhir telah terkonfirmasi. Jawaban tidak pasti meminta pemeriksaan marketplace sebelum mengulang.
+Halaman hasil berikutnya memakai cursor opak tanpa menampilkan token sebagai isian manual baru.
+
+Uji UI commerce mencakup pemisahan izin tenant/scope, mode baca, kategori publik partner, struktur
+isian/ID besar, timestamp WIB/WIT, berkas dan hasil. Uji Chromium/axe mencakup 320, 390, 768 dan 1440
+piksel serta unggah multipart. API marketplace nyata tetap memerlukan akun dan izin program.

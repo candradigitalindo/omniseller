@@ -2,6 +2,7 @@ import { ulidSchema } from "@omniseller/shared";
 import { z } from "zod";
 import { defineJob } from "../../jobs/define";
 import { jobKey } from "../../jobs/job-id";
+import type { WebhookConsumers } from "../sync/webhook-consumer";
 import {
   affiliateAccountRefreshRequested,
   affiliateAuthorizationReceived,
@@ -9,6 +10,7 @@ import {
 } from "./accounts.events";
 import { AffiliateAccountConnectService } from "./accounts-connect.service";
 import { AffiliateAccountCredentialsService } from "./accounts-credentials.service";
+import { AffiliateAccountRevocationService } from "./accounts-revocation.service";
 export const affiliateAccountAuthorizeJob = defineJob({
   queue: "mp.outbound",
   name: "affiliate_account.authorize",
@@ -49,3 +51,9 @@ export const AFFILIATE_ACCOUNT_JOBS = [
   affiliateAccountRefreshJob,
   affiliateGrantCleanupJob,
 ];
+
+export const AFFILIATE_ACCOUNT_WEBHOOK_CONSUMERS: WebhookConsumers = {
+  "account.authorization_revoked": [
+    (run, event) => run.deps.resolve(AffiliateAccountRevocationService).revoke(run.ctx, event),
+  ],
+};

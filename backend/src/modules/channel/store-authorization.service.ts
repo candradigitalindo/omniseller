@@ -1,7 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { newId } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
-import { ValidationError } from "../../common/errors/domain-errors";
+import { ForbiddenError, ValidationError } from "../../common/errors/domain-errors";
 import { limitReached, planLimitReached } from "../../common/plan-limits";
 import { hashToken, newSecretToken } from "../../common/security/tokens";
 import { ENV } from "../../config/config.module";
@@ -68,6 +68,8 @@ export class StoreAuthorizationService {
     ctx: RequestContext,
     input: { channel: string; storeId?: string | undefined },
   ): Promise<{ view: AuthorizationView; authorizeUrl: string }> {
+    if (ctx.actor.type !== "user")
+      throw new ForbiddenError("store_authorization.user_required", "Masuk sebagai pengguna untuk menghubungkan toko.");
     if (!isSupportedChannel(input.channel)) throw channelUnsupported(input.channel);
     const channel = input.channel;
     const state = newSecretToken();
@@ -131,7 +133,8 @@ export class StoreAuthorizationService {
     return withTenantTx(this.db, ctx, async (tx) => {
       // RLS limits the lookup to the caller's tenant: another tenant's state is simply not found.
       const row = await this.repo.authorizationByStateHash(tx, hashToken(input.state), true);
-      if (!row || row.channel !== input.channel) throw authorizationInvalid();
+      if (!row || row.channel !== input.channel || ctx.actor.type !== "user" || row.requestedBy !== ctx.actor.id)
+        throw authorizationInvalid();
       if (row.status !== "pending") throw authorizationInvalid();
       const now = new Date();
       // An expired attempt reads as "expired" (withStatus); throwing rolls back, so nothing is written.

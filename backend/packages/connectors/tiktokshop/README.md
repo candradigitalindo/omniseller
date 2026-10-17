@@ -77,3 +77,27 @@ is sent. Private category ciphers are separated from public metadata and redacte
 The application consumer is `src/modules/affiliate-accounts` and UI `/affiliate/akun` (ADR-047).
 Signed mock tests cover transport; real Creator API/TAP approval/test-account access remains missing.
 This connection foundation does not implement collaboration, samples, links or performance features.
+
+## Runtime granted-scope enforcement
+
+Existing seller features and the operation catalogue share the same signed transport. The worker
+enters `withGrantedScopes` with persisted grant metadata; `TiktokShopClient.call` and multipart
+`upload` check the exact HTTP method, API version and dynamic path before sending each request.
+`runtime-scope-contracts.ts` contains the 390 published endpoint versions captured on 17 October 2026,
+including older versions still used by existing flows. Unknown method/version or an absent documented
+scope contract fails closed. Token exchange/refresh and dedicated initial profile discovery remain
+separate authorization operations; their strict grant/identity checks still apply.
+
+Official scope `auth_type` selects seller (1), creator (2) or partner (4) packages, so a creator does
+not require an unrelated seller package on a shared API. At least one applicable documented package
+is a necessary local precheck. This does not establish package AND/OR semantics or prove sufficient
+permission, program eligibility or app approval; the marketplace remains the final authorization
+boundary and permission refusals remain permanent failures. Ordinary seller order/fulfillment scopes
+work independently of the full-service seller package listed in the metadata. Read scopes do not
+imply writes or adjacent feature scopes that the API does not explicitly list.
+
+`MarketplaceGateway` reloads both token and scope metadata after refresh before its one retry. Its
+context is limited to the operation and isolates concurrent accounts. A denied operation makes no
+HTTP request and does not mark an otherwise connected shop as revoked. Production code must use the
+gateway; isolated connector transport fixtures have no ambient application grant. Targeted tests:
+`scope-guard.spec.ts`, core `scope-context.spec.ts`, and backend `marketplace-scopes.spec.ts`.

@@ -79,7 +79,7 @@ describe("TikTok Shop request signing (Sign your API request)", () => {
     const token = fakeFetch({ "GET /api/v2/token/get": () => ({ code: 0, data: tokenData }) });
     const c = connector((async (u: URL | string, i?: RequestInit) =>
       String(u).includes("auth.tiktok-shops.com") ? token.fn(u, i) : f.fn(u, i)) as typeof fetch);
-    await c.auth.exchangeCode({ code: "TTP_code" });
+    await c.shops.describe(await c.auth.exchangeCode({ code: "TTP_code" }));
     const call = f.calls[0]!;
     const headers = call.init.headers as Record<string, string>;
     expect(headers["x-tts-access-token"]).toBe("TTP_access");
@@ -197,15 +197,8 @@ describe("TikTok Shop authorization", () => {
     const grant = await c.auth.exchangeCode({ code: "TTP_code" });
     expect(grant.tokens.accessToken).toBe("TTP_access");
     expect(grant.tokens.scopes).toContain("seller.logistics");
-    expect(grant.shops).toEqual([
-      {
-        externalShopId: "7495",
-        shopCipher: "ROW_abc",
-        name: "Toko Rina",
-        region: "ID",
-        info: { seller_type: "LOCAL", shop_code: "IDLC1" },
-      },
-    ]);
+    expect(grant.shops).toEqual([]);
+    expect(f.calls.some((call) => call.url.pathname === "/authorization/202309/shops")).toBe(false);
     const [profile] = await c.shops.describe(grant);
     expect(profile?.authorizationExpiresAt?.getTime()).toBe(tokenData.refresh_token_expire_in * 1000);
     expect(profile?.info).toMatchObject({ open_id: tokenData.open_id, seller_type: "LOCAL" });
@@ -214,6 +207,35 @@ describe("TikTok Shop authorization", () => {
   it("refuses authorizations that are not from a seller", async () => {
     const f = fakeFetch({ "GET /api/v2/token/get": () => ({ code: 0, data: { ...tokenData, user_type: 1 } }) });
     await expect(connector(f.fn).auth.exchangeCode({ code: "c" })).rejects.toBeInstanceOf(PermanentConnectorError);
+  });
+
+  it.each([undefined, "0", 1, 2, 3, 4, 5])("requires an explicit seller user_type, received %s", async (user_type) => {
+    const f = fakeFetch({ "GET /api/v2/token/get": () => ({ code: 0, data: { ...tokenData, user_type } }) });
+    await expect(connector(f.fn).auth.exchangeCode({ code: "c" })).rejects.toMatchObject({ code: "wrong_user_type" });
+  });
+
+  it("requires seller identity and authorization scope, and validates refresh identity/scopes", async () => {
+    for (const patch of [
+      { open_id: undefined },
+      { granted_scopes: undefined },
+      { granted_scopes: [] },
+      { granted_scopes: ["seller.logistics"] },
+    ]) {
+      const f = fakeFetch({ "GET /api/v2/token/get": () => ({ code: 0, data: { ...tokenData, ...patch } }) });
+      await expect(connector(f.fn).auth.exchangeCode({ code: "c" })).rejects.toBeInstanceOf(PermanentConnectorError);
+    }
+    const f = fakeFetch({ "GET /api/v2/token/refresh": () => ({ code: 0, data: tokenData }) });
+    await expect(
+      connector(f.fn).auth.refresh({ refreshToken: "r", externalShopId: "s", expectedPrincipalId: "another" }),
+    ).rejects.toMatchObject({ code: "account_mismatch" });
+    await expect(
+      connector(f.fn).auth.refresh({
+        refreshToken: "r",
+        externalShopId: "s",
+        expectedPrincipalId: tokenData.open_id,
+        expectedScopes: ["seller.authorization.info", "seller.order.info"],
+      }),
+    ).rejects.toMatchObject({ code: "missing_scope" });
   });
 
   it("classifies errors: expired token, rate limit, bad refresh token", async () => {

@@ -46,11 +46,13 @@ const TYPE_TOPICS: Record<number, string> = {
   7: "UPCOMING_AUTHORIZATION_EXPIRATION",
   11: "CANCELLATION_STATUS_CHANGE",
   12: "RETURN_STATUS_CHANGE",
+  20: "CREATOR_DEAUTHORIZATION",
   37: "PRODUCT_AUDIT_STATUS_CHANGE",
 };
 
 const TOPIC_KINDS: Record<string, WebhookEventKind> = {
   SELLER_DEAUTHORIZATION: "authorization.revoked",
+  CREATOR_DEAUTHORIZATION: "account.authorization_revoked",
   UPCOMING_AUTHORIZATION_EXPIRATION: "authorization.expiring",
   ORDER_STATUS_CHANGE: "order.status_changed",
   // a buyer cancellation request or an address change: the order is read again (its cancellation
@@ -70,6 +72,7 @@ interface TiktokWebhookBody {
   event_type?: unknown;
   tts_notification_id?: unknown;
   shop_id?: unknown;
+  creator_open_id?: unknown;
   timestamp?: unknown;
   data?: Record<string, unknown>;
 }
@@ -82,6 +85,7 @@ export function parseTiktokWebhook(rawBody: Buffer): NormalizedWebhookEvent[] {
   } catch {
     return [];
   }
+  if (!body || typeof body !== "object" || Array.isArray(body)) return [];
   const type = Number(body.type);
   const topic =
     typeof body.event_type === "string" && body.event_type
@@ -101,10 +105,26 @@ export function parseTiktokWebhook(rawBody: Buffer): NormalizedWebhookEvent[] {
     eventId: notificationId ?? sha256Hex(rawBody),
     kind,
     code: topic,
-    externalShopIds: shopId ? [shopId] : [],
+    externalShopIds: kind === "account.authorization_revoked" ? [] : shopId ? [shopId] : [],
     occurredAt: Number.isFinite(ts) && ts > 0 ? new Date(ts * 1000) : new Date(),
     data: {},
   };
+  if (kind === "account.authorization_revoked") {
+    // The creator notification has no shop_id. cancel_time is the business event time;
+    // timestamp is only the delivery trigger time and can be later on a delayed push.
+    const cancelTime = Number(data.cancel_time);
+    if (
+      typeof body.creator_open_id !== "string" ||
+      !body.creator_open_id.trim() ||
+      body.creator_open_id.length > 512 ||
+      !Number.isSafeInteger(cancelTime) ||
+      cancelTime <= 0 ||
+      !Number.isFinite(new Date(cancelTime * 1000).getTime())
+    )
+      return [];
+    event.externalAccount = { kind: "creator", id: body.creator_open_id };
+    event.occurredAt = new Date(cancelTime * 1000);
+  }
   if (kind === "authorization.expiring") {
     const at = Number(data.expiration_time);
     if (Number.isFinite(at) && at > 0) event.data.expiresAt = new Date(at * 1000);

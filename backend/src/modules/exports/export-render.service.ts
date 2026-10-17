@@ -18,6 +18,7 @@ import { ListingPriceService } from "../catalog/listing-price.service";
 import { ListingsService } from "../catalog/listings.service";
 import { ProductTransferService } from "../catalog/product-transfer.service";
 import { StoresService } from "../channel/stores.service";
+import { CommerceService } from "../commerce/commerce.service";
 import { FilesService } from "../files/files.service";
 import { FulfillmentService } from "../fulfillment/fulfillment.service";
 import { HandoverService } from "../fulfillment/handover.service";
@@ -83,6 +84,7 @@ export class ExportRenderService {
     @Inject(BillingService) private readonly billing: BillingService,
     @Inject(AffiliateAccountsService) private readonly affiliateAccounts: AffiliateAccountsService,
     @Inject(AffiliateService) private readonly affiliate: AffiliateService,
+    @Inject(CommerceService) private readonly commerce: CommerceService,
     @Inject(OrderRulesService) private readonly orderRules: OrderRulesService,
   ) {}
 
@@ -90,6 +92,7 @@ export class ExportRenderService {
   sheets(): ExportSheet[] {
     return [
       ...this.affiliate.exportSheets(),
+      ...this.commerce.exportSheets(),
       ...this.affiliateAccounts.exportSheets(),
       ...this.business.exportSheets(),
       ...this.roles.exportSheets(),

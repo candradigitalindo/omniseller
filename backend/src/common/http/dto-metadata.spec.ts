@@ -17,6 +17,8 @@ import {
   StoresController,
 } from "../../modules/channel/channel.controllers";
 import { AccountClosureController } from "../../modules/closure/closure.controller";
+import { CommerceController } from "../../modules/commerce/commerce.controller";
+import { CommerceFilesController } from "../../modules/commerce/commerce-files.controller";
 import { ExportsController } from "../../modules/exports/exports.controller";
 import { FilesController } from "../../modules/files/files.controller";
 import { DocumentsController, ShipmentsController } from "../../modules/fulfillment/fulfillment.controllers";
@@ -61,6 +63,8 @@ const CONTROLLERS = [
   AffiliateAccountsController,
   AffiliateAuthorizationsController,
   AffiliateProductsController,
+  CommerceController,
+  CommerceFilesController,
   HealthController,
   AuthController,
   MeController,

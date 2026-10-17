@@ -62,6 +62,9 @@ export const storeAuthorization = pgTable("store_authorization", {
   result: jsonb("result").$type<Record<string, unknown>>().notNull().default({}),
   errorCode: text("error_code"),
   errorMessage: text("error_message"),
+  /** Worker-only durable grant, sealed immediately after single-use code exchange. */
+  grantEnc: bytea("grant_enc"),
+  grantDekVersion: integer("grant_dek_version"),
 });
 
 /** Readable only by omniseller_worker (token columns); omniseller_api sees expiry metadata only. */

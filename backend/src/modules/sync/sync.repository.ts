@@ -59,6 +59,27 @@ export class SyncRepository {
       .where(and(eq(webhookInbox.id, id), isNull(webhookInbox.processedAt)));
   }
 
+  /** Verified creator revocations also fence a staged grant before it creates/reauthorizes an account. */
+  async accountRevokedSince(tx: Tx, kind: string, externalId: string, authorizedAt: Date) {
+    // The provider reports cancel_time in seconds. A same-second cancellation wins conservatively.
+    const since = new Date(Math.floor(authorizedAt.getTime() / 1000) * 1000);
+    const rows = await tx
+      .select({ id: webhookInbox.id })
+      .from(webhookInbox)
+      .where(
+        and(
+          eq(webhookInbox.source, "tiktokshop"),
+          eq(webhookInbox.signatureValid, true),
+          eq(webhookInbox.eventType, "CREATOR_DEAUTHORIZATION"),
+          eq(webhookInbox.externalAccountKind, kind),
+          eq(webhookInbox.externalAccountId, externalId),
+          sql`${webhookInbox.occurredAt} >= ${since}`,
+        ),
+      )
+      .limit(1);
+    return rows.length > 0;
+  }
+
   /** Deletes up to `limit` sync log entries of a store (FR-INT-07); returns how many. */
   async deleteStoreSyncJobs(tx: Tx, storeId: string, limit: number): Promise<number> {
     const batch = tx.select({ id: syncJob.id }).from(syncJob).where(eq(syncJob.storeId, storeId)).limit(limit);

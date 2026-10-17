@@ -1,8 +1,8 @@
 # Cakupan TikTok Shop — inventaris resmi
 
-Sumber: https://partner.tiktokshop.com/docv2/page/about-partner-center-console. Snapshot publik workspace 3 diambil 2026-10-16T23:55:10.159351+00:00. SHA-256 tree: `b1005604b13fc9052c89812176caaa07da58b69b4c1a0c8223cc7c363a7b6ec7`.
+Sumber: https://partner.tiktokshop.com/docv2/page/about-partner-center-console. Snapshot publik workspace 3 diambil 2026-10-17T04:13:18.315145+00:00. SHA-256 tree: `b1005604b13fc9052c89812176caaa07da58b69b4c1a0c8223cc7c363a7b6ec7`.
 
-973 entri navigasi: 104 direktori dan 869 dokumen. API Reference memuat 317 operasi dengan 390 dokumen versi; 2 endpoint token berada di panduan otorisasi. 39 kombinasi method/path kode ditemukan; 39 cocok dengan dokumentasi. Referensi kode tidak membuktikan kelengkapan fitur, market Indonesia, scope aktual atau keberhasilan sandbox.
+973 entri navigasi: 104 direktori dan 869 dokumen. API Reference memuat 317 operasi dengan 390 dokumen versi; 2 endpoint token berada di panduan otorisasi. 40 kombinasi method/path kode ditemukan; 40 cocok dengan dokumentasi. Referensi kode tidak membuktikan kelengkapan fitur, market Indonesia, scope aktual atau keberhasilan sandbox.
 
 | Modul API Reference | Operasi katalog | Ada referensi pada salah satu versi | Referensi pada versi default katalog |
 |---|---:|---:|---:|
@@ -24,11 +24,9 @@ Sumber: https://partner.tiktokshop.com/docv2/page/about-partner-center-console. 
 | Affiliate partner | 15 | 0 | 0 |
 | Affiliate seller | 44 | 0 | 0 |
 | Supply chain | 1 | 0 | 0 |
-| Tools | 1 | 0 | 0 |
+| Tools | 1 | 1 | 1 |
 
 Referensi kode yang belum cocok:
 Tidak ada.
 
-AST memproses kode produksi, termasuk template ID dan cabang literal activate/deactivate atau approve/reject; komentar dan tes diabaikan. Placeholder ID dinormalisasi hanya untuk pencocokan, dan metode HTTP tetap dibedakan. Versi lain pada dropdown tidak otomatis berarti kedaluwarsa. CSV dokumen mencakup Partner Guide, Developer Guide, API Reference, Webhooks, Terms and Policies, serta Changelog; isi terambil tidak membuktikan setiap ketentuan telah dipenuhi.
-
-Pembaruan referensi kode 17 Oktober 2026 menambahkan profil creator dan aset kategori partner; dokumen keduanya dibaca ulang langsung. Snapshot navigasi dan jumlah katalog tetap. Gerbang akses Creator API/TAP dan sandbox nyata belum terpenuhi.
+AST memproses kode produksi, termasuk template ID dan cabang literal activate/deactivate atau approve/reject; komentar, tes, metadata katalog/scope/outcome dan daftar target pengikatan aset diabaikan. Executor commerce umum dicatat terpisah dalam matriks operasi; deklarasi method/path bukan bukti alur khusus. Placeholder ID dinormalisasi hanya untuk pencocokan, dan metode HTTP tetap dibedakan. Versi lain pada dropdown tidak otomatis berarti kedaluwarsa. CSV dokumen mencakup Partner Guide, Developer Guide, API Reference, Webhooks, Terms and Policies, serta Changelog; isi terambil tidak membuktikan setiap ketentuan telah dipenuhi.

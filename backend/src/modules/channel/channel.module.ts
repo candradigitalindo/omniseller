@@ -66,7 +66,7 @@ export class ChannelWorkerModule {
     return {
       global: true,
       module: ChannelWorkerModule,
-      imports: [ChannelModule, SyncModule, InventoryModule, NotificationInboxModule],
+      imports: [ChannelModule, SyncModule, InventoryModule, NotificationInboxModule, IdentityModule],
       providers: [{ provide: TOKEN_VAULT, useValue: new TokenVault(keyProviderFor(env)) }, ...services],
       exports: [TOKEN_VAULT, ...services],
     };

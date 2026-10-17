@@ -32,3 +32,16 @@ Log sinkron per toko dan inbox webhook marketplace (technology doc 8.3; backend 
 | Metode | Path | Akses |
 |---|---|---|
 | POST | `/webhooks/shopee`, `/webhooks/tiktokshop` | proses `webhook`, tanda tangan marketplace |
+
+## Notifikasi principal creator
+
+Webhook creator TikTok tipe 20 menggunakan `creator_open_id`, dengan waktu kejadian `data.cancel_time`.
+Migration 0035 menambah `external_account_kind`, `external_account_id`, `account_id`, dan `occurred_at`
+pada inbox global. `resolve_affiliate_account` hanya merutekan principal creator untuk sumber TikTok;
+pemeriksaan HMAC aplikasi tetap dilakukan sebelum lookup. Proses receiver tetap verifikasi, simpan,
+enqueue; perubahan status dan penghapusan token dilakukan modul pemilik akun melalui worker.
+
+Event `account.authorization_revoked` mempunyai konsumen akun tersendiri, sehingga id creator tidak
+diperlakukan sebagai id toko. Replay dan sweep inbox mendukung akun, mempertahankan deduplikasi dan
+penjagaan tenant. Lookup/simpan inbox memakai lock principal yang sama dengan commit otorisasi,
+supaya pencabutan yang datang saat koneksi pertama tidak kehilangan batas urutan grant.

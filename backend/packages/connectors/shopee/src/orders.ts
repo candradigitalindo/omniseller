@@ -11,6 +11,7 @@ import {
   toRupiah,
 } from "@omniseller/connector-core";
 import type { ShopeeClient } from "./client.js";
+import { numericId } from "./identifiers.js";
 
 /**
  * Shopee order APIs (v2.order):
@@ -98,7 +99,7 @@ interface ShopeeOrderItem {
   model_original_price?: number;
   model_discounted_price?: number;
   line_item_id?: number | string;
-  promotion_group_id?: number;
+  promotion_group_id?: number | string;
   image_info?: { image_url?: string };
   product_location_id?: string;
   cancelled_qty?: number;
@@ -385,8 +386,8 @@ export function shopeeOrders(client: ShopeeClient) {
           ...(input.reason === "OUT_OF_STOCK"
             ? {
                 item_list: (input.items ?? []).map((i) => ({
-                  item_id: Number(i.externalItemId),
-                  model_id: Number(i.externalVariantId || 0),
+                  item_id: numericId(i.externalItemId),
+                  model_id: numericId(i.externalVariantId || "0"),
                 })),
               }
             : {}),

@@ -1,67 +1,29 @@
 # Implementasi fitur marketplace Indonesia
 
-Cakupan yang diminta: seller Shopee dan Tokopedia & Shop, serta creator/affiliate partner Indonesia.
-Operasional negara lain tetap backlog. Semua tenant memakai isolasi dan role dinamis; kemampuan
-marketplace tetap dibatasi app scope, principal, izin toko/akun dan program platform.
+Checkpoint 17 Oktober 2026: seller Shopee dan Tokopedia & Shop, creator serta affiliate partner Indonesia. Semua tenant memakai role dinamis dan isolasi data. Tidak ada perubahan toko nyata; kunci marketplace lokal kosong dan akses Creator API/beta/TAP belum dimiliki.
 
-Dokumen ini melacak implementasi setelah audit, bukan menyatakan seluruh fitur selesai. Referensi
-endpoint tidak sama dengan fitur yang dapat digunakan. Kunci marketplace di lingkungan pengembangan
-masih kosong pada pemeriksaan 17 Oktober 2026; tidak ada panggilan tulis ke toko nyata.
+Pusat **Fitur Commerce** (`/commerce`) menyediakan **224 operasi Shopee dan 267 operasi Tokopedia & Shop executable lokal**. Angka Tokopedia & Shop mencakup 265 kontrak default dan dua alur persiapan video besar. Matriks [747 operasi](IMPLEMENTASI-COMMERCE-OPERASI.csv) menjelaskan fitur aktif, izin, principal, scope/program, transport, sumber dan alasan penundaan; [rekap mesin](backend/docs/audits/commerce-coverage.json) memakai registry/kebijakan server yang sama. Angka ini tidak memasukkan alur khusus sebagai fitur pusat dan tidak menyatakan akses sandbox atau seluruh fitur platform selesai.
 
-| Area | Status pengembangan | Pekerjaan yang masih terbuka |
+| Area | Yang sudah tersedia dan diuji lokal | Batas yang masih terbuka |
 |---|---|---|
-| Harga reguler listing | Backend, outbox/worker, riwayat, pembatalan antrean, audit, ekspor dan modal untuk kedua marketplace telah diuji lokal | Sandbox nyata; aturan harga otomatis per kanal dan perubahan massal belum tercakup |
-| Aturan produk terbaru | Validasi ulang kategori dari marketplace sebelum membuat listing baru; draf lama tidak melewati atribut wajib yang baru | Verifikasi sandbox perubahan Imported Goods; seluruh edit produk belum tersedia |
-| Produk/media | Tarik, salin/publish, status dan stok sudah ada; masih parsial | Edit/partial edit/hapus, metadata, video, kualitas listing, operasi massal sesuai scope Indonesia |
-| Otorisasi | Seller serta koneksi creator/affiliate partner Indonesia melalui principal terpisah, scope/profil/kategori, refresh, nama, disconnect, audit/ekspor dan UI telah diuji lokal (ADR-047) | Instalasi App Store, akses Creator API/TAP, sandbox nyata dan review platform |
-| AMS/Affiliate | Alur baca AMS Shopee: worker/API/cache/UI, pencarian, komisi/periode, audit, ekspor, role dinamis dan isolasi diuji lokal | Mutasi campaign/komisi, targeted/open collaboration, sample, link dan performa affiliate TikTok; kolaborasi, sample, link dan performa setelah fondasi koneksi principal |
-| Promosi | Belum diimplementasikan | Discount, voucher, flash sale, add-on/bundle, kampanye dan hasil parsial; aturan bentrok dan waktu lokal |
-| Keuangan | Belum ada integrasi settlement | Statement, fee, pembayaran marketplace, transaksi/order/SKU dan rekonsiliasi; bedakan dari langganan Xendit |
-| Chat/engagement | Belum diimplementasikan | Conversation/message, attachment, webhook, atribusi petugas, perlindungan dan retensi data pembeli |
-| Analitik/video/live/ads | Belum ada integrasi lengkap | API sesuai principal/market, laporan, izin dan UI; laporan internal bukan seluruh Analytics API |
-| Pesanan/pengiriman/retur | Alur inti ada; parsial | Horizon+, seluruh cancellation/refund/replacement/batch, reverse logistics, split/combine dan logistik regional |
-| Push/health/fulfillment khusus | Parsial | Event yang belum ditangani, mapping/mirror Tokopedia, Account Health, FBS/FBT/SBS/First Mile yang berlaku di Indonesia |
-| Kesiapan operasional | Tes tiruan dan isolasi tersedia; scope nyata belum dibuktikan | Rate limit adaptif, legalitas/domain final, app review dan sandbox tiap alur; tidak mengarang kredensial atau identitas usaha |
+| Koneksi | Seller consent, grant terenkripsi sekali tukar, discovery retry, refresh terikat identitas/generasi, creator/partner consent terpisah, kategori partner dan webhook pencabutan creator | Persetujuan app/program, App Store initiated install, aplikasi developer milik tenant, Creator API/TAP nyata |
+| Produk/harga/stok | Alur inti tarik/salin/publish/gambar/status, harga reguler per listing, stok dan mapping; pusat menambah operasi produk/media yang aman serta validasi kontrak bertingkat | Stok/harga tetap modul pemilik; region/global/merchant dan schema ambigu tidak dijalankan generik; aturan harga otomatis belum tersedia |
+| Affiliate | AMS seller Shopee dan operasi affiliate seller/creator/partner Tokopedia & Shop sesuai principal, termasuk kolaborasi/campaign/sample/showcase/link/laporan | Creator/publisher Shopee belum memiliki kontrak koneksi yang dapat diverifikasi; AMS tidak menggantikannya; entitlement program nyata belum diuji |
+| Promosi | Operasi discount/voucher/bundle/add-on/flash sale dan promosi yang memiliki kontrak aman, konfirmasi perubahan, pagination dan hasil batch | Penolakan/hasil parsial tetap ditampilkan; akses per program/akun mengikuti platform |
+| Keuangan | Pembacaan/perubahan sesuai kontrak finance/payment/AMS/ads dan laporan privat, izin keuangan tambahan serta penyaringan biaya setelah role berubah | Belum otomatis menjadi ledger settlement/rekonsiliasi lokal lengkap; tidak mengklaim laba akurat dari hasil parsial |
+| Chat/engagement | Operasi conversation/message/media dan engagement Tokopedia & Shop yang didokumentasikan, role chat dan hasil sementara privat | Inbox percakapan terpadu, atribusi petugas dan seluruh event chat belum dibuat; kontrak Chat Shopee belum terverifikasi |
+| Analitik/kesehatan/iklan | API analytics/creator LIVE dan health/ads seller yang sesuai kontrak dan principal | API ads terpisah atau program user/principal yang tidak didukung tetap dinonaktifkan; tidak mengklaim seluruh console analytics |
+| Pesanan/pengiriman/retur | Alur inti tetap berjalan; operasi tambahan mengirim permintaan API dan menjadwalkan pull modul pemilik, artifact label/PDF privat | Horizon+, biaya/hak khusus, event tambahan serta FBT/FBS/SBS/First Mile memerlukan eligibility per akun dan sandbox |
+| Berkas | Multipart image/photo/video/PDF sesuai MIME/ukuran; spool disk privat, penyimpanan streaming, binding tenant/akun/operasi, TTL, artifact unduhan dan protokol video chunk | Video besar hanya menyiapkan resource; binding resource besar ke field publish creator belum terbukti, tidak diterbitkan otomatis |
+| UI dan role | Kategori/pencarian, akun sesuai akses, modal bertahap, select berpencarian, Rupiah, waktu bisnis, konfirmasi, antrean/hasil/riwayat, pagination dan unduh; izin commerce/domain untuk semua tenant | Entri yang dinonaktifkan menampilkan alasan; scope dan izin program nyata tetap diperlukan |
+| Ketepatan/privasi | Presisi ID Shopee int64, ack stok per item/lokasi, kode sukses TikTok eksplisit, pemeriksaan kegagalan batch, retry baca terbatas, hasil tulis `uncertain`, CAS dan no blind retry, log metadata, ekspor metadata | Pengujian sandbox dan review produksi belum dilakukan; pembatas adaptif per entitlement belum tersedia |
 
-Urutan dependensi: fondasi harga/produk dan otorisasi, lalu modul pemasaran/affiliate, promosi,
-keuangan, komunikasi/analitik dan operasi khusus. Setiap modul harus mempunyai backend/worker,
-API/DTO, UI yang fungsional, izin/cakupan, ekspor jika menyimpan data, dan tes yang relevan.
+Input/hasil cache berlaku 24 jam, file satu jam. Cleanup berkala berjalan melalui worker, termasuk tenant yang sedang ditutup. Riwayat tetap mempunyai batas akses domain meskipun koneksi diputus; hasil cache disaring ulang mengikuti izin saat dibaca. Perubahan yang hasilnya tidak diketahui tidak dikirim ulang otomatis. Status diterima API berbeda dari selesai diproses marketplace.
 
-Validasi penambahan harga: 620 tes unit/paket backend, 34 tes skema/e2e/isolation terkait, 533 tes
-frontend (17 tes terkait diulang setelah perbaikan izin/modal), build web, serta browser pada lebar 320/390/768/1440 piksel lulus. Validasi ulang kategori
-diuji dengan mengubah atribut wajib setelah draf ditinjau dan memastikan API pembuatan produk
-tidak dipanggil; suite salin listing 12 tes lulus. Ini belum pengujian akun sandbox marketplace.
+Kontrak bersumber dari 428 endpoint/28 modul snapshot Shopee yang dipin serta 317 operasi default/390 versi API resmi Tokopedia & Shop. Semua method Shopee eksplisit pada sumber Markdown; extractor lama yang melaporkan 143 tidak diketahui sudah diperbaiki. Metadata statis tidak dihitung sebagai bukti alur khusus pada audit referensi literal.
 
-Rujukan: [audit Shopee](AUDIT-INTEGRASI-SHOPEE.md), [audit Tokopedia & Shop](AUDIT-INTEGRASI-TIKTOKSHOP.md),
-[kontrak harga](backend/docs/adr/0045-listing-price-requests.md).
+Reproduksi matriks: dari `backend/`, jalankan `pnpm build` lalu `node tools/audit-commerce.mjs`. Compiler kontrak dan hash sumber dijelaskan di README connector. Tidak ada kode pihak ketiga dari snapshot yang dijalankan.
 
-Validasi alur baca AMS: 426 tes unit aplikasi dan 198 tes paket backend lulus; 33 tes integrasi
-AMS/skema/isolasi/retensi, 58 tes UI terkait (3 AMS diulang setelah perbaikan modal), build web dan
-4 tes browser AMS pada 320/390/768/1440 piksel lulus. Tidak ada pengujian sandbox nyata.
+Validasi akhir: 909 tes unit/paket backend; 564 tes UI pada suite penuh; 125 kasus integrasi terkait dengan database/role aplikasi (termasuk skema, isolasi, otorisasi, file, katalog, retur dan closure); delapan tes compiler kontrak; lima tes browser produksi pada lebar 320/390/768/1440 piksel termasuk multipart native; dan 22 pemeriksaan HTTP pada api/webhook/worker/scheduler nyata lulus. Typecheck, lint, build backend/web, OpenAPI 233 path dan kedua SDK sudah diperbarui. Validasi bukti PRD tetap 259 FR, 294 kriteria dan 811 anchor CSV; katalog baru tidak otomatis menutup seluruh PRD. Hasil lokal tidak menggantikan pengujian akun sandbox yang telah memperoleh scope/program.
 
-Fondasi akun creator/partner: pengguna mengonfirmasi belum memiliki akses Creator API/beta/TAP,
-dan mengizinkan pengembangan lokal. Migrasi 0033 diterapkan hanya pada database lokal; tidak ada
-kredensial atau operasi akun marketplace nyata. Koneksi berbeda dari operasi bisnis affiliate;
-kolaborasi/campaign, sample, link, komisi dan performa belum dikerjakan oleh checkpoint ini.
-
-Validasi checkpoint akun creator/partner: 426 tes unit aplikasi dan 212 tes paket backend,
-45 tes integrasi akun/skema/privilege/isolasi, 5 tes penutupan bisnis, serta 541 tes frontend lulus.
-Sembilan tes akun diulang setelah penguatan kondisi balapan, ikatan pemohon dan konfigurasi publik.
-Typecheck/lint, build web, empat uji browser akun dengan axe pada 320/390/768/1440 piksel serta
-empat regresi browser AMS lulus. Halaman akun dan modal pada fixture tetap di dalam tinggi/lebar
-viewport; mobile membaca satu kartu per halaman sejak permintaan pertama. Generator OpenAPI dan
-kedua SDK diperbarui. Pemeriksaan PRD tetap 259 FR, 294 kriteria dan 811 evidence anchors.
-
-Audit ulang 17 Oktober 2026 menegaskan model integrator: pengelola menyimpan kredensial aplikasi,
-tenant memberikan consent menurut platform/principal, lalu fitur berjalan sesuai scope/program.
-[Audit lengkap](AUDIT-INTEGRATOR-COMMERCE.md) dan [50 baris matriks](AUDIT-INTEGRATOR-FITUR.csv)
-memisahkan seluruh 28 modul Shopee/19 modul TikTok, endpoint token dan area yang belum terinventaris.
-Fondasi akun creator/partner di atas khusus TikTok Shop. Creator/publisher Shopee belum tersedia;
-AMS seller tidak menggantikannya. Pada TikTok, showcase, konten video/foto shoppable dan pemetaan
-produk creator juga masih backlog, selain kolaborasi/sample/link/komisi/performa.
-
-Prioritas sebelum perluasan modul: capability/scope per operasi, webhook pencabutan creator,
-penyimpanan grant seller sebelum discovery, ikatan pemohon/izin terbaru, presisi ID Shopee,
-konfirmasi hasil stok dan validasi token seller. Temuan ini masih terbuka; perubahan audit
-hanya dokumentasi. Navigasi TikTok diambil ulang dan identik; 14 dokumen publik dibaca ulang.
-Portal Shopee terhalang proxy HTTP 403. Tidak ada uji sandbox atau perubahan akun nyata.
+Rujukan: [audit dan sisa temuan](AUDIT-INTEGRATOR-COMMERCE.md), [modul commerce](backend/src/modules/commerce/README.md), [ADR-048](backend/docs/adr/0048-commerce-operation-workspace.md), [Shopee](AUDIT-INTEGRASI-SHOPEE.md), [Tokopedia & Shop](AUDIT-INTEGRASI-TIKTOKSHOP.md).

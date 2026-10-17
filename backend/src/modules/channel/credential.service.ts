@@ -1,10 +1,18 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { type ConnectorError, isConnectorError, type ShopCredentials, type TokenSet } from "@omniseller/connector-core";
+import {
+  type ConnectorError,
+  isConnectorError,
+  PermanentConnectorError,
+  type ShopCredentials,
+  type TokenSet,
+} from "@omniseller/connector-core";
 import { logger } from "@omniseller/logging";
+import { eq } from "drizzle-orm";
 import type { RequestContext } from "../../common/context/request-context";
-import type { TokenVault } from "../../common/security/token-vault";
+import { lockTenantKeys, type TokenVault } from "../../common/security/token-vault";
 import { withAdvisoryLock } from "../../db/advisory-lock";
 import type { DbHandle, Tx } from "../../db/client";
+import { tenant } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, TOKEN_VAULT } from "../../infra/tokens";
 import { SyncLogService } from "../sync/sync-log.service";
@@ -85,7 +93,10 @@ export class CredentialService {
   }
 
   /** Everything a shop call needs, refreshing first when the token is close to expiry. */
-  async forShop(ctx: RequestContext, storeId: string): Promise<{ store: StoreRow; shop: ShopCredentials }> {
+  async forShop(
+    ctx: RequestContext,
+    storeId: string,
+  ): Promise<{ store: StoreRow; shop: ShopCredentials; scopes: readonly string[] }> {
     const first = await this.read(ctx, storeId);
     if (!refreshDue(first.credential)) return this.open(ctx, first.store, first.credential);
     await this.refresh(ctx, storeId);
@@ -124,6 +135,14 @@ export class CredentialService {
       const connector = this.connectors.get(current.store.channel);
       let tokens: TokenSet;
       try {
+        if (
+          current.store.channel === "tiktokshop" &&
+          (typeof current.store.marketplaceInfo.open_id !== "string" || !current.store.marketplaceInfo.open_id.trim())
+        )
+          throw new PermanentConnectorError({
+            code: "account_mismatch",
+            message: "Reconnect the store to verify its seller identity before refreshing",
+          });
         tokens = await this.syncLog.run(
           ctx,
           {
@@ -136,36 +155,75 @@ export class CredentialService {
             connector.auth.refresh({
               refreshToken: current.refreshToken,
               externalShopId: current.store.externalShopId,
+              ...(typeof current.store.marketplaceInfo.open_id === "string"
+                ? { expectedPrincipalId: current.store.marketplaceInfo.open_id }
+                : {}),
+              expectedScopes: current.credential.scopes,
             }),
           (t) => ({ accessExpiresAt: t.accessExpiresAt.toISOString() }),
         );
       } catch (err) {
-        await this.recordRefreshFailure(ctx, storeId, err);
+        await this.recordRefreshFailure(ctx, storeId, err, current.refreshToken);
         throw err;
       }
 
-      await withTenantTx(this.db, ctx, async (tx) => {
-        await this.save(tx, ctx, storeId, tokens, current.credential.shopCipher);
+      const saved = await withTenantTx(this.db, ctx, async (tx) => {
+        await lockTenantKeys(tx, ctx.tenantId);
+        const [business] = await tx
+          .select({ status: tenant.status })
+          .from(tenant)
+          .where(eq(tenant.id, ctx.tenantId))
+          .for("share");
+        const liveStore = await this.repo.getStore(tx, storeId, true);
+        const live = await this.repo.credentialForUpdate(tx, storeId);
+        if (business?.status !== "active" || !liveStore || !USABLE.includes(liveStore.status) || !live?.refreshTokenEnc)
+          return false;
+        const generation = await this.vault.open(
+          tx,
+          ctx.tenantId,
+          live.refreshTokenEnc,
+          live.dekVersion,
+          purposeOf(storeId, "refresh"),
+        );
+        if (generation !== current.refreshToken) return false;
+        await this.save(tx, ctx, storeId, tokens, live.shopCipher);
         await this.stores.refreshStatus(tx, ctx, storeId);
+        return true;
       });
-      return "refreshed";
+      return saved ? "refreshed" : "not_connected";
     });
   }
 
-  private async recordRefreshFailure(ctx: RequestContext, storeId: string, err: unknown): Promise<void> {
-    const revoked = isConnectorError(err) && err.kind === "auth_revoked";
-    const failures = await withTenantTx(this.db, ctx, async (tx) => {
+  private async recordRefreshFailure(
+    ctx: RequestContext,
+    storeId: string,
+    err: unknown,
+    expectedRefreshToken: string,
+  ): Promise<void> {
+    const revoked =
+      isConnectorError(err) &&
+      (err.kind === "auth_revoked" || ["account_mismatch", "wrong_user_type", "missing_scope"].includes(err.code));
+    await withTenantTx(this.db, ctx, async (tx) => {
+      await lockTenantKeys(tx, ctx.tenantId);
+      const store = await this.repo.getStore(tx, storeId, true);
       const c = await this.repo.credentialForUpdate(tx, storeId);
-      if (!c) return 0;
+      if (!store || !USABLE.includes(store.status) || !c?.refreshTokenEnc) return;
+      const generation = await this.vault.open(
+        tx,
+        ctx.tenantId,
+        c.refreshTokenEnc,
+        c.dekVersion,
+        purposeOf(storeId, "refresh"),
+      );
+      if (generation !== expectedRefreshToken) return;
       const n = c.refreshFailCount + 1;
       await this.repo.updateCredential(tx, storeId, { refreshFailCount: n });
-      return n;
+      if (revoked || n >= MAX_REFRESH_FAILURES) {
+        const reason = revoked ? revokedReason((err as ConnectorError).code) : "refresh_failed";
+        log.warn({ store_id: storeId, failures: n, code: (err as ConnectorError).code }, "store needs reauthorization");
+        await this.stores.markReauthRequiredIn(tx, ctx, storeId, reason);
+      }
     });
-    if (revoked || failures >= MAX_REFRESH_FAILURES) {
-      const reason = revoked ? revokedReason((err as ConnectorError).code) : "refresh_failed";
-      log.warn({ store_id: storeId, failures, code: (err as ConnectorError).code }, "store needs reauthorization");
-      await this.stores.markReauthRequired(ctx, storeId, reason);
-    }
   }
 
   private async read(ctx: RequestContext, storeId: string): Promise<{ store: StoreRow; credential: CredentialRow }> {
@@ -182,7 +240,7 @@ export class CredentialService {
     ctx: RequestContext,
     store: StoreRow,
     credential: CredentialRow,
-  ): Promise<{ store: StoreRow; shop: ShopCredentials }> {
+  ): Promise<{ store: StoreRow; shop: ShopCredentials; scopes: readonly string[] }> {
     const accessToken = await withTenantTx(this.db, ctx, (tx) =>
       this.vault.open(
         tx,
@@ -195,6 +253,7 @@ export class CredentialService {
     return {
       store,
       shop: { externalShopId: store.externalShopId, shopCipher: credential.shopCipher, accessToken },
+      scopes: credential.scopes,
     };
   }
 }

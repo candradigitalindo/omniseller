@@ -974,6 +974,109 @@ export interface paths {
     patch: operations["OperatingHoursController_updatePeriod"];
     trace?: never;
   };
+  "/v1/commerce/operations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Operasi commerce dan kontrak field yang telah ditinjau */
+    get: operations["CommerceController_operations"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/commerce/principals": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Akun commerce yang dapat diakses pengguna */
+    get: operations["CommerceController_principals"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/commerce/requests": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Riwayat permintaan commerce dalam masa simpan */
+    get: operations["CommerceController_list"];
+    put?: never;
+    /** Jalankan satu operasi commerce melalui worker */
+    post: operations["CommerceController_request"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/commerce/requests/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Status dan hasil operasi commerce */
+    get: operations["CommerceController_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/commerce/files": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Unggah berkas privat untuk satu akun dan fitur commerce */
+    post: operations["CommerceFilesController_upload"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/commerce/requests/{id}/download": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Unduh berkas hasil commerce selama masa simpan privat */
+    get: operations["CommerceFilesController_download"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/warehouses": {
     parameters: {
       query?: never;
@@ -3707,6 +3810,9 @@ export interface components {
         | "affiliate:account_read"
         | "affiliate:account_write"
         | "affiliate:read"
+        | "affiliate:write"
+        | "commerce:read"
+        | "commerce:write"
         | "price:write"
         | "promo:write"
         | "finance:read"
@@ -3923,6 +4029,9 @@ export interface components {
         | "affiliate:account_read"
         | "affiliate:account_write"
         | "affiliate:read"
+        | "affiliate:write"
+        | "commerce:read"
+        | "commerce:write"
         | "price:write"
         | "promo:write"
         | "finance:read"
@@ -3980,6 +4089,9 @@ export interface components {
         | "affiliate:account_read"
         | "affiliate:account_write"
         | "affiliate:read"
+        | "affiliate:write"
+        | "commerce:read"
+        | "commerce:write"
         | "price:write"
         | "promo:write"
         | "finance:read"
@@ -4797,6 +4909,202 @@ export interface components {
         open: string;
         close: string;
       } | null)[];
+    };
+    CommerceOperationsDto_Output__schema0_Output: {
+      name: string;
+      label: string;
+      /** @enum {string} */
+      type: "string" | "integer" | "number" | "boolean" | "enum" | "object" | "array" | "file";
+      required: boolean;
+      description?: string;
+      options?: string[];
+      minimum?: number;
+      maximum?: number;
+      maxLength?: number;
+      maxBytes?: number;
+      minBytes?: number;
+      maxBytesByMime?: {
+        [key: string]: number;
+      };
+      accept?: string[];
+      allowEmpty?: boolean;
+      /** @enum {string} */
+      timestampUnit?: "seconds" | "milliseconds";
+      /** @enum {string} */
+      format?: "money" | "date" | "datetime" | "time";
+      children?: components["schemas"]["CommerceOperationsDto_Output__schema0_Output"][];
+      /** @enum {string} */
+      itemType?: "string" | "integer" | "number" | "boolean" | "object";
+    };
+    CommerceOperationsDto_Output: {
+      items: {
+        id: string;
+        /** @enum {string} */
+        channel: "tiktokshop" | "shopee";
+        /** @enum {string} */
+        principalKind: "seller" | "creator" | "affiliate_partner";
+        title: string;
+        group: string;
+        /** @enum {string} */
+        method: "GET" | "POST" | "PUT" | "DELETE";
+        path: string;
+        scopes: string[];
+        /** @enum {string} */
+        scopeMode?: "all" | "any";
+        accountRequirements?: ("cross_border" | "local")[];
+        write: boolean;
+        officialUrl: string;
+        fields: components["schemas"]["CommerceOperationsDto_Output__schema0_Output"][];
+        available: boolean;
+        requiredPermissions?: string[];
+        unavailableReason: string | null;
+        responseFields?: string[];
+        categoryAsset?: boolean;
+        /** @enum {string} */
+        transport?: "json" | "multipart" | "private_download" | "large_upload";
+        /** @enum {string} */
+        authMode?: "oauth_scope" | "shopee_app_program";
+        appPrograms?: string[];
+        /** @constant */
+        eligibility?: "unverified";
+        eligibilityReason?: string;
+      }[];
+    };
+    CommercePrincipalsDto_Output: {
+      items: {
+        id: string;
+        /** @enum {string} */
+        kind: "seller" | "creator" | "affiliate_partner";
+        /** @enum {string} */
+        channel: "tiktokshop" | "shopee";
+        name: string;
+        status: string;
+        scopes: string[];
+        region: string;
+        readOnly: boolean;
+        /** @enum {string} */
+        sellerType: "cross_border" | "local" | "unknown";
+        categories: {
+          id: number;
+          name: string;
+        }[];
+      }[];
+    };
+    RequestCommerceDto__schema0:
+      | string
+      | number
+      | boolean
+      | null
+      | components["schemas"]["RequestCommerceDto__schema0"][]
+      | {
+          [key: string]: components["schemas"]["RequestCommerceDto__schema0"];
+        };
+    RequestCommerceDto: {
+      operationId: string;
+      principalId: string;
+      input: {
+        categoryAssetId?: number;
+        path?: {
+          [key: string]: components["schemas"]["RequestCommerceDto__schema0"];
+        };
+        query?: {
+          [key: string]: components["schemas"]["RequestCommerceDto__schema0"];
+        };
+        body?: {
+          [key: string]: components["schemas"]["RequestCommerceDto__schema0"];
+        };
+      };
+      /** @default false */
+      confirmed: boolean;
+    };
+    CommerceRequestDto_Output__schema0_Output:
+      | string
+      | number
+      | boolean
+      | null
+      | components["schemas"]["CommerceRequestDto_Output__schema0_Output"][]
+      | {
+          [key: string]: components["schemas"]["CommerceRequestDto_Output__schema0_Output"];
+        };
+    CommerceRequestDto_Output: {
+      id: string;
+      operationId: string;
+      principalId: string;
+      /** @enum {string} */
+      principalKind: "seller" | "creator" | "affiliate_partner";
+      /** @enum {string} */
+      status: "queued" | "running" | "succeeded" | "failed" | "uncertain";
+      result: {
+        data: components["schemas"]["CommerceRequestDto_Output__schema0_Output"];
+        nextCursor: string | null;
+        /** @enum {string} */
+        acknowledgement: "read" | "accepted";
+        artifact?: {
+          fileId: string;
+          mime: string;
+          sizeBytes: number;
+          /** Format: date-time */
+          expiresAt: string;
+        };
+      } | null;
+      nextCursor: string | null;
+      errorCode: string | null;
+      errorMessage: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      finishedAt: string | null;
+      /** Format: date-time */
+      expiresAt: string;
+    };
+    CommerceRequestsDto_Output__schema0_Output:
+      | string
+      | number
+      | boolean
+      | null
+      | components["schemas"]["CommerceRequestsDto_Output__schema0_Output"][]
+      | {
+          [key: string]: components["schemas"]["CommerceRequestsDto_Output__schema0_Output"];
+        };
+    CommerceRequestsDto_Output: {
+      items: {
+        id: string;
+        operationId: string;
+        principalId: string;
+        /** @enum {string} */
+        principalKind: "seller" | "creator" | "affiliate_partner";
+        /** @enum {string} */
+        status: "queued" | "running" | "succeeded" | "failed" | "uncertain";
+        result: {
+          data: components["schemas"]["CommerceRequestsDto_Output__schema0_Output"];
+          nextCursor: string | null;
+          /** @enum {string} */
+          acknowledgement: "read" | "accepted";
+          artifact?: {
+            fileId: string;
+            mime: string;
+            sizeBytes: number;
+            /** Format: date-time */
+            expiresAt: string;
+          };
+        } | null;
+        nextCursor: string | null;
+        errorCode: string | null;
+        errorMessage: string | null;
+        /** Format: date-time */
+        createdAt: string;
+        finishedAt: string | null;
+        /** Format: date-time */
+        expiresAt: string;
+      }[];
+      nextCursor: string | null;
+    };
+    CommerceFileDto_Output: {
+      fileId: string;
+      filename: string;
+      mime: string;
+      sizeBytes: number;
+      /** Format: date-time */
+      expiresAt: string;
     };
     WarehouseListDto_Output: {
       items: {
@@ -11104,6 +11412,168 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["PeriodDto_Output"];
         };
+      };
+    };
+  };
+  CommerceController_operations: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CommerceOperationsDto_Output"];
+        };
+      };
+    };
+  };
+  CommerceController_principals: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CommercePrincipalsDto_Output"];
+        };
+      };
+    };
+  };
+  CommerceController_list: {
+    parameters: {
+      query?: {
+        principalId?: string;
+        cursor?: string;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CommerceRequestsDto_Output"];
+        };
+      };
+    };
+  };
+  CommerceController_request: {
+    parameters: {
+      query?: never;
+      header: {
+        "Idempotency-Key": string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RequestCommerceDto"];
+      };
+    };
+    responses: {
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CommerceRequestDto_Output"];
+        };
+      };
+    };
+  };
+  CommerceController_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CommerceRequestDto_Output"];
+        };
+      };
+    };
+  };
+  CommerceFilesController_upload: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "multipart/form-data": {
+          operationId: string;
+          principalId: string;
+          /** Format: binary */
+          file: string;
+        };
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CommerceFileDto_Output"];
+        };
+      };
+    };
+  };
+  CommerceFilesController_download: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Berkas privat. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Tautan unduh privat sementara. */
+      302: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

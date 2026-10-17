@@ -13,6 +13,7 @@ import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, TOKEN_VAULT } from "../../infra/tokens";
 import { MarketplaceGateway } from "../channel/marketplace-gateway";
 import { UsersService } from "../identity/users.service";
+import { SyncRepository } from "../sync/sync.repository";
 import { AffiliateAccountsRepository, EMPTY_GRANT } from "./accounts.repository";
 import { AffiliateAccountCredentialsService } from "./accounts-credentials.service";
 import { requireActiveAffiliateTenantIn } from "./active-tenant";
@@ -23,6 +24,7 @@ export class AffiliateAccountConnectService {
   constructor(
     @Inject(DB_TENANT) private readonly db: DbHandle,
     @Inject(AffiliateAccountsRepository) private readonly repo: AffiliateAccountsRepository,
+    @Inject(SyncRepository) private readonly sync: SyncRepository,
     @Inject(TOKEN_VAULT) private readonly vault: TokenVault,
     @Inject(UsersService) private readonly users: UsersService,
     @Inject(MarketplaceGateway) private readonly gateway: MarketplaceGateway,
@@ -198,6 +200,11 @@ export class AffiliateAccountConnectService {
             code: "account_mismatch",
             message: "Authorization belongs to another account",
           });
+        if (await this.sync.accountRevokedSince(tx, kind, grant.externalPrincipalId, held.callbackAt ?? held.createdAt))
+          throw new PermanentConnectorError({
+            code: "authorization_revoked",
+            message: "Creator authorization was revoked",
+          });
         const patch = {
           status: "active" as const,
           region: profile.region,
@@ -206,7 +213,7 @@ export class AffiliateAccountConnectService {
           accessExpiresAt: grant.tokens.accessExpiresAt,
           authorizationExpiresAt: grant.tokens.refreshExpiresAt,
           lastRefreshedAt: new Date(),
-          connectedAt: new Date(),
+          connectedAt: held.callbackAt ?? held.createdAt,
           disconnectedAt: null,
           errorCode: null,
           errorMessage: null,

@@ -9,6 +9,8 @@ import {
   unixSeconds,
 } from "@omniseller/connector-core";
 
+import { assertTiktokRequestScopes } from "./scope-guard.js";
+
 /**
  * TikTok Shop Partner API transport (partner.tiktokshop.com, "Sign your API request", "Common
  * parameters", "Common errors"). For API version 202309 and later:
@@ -98,6 +100,7 @@ export class TiktokShopClient {
     query?: Record<string, string>;
     body?: object;
   }): Promise<T> {
+    assertTiktokRequestScopes(input.method, input.path);
     const query: Record<string, string> = {
       app_key: this.appKey,
       timestamp: String(unixSeconds()),
@@ -131,12 +134,15 @@ export class TiktokShopClient {
     path: string;
     accessToken: string;
     shopCipher?: string | null;
+    query?: Record<string, string>;
     form: { body: FormData; logBody: Record<string, unknown> };
   }): Promise<T> {
+    assertTiktokRequestScopes("POST", input.path);
     const query: Record<string, string> = {
       app_key: this.appKey,
       timestamp: String(unixSeconds()),
       ...(input.shopCipher ? { shop_cipher: input.shopCipher } : {}),
+      ...input.query,
     };
     const sign = tiktokSign(this.appSecret, tiktokSignString({ path: input.path, query }));
     const url = new URL(input.path, this.config.apiBaseUrl);
@@ -171,9 +177,38 @@ export class TiktokShopClient {
   }
 
   private unwrap<T>(env: TiktokEnvelope<T>, httpStatus: number, headers: Headers, kind: "api" | "token" = "api"): T {
-    const code = Number(env?.code ?? (httpStatus >= 400 ? httpStatus : 0));
-    if (code === 0 && httpStatus < 400) return (env.data ?? {}) as T;
-    const message = env?.message || `HTTP ${httpStatus}`;
+    if (
+      !env ||
+      typeof env !== "object" ||
+      Array.isArray(env) ||
+      typeof env.code !== "number" ||
+      !Number.isSafeInteger(env.code)
+    ) {
+      if (httpStatus === 429 || httpStatus >= 500)
+        throw errorOfKind("transient", {
+          code: `http_${httpStatus}`,
+          message: "Unsuccessful HTTP status with invalid response envelope",
+          httpStatus,
+          ...retryAfter(headers),
+        });
+      throw new PermanentConnectorError({
+        code: "bad_response",
+        message: "Invalid TikTok Shop response envelope",
+        httpStatus,
+      });
+    }
+    const code = env.code;
+    if (code === 0) {
+      if (httpStatus >= 200 && httpStatus < 300) return (env.data ?? {}) as T;
+      const kind = classifyTiktokError(0, `HTTP ${httpStatus}`, httpStatus);
+      throw errorOfKind(kind, {
+        code: `http_${httpStatus}`,
+        message: "Unsuccessful HTTP status with success envelope",
+        httpStatus,
+        ...(kind === "transient" ? retryAfter(headers) : {}),
+      });
+    }
+    const message = typeof env.message === "string" && env.message ? env.message : `HTTP ${httpStatus}`;
     let errKind = classifyTiktokError(code, message, httpStatus);
     // A failed token call with a well-formed request means the code or refresh token is no longer good.
     if (kind === "token" && errKind === "permanent" && code !== 36009004) errKind = "auth_revoked";

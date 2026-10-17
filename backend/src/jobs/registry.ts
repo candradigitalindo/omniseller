@@ -6,6 +6,7 @@ import { BUSINESS_JOBS } from "../modules/business/business.jobs";
 import { CATALOG_JOBS } from "../modules/catalog/catalog.jobs";
 import { CHANNEL_JOBS } from "../modules/channel/channel.jobs";
 import { CLOSURE_JOBS } from "../modules/closure/closure.jobs";
+import { COMMERCE_JOBS } from "../modules/commerce/commerce.jobs";
 import { EXPORT_JOBS } from "../modules/exports/exports.jobs";
 import { FILES_JOBS } from "../modules/files/files.jobs";
 import { FULFILLMENT_JOBS } from "../modules/fulfillment/fulfillment.jobs";
@@ -65,6 +66,7 @@ export class JobRegistry {
 export const JOB_DEFINITIONS: readonly JobDef[] = [
   ...AFFILIATE_JOBS,
   ...AFFILIATE_ACCOUNT_JOBS,
+  ...COMMERCE_JOBS,
   ...NOTIFICATION_JOBS,
   ...IDENTITY_JOBS,
   ...CHANNEL_JOBS,

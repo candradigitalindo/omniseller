@@ -18,6 +18,8 @@ export type CallObserver = (record: CallRecord) => void;
 export interface HttpConfig {
   fetch?: typeof fetch;
   timeoutMs?: number;
+  /** Optional stricter response ceiling; cannot raise the JSON (32 MiB) or file (25 MiB) hard limit. */
+  maxResponseBytes?: number;
   observer?: CallObserver;
   /** Awaited before every request: the backend's per-shop rate limit (token bucket). */
   beforeRequest?: () => Promise<void>;
@@ -44,6 +46,81 @@ export interface HttpResponse {
 }
 
 const DEFAULT_TIMEOUT_MS = 15_000;
+// A reviewed 20 MiB base64 download fits within the JSON ceiling, including its envelope.
+const MAX_JSON_BYTES = 32 * 1024 * 1024;
+/** Largest file a connector downloads (a label batch of 50 parcels is well below 5 MB). */
+const MAX_FILE_BYTES = 25 * 1024 * 1024;
+
+function responseLimit(config: HttpConfig, ceiling: number): number {
+  const requested = config.maxResponseBytes ?? ceiling;
+  if (!Number.isSafeInteger(requested) || requested <= 0)
+    throw new RangeError("maxResponseBytes must be a positive safe integer");
+  return Math.min(requested, ceiling);
+}
+
+/** Bound decoded bytes while consuming the stream, including chunked/decompressed responses. */
+async function readResponse(
+  res: Response,
+  limit: number,
+  code: "response_too_large" | "file_too_large",
+  record: CallRecord,
+): Promise<Uint8Array> {
+  const oversized = (bytes: number): never => {
+    record.response = { bytes, maxBytes: limit };
+    if (res.status >= 500 || res.status === 429) {
+      record.errorCode = `http_${res.status}`;
+      throw new TransientConnectorError({
+        code: `http_${res.status}`,
+        message: "response exceeds download limit",
+        httpStatus: res.status,
+        ...retryAfter(res.headers),
+      });
+    }
+    record.errorCode = code;
+    throw new PermanentConnectorError({ code, message: "response exceeds download limit", httpStatus: res.status });
+  };
+  const length = res.headers.get("content-length");
+  if (length && /^\d+$/.test(length) && Number(length) > limit) {
+    // Cancellation is initiated immediately; a remote cancellation acknowledgement must not delay rejection.
+    void res.body?.cancel().catch(() => undefined);
+    oversized(Number(length));
+  }
+  if (!res.body) return new Uint8Array();
+  const reader = res.body.getReader();
+  let bytes = new Uint8Array(Math.min(limit, 64 * 1024));
+  let size = 0;
+  try {
+    while (true) {
+      let chunk: Awaited<ReturnType<typeof reader.read>>;
+      try {
+        chunk = await reader.read();
+      } catch {
+        record.errorCode = "network";
+        throw new TransientConnectorError({
+          code: "network",
+          message: "response body interrupted",
+          httpStatus: res.status,
+        });
+      }
+      if (chunk.done) return bytes.subarray(0, size);
+      const required = size + chunk.value.byteLength;
+      if (required > limit) {
+        void reader.cancel().catch(() => undefined);
+        oversized(required);
+      }
+      // One growing buffer bounds memory independently of how many tiny chunks a server sends.
+      if (required > bytes.byteLength) {
+        const expanded = new Uint8Array(Math.min(limit, Math.max(required, bytes.byteLength * 2)));
+        expanded.set(bytes);
+        bytes = expanded;
+      }
+      bytes.set(chunk.value, size);
+      size = required;
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
 
 /**
  * JSON over HTTP with a timeout. Network failures and non-JSON 5xx answers become transient errors;
@@ -54,6 +131,7 @@ export async function requestJson(
   req: HttpRequest,
   requestIdOf: (json: unknown) => string | undefined,
 ): Promise<HttpResponse> {
+  const limit = responseLimit(config, MAX_JSON_BYTES);
   const doFetch = config.fetch ?? fetch;
   await config.beforeRequest?.();
   const started = performance.now();
@@ -78,7 +156,7 @@ export async function requestJson(
       throw new TransientConnectorError({ code: "network", message: (err as Error).message });
     }
     record.httpStatus = res.status;
-    const text = await res.text();
+    const text = new TextDecoder().decode(await readResponse(res, limit, "response_too_large", record));
     let json: unknown;
     try {
       json = text.length ? parseJsonSafe(text) : {};
@@ -118,9 +196,6 @@ export interface FileResponse {
   json?: unknown;
 }
 
-/** Largest file a connector downloads (a label batch of 50 parcels is well below 5 MB). */
-const MAX_FILE_BYTES = 25 * 1024 * 1024;
-
 /**
  * A file download (shipping labels). A JSON answer means the marketplace sent an error envelope
  * instead of the file; it is returned for the connector to classify. Only the size and type of the
@@ -131,6 +206,7 @@ export async function requestFile(
   req: HttpRequest,
   requestIdOf: (json: unknown) => string | undefined,
 ): Promise<FileResponse> {
+  const limit = responseLimit(config, MAX_FILE_BYTES);
   const doFetch = config.fetch ?? fetch;
   await config.beforeRequest?.();
   const started = performance.now();
@@ -155,7 +231,7 @@ export async function requestFile(
       throw new TransientConnectorError({ code: "network", message: (err as Error).message });
     }
     record.httpStatus = res.status;
-    const bytes = new Uint8Array(await res.arrayBuffer());
+    const bytes = await readResponse(res, limit, "file_too_large", record);
     const type = res.headers.get("content-type") ?? "";
     const looksJson = type.includes("json") || (bytes.length > 0 && bytes[0] === 0x7b);
     if (looksJson) {
@@ -189,10 +265,6 @@ export async function requestFile(
         message: `file download failed with HTTP ${res.status}`,
         httpStatus: res.status,
       });
-    }
-    if (bytes.length > MAX_FILE_BYTES) {
-      record.errorCode = "file_too_large";
-      throw new PermanentConnectorError({ code: "file_too_large", message: `file of ${bytes.length} bytes` });
     }
     return { status: res.status, headers: res.headers, bytes };
   } finally {

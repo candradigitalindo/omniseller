@@ -31,6 +31,7 @@ import {
 import type { Permission } from "@/lib/session";
 
 type NavKey =
+  | "commerce"
   | "affiliateAccounts"
   | "affiliate"
   | "overview"
@@ -186,6 +187,7 @@ export const NAV: readonly NavGroup[] = [
     key: "groupBusiness",
     items: [
       { key: "stores", href: "/integrasi", icon: Plug, permission: "settings:store", ready: true },
+      { key: "commerce", href: "/commerce", icon: Store, permission: "commerce:read", ready: true },
       { key: "migration", href: "/migrasi", icon: Database, permission: "settings:store", ready: true },
       {
         key: "businessProfile",

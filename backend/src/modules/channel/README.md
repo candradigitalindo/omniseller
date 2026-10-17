@@ -88,3 +88,20 @@ Marketplace yang didukung: Shopee dan TikTok Shop. Di Indonesia TikTok Shop dan 
 - `sync_cursor` milik modul ini; modul lain membaca dan memajukannya lewat `StoresService.syncCursor`, `recordPull` (resource `listings` juga mengisi `store.last_product_sync_at`), dan `saveSyncCursor` (`returns`).
 - Pemasangan dari TikTok Shop App Store (tanpa `state`) belum didukung; butuh aplikasi publik yang lolos review.
 - Notifikasi seketika `store.reauth_required` tetap ada; peringatan 15 menit (FR-INT-08) adalah eskalasinya dengan email. Kegagalan karena pembatas laju OmniSeller sendiri (`local_rate_limit`) dan penolakan permintaan (`permanent`) tidak dihitung sebagai koneksi terputus.
+
+## API scopes on existing TikTok seller operations
+
+`CredentialService.forShop` supplies persisted scope metadata separately from the worker-only token.
+The gateway wraps each TikTok operation in the core `withGrantedScopes` context. Every signed client
+call/upload matches its exact method/version/path against all 390 published endpoint-version scope
+contracts before HTTP. A multi-request operation checks every individual request. Missing grants or
+unverified contracts fail closed with an actionable Indonesian sync message; they do not masquerade
+as an authorization revocation or infer write from read scope. Refresh reloads scopes and token before
+retry, and concurrent contexts do not share grants. Known seller-flow mock permissions are explicit;
+fixtures that provide `scopes` retain their exact narrower grants for denial tests.
+
+Official scope packages are filtered by principal type. A matching applicable package is a necessary
+precheck, so ordinary seller workflows do not require the full-service seller program listed beside
+them. It is not proof of sufficient permission or AND/OR semantics: final marketplace authorization
+and current app/program eligibility remain authoritative. Per-store UI feature availability and
+live marketplace entitlement verification remain separate work.

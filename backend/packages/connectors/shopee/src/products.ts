@@ -17,6 +17,7 @@ import {
   withCreatedItem,
 } from "@omniseller/connector-core";
 import type { ShopeeClient } from "./client.js";
+import { numericId, shopeeId } from "./identifiers.js";
 
 /**
  * Creating products on Shopee (v2.product.*, v2.media_space.upload_image; developer guides "Product
@@ -36,17 +37,17 @@ const BRAND_PAGES = 10;
 const NO_BRAND: MarketplaceBrand = { externalId: "0", name: "No Brand", selectable: true };
 
 interface BaseInfo {
-  item_id?: number;
-  category_id?: number;
+  item_id?: number | string;
+  category_id?: number | string;
   item_name?: string;
   description?: string;
   description_type?: string;
   description_info?: { extended_description?: { field_list?: { field_type?: string; text?: string }[] } };
   item_sku?: string;
   attribute_list?: {
-    attribute_id?: number;
+    attribute_id?: number | string;
     original_attribute_name?: string;
-    attribute_value_list?: { value_id?: number; original_value_name?: string; value_unit?: string }[];
+    attribute_value_list?: { value_id?: number | string; original_value_name?: string; value_unit?: string }[];
   }[];
   price_info?: { original_price?: number; current_price?: number }[];
   stock_info_v2?: { summary_info?: { total_available_stock?: number } };
@@ -54,17 +55,17 @@ interface BaseInfo {
   weight?: string;
   dimension?: { package_length?: number; package_width?: number; package_height?: number };
   logistic_info?: {
-    logistic_id?: number;
+    logistic_id?: number | string;
     enabled?: boolean;
     is_free?: boolean;
-    size_id?: number;
+    size_id?: number | string;
     shipping_fee?: number;
   }[];
   pre_order?: { is_pre_order?: boolean; days_to_ship?: number };
   condition?: string;
   size_chart?: string;
   has_model?: boolean;
-  brand?: { brand_id?: number; original_brand_name?: string };
+  brand?: { brand_id?: number | string; original_brand_name?: string };
   item_dangerous?: number;
   gtin_code?: string;
 }
@@ -73,7 +74,7 @@ interface ModelList {
   response?: {
     tier_variation?: { name?: string; option_list?: { option?: string; image?: { image_url?: string } }[] }[];
     model?: {
-      model_id?: number;
+      model_id?: number | string;
       model_sku?: string;
       tier_index?: number[];
       price_info?: { original_price?: number; current_price?: number }[];
@@ -84,11 +85,15 @@ interface ModelList {
 }
 
 interface AttributeNode {
-  attribute_id?: number;
+  attribute_id?: number | string;
   mandatory?: boolean;
   name?: string;
   multi_lang?: { language?: string; value?: string }[];
-  attribute_value_list?: { value_id?: number; name?: string; multi_lang?: { language?: string; value?: string }[] }[];
+  attribute_value_list?: {
+    value_id?: number | string;
+    name?: string;
+    multi_lang?: { language?: string; value?: string }[];
+  }[];
   attribute_info?: {
     input_type?: number;
     input_validation_type?: number;
@@ -116,10 +121,10 @@ interface ItemLimit {
 interface ChannelList {
   response?: {
     logistics_channel_list?: {
-      logistics_channel_id?: number;
+      logistics_channel_id?: number | string;
       enabled?: boolean;
       fee_type?: string;
-      mask_channel_id?: number;
+      mask_channel_id?: number | string;
     }[];
   };
 }
@@ -182,25 +187,25 @@ export function shopeeLogisticsFor(
   channels: NonNullable<NonNullable<ChannelList["response"]>["logistics_channel_list"]>,
   copied: unknown,
   hasDimensions: boolean,
-): { logistic_id: number; enabled: boolean; is_free?: boolean; size_id?: number; shipping_fee?: number }[] {
+): { logistic_id: unknown; enabled: boolean; is_free?: boolean; size_id?: unknown; shipping_fee?: number }[] {
   const enabled = channels.filter((c) => c.enabled && c.logistics_channel_id !== undefined);
-  const enabledIds = new Set(enabled.map((c) => c.logistics_channel_id));
+  const enabledIds = new Set(enabled.map((c) => shopeeId(c.logistics_channel_id)));
   if (Array.isArray(copied)) {
     const kept = (
       copied as {
-        logistic_id?: number;
+        logistic_id?: number | string;
         enabled?: boolean;
         is_free?: boolean;
-        size_id?: number;
+        size_id?: number | string;
         shipping_fee?: number;
       }[]
     )
-      .filter((c) => c.enabled && c.logistic_id !== undefined && enabledIds.has(c.logistic_id))
+      .filter((c) => c.enabled && c.logistic_id !== undefined && enabledIds.has(shopeeId(c.logistic_id)))
       .map((c) => ({
-        logistic_id: c.logistic_id!,
+        logistic_id: numericId(c.logistic_id!),
         enabled: true,
         ...(c.is_free !== undefined ? { is_free: c.is_free } : {}),
-        ...(c.size_id ? { size_id: c.size_id } : {}),
+        ...(c.size_id ? { size_id: numericId(c.size_id) } : {}),
         ...(c.shipping_fee !== undefined ? { shipping_fee: c.shipping_fee } : {}),
       }));
     if (kept.length > 0) return kept;
@@ -208,17 +213,17 @@ export function shopeeLogisticsFor(
   return enabled
     .filter((c) => (c.mask_channel_id ?? 0) === 0)
     .filter((c) => c.fee_type === "FIXED_DEFAULT_PRICE" || (c.fee_type === "SIZE_INPUT" && hasDimensions))
-    .map((c) => ({ logistic_id: c.logistics_channel_id!, enabled: true }));
+    .map((c) => ({ logistic_id: numericId(c.logistics_channel_id!), enabled: true }));
 }
 
 function attributeList(attrs: ProductAttributeValue[]) {
   return attrs
     .filter((a) => a.values.length > 0)
     .map((a) => ({
-      attribute_id: Number(a.attributeId),
+      attribute_id: numericId(a.attributeId),
       attribute_value_list: a.values.map((v) =>
         v.externalId && v.externalId !== "0"
-          ? { value_id: Number(v.externalId), ...(v.unit ? { value_unit: v.unit } : {}) }
+          ? { value_id: numericId(v.externalId), ...(v.unit ? { value_unit: v.unit } : {}) }
           : { value_id: 0, original_value_name: v.name ?? "", ...(v.unit ? { value_unit: v.unit } : {}) },
       ),
     }));
@@ -244,7 +249,7 @@ export function shopeeProducts(client: ShopeeClient, ids: { shopLevel: string })
         "/api/v2/product/get_item_base_info",
         { query: { item_id_list: externalItemId, need_tax_info: "false", need_complaint_policy: "false" } },
       );
-      const item = base.response?.item_list?.[0];
+      const item = base.response?.item_list?.find((row) => shopeeId(row.item_id) === shopeeId(externalItemId));
       if (!item?.item_id) return null;
       let variationNames: string[] = [];
       let variants: SourceProduct["variants"];
@@ -327,8 +332,8 @@ export function shopeeProducts(client: ShopeeClient, ids: { shopLevel: string })
       const res = await client.shopCall<{
         response?: {
           category_list?: {
-            category_id?: number;
-            parent_category_id?: number;
+            category_id?: number | string;
+            parent_category_id?: number | string;
             original_category_name?: string;
             display_category_name?: string;
             has_children?: boolean;
@@ -347,7 +352,7 @@ export function shopeeProducts(client: ShopeeClient, ids: { shopLevel: string })
     },
 
     async recommendCategory(shop: ShopCredentials, input: { title: string }): Promise<string[]> {
-      const res = await client.shopCall<{ response?: { category_id?: number[] } }>(
+      const res = await client.shopCall<{ response?: { category_id?: (number | string)[] } }>(
         shop,
         "GET",
         "/api/v2/product/category_recommend",
@@ -361,7 +366,7 @@ export function shopeeProducts(client: ShopeeClient, ids: { shopLevel: string })
       for (let i = 0; i < categoryIds.length; i += ATTRIBUTE_BATCH) {
         const batch = categoryIds.slice(i, i + ATTRIBUTE_BATCH);
         const res = await client.shopCall<{
-          response?: { list?: { category_id?: number; attribute_tree?: AttributeNode[] }[] };
+          response?: { list?: { category_id?: number | string; attribute_tree?: AttributeNode[] }[] };
         }>(shop, "GET", "/api/v2/product/get_attribute_tree", {
           query: { category_id_list: batch.join(","), language: LANGUAGE },
         });
@@ -420,7 +425,7 @@ export function shopeeProducts(client: ShopeeClient, ids: { shopLevel: string })
       for (let page = 0; page < BRAND_PAGES; page++) {
         const res = await client.shopCall<{
           response?: {
-            brand_list?: { brand_id?: number; original_brand_name?: string; display_brand_name?: string }[];
+            brand_list?: { brand_id?: number | string; original_brand_name?: string; display_brand_name?: string }[];
             has_next_page?: boolean;
             next_offset?: number;
           };
@@ -533,11 +538,11 @@ export function shopeeProducts(client: ShopeeClient, ids: { shopLevel: string })
                   }
                 : {}),
               logistic_info: logistics,
-              category_id: Number(p.categoryId),
+              category_id: numericId(p.categoryId),
               image: { image_id_list: p.images },
               attribute_list: attributeList(p.attributes),
               brand: {
-                brand_id: Number(p.brand?.externalId ?? 0),
+                brand_id: numericId(p.brand?.externalId ?? "0"),
                 original_brand_name:
                   p.brand?.externalId && p.brand.externalId !== "0" ? (p.brand.name ?? "") : "NoBrand",
               },
@@ -602,10 +607,10 @@ export function shopeeProducts(client: ShopeeClient, ids: { shopLevel: string })
       const imageOf = new Map(p.variants.filter((v) => v.image).map((v) => [v.options[0] ?? "", v.image!]));
       try {
         const res = await client.shopCall<{
-          response?: { model?: { model_id?: number; tier_index?: number[] }[] };
+          response?: { model?: { model_id?: number | string; tier_index?: number[] }[] };
         }>(shop, "POST", "/api/v2/product/init_tier_variation", {
           body: {
-            item_id: Number(itemId),
+            item_id: numericId(itemId),
             standardise_tier_variation: p.variationNames.map((name, k) => ({
               variation_id: 0,
               variation_group_id: 0,

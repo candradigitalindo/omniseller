@@ -37,7 +37,7 @@ BEGIN
                            'stock_transfer_status_transition', 'subscription_status_transition',
                            'invoice_status_transition', 'listing_price_change_status_transition',
                            'affiliate_product_query_status_transition', 'affiliate_account_status_transition',
-                           'affiliate_authorization_status_transition']
+                           'affiliate_authorization_status_transition', 'commerce_operation_status_transition']
   LOOP
     EXECUTE format('REVOKE INSERT, UPDATE, DELETE ON TABLE %I FROM omniseller_api, omniseller_worker, omniseller_system', t);
   END LOOP;
@@ -45,6 +45,12 @@ END $$;
 
 -- tenant: no deletes from the app (purge is a system job)
 REVOKE DELETE ON TABLE tenant FROM omniseller_api, omniseller_worker;
+
+-- The API appends requested commerce work; only the worker may claim jobs or record marketplace facts.
+REVOKE INSERT, UPDATE, DELETE ON TABLE commerce_operation FROM omniseller_api;
+GRANT INSERT (id,tenant_id,operation_id,principal_kind,store_id,account_id,requested_by,is_write,input,expires_at)
+ ON TABLE commerce_operation TO omniseller_api;
+REVOKE UPDATE, DELETE ON TABLE commerce_file FROM omniseller_api;
 
 -- Marketplace tokens: api can see expiry metadata only and cannot write credentials at all.
 -- The OAuth code exchange and token encryption run in the worker (backend doc 8.6).
@@ -127,3 +133,15 @@ REVOKE ALL ON TABLE affiliate_authorization FROM omniseller_api;
 GRANT SELECT(id,tenant_id,created_at,updated_at,row_version,kind,account_id,requested_by,state_hash,status,status_changed_at,expires_at,callback_at,completed_at,error_code,error_message),
  INSERT(id,tenant_id,kind,account_id,requested_by,state_hash,expires_at),
  UPDATE(status,callback_at,completed_at,error_code,error_message) ON TABLE affiliate_authorization TO omniseller_api;
+
+-- Seller OAuth staged grants are worker-only. API can record callbacks and read safe metadata.
+REVOKE ALL ON TABLE store_authorization FROM omniseller_api;
+GRANT SELECT(id,tenant_id,created_at,updated_at,row_version,channel,store_id,requested_by,state_hash,
+ status,expires_at,callback_at,completed_at,result,error_code,error_message),
+ INSERT(id,tenant_id,channel,store_id,requested_by,state_hash,status,expires_at),
+ UPDATE(status,callback_at,completed_at,result,error_code,error_message,updated_at,row_version)
+ ON TABLE store_authorization TO omniseller_api;
+
+-- Pre-tenant routing metadata only; the signed raw body is verified before the lookup.
+REVOKE ALL ON FUNCTION resolve_affiliate_account(text,text,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION resolve_affiliate_account(text,text,text) TO omniseller_api,omniseller_worker;

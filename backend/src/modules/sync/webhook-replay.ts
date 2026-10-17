@@ -1,5 +1,5 @@
 import { newId } from "@omniseller/shared";
-import { and, asc, eq, gte, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, eq, gte, isNotNull, isNull, or } from "drizzle-orm";
 import type { RequestContext } from "../../common/context/request-context";
 import type { Tx } from "../../db/client";
 import { webhookInbox } from "../../db/schema/sync";
@@ -20,7 +20,7 @@ export async function replayWebhooksIn(
       and(
         eq(webhookInbox.tenantId, ctx.tenantId),
         eq(webhookInbox.signatureValid, true),
-        isNotNull(webhookInbox.storeId),
+        or(isNotNull(webhookInbox.storeId), isNotNull(webhookInbox.accountId)),
         input.id ? eq(webhookInbox.id, input.id) : undefined,
         input.source ? eq(webhookInbox.source, input.source) : undefined,
         input.since ? gte(webhookInbox.receivedAt, input.since) : undefined,

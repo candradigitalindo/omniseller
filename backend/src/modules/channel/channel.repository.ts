@@ -12,7 +12,26 @@ import {
 } from "../../db/schema";
 
 export type StoreRow = typeof store.$inferSelect;
-export type StoreAuthorizationRow = typeof storeAuthorization.$inferSelect;
+export type PrivateStoreAuthorizationRow = typeof storeAuthorization.$inferSelect;
+export type StoreAuthorizationRow = Omit<PrivateStoreAuthorizationRow, "grantEnc" | "grantDekVersion">;
+const authorizationMeta = {
+  id: storeAuthorization.id,
+  tenantId: storeAuthorization.tenantId,
+  createdAt: storeAuthorization.createdAt,
+  updatedAt: storeAuthorization.updatedAt,
+  rowVersion: storeAuthorization.rowVersion,
+  channel: storeAuthorization.channel,
+  storeId: storeAuthorization.storeId,
+  requestedBy: storeAuthorization.requestedBy,
+  stateHash: storeAuthorization.stateHash,
+  status: storeAuthorization.status,
+  expiresAt: storeAuthorization.expiresAt,
+  callbackAt: storeAuthorization.callbackAt,
+  completedAt: storeAuthorization.completedAt,
+  result: storeAuthorization.result,
+  errorCode: storeAuthorization.errorCode,
+  errorMessage: storeAuthorization.errorMessage,
+};
 export type CredentialRow = typeof storeCredential.$inferSelect;
 export type ChannelWarehouseRow = typeof channelWarehouse.$inferSelect;
 
@@ -40,7 +59,11 @@ export class ChannelRepository {
   // ---- store_authorization ----
 
   async insertAuthorization(tx: Tx, row: typeof storeAuthorization.$inferInsert): Promise<void> {
-    await tx.insert(storeAuthorization).values(row);
+    // Named columns avoid requiring INSERT on private grant columns (including DEFAULT values).
+    await tx.execute(sql`INSERT INTO store_authorization
+      (id,tenant_id,channel,store_id,requested_by,state_hash,status,expires_at)
+      VALUES (${row.id},${row.tenantId},${row.channel},${row.storeId ?? null},${row.requestedBy ?? null},
+      ${row.stateHash},${row.status ?? "pending"},${row.expiresAt})`);
   }
 
   async authorizationByStateHash(
@@ -48,15 +71,46 @@ export class ChannelRepository {
     stateHash: string,
     forUpdate = false,
   ): Promise<StoreAuthorizationRow | undefined> {
-    const q = tx.select().from(storeAuthorization).where(eq(storeAuthorization.stateHash, stateHash));
+    const q = tx.select(authorizationMeta).from(storeAuthorization).where(eq(storeAuthorization.stateHash, stateHash));
     const [row] = forUpdate ? await q.for("update") : await q;
     return row;
   }
 
   async getAuthorization(tx: Tx, id: string, forUpdate = false): Promise<StoreAuthorizationRow | undefined> {
-    const q = tx.select().from(storeAuthorization).where(eq(storeAuthorization.id, id));
+    const q = tx.select(authorizationMeta).from(storeAuthorization).where(eq(storeAuthorization.id, id));
     const [row] = forUpdate ? await q.for("update") : await q;
     return row;
+  }
+
+  /** Worker-only projection. Never use this method from API services. */
+  async privateAuthorization(tx: Tx, id: string, forUpdate = false): Promise<PrivateStoreAuthorizationRow | undefined> {
+    const q = tx.select().from(storeAuthorization).where(eq(storeAuthorization.id, id));
+    return (await (forUpdate ? q.for("update") : q))[0];
+  }
+
+  async stageAuthorizationGrant(tx: Tx, id: string, grantEnc: Buffer | null, grantDekVersion: number | null) {
+    await tx.update(storeAuthorization).set({ grantEnc, grantDekVersion }).where(eq(storeAuthorization.id, id));
+  }
+
+  async cancelAuthorizations(tx: Tx, storeId?: string): Promise<string[]> {
+    const rows = await tx
+      .update(storeAuthorization)
+      .set({
+        status: "failed",
+        completedAt: new Date(),
+        errorCode: "denied",
+        errorMessage: "Koneksi dibatalkan karena toko atau bisnis sudah diputus.",
+        updatedAt: new Date(),
+        rowVersion: sql`${storeAuthorization.rowVersion}+1`,
+      })
+      .where(
+        and(
+          inArray(storeAuthorization.status, ["pending", "exchanging"]),
+          storeId ? eq(storeAuthorization.storeId, storeId) : undefined,
+        ),
+      )
+      .returning({ id: storeAuthorization.id });
+    return rows.map((row) => row.id);
   }
 
   async updateAuthorization(

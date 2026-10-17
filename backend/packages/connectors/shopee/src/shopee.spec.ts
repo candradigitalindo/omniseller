@@ -537,7 +537,10 @@ describe("Shopee catalog (v2.product)", () => {
 
 describe("Shopee stock (v2.product.update_stock)", () => {
   const shop = { externalShopId: "1", shopCipher: null, accessToken: "t" };
-  type Body = { item_id: number; stock_list: { model_id: number; seller_stock: object[] }[] };
+  type Body = {
+    item_id: number;
+    stock_list: { model_id: number; seller_stock: { location_id?: string; stock: number }[] }[];
+  };
 
   it("sends one call per item with all its models, mirroring each model's location structure", async () => {
     const bodies: Body[] = [];
@@ -547,7 +550,12 @@ describe("Shopee stock (v2.product.update_stock)", () => {
         bodies.push(body);
         return {
           error: "",
-          response: { success_list: body.stock_list.map((s) => ({ model_id: s.model_id })), failure_list: [] },
+          response: {
+            success_list: body.stock_list.flatMap((s) =>
+              s.seller_stock.map((stock) => ({ model_id: s.model_id, ...stock })),
+            ),
+            failure_list: [],
+          },
         };
       },
     });
@@ -609,8 +617,17 @@ describe("Shopee stock (v2.product.update_stock)", () => {
     const sizes: number[] = [];
     const f = fakeFetch({
       "POST /api/v2/product/update_stock": (_url, init) => {
-        sizes.push((JSON.parse(String(init.body)) as Body).stock_list.length);
-        return { error: "", response: { success_list: [], failure_list: [] } };
+        const body = JSON.parse(String(init.body)) as Body;
+        sizes.push(body.stock_list.length);
+        return {
+          error: "",
+          response: {
+            success_list: body.stock_list.flatMap((s) =>
+              s.seller_stock.map((stock) => ({ model_id: s.model_id, ...stock })),
+            ),
+            failure_list: [],
+          },
+        };
       },
     });
     const updates = Array.from({ length: 60 }, (_, i) => ({

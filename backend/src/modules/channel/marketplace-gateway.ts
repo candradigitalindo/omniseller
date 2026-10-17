@@ -1,5 +1,10 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { isConnectorError, type MarketplaceConnector, type ShopCredentials } from "@omniseller/connector-core";
+import {
+  isConnectorError,
+  type MarketplaceConnector,
+  type ShopCredentials,
+  withGrantedScopes,
+} from "@omniseller/connector-core";
 import type { RequestContext } from "../../common/context/request-context";
 import type { RateLimiter } from "../../common/security/rate-limiter";
 import { RATE_LIMITER } from "../../infra/tokens";
@@ -61,7 +66,7 @@ export class MarketplaceGateway {
         ctx,
         { ...entry, storeId },
         async () => {
-          let { store, shop } = await this.credentials.forShop(ctx, storeId);
+          let { store, shop, scopes } = await this.credentials.forShop(ctx, storeId);
           seen = store;
           const connector = this.connectors.get(store.channel);
           const gate = {
@@ -70,14 +75,18 @@ export class MarketplaceGateway {
             rule: connector.manifest.shopRateLimit,
             background: options.background === true,
           };
+          const invoke = () =>
+            store.channel === "tiktokshop"
+              ? withGrantedScopes({ principalKind: "seller", scopes }, () => fn(connector, shop, store))
+              : fn(connector, shop, store);
           return withRequestGate(gate, async () => {
             try {
-              return await fn(connector, shop, store);
+              return await invoke();
             } catch (err) {
               if (isConnectorError(err) && err.kind === "auth_expired") {
                 await this.credentials.refresh(ctx, storeId, { force: true });
-                ({ store, shop } = await this.credentials.forShop(ctx, storeId));
-                return await this.revokedGuard(ctx, storeId, () => fn(connector, shop, store));
+                ({ store, shop, scopes } = await this.credentials.forShop(ctx, storeId));
+                return await this.revokedGuard(ctx, storeId, invoke);
               }
               if (isConnectorError(err) && err.kind === "auth_revoked") {
                 await this.stores.markReauthRequired(ctx, storeId, revokedReason(err.code));

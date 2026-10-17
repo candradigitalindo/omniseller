@@ -2,6 +2,7 @@
  * Normalized types shared by every marketplace connector (technology doc 8.1, 26.4). Core logic in the
  * backend only ever sees these shapes; marketplace field names stay inside each connector package.
  */
+import type { MarketplaceCommerce } from "./commerce-types.js";
 
 export type ChannelId = "shopee" | "tiktokshop";
 
@@ -697,6 +698,7 @@ export type WebhookEventKind =
   | "authorization.granted"
   | "authorization.revoked"
   | "authorization.expiring"
+  | "account.authorization_revoked"
   | "order.status_changed"
   | "order.tracking_updated"
   | "shipment.document_ready"
@@ -712,6 +714,8 @@ export interface NormalizedWebhookEvent {
   code: string;
   /** Shops the event concerns; empty for partner-level notices. */
   externalShopIds: string[];
+  /** Non-seller principal. Never route creator notifications through a seller shop id. */
+  externalAccount?: { kind: MarketplaceAccountKind; id: string };
   occurredAt: Date;
   /** Kind-specific data, already normalized (e.g. `expiresAt` for authorization.expiring). */
   data: {
@@ -756,6 +760,8 @@ export interface ConnectorManifest {
 }
 
 export interface MarketplaceConnector {
+  /** Documented business operations with tenant application consumers and explicit capability checks. */
+  commerce?: MarketplaceCommerce;
   /** Optional non-seller principal authorization, only when an application consumer exists. */
   accounts?: MarketplaceAccountAuth;
   readonly manifest: ConnectorManifest;
@@ -766,7 +772,13 @@ export interface MarketplaceConnector {
     /** Where a seller revokes the authorization on the marketplace side, when the marketplace offers a link. */
     revokeUrl(input: { redirectUri: string }): string | null;
     exchangeCode(input: { code: string; shopId?: string; mainAccountId?: string }): Promise<AuthorizationGrant>;
-    refresh(input: { refreshToken: string; externalShopId: string }): Promise<TokenSet>;
+    refresh(input: {
+      refreshToken: string;
+      externalShopId: string;
+      /** Seller identity and scope baseline already verified when connected. */
+      expectedPrincipalId?: string;
+      expectedScopes?: readonly string[];
+    }): Promise<TokenSet>;
   };
 
   shops: {

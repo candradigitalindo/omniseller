@@ -1,0 +1,94 @@
+{
+  "meaning": "Executable workspace contracts, not proof of live marketplace approval. Unavailable includes dedicated existing workflows and unsupported contracts/principals/regions.",
+  "platforms": {
+    "shopee": {
+      "operations": 428,
+      "workspaceAvailable": 224,
+      "unavailableOrDedicated": 204,
+      "groups": [
+        "Afiliasi seller AMS",
+        "Aplikasi partner",
+        "Diskon",
+        "Flash sale toko",
+        "Gudang Shopee",
+        "Hadiah pengikut",
+        "Iklan Shopee",
+        "Kategori toko",
+        "Kesehatan toko",
+        "Keuangan Shopee",
+        "Konfigurasi webhook",
+        "Layanan Shopee",
+        "Logistik",
+        "Media",
+        "Media produk",
+        "Merchant",
+        "Paket bundel",
+        "Pengiriman awal",
+        "Pesanan",
+        "Produk Shopee",
+        "Produk lintas negara",
+        "Produk pilihan",
+        "Profil toko",
+        "Promo tambahan",
+        "Retur Shopee",
+        "Shopee Live",
+        "Shopee Video",
+        "Voucher"
+      ],
+      "byPrincipal": {
+        "seller": {
+          "total": 388,
+          "available": 224
+        },
+        "creator": {
+          "total": 40,
+          "available": 0
+        },
+        "affiliate_partner": {
+          "total": 0,
+          "available": 0
+        }
+      }
+    },
+    "tiktokshop": {
+      "operations": 319,
+      "workspaceAvailable": 267,
+      "unavailableOrDedicated": 52,
+      "groups": [
+        "Affiliate creator",
+        "Affiliate partner",
+        "Affiliate seller",
+        "Analytics",
+        "Authorization",
+        "Customer engagement",
+        "Customer service",
+        "Event",
+        "Finance",
+        "Fulfilled by TikTok (FBT)",
+        "Fulfillment",
+        "Logistics",
+        "Orders",
+        "Products",
+        "Promotion",
+        "Return and refund",
+        "Seller",
+        "Supply chain",
+        "Tools"
+      ],
+      "byPrincipal": {
+        "seller": {
+          "total": 268,
+          "available": 219
+        },
+        "creator": {
+          "total": 35,
+          "available": 34
+        },
+        "affiliate_partner": {
+          "total": 16,
+          "available": 14
+        }
+      }
+    }
+  }
+}

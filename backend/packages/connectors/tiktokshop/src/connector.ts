@@ -12,6 +12,7 @@ import {
 import { tiktokAccounts } from "./accounts.js";
 import { tiktokCatalog } from "./catalog.js";
 import { TiktokShopClient, type TiktokShopConfig } from "./client.js";
+import { tiktokCommerce } from "./commerce.js";
 import { tiktokFulfillment } from "./fulfillment.js";
 import { TIKTOK_MAX_STOCK, tiktokInventory } from "./inventory.js";
 import { tiktokOrders } from "./orders.js";
@@ -87,13 +88,38 @@ interface WebhooksData {
 }
 
 function epoch(seconds: unknown): Date | null {
-  const n = Number(seconds);
-  return Number.isFinite(n) && n > 0 ? new Date(n * 1000) : null;
+  if (typeof seconds !== "number" || !Number.isSafeInteger(seconds) || seconds <= 0) return null;
+  const date = new Date(seconds * 1000);
+  return Number.isFinite(date.getTime()) ? date : null;
 }
 
 function tokenSet(data: TokenData): TokenSet {
   const accessExpiresAt = epoch(data.access_token_expire_in);
-  if (!data.access_token || !data.refresh_token || !accessExpiresAt) {
+  if (data.user_type !== SELLER_USER_TYPE) {
+    throw new PermanentConnectorError({ code: "wrong_user_type", message: "Authorization must be for a seller" });
+  }
+  if (
+    typeof data.open_id !== "string" ||
+    !data.open_id.trim() ||
+    !Array.isArray(data.granted_scopes) ||
+    data.granted_scopes.some((s) => typeof s !== "string" || !s.trim())
+  ) {
+    throw new PermanentConnectorError({
+      code: "bad_response",
+      message: "Token response without valid seller identity or scopes",
+    });
+  }
+  if (!data.granted_scopes.includes("seller.authorization.info")) {
+    throw new PermanentConnectorError({ code: "missing_scope", message: "Seller authorization scope was not granted" });
+  }
+  if (
+    typeof data.access_token !== "string" ||
+    !data.access_token.trim() ||
+    typeof data.refresh_token !== "string" ||
+    !data.refresh_token.trim() ||
+    !accessExpiresAt ||
+    !epoch(data.refresh_token_expire_in)
+  ) {
     throw new PermanentConnectorError({ code: "bad_response", message: "token response without tokens" });
   }
   return {
@@ -132,6 +158,7 @@ export function createTiktokShopConnector(config: TiktokShopConfig): Marketplace
   return {
     manifest: TIKTOKSHOP_MANIFEST,
     accounts: tiktokAccounts(client),
+    commerce: tiktokCommerce(client),
 
     auth: {
       // The redirect URL is fixed in Partner Center; the seller comes back with ?code=...&state=...
@@ -155,29 +182,10 @@ export function createTiktokShopConnector(config: TiktokShopConfig): Marketplace
           auth_code: code,
           grant_type: "authorized_code",
         });
-        if (data.user_type !== undefined && data.user_type !== SELLER_USER_TYPE) {
-          throw new PermanentConnectorError({
-            code: "wrong_user_type",
-            message: `authorization is for user_type ${data.user_type}, not a seller`,
-          });
-        }
         const tokens = tokenSet(data);
-        const shops = await client.call<AuthorizedShopsData>({
-          method: "GET",
-          path: "/authorization/202309/shops",
-          accessToken: tokens.accessToken,
-        });
         return {
           tokens,
-          shops: (shops.shops ?? [])
-            .filter((s) => s.id)
-            .map((s) => ({
-              externalShopId: String(s.id),
-              shopCipher: s.cipher ?? null,
-              name: s.name ?? null,
-              region: s.region?.toUpperCase() ?? null,
-              info: { seller_type: s.seller_type ?? null, shop_code: s.code ?? null },
-            })),
+          shops: [],
           principal: {
             open_id: data.open_id ?? null,
             seller_name: data.seller_name ?? null,
@@ -186,25 +194,49 @@ export function createTiktokShopConnector(config: TiktokShopConfig): Marketplace
         };
       },
 
-      async refresh({ refreshToken }): Promise<TokenSet> {
+      async refresh({ refreshToken, expectedPrincipalId, expectedScopes }): Promise<TokenSet> {
         const data = await client.token<TokenData>("/api/v2/token/refresh", {
           refresh_token: refreshToken,
           grant_type: "refresh_token",
         });
-        return tokenSet(data);
+        const tokens = tokenSet(data);
+        if (expectedPrincipalId && data.open_id !== expectedPrincipalId)
+          throw new PermanentConnectorError({
+            code: "account_mismatch",
+            message: "Refreshed token belongs to another seller",
+          });
+        if (expectedScopes?.some((scope) => !tokens.scopes.includes(scope)))
+          throw new PermanentConnectorError({
+            code: "missing_scope",
+            message: "Seller scopes were revoked during refresh",
+          });
+        return tokens;
       },
     },
 
     shops: {
       async describe(grant): Promise<ShopProfile[]> {
-        return grant.shops.map((s) => ({
-          externalShopId: s.externalShopId,
-          shopCipher: s.shopCipher,
-          name: s.name?.trim() || `Toko ${s.externalShopId}`,
-          region: s.region ?? "",
+        const shops = await client.call<AuthorizedShopsData>({
+          method: "GET",
+          path: "/authorization/202309/shops",
+          accessToken: grant.tokens.accessToken,
+        });
+        if (
+          !Array.isArray(shops.shops) ||
+          shops.shops.some((s) => typeof s.id !== "string" || !s.id || typeof s.cipher !== "string" || !s.cipher)
+        )
+          throw new PermanentConnectorError({
+            code: "bad_response",
+            message: "Authorized shops response has invalid identifiers",
+          });
+        return shops.shops.map((s) => ({
+          externalShopId: s.id!,
+          shopCipher: s.cipher!,
+          name: s.name?.trim() || `Toko ${s.id}`,
+          region: s.region?.toUpperCase() ?? "",
           // The refresh token lives exactly as long as the seller's authorization.
           authorizationExpiresAt: grant.tokens.refreshExpiresAt,
-          info: { ...s.info, ...grant.principal },
+          info: { seller_type: s.seller_type ?? null, shop_code: s.code ?? null, ...grant.principal },
         }));
       },
     },

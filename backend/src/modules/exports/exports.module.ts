@@ -7,6 +7,7 @@ import { BusinessModule } from "../business/business.module";
 import { CampaignModule } from "../campaign/campaign.module";
 import { CatalogModule } from "../catalog/catalog.module";
 import { ChannelModule } from "../channel/channel.module";
+import { CommerceModule } from "../commerce/commerce.module";
 import { FulfillmentModule } from "../fulfillment/fulfillment.module";
 import { IdentityModule } from "../identity/identity.module";
 import { InventoryStockModule } from "../inventory/inventory.module";
@@ -29,6 +30,7 @@ export class ExportsModule {}
   imports: [
     AffiliateModule,
     AffiliateAccountsModule,
+    CommerceModule,
     IdentityModule,
     ChannelModule,
     InventoryModule,

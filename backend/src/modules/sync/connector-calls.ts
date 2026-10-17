@@ -101,6 +101,17 @@ const KIND_MESSAGES: Record<ConnectorError["kind"], string> = {
  */
 export function describeSyncError(err: unknown): { code: string; message: string } {
   if (isConnectorError(err)) {
+    if (err.code === "missing_scope")
+      return {
+        code: `${err.kind}.${err.code}`,
+        message:
+          "Izin API akun belum mencakup fitur ini. Aktifkan izin terkait di marketplace lalu hubungkan ulang akun.",
+      };
+    if (err.code === "scope_contract_unverified")
+      return {
+        code: `${err.kind}.${err.code}`,
+        message: "Fitur belum tersedia karena persyaratan izin API belum terverifikasi untuk jenis akun ini.",
+      };
     const detail = err.message.replace(/^[^:]+:\s*/, "");
     return {
       code: `${err.kind}.${err.code}`.slice(0, 120),

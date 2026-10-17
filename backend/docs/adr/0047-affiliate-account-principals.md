@@ -42,3 +42,20 @@ local development. Signed mock tests cover the complete local connection flow, p
 isolation, restart, token rotation and closure. They do not establish real platform approval or
 sandbox readiness. Collaboration, samples, affiliate links, commissions and performance workflows
 remain separate implementation work.
+
+Creator deauthorization is also independent of seller shop routing. Official type 20 identifies
+`creator_open_id`, with `data.cancel_time` as the event timestamp. Migration 0035 adds account routing
+metadata to the existing global verified inbox, retaining its source/event deduplication, repair scan,
+retention and operational replay. A narrow `resolve_affiliate_account` SECURITY DEFINER function
+returns tenant/account ids for the currently configured TikTok application; it returns no profile,
+scopes, assets or credentials. Worker processing rechecks tenant/kind/principal before revocation.
+
+Consent removal marks `reauth_required`, deletes local credential material and soft-cancels matching
+staged authorizations with history retained. Live status/token checks prevent a racing refresh from
+restoring them. Inbox insert and account authorization commit share the principal lock; before commit,
+a grant checks verified cancellation facts even when its first account row does not exist. The
+accepted callback time identifies the authorization generation in `connected_at`. Delayed events and
+forced replay cannot cancel a later generation. Because provider cancellation times have only second
+precision, cancellation conservatively wins within the same second; a subsequent-second consent is
+required to distinguish a new grant. Creator notification configuration is application-level in
+Partner Center and is not added to seller shop webhook subscriptions. Real delivery remains untested.

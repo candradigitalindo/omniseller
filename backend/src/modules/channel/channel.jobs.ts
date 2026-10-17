@@ -6,6 +6,7 @@ import type { WebhookConsumers } from "../sync/webhook-consumer";
 import type { StoreStatusReason } from "./channel.errors";
 import {
   channelWarehouseChanged,
+  storeAuthorizationCleanupRequested,
   storeAuthorizationExpiring,
   storeAuthorizationReceived,
   storeConnected,
@@ -151,7 +152,19 @@ export const tenantDekRotateJob = defineJob({
   },
 });
 
+/** Clears only private token bytes; never deletes the authorization history. */
+export const storeAuthorizationCleanupJob = defineJob({
+  queue: "mp.outbound",
+  name: "store.authorization_cleanup",
+  schema: z.object({ authorizationId: ulidSchema }),
+  triggeredBy: [storeAuthorizationCleanupRequested],
+  options: { attempts: 5, backoff: { type: "exponential", delay: 3000 } },
+  jobId: (p, meta) => jobKey("store.authorization_cleanup", p.authorizationId, meta.eventId ?? "direct"),
+  handler: async (p, run) => run.deps.resolve(StoreConnectService).clearCancelledGrant(run.ctx, p.authorizationId),
+});
+
 export const CHANNEL_JOBS = [
+  storeAuthorizationCleanupJob,
   tenantDekRotateJob,
   storeAuthorizeJob,
   storeWarehousesSyncJob,

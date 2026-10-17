@@ -40,3 +40,4 @@ export const affiliateAuthorizationStatusTransition = pgTable(
   "affiliate_authorization_status_transition",
   transitionColumns(),
 );
+export const commerceOperationStatusTransition = pgTable("commerce_operation_status_transition", transitionColumns());

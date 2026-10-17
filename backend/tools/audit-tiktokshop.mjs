@@ -64,6 +64,20 @@ function methodOf(node, document) {
       const variable = current.name.text;
       function findUse(child) {
         if (
+          ts.isPropertyAssignment(child) &&
+          ts.isIdentifier(child.initializer) &&
+          child.initializer.text === variable &&
+          ["path", "endpoint"].includes(child.name.getText())
+        ) {
+          const object = child.parent;
+          if (ts.isObjectLiteralExpression(object)) {
+            const method = object.properties.find(
+              (property) => ts.isPropertyAssignment(property) && property.name.getText() === "method",
+            );
+            if (method && ts.isStringLiteralLike(method.initializer)) methods.add(method.initializer.text);
+          }
+        }
+        if (
           ts.isCallExpression(child) &&
           child.arguments.some((arg) => ts.isIdentifier(arg) && arg.text === variable)
         ) {
@@ -81,10 +95,22 @@ function methodOf(node, document) {
 const references = new Map();
 const dir = path.join(root, "backend/packages/connectors/tiktokshop/src");
 for (const file of (await readdir(dir)).sort()) {
-  if (!file.endsWith(".ts") || file.endsWith(".spec.ts")) continue;
+  // Generated operation, scope and outcome catalogues are declarations, not call evidence.
+  if (!file.endsWith(".ts") || file.endsWith(".spec.ts") || file.endsWith("-contracts.ts")) continue;
   const filename = path.join(dir, file);
   const document = ts.createSourceFile(filename, await readFile(filename, "utf8"), ts.ScriptTarget.Latest, true);
   function visit(node) {
+    // Observer callbacks only describe/redact transport records; their paths are logging metadata.
+    if (ts.isPropertyAssignment(node) && node.name.getText() === "observer") return;
+    // Upload target metadata does not prove that the future business call was performed.
+    if (
+      ts.isObjectLiteralExpression(node) &&
+      node.properties.some(
+        (property) => ts.isPropertyAssignment(property) && property.name.getText() === "operationId",
+      ) &&
+      node.properties.some((property) => ts.isPropertyAssignment(property) && property.name.getText() === "binding")
+    )
+      return;
     if (ts.isStringLiteralLike(node) || ts.isTemplateExpression(node)) {
       for (const endpoint of expand(node)) {
         if (!/^\/(?:api\/v2\/|[a-z_]+\/\d{6}\/)/.test(endpoint)) continue;
@@ -276,7 +302,7 @@ for (const family of families) {
   modules.set(module, counts);
 }
 const unmatched = codeRows.filter((row) => row.official_match !== "Ya");
-const summary = `# Cakupan TikTok Shop — inventaris resmi\n\nSumber: https://partner.tiktokshop.com/docv2/page/about-partner-center-console. Snapshot publik workspace 3 diambil ${capture.fetched_at}. SHA-256 tree: \`${capture.tree_sha256}\`.\n\n${tree.length} entri navigasi: ${tree.filter((n) => n.is_dir).length} direktori dan ${tree.filter((n) => !n.is_dir).length} dokumen. API Reference memuat ${families.length} operasi dengan ${apiRows.length - 2} dokumen versi; 2 endpoint token berada di panduan otorisasi. ${references.size} kombinasi method/path kode ditemukan; ${matched.size} cocok dengan dokumentasi. Referensi kode tidak membuktikan kelengkapan fitur, market Indonesia, scope aktual atau keberhasilan sandbox.\n\n| Modul API Reference | Operasi katalog | Ada referensi pada salah satu versi | Referensi pada versi default katalog |\n|---|---:|---:|---:|\n${[...modules].map(([name, c]) => `| ${name} | ${c.total} | ${c.referenced} | ${c.defaultReferenced} |`).join("\n")}\n\nReferensi kode yang belum cocok:\n${unmatched.length ? unmatched.map((row) => `- \`${row.request}\`: ${row.evidence}`).join("\n") : "Tidak ada."}\n\nAST memproses kode produksi, termasuk template ID dan cabang literal activate/deactivate atau approve/reject; komentar dan tes diabaikan. Placeholder ID dinormalisasi hanya untuk pencocokan, dan metode HTTP tetap dibedakan. Versi lain pada dropdown tidak otomatis berarti kedaluwarsa. CSV dokumen mencakup Partner Guide, Developer Guide, API Reference, Webhooks, Terms and Policies, serta Changelog; isi terambil tidak membuktikan setiap ketentuan telah dipenuhi.\n`;
+const summary = `# Cakupan TikTok Shop — inventaris resmi\n\nSumber: https://partner.tiktokshop.com/docv2/page/about-partner-center-console. Snapshot publik workspace 3 diambil ${capture.fetched_at}. SHA-256 tree: \`${capture.tree_sha256}\`.\n\n${tree.length} entri navigasi: ${tree.filter((n) => n.is_dir).length} direktori dan ${tree.filter((n) => !n.is_dir).length} dokumen. API Reference memuat ${families.length} operasi dengan ${apiRows.length - 2} dokumen versi; 2 endpoint token berada di panduan otorisasi. ${references.size} kombinasi method/path kode ditemukan; ${matched.size} cocok dengan dokumentasi. Referensi kode tidak membuktikan kelengkapan fitur, market Indonesia, scope aktual atau keberhasilan sandbox.\n\n| Modul API Reference | Operasi katalog | Ada referensi pada salah satu versi | Referensi pada versi default katalog |\n|---|---:|---:|---:|\n${[...modules].map(([name, c]) => `| ${name} | ${c.total} | ${c.referenced} | ${c.defaultReferenced} |`).join("\n")}\n\nReferensi kode yang belum cocok:\n${unmatched.length ? unmatched.map((row) => `- \`${row.request}\`: ${row.evidence}`).join("\n") : "Tidak ada."}\n\nAST memproses kode produksi, termasuk template ID dan cabang literal activate/deactivate atau approve/reject; komentar, tes, metadata katalog/scope/outcome dan daftar target pengikatan aset diabaikan. Executor commerce umum dicatat terpisah dalam matriks operasi; deklarasi method/path bukan bukti alur khusus. Placeholder ID dinormalisasi hanya untuk pencocokan, dan metode HTTP tetap dibedakan. Versi lain pada dropdown tidak otomatis berarti kedaluwarsa. CSV dokumen mencakup Partner Guide, Developer Guide, API Reference, Webhooks, Terms and Policies, serta Changelog; isi terambil tidak membuktikan setiap ketentuan telah dipenuhi.\n`;
 await mkdir(output, { recursive: true });
 for (const [name, rows] of [
   ["ENDPOINTS", apiRows],

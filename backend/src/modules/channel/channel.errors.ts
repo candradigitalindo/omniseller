@@ -47,6 +47,7 @@ export const warehouseNotFound = (path: string) =>
 export const AUTHORIZATION_FAILURES = {
   denied: "Otorisasi dibatalkan di halaman marketplace.",
   expired: "Waktu otorisasi habis. Mulai hubungkan toko dari awal.",
+  permission_revoked: "Izin pemohon sudah berubah. Minta pengelola yang berwenang menghubungkan toko.",
   exchange_failed: "Marketplace menolak kode otorisasi. Mulai hubungkan toko dari awal.",
   no_supported_shop: "Akun ini tidak punya toko Indonesia yang bisa dihubungkan.",
   shop_connected_elsewhere:

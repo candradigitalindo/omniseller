@@ -1,6 +1,8 @@
-import { createReadStream } from "node:fs";
-import { copyFile, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { createReadStream, createWriteStream } from "node:fs";
+import { copyFile, mkdir, open, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, resolve, sep } from "node:path";
+import { type Readable, Transform } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import {
   DeleteObjectCommand,
   GetObjectCommand,
@@ -12,6 +14,48 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { EnvFor } from "../../config/env.schema";
 
 export const FILE_STORAGE = Symbol("FILE_STORAGE");
+export const MAX_STREAM_FILE_BYTES = 500 * 1024 * 1024;
+export const MAX_FILE_RANGE_BYTES = 30 * 1024 * 1024;
+
+/** Byte ranges are half-open, matching Uint8Array.subarray and the multipart upload plan. */
+export function fileRangeSize(start: number, endExclusive: number): number {
+  const size = endExclusive - start;
+  if (
+    !Number.isSafeInteger(start) ||
+    !Number.isSafeInteger(endExclusive) ||
+    start < 0 ||
+    size < 1 ||
+    size > MAX_FILE_RANGE_BYTES
+  )
+    throw new RangeError("invalid file byte range");
+  return size;
+}
+
+function streamSize(size: number): void {
+  if (!Number.isSafeInteger(size) || size < 1 || size > MAX_STREAM_FILE_BYTES)
+    throw new RangeError("invalid streaming file size");
+}
+
+/** Check the declared length while preserving backpressure; never collect an entire upload. */
+function checkedStream(size: number): Transform {
+  streamSize(size);
+  let count = 0;
+  return new Transform({
+    transform(chunk: Buffer, _encoding, done) {
+      count += chunk.length;
+      if (count > size) return done(new Error("file stream exceeds declared size"));
+      done(null, chunk);
+    },
+    flush(done) {
+      done(count === size ? undefined : new Error("file stream shorter than declared size"));
+    },
+  });
+}
+
+function stopBody(body: unknown): void {
+  const stream = body as { destroy?: () => void };
+  stream?.destroy?.();
+}
 
 /**
  * Where private files live (technology doc 13): Cloudflare R2 in staging and production, MinIO or a
@@ -23,7 +67,11 @@ export interface FileStorage {
   put(key: string, bytes: Uint8Array, mime: string): Promise<void>;
   /** Uploads a file from disk without reading it into memory (the full data export). */
   putFile(key: string, path: string, mime: string): Promise<void>;
+  /** Bounded, exact-length stream for user media. Existing export putFile remains unbounded. */
+  putStream(key: string, stream: Readable, mime: string, sizeBytes: number): Promise<void>;
   get(key: string): Promise<Uint8Array>;
+  /** Half-open byte range, at most 30 MiB; short reads and ignored ranges fail. */
+  getRange(key: string, start: number, endExclusive: number): Promise<Uint8Array>;
   delete(key: string): Promise<void>;
   /** Every object under a prefix (`t/<tenant>/`: a closed business's purge, backend doc 8.36); how many went. */
   deletePrefix(prefix: string): Promise<number>;
@@ -68,6 +116,36 @@ export class LocalFileStorage implements FileStorage {
 
   async get(key: string): Promise<Uint8Array> {
     return new Uint8Array(await readFile(this.path(key)));
+  }
+
+  async putStream(key: string, stream: Readable, _mime: string, sizeBytes: number): Promise<void> {
+    const checked = checkedStream(sizeBytes);
+    const path = this.path(key);
+    await mkdir(dirname(path), { recursive: true });
+    try {
+      await pipeline(stream, checked, createWriteStream(path));
+    } catch (error) {
+      await rm(path, { force: true });
+      throw error;
+    }
+  }
+
+  async getRange(key: string, start: number, endExclusive: number): Promise<Uint8Array> {
+    const size = fileRangeSize(start, endExclusive);
+    const file = await open(this.path(key), "r");
+    try {
+      if ((await file.stat()).size < endExclusive) throw new Error("file range shorter than requested");
+      const bytes = Buffer.alloc(size);
+      let offset = 0;
+      while (offset < size) {
+        const read = await file.read(bytes, offset, size - offset, start + offset);
+        if (!read.bytesRead) throw new Error("file range shorter than requested");
+        offset += read.bytesRead;
+      }
+      return bytes;
+    } finally {
+      await file.close();
+    }
   }
 
   async delete(key: string): Promise<void> {
@@ -128,6 +206,71 @@ export class R2FileStorage implements FileStorage {
     const out = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
     if (!out.Body) throw new Error(`empty object ${key}`);
     return out.Body.transformToByteArray();
+  }
+
+  async putStream(key: string, stream: Readable, mime: string, sizeBytes: number): Promise<void> {
+    const checked = checkedStream(sizeBytes);
+    const piping = pipeline(stream, checked);
+    const upload = this.s3.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: checked,
+        ContentLength: sizeBytes,
+        ContentType: mime,
+      }),
+    );
+    try {
+      await Promise.all([piping, upload]);
+    } catch (error) {
+      checked.destroy();
+      stream.destroy();
+      await Promise.allSettled([piping, upload]);
+      throw error;
+    }
+  }
+
+  async getRange(key: string, start: number, endExclusive: number): Promise<Uint8Array> {
+    const size = fileRangeSize(start, endExclusive);
+    const out = await this.s3.send(
+      new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Range: `bytes=${start}-${endExclusive - 1}`,
+      }),
+    );
+    const range = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(out.ContentRange ?? "");
+    if (
+      !out.Body ||
+      out.$metadata.httpStatusCode !== 206 ||
+      out.ContentLength !== size ||
+      !range ||
+      BigInt(range[1]!) !== BigInt(start) ||
+      BigInt(range[2]!) !== BigInt(endExclusive - 1) ||
+      BigInt(range[3]!) < BigInt(endExclusive)
+    ) {
+      stopBody(out.Body);
+      throw new Error("storage did not return the requested byte range");
+    }
+    const body = out.Body as unknown as AsyncIterable<Uint8Array>;
+    if (typeof body[Symbol.asyncIterator] !== "function") {
+      stopBody(out.Body);
+      throw new Error("unsupported storage response stream");
+    }
+    const bytes = Buffer.alloc(size);
+    let offset = 0;
+    try {
+      for await (const chunk of body) {
+        if (!(chunk instanceof Uint8Array) || offset + chunk.length > size)
+          throw new Error("storage range exceeds requested size");
+        bytes.set(chunk, offset);
+        offset += chunk.length;
+      }
+      if (offset !== size) throw new Error("file range shorter than requested");
+      return bytes;
+    } finally {
+      stopBody(out.Body);
+    }
   }
 
   async delete(key: string): Promise<void> {

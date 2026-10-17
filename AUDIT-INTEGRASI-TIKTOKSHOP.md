@@ -1,5 +1,7 @@
 # Audit integrasi TikTok Shop / Tokopedia & Shop
 
+> Status implementasi terbaru: [Pusat Commerce](IMPLEMENTASI-MARKETPLACE.md) dan [matriks per operasi](IMPLEMENTASI-COMMERCE-OPERASI.csv). Penilaian kekurangan pada narasi audit di bawah berasal dari checkpoint sebelum Pusat Commerce (`834f22d`); sumber/ketentuan platform tetap menjadi rujukan. Inventaris referensi literal dibedakan dari operasi executable.
+
 **Seluruh fitur TikTok Shop belum tersedia di OmniSeller.** Alur seller inti sudah memiliki kode,
 backend dan halaman, tetapi keberadaan connector tidak berarti seluruh API, izin, market, program
 affiliate, ataupun kemampuan Partner Center sudah didukung.

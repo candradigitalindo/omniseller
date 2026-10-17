@@ -6,6 +6,7 @@ import {
   type StockUpdateResult,
 } from "@omniseller/connector-core";
 import type { ShopeeClient } from "./client.js";
+import { numericId, shopeeId } from "./identifiers.js";
 
 /**
  * v2.product.update_stock (Shopee Open Platform, product module):
@@ -24,15 +25,12 @@ const REFUSAL = /location|reserve|promotion|stock|deleted|status|fbs|holiday|pen
 
 interface UpdateStockResponse {
   response?: {
-    success_list?: { model_id?: number; location_id?: string; stock?: number }[];
-    failure_list?: { model_id?: number; failed_reason?: string }[];
+    success_list?: { model_id?: number | string; location_id?: string; stock?: number }[];
+    failure_list?: { model_id?: number | string; failed_reason?: string }[];
   };
 }
 
-function modelId(externalVariantId: string): number | null {
-  if (externalVariantId === "") return 0;
-  return /^\d+$/.test(externalVariantId) ? Number(externalVariantId) : null;
-}
+const modelId = (externalVariantId: string) => shopeeId(externalVariantId || "0");
 
 function retryable(err: ConnectorError): boolean {
   return err.kind === "transient" && !REFUSAL.test(err.message.replace(/^[^:]*:/, ""));
@@ -55,16 +53,26 @@ export function shopeeInventory(client: ShopeeClient, defaultWarehouseId: string
       });
 
     const valid = updates.filter((u) => {
-      if (/^\d+$/.test(itemId) && modelId(u.externalVariantId) !== null) return true;
-      fail(u, "Id item atau model Shopee tidak valid.");
-      return false;
+      if (shopeeId(itemId) === null || modelId(u.externalVariantId) === null) {
+        fail(u, "Id item atau model Shopee tidak valid.");
+        return false;
+      }
+      if (
+        u.warehouses.length === 0 ||
+        new Set(u.warehouses.map((w) => w.externalWarehouseId)).size !== u.warehouses.length ||
+        u.warehouses.some((w) => !Number.isSafeInteger(w.quantity) || w.quantity < 0)
+      ) {
+        fail(u, "Jumlah atau lokasi stok Shopee tidak valid.");
+        return false;
+      }
+      return true;
     });
     for (let i = 0; i < valid.length; i += MODELS_PER_CALL) {
       const chunk = valid.slice(i, i + MODELS_PER_CALL);
       const body = {
-        item_id: Number(itemId),
+        item_id: numericId(itemId),
         stock_list: chunk.map((u) => ({
-          model_id: modelId(u.externalVariantId)!,
+          model_id: numericId(u.externalVariantId || "0"),
           seller_stock: u.warehouses.map((w) =>
             w.externalWarehouseId === defaultWarehouseId
               ? { stock: w.quantity }
@@ -83,18 +91,43 @@ export function shopeeInventory(client: ShopeeClient, defaultWarehouseId: string
         for (const u of chunk) fail(u, err.message, retryable(err));
         continue;
       }
-      const failed = new Map<number, string>();
-      for (const f of res.response?.failure_list ?? []) {
-        failed.set(Number(f.model_id ?? 0), f.failed_reason || res.message || "Gagal memperbarui stok.");
+      const failures = res.response?.failure_list;
+      const successes = res.response?.success_list;
+      const malformed =
+        !Array.isArray(successes) ||
+        (failures !== undefined && !Array.isArray(failures)) ||
+        (Array.isArray(failures) && failures.some((f) => !f || shopeeId(f.model_id) === null)) ||
+        (Array.isArray(successes) && successes.some((s) => !s || shopeeId(s.model_id) === null));
+      const failed = new Map<string, string>();
+      if (Array.isArray(failures)) {
+        for (const f of failures) {
+          const id = f && shopeeId(f.model_id);
+          if (id !== null) failed.set(id, f.failed_reason || res.message || "Gagal memperbarui stok.");
+        }
       }
       const topError = res.error && res.error !== "-" ? res.message || res.error : null;
-      const succeeded = new Set((res.response?.success_list ?? []).map((s) => Number(s.model_id ?? 0)));
       for (const u of chunk) {
         const id = modelId(u.externalVariantId)!;
         const reason = failed.get(id);
         if (reason !== undefined) fail(u, reason, !REFUSAL.test(reason) && /later|busy|system/i.test(reason));
-        else if (topError && !succeeded.has(id)) fail(u, topError);
-        else out.set(u, { externalItemId: u.externalItemId, externalVariantId: u.externalVariantId, ok: true });
+        else {
+          // seller_stock requests return model/location/stock acknowledgements. Every location must
+          // match the requested absolute quantity; an absent acknowledgement is never success.
+          const ack = Array.isArray(successes) ? successes.filter((s) => s && shopeeId(s.model_id) === id) : [];
+          const confirmed =
+            !malformed &&
+            ack.length === u.warehouses.length &&
+            u.warehouses.length > 0 &&
+            u.warehouses.every((w) => {
+              const location = w.externalWarehouseId === defaultWarehouseId ? "" : w.externalWarehouseId;
+              const matches = ack.filter((s) => (s.location_id ?? "") === location);
+              return matches.length === 1 && matches[0]?.stock === w.quantity;
+            });
+          if (confirmed)
+            out.set(u, { externalItemId: u.externalItemId, externalVariantId: u.externalVariantId, ok: true });
+          else if (topError) fail(u, topError);
+          else fail(u, "Shopee belum mengonfirmasi stok untuk semua lokasi model ini.", true);
+        }
       }
     }
     return out;

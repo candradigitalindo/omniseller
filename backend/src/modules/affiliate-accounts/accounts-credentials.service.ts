@@ -80,6 +80,29 @@ export class AffiliateAccountCredentialsService {
       ),
     );
   }
+  /** Worker-only access for documented creator/TAP operations; never returned by an HTTP route. */
+  async forAccount(ctx: RequestContext, accountId: string) {
+    let current = await this.state(ctx, accountId);
+    if (!current) throw new PermanentConnectorError({ code: "account_unavailable", message: "Account unavailable" });
+    if (
+      current.account.status === "verifying" ||
+      refreshDue({
+        accessExpiresAt: current.account.accessExpiresAt,
+        lastRefreshedAt: current.account.lastRefreshedAt,
+        createdAt: current.account.createdAt,
+      })
+    ) {
+      await this.refresh(ctx, accountId, true);
+      current = await this.state(ctx, accountId);
+    }
+    if (current?.account.status !== "active")
+      throw new PermanentConnectorError({ code: "account_unavailable", message: "Account unavailable" });
+    return {
+      account: current.account,
+      accessToken: await this.open(ctx, current.credential, "access"),
+      categoryAssets: current.credential.categoryAssets,
+    };
+  }
   async refresh(ctx: RequestContext, accountId: string, canRetry: boolean, force = false): Promise<void> {
     await withAdvisoryLock(this.db, `affiliate_account:${accountId}`, async () => {
       let current = await this.state(ctx, accountId);

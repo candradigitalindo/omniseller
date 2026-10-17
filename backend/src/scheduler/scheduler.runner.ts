@@ -18,12 +18,14 @@ import {
   ORDER_POLL_SLOT_MS,
   scanConnectionAlerts,
   scanOrderPolls,
+  scanStoreAuthorizations,
   scanTokenRefresh,
   scanWarehousePolls,
   sweepWebhookInbox,
   WAREHOUSE_POLL_SLOT_MS,
 } from "./channel-scans";
 import { CLOSURE_SCAN_MS, scanAccountClosures } from "./closure-scan";
+import { COMMERCE_CLEANUP_SCAN_MS, scanCommerceCleanup } from "./commerce-scan";
 import { DIGEST_SCAN_MS, scanDailyDigests } from "./digest-scan";
 import { LEGAL_SCAN_MS, scanLegalReminders } from "./legal-scan";
 import {
@@ -88,6 +90,12 @@ export class SchedulerRunner implements OnApplicationBootstrap, OnApplicationShu
     );
     this.every(AFFILIATE_ACCOUNT_SCAN_MS, "affiliate_account.scan", () =>
       scanAffiliateAccounts(this.system, this.queues, this.registry),
+    );
+    this.every(AFFILIATE_ACCOUNT_SCAN_MS, "store_authorization.scan", () =>
+      scanStoreAuthorizations(this.system, this.queues, this.registry),
+    );
+    this.every(COMMERCE_CLEANUP_SCAN_MS, "commerce.cleanup_scan", () =>
+      scanCommerceCleanup(this.system, this.queues, this.registry),
     );
     this.every(ORDER_POLL_SLOT_MS, "mp.poll.orders", () => scanOrderPolls(this.system, this.queues, this.registry));
     this.every(WAREHOUSE_POLL_SLOT_MS, "mp.poll.warehouses", () =>

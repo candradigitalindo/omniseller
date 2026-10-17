@@ -1,5 +1,6 @@
 export * from "./catalog.js";
 export * from "./client.js";
+export * from "./commerce.js";
 export * from "./connector.js";
 export * from "./fulfillment.js";
 export * from "./inventory.js";

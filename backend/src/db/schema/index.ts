@@ -7,6 +7,8 @@ export * from "./business";
 export * from "./campaign";
 export * from "./catalog";
 export * from "./channel";
+export * from "./commerce";
+export * from "./commerce-files";
 export * from "./crm";
 export * from "./exports";
 export * from "./identity";

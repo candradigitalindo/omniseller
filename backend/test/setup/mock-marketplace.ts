@@ -1254,7 +1254,17 @@ export class MockMarketplace {
       seller_name: user.name,
       seller_base_region: "ID",
       user_type: user.userType ?? 0,
-      granted_scopes: user.scopes ?? ["seller.authorization.info", "seller.logistics", "seller.fulfillment.basic"],
+      granted_scopes: user.scopes ?? [
+        "seller.authorization.info",
+        "seller.logistics",
+        "seller.fulfillment.basic",
+        "seller.fulfillment.package.write",
+        "seller.order.info",
+        "seller.product.basic",
+        "seller.product.write",
+        "seller.return_refund.basic",
+        "seller.fbt.info",
+      ],
     };
   }
 

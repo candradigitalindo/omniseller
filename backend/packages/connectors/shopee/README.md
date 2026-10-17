@@ -75,3 +75,85 @@ of commission protection, asynchronous batch results and seller terms; no write 
 
 ## Regular price updates
 `catalog.updatePrices` now has an application consumer: persistent per-listing requests, the outbox/worker, read-before-write and confirmation, tenant/store permissions, cancellation of unsent work, audit/export and a rupiah modal. It does not edit promotion prices or implement automatic channel pricing. Authentication/transient errors propagate, business refusals are explicit and local transport tests cover the contract; real sandbox validation remains pending.
+
+## Exact identifiers and stock confirmation
+
+Shopee int64 identifiers remain decimal strings in the application. `identifiers.ts` validates the
+non-negative signed-int64 range and emits exact **JSON numbers** with Node 24 `JSON.rawJSON` when a
+value exceeds JavaScript's safe integer range. An unsafe number already rounded by a caller is
+rejected. Token exchange/refresh, stock, item status, order cancellation, product/category/attribute/
+brand/variation and logistics writes share this helper; identifiers received through `parseJsonSafe`
+are compared as exact decimal strings. Pickup address and logistics channel IDs are also sent as
+numbers, rather than quoted large strings. No credentials or request payloads are logged by tests.
+
+`update_stock` succeeds for a model only when its `success_list` explicitly acknowledges **every
+requested location and its exact absolute stock quantity**, including zero. The documented stock
+field is returned for requests using `seller_stock`; a missing model ID is never inferred as model 0.
+An empty/malformed response, missing location, repeated acknowledgement or changed quantity leaves
+the model unconfirmed and retryable. Explicit business refusals retain their classification, and a
+failure takes precedence over a contradictory success. Other models may still succeed independently.
+Unlist and price acknowledgements likewise require the exact item/model and requested result.
+
+Contract: `v2.product.update_stock`, pinned snapshot
+`300344af94cf347268b50847baf14b9c28aaf1ae`, request/response parameter tables (2026-05-15),
+`https://open.shopee.com/documents/v2/v2.product.update_stock?module=89&type=1`.
+Synthetic transport tests include `9007199254740992` beside `9007199254740993`, signed-int64 bounds,
+per-location partial acknowledgements and malformed success/failure lists. Current official contract
+and real sandbox verification remain release gates.
+
+## Reviewed commerce operations
+
+`commerce.operations` contains a static catalogue of all 428 endpoints in the pinned snapshot across
+28 modules. The explicit method in each Markdown document supplies HTTP-method evidence, including
+the 143 methods the older code-example-only audit could not extract. Each descriptor retains the
+source filenames, SHA-256 hashes and pinned commit. This is a snapshot catalogue, not a claim that
+428 features have been completed or that all app programs are approved.
+
+224 operations currently have executable local JSON contracts. These cover additional seller AMS
+campaigns/performance, discounts, vouchers, flash sales, bundles, add-on deals, ads, store categories,
+account health, payment reports, and verified new product/order/return/logistics commands. Nested
+inputs require a complete documented JSON payload; duplicate, missing or contradictory nesting stays
+unavailable. Existing stock, regular prices, cancellation, fulfillment and return workflows retain
+their owning modules. New accepted product/order/return commands trigger owning-module reconciliation
+through the application consumer; `accepted` means Shopee acknowledged the request, not that all
+processing has finished or local facts were confirmed.
+
+The remaining 204 descriptors include existing owned operations, merchant/global-account scope,
+app-level credentials and configuration, file workflows, unresolved schemas and pagination, and
+user-account authorization. Private PDF downloads for booking documents and shipping-document jobs
+return bytes to the worker for private, short-lived artifacts. They accept only PDF content up to 20 MB;
+redirects are capped at three and must remain on the configured Shopee API origin. JSON file links
+are never followed. Invoice upload/download restricted to PH/BR, Taiwan-only TO labels and Brazil-only
+KML uploads remain unavailable for Indonesia. FBS invoice links remain unavailable because request
+nesting and provider link hosts are not documented sufficiently in this snapshot.
+
+All 40 Video/Live APIs use **user_id** authentication in this snapshot;
+they are unavailable with a seller shop token. No Shopee creator authorization is inferred.
+
+Shopee app programs come from the documented **API Permissions** section. They are displayed as
+unverified eligibility metadata, never invented OAuth scopes: possession of a key/token does not
+prove Console approval, seller activation or Indonesia availability. Documented cross-border/local
+account requirements are separate from app programs and are checked against the fresh connected-shop
+profile; a missing `is_cb` value remains unknown rather than being treated as a local seller. Marketplace business refusals
+remain explicit, and API secrets/common authentication parameters cannot be supplied as form fields.
+Only static paths are callable. HTTP observers record operation metadata only, and arbitrary external
+error text is replaced before it can reach sync logs. Public response fields follow the source schema
+and exclude personal data, credentials and private download URLs.
+
+Pagination uses the exact source response paths: AMS `cursor` with `has_more`, payment payout
+`next_cursor` with `more`, and income-detail `income_detail_list.next_page.cursor` at the response root. Missing,
+malformed or repeated continuations fail explicitly. Only documented initial empty cursors permit
+required empty text. Writes require an explicit successful envelope/request ID; partial failures
+never report an accepted overall result and require the seller to inspect marketplace results before
+trying again.
+
+Regenerate from the pinned data files, then apply the repository formatter:
+
+```sh
+python3 tools/generate-shopee-commerce.py --snapshot /path/to/snapshot/shopee/api-reference
+pnpm format
+```
+
+Method provenance is also saved at `backend/docs/audits/shopee-commerce-method-evidence.json`.
+These are local contract tests and implementations. Current official-document review, program
+entitlement and real sandbox validation are still required before release.

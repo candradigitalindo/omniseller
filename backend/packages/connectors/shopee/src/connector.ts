@@ -12,6 +12,8 @@ import {
 import { shopeeAffiliate } from "./affiliate.js";
 import { shopeeCatalog } from "./catalog.js";
 import { accessExpiry, ShopeeClient, type ShopeeConfig } from "./client.js";
+import { shopeeCommerce } from "./commerce.js";
+import { numericId } from "./identifiers.js";
 import { shopeeInventory } from "./inventory.js";
 import { shopeeLogistics } from "./logistics.js";
 import { shopeeOrders } from "./orders.js";
@@ -47,9 +49,9 @@ interface TokenResponse {
   access_token?: string;
   refresh_token?: string;
   expire_in?: number;
-  shop_id_list?: number[];
-  merchant_id_list?: number[];
-  shop_id?: number;
+  shop_id_list?: (number | string)[];
+  merchant_id_list?: (number | string)[];
+  shop_id?: number | string;
 }
 
 interface ShopInfoResponse {
@@ -61,7 +63,7 @@ interface ShopInfoResponse {
   is_cb?: boolean;
   is_sip?: boolean;
   is_main_shop?: boolean;
-  merchant_id?: number | null;
+  merchant_id?: number | string | null;
   shop_fulfillment_flag?: string;
 }
 
@@ -71,11 +73,11 @@ interface ProfileResponse {
 
 interface WarehouseDetailResponse {
   response?: {
-    warehouse_id?: number;
+    warehouse_id?: number | string;
     warehouse_name?: string;
     warehouse_type?: number;
     location_id?: string;
-    address_id?: number;
+    address_id?: number | string;
     region?: string;
     state?: string;
     city?: string;
@@ -90,7 +92,7 @@ interface WarehouseDetailResponse {
 interface AddressListResponse {
   response?: {
     address_list?: {
-      address_id?: number;
+      address_id?: number | string;
       region?: string;
       state?: string;
       city?: string;
@@ -145,6 +147,7 @@ export function createShopeeConnector(config: ShopeeConfig): MarketplaceConnecto
     manifest: SHOPEE_MANIFEST,
 
     affiliate: shopeeAffiliate(client),
+    commerce: shopeeCommerce(client),
 
     auth: {
       // New-style link (no signature): open.shopee.com/auth with state echoed back to redirect_uri,
@@ -176,8 +179,8 @@ export function createShopeeConnector(config: ShopeeConfig): MarketplaceConnecto
           });
         }
         const body: Record<string, unknown> = { code, partner_id: config.partnerId };
-        if (shopId) body.shop_id = Number(shopId);
-        else body.main_account_id = Number(mainAccountId);
+        if (shopId) body.shop_id = numericId(shopId);
+        else body.main_account_id = numericId(mainAccountId!);
         const res = await client.publicCall<TokenResponse>("POST", "/api/v2/auth/token/get", { body });
         const shopIds = shopId ? [shopId] : (res.shop_id_list ?? []).map(String);
         return {
@@ -194,7 +197,7 @@ export function createShopeeConnector(config: ShopeeConfig): MarketplaceConnecto
       // the backend guarantees by refreshing under a row lock (backend doc 8.6).
       async refresh({ refreshToken, externalShopId }): Promise<TokenSet> {
         const res = await client.publicCall<TokenResponse>("POST", "/api/v2/auth/access_token/get", {
-          body: { refresh_token: refreshToken, partner_id: config.partnerId, shop_id: Number(externalShopId) },
+          body: { refresh_token: refreshToken, partner_id: config.partnerId, shop_id: numericId(externalShopId) },
         });
         return tokenSet(res);
       },
@@ -222,7 +225,7 @@ export function createShopeeConnector(config: ShopeeConfig): MarketplaceConnecto
             authorizationExpiresAt: epoch(info.expire_time),
             info: {
               status: info.status ?? null,
-              is_cb: info.is_cb ?? false,
+              is_cb: typeof info.is_cb === "boolean" ? info.is_cb : null,
               is_sip: info.is_sip ?? false,
               merchant_id: info.merchant_id ?? null,
               fulfillment_flag: info.shop_fulfillment_flag ?? null,

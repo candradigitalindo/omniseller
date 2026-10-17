@@ -6,13 +6,7 @@ import {
   type ShopCredentials,
 } from "@omniseller/connector-core";
 import type { ShopeeClient } from "./client.js";
-
-/** Node 24 raw JSON keeps Shopee's int64 request identifiers exact as JSON numbers. */
-function numericId(value: string): unknown {
-  if (!/^\d+$/.test(value) || BigInt(value) > 9_223_372_036_854_775_807n)
-    throw new PermanentConnectorError({ code: "invalid_request", message: "Invalid Shopee identifier" });
-  return (JSON as typeof JSON & { rawJSON(value: string): unknown }).rawJSON(BigInt(value).toString());
-}
+import { numericId, shopeeId } from "./identifiers.js";
 
 export function shopeePrices(client: ShopeeClient) {
   return {
@@ -22,7 +16,7 @@ export function shopeePrices(client: ShopeeClient) {
       for (const row of updates) {
         numericId(row.externalItemId);
         numericId(row.externalVariantId || "0");
-        const key = `${row.externalItemId}/${row.externalVariantId}`;
+        const key = `${shopeeId(row.externalItemId)}/${shopeeId(row.externalVariantId || "0")}`;
         if (keys.has(key) || !Number.isSafeInteger(row.price) || row.price <= 0)
           throw new PermanentConnectorError({ code: "invalid_request", message: "Invalid price update" });
         keys.add(key);
@@ -48,10 +42,22 @@ export function shopeePrices(client: ShopeeClient) {
               },
               passErrors: ["error_update_price_fail"],
             });
+            const successes = result.response?.success_list;
+            const failures = result.response?.failure_list;
+            const malformed =
+              !Array.isArray(successes) ||
+              (failures !== undefined && !Array.isArray(failures)) ||
+              (Array.isArray(successes) && successes.some((r) => !r || shopeeId(r.model_id) === null)) ||
+              (Array.isArray(failures) && failures.some((r) => !r || shopeeId(r.model_id) === null));
             for (const row of batch) {
-              const model = row.externalVariantId || "0";
-              const failed = result.response?.failure_list?.find((r) => String(r.model_id) === model);
-              const success = result.response?.success_list?.find((r) => String(r.model_id) === model);
+              const model = shopeeId(row.externalVariantId || "0");
+              const failed = Array.isArray(failures)
+                ? failures.find((r) => r && shopeeId(r.model_id) === model)
+                : undefined;
+              const matching = Array.isArray(successes)
+                ? successes.filter((r) => r && shopeeId(r.model_id) === model)
+                : [];
+              const success = !malformed && matching.length === 1 ? matching[0] : undefined;
               results.set(row, {
                 ...row,
                 ok: !failed && success?.original_price === row.price,

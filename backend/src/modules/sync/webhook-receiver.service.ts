@@ -7,7 +7,7 @@ import { sql } from "drizzle-orm";
 import { UnauthorizedError } from "../../common/errors/domain-errors";
 import { ENV } from "../../config/config.module";
 import type { EnvFor } from "../../config/env.schema";
-import type { DbHandle } from "../../db/client";
+import type { DbHandle, Tx } from "../../db/client";
 import { DB_API, JOB_REGISTRY, QUEUES } from "../../infra/tokens";
 import type { QueueRegistry } from "../../jobs/queues";
 import type { JobRegistry } from "../../jobs/registry";
@@ -71,36 +71,66 @@ export class WebhookReceiver {
 
     const result: ReceiveResult = { events: events.length, stored: 0, unknownShop: 0 };
     for (const event of events) {
-      const shops = event.externalShopIds.length ? event.externalShopIds : [null];
+      const account = event.externalAccount;
+      const shops = account ? [null] : event.externalShopIds.length ? event.externalShopIds : [null];
       for (const shop of shops) {
-        const owner = shop ? await this.resolveStore(channel, shop) : null;
         const eventId = shops.length > 1 ? `${event.eventId}:${shop}` : event.eventId;
         const inboxId = newId();
-        const inserted = await this.db.db.execute<{ id: string }>(sql`
-          INSERT INTO webhook_inbox (id, source, event_id, event_type, external_shop_id, tenant_id, store_id,
-                                     signature_valid, headers, payload)
-          VALUES (${inboxId}, ${channel}, ${eventId}, ${event.code}, ${shop}, ${owner?.tenantId ?? null},
-                  ${owner?.storeId ?? null}, true, ${JSON.stringify(kept)}::jsonb, ${JSON.stringify(payload)}::jsonb)
-          ON CONFLICT (source, event_id) DO NOTHING
-          RETURNING id`);
-        if (inserted.rows.length === 0) continue;
+        const persist = async (connection: Pick<Tx, "execute">) => {
+          const owner = account
+            ? await this.resolveAccount(channel, account.kind, account.id, connection)
+            : shop
+              ? await this.resolveStore(channel, shop, connection)
+              : null;
+          const inserted = await connection.execute<{ id: string }>(sql`
+            INSERT INTO webhook_inbox (id,source,event_id,event_type,external_shop_id,tenant_id,store_id,
+                                       external_account_kind,external_account_id,account_id,occurred_at,
+                                       signature_valid,headers,payload)
+            VALUES (${inboxId},${channel},${eventId},${event.code},${shop},${owner?.tenantId ?? null},
+                    ${owner && "storeId" in owner ? owner.storeId : null},
+                    ${account?.kind ?? null},${account?.id ?? null},
+                    ${owner && "accountId" in owner ? owner.accountId : null},${account ? event.occurredAt : null},
+                    true,${JSON.stringify(kept)}::jsonb,${JSON.stringify(payload)}::jsonb)
+            ON CONFLICT(source,event_id) DO NOTHING RETURNING id`);
+          return { inserted: inserted.rows.length > 0, owner };
+        };
+        // Serialize the routing+insert boundary with a worker committing authorization for this
+        // principal. A cancellation is then either visible to its grant fence or routed to the
+        // committed account, including a first authorization that has not created its row yet.
+        const stored = account
+          ? await this.db.db.transaction(async (tx) => {
+              await tx.execute(
+                sql`SELECT pg_advisory_xact_lock(hashtextextended(${`affiliate-principal:${account.kind}:${account.id}`},0))`,
+              );
+              return persist(tx);
+            })
+          : await persist(this.db.db);
+        if (!stored.inserted) continue;
         result.stored++;
-        if (!owner) {
+        if (!stored.owner) {
           result.unknownShop++;
           continue;
         }
-        await this.enqueue(inboxId, owner.tenantId);
+        await this.enqueue(inboxId, stored.owner.tenantId);
       }
     }
     return result;
   }
 
-  private async resolveStore(channel: string, externalShopId: string) {
-    const r = await this.db.db.execute<{ tenant_id: string; store_id: string }>(
+  private async resolveStore(channel: string, externalShopId: string, connection: Pick<Tx, "execute">) {
+    const r = await connection.execute<{ tenant_id: string; store_id: string }>(
       sql`SELECT tenant_id, store_id FROM resolve_store(${channel}, ${externalShopId})`,
     );
     const row = r.rows[0];
     return row ? { tenantId: row.tenant_id, storeId: row.store_id } : null;
+  }
+
+  private async resolveAccount(channel: string, kind: string, externalId: string, connection: Pick<Tx, "execute">) {
+    const result = await connection.execute<{ tenant_id: string; account_id: string }>(
+      sql`SELECT tenant_id,account_id FROM resolve_affiliate_account(${channel},${kind},${externalId})`,
+    );
+    const row = result.rows[0];
+    return row ? { tenantId: row.tenant_id, accountId: row.account_id } : null;
   }
 
   /** Best effort: a failure here is repaired by the inbox sweep, so the marketplace still gets 2xx. */

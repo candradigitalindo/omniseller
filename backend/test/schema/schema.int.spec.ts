@@ -2,6 +2,7 @@ import {
   AFFILIATE_ACCOUNT_STATUSES,
   AFFILIATE_AUTHORIZATION_STATUSES,
   AFFILIATE_QUERY_STATUSES,
+  COMMERCE_OPERATION_STATUSES,
   DATA_EXPORT_STATUSES,
   DOCUMENT_JOB_STATUSES,
   HANDOVER_STATUSES,
@@ -109,6 +110,8 @@ describe("schema conventions", () => {
                             AND (column_name = 'id' OR (column_name LIKE '%\\_id' AND column_name NOT LIKE 'external\\_%'
                                  AND column_name NOT IN ('event_id', 'actor_id', 'request_id', 'trace_id', 'queue_job_id', 'job_id')))
                             AND coalesce(domain_name, '') <> 'ulid'
+                            -- Registry keys identify static API contracts, not database entities.
+                            AND NOT (table_name IN ('commerce_operation', 'commerce_file') AND column_name = 'operation_id')
                             AND table_name NOT IN (SELECT relname FROM pg_class WHERE relispartition)`);
     expect(bad).toEqual([]);
   });
@@ -220,6 +223,7 @@ describe("schema conventions", () => {
     expect(await check("affiliate_account")).toEqual([...AFFILIATE_ACCOUNT_STATUSES].sort());
     expect(await check("affiliate_authorization")).toEqual([...AFFILIATE_AUTHORIZATION_STATUSES].sort());
     expect(await check("affiliate_product_query")).toEqual([...AFFILIATE_QUERY_STATUSES].sort());
+    expect(await check("commerce_operation")).toEqual([...COMMERCE_OPERATION_STATUSES].sort());
     expect(await check("order")).toEqual([...ORDER_STATUSES].sort());
     expect(await check("shipment")).toEqual([...SHIPMENT_STATUSES].sort());
     expect(await check("sync_job")).toEqual([...SYNC_JOB_STATUSES].sort());
@@ -244,6 +248,7 @@ describe("schema conventions", () => {
       ["affiliate_product_query_status_transition", AFFILIATE_QUERY_STATUSES],
       ["affiliate_account_status_transition", AFFILIATE_ACCOUNT_STATUSES],
       ["affiliate_authorization_status_transition", AFFILIATE_AUTHORIZATION_STATUSES],
+      ["commerce_operation_status_transition", COMMERCE_OPERATION_STATUSES],
       ["order_status_transition", ORDER_STATUSES],
       ["shipment_status_transition", SHIPMENT_STATUSES],
       ["sync_job_status_transition", SYNC_JOB_STATUSES],
@@ -284,6 +289,7 @@ describe("schema conventions", () => {
       "affiliate_account",
       "affiliate_authorization",
       "affiliate_product_query",
+      "commerce_operation",
       "data_export",
       "document_job",
       "handover",

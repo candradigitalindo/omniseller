@@ -16,12 +16,17 @@ for (let i = 0; i < args.length; i += 2) {
 const snapshot = options.get("--snapshot");
 if (!snapshot) throw new Error("--snapshot is required; see packages/connectors/shopee/README.md");
 const output = options.get("--output-dir") ?? repoRoot;
+const snapshotEntries = await readdir(snapshot);
+// Pinned API downloads may be flat; developer guides retain their own directory.
+const apiDirectory = snapshotEntries.includes("api-reference") ? path.join(snapshot, "api-reference") : snapshot;
+const guideDirectory = path.join(snapshot, "developer-guide");
 const source =
   options.get("--snapshot-source") ?? "Provenance snapshot tidak dinyatakan; cocokkan metadata tiap baris.";
 const references = new Map();
 const directory = path.join(repoRoot, "backend/packages/connectors/shopee/src");
 for (const file of (await readdir(directory)).sort()) {
-  if (!file.endsWith(".ts") || file.endsWith(".spec.ts")) continue;
+  // Catalogue declarations are not evidence of a dedicated application call.
+  if (!file.endsWith(".ts") || file.endsWith(".spec.ts") || file.endsWith("-contracts.ts")) continue;
   const filename = path.join(directory, file);
   const document = ts.createSourceFile(filename, await readFile(filename, "utf8"), ts.ScriptTarget.Latest, true);
   function visit(node) {
@@ -58,13 +63,11 @@ const flows = {
 };
 const apiRows = [];
 const catalogPaths = new Set();
-const metadataFiles = (await readdir(path.join(snapshot, "api-reference")))
-  .filter((file) => file.endsWith(".metadata.json"))
-  .sort();
+const metadataFiles = (await readdir(apiDirectory)).filter((file) => file.endsWith(".metadata.json")).sort();
 for (const file of metadataFiles) {
-  const metadata = JSON.parse(await readFile(path.join(snapshot, "api-reference", file), "utf8"));
+  const metadata = JSON.parse(await readFile(path.join(apiDirectory, file), "utf8"));
   const detail = JSON.parse(
-    await readFile(path.join(snapshot, "api-reference", file.replace(".metadata.json", ".structured.json")), "utf8"),
+    await readFile(path.join(apiDirectory, file.replace(".metadata.json", ".structured.json")), "utf8"),
   );
   const sections = detail.sections ?? [];
   const address = sections.find((section) => section.title === "Request Address");
@@ -77,11 +80,22 @@ for (const file of metadataFiles) {
   const evidence = [...paths].flatMap((pathname) => references.get(pathname) ?? []);
   const module = metadata.title?.split(".")[1] ?? "unknown";
   const examples = sections.find((section) => section.title === "Request Example")?.text ?? "";
-  const method = /(?:--request\s+|CUSTOMREQUEST\s*=>\s*')GET\b|Unirest\.get\(/i.test(examples)
+  const exampleMethod = /(?:--request\s+|CUSTOMREQUEST\s*=>\s*')GET\b|Unirest\.get\(/i.test(examples)
     ? "GET"
     : /(?:--request\s+|CUSTOMREQUEST\s*=>\s*')POST\b|Unirest\.post\(/i.test(examples)
       ? "POST"
       : "Perlu verifikasi";
+  const markdown = await readFile(path.join(apiDirectory, file.replace(".metadata.json", ".md")), "utf8");
+  // The exported page prints its method before the API path, outside structured sections.
+  const explicit = /^\s*(GET|POST|PUT|DELETE|PATCH)\s*\n+\s*(\/api\/v2\/[^\s]+)\s*$/m.exec(markdown);
+  if (explicit && !paths.has(explicit[2].replaceAll("\\_", "_")))
+    throw new Error(`Markdown request path mismatch: ${file}`);
+  if (explicit && exampleMethod !== "Perlu verifikasi" && explicit[1] !== exampleMethod)
+    throw new Error(`Request method sources disagree: ${file}`);
+  const method = explicit?.[1] ?? exampleMethod;
+  const method_source = explicit
+    ? "Metode eksplisit sebelum path pada Markdown snapshot"
+    : "Contoh request pada snapshot";
   const permission =
     sections
       .find((section) => section.title === "API Permissions")
@@ -93,6 +107,7 @@ for (const file of metadataFiles) {
     api: metadata.title,
     module: metadata.category ?? module,
     method,
+    method_source,
     path: [...paths].join("; "),
     connector: evidence.length > 0 ? "Ada referensi kode" : "Belum ada referensi kode",
     evidence: evidence.join("; "),
@@ -110,12 +125,10 @@ for (const file of metadataFiles) {
 }
 
 const guideRows = [];
-for (const file of (await readdir(path.join(snapshot, "developer-guide")))
-  .filter((name) => name.endsWith(".metadata.json"))
-  .sort()) {
-  const metadata = JSON.parse(await readFile(path.join(snapshot, "developer-guide", file), "utf8"));
+for (const file of (await readdir(guideDirectory)).filter((name) => name.endsWith(".metadata.json")).sort()) {
+  const metadata = JSON.parse(await readFile(path.join(guideDirectory, file), "utf8"));
   const detail = JSON.parse(
-    await readFile(path.join(snapshot, "developer-guide", file.replace(".metadata.json", ".structured.json")), "utf8"),
+    await readFile(path.join(guideDirectory, file.replace(".metadata.json", ".structured.json")), "utf8"),
   );
   guideRows.push({
     title: metadata.title,
@@ -147,7 +160,7 @@ for (const row of apiRows) {
 const unmatched = [...references.keys()].filter((pathname) => !catalogPaths.has(pathname)).sort();
 const referenced = apiRows.filter((row) => row.evidence).length;
 const dates = [...new Set(apiRows.map((row) => row.snapshot_crawled_at.slice(0, 10)))].sort().join(", ");
-const summary = `# Cakupan endpoint Shopee — hasil inventaris\n\nSumber sekunder: ${source}. Tanggal snapshot: ${dates}; portal resmi tidak dapat diakses dari lingkungan audit (HTTP 403).\n\n${apiRows.length} endpoint dokumentasi, ${modules.size} modul, ${guideRows.length} panduan. ${referenced} endpoint dokumentasi memiliki referensi literal pada connector; ${apiRows.length - referenced} belum memiliki referensi. Jumlah path unik kode adalah ${references.size}. Angka tersebut mengukur referensi kode, bukan fitur lengkap atau keberhasilan sandbox.\n\n| Modul | Endpoint snapshot | Ada referensi connector | Belum ada referensi |\n|---|---:|---:|---:|\n${[...modules].map(([name, count]) => `| ${name} | ${count.total} | ${count.referenced} | ${count.total - count.referenced} |`).join("\n")}\n\nPath kode yang belum ditemukan dalam snapshot:\n${unmatched.length ? unmatched.map((pathname) => `- \`${pathname}\``).join("\n") : "Tidak ada."}\n\nDeteksi menggunakan AST TypeScript pada berkas produksi connector; komentar dan berkas tes tidak dihitung. Pemanggilan dinamis yang tidak berupa string literal membutuhkan tinjauan terpisah. Alur backend/UI dicantumkan pada level domain dan harus ditinjau per operasi; nama halaman tidak membuktikan seluruh endpoint domain sudah digunakan. Tidak ada klaim kesetaraan terhadap seluruh katalog Shopee terkini.\n`;
+const summary = `# Cakupan endpoint Shopee — hasil inventaris\n\nSumber sekunder: ${source}. Tanggal snapshot: ${dates}; portal resmi tidak dapat diakses dari lingkungan audit (HTTP 403).\n\n${apiRows.length} endpoint dokumentasi, ${modules.size} modul, ${guideRows.length} panduan. ${referenced} endpoint dokumentasi memiliki referensi literal pada connector; ${apiRows.length - referenced} belum memiliki referensi. Jumlah path unik kode adalah ${references.size}. Angka tersebut mengukur referensi kode, bukan fitur lengkap atau keberhasilan sandbox.\n\n| Modul | Endpoint snapshot | Ada referensi connector | Belum ada referensi |\n|---|---:|---:|---:|\n${[...modules].map(([name, count]) => `| ${name} | ${count.total} | ${count.referenced} | ${count.total - count.referenced} |`).join("\n")}\n\nPath kode yang belum ditemukan dalam snapshot:\n${unmatched.length ? unmatched.map((pathname) => `- \`${pathname}\``).join("\n") : "Tidak ada."}\n\nDeteksi menggunakan AST TypeScript pada berkas produksi connector; komentar, tes dan metadata katalog tidak dihitung. Executor commerce umum dicatat terpisah dalam matriks operasi; deklarasi method/path tidak membuktikan alur khusus. Metode HTTP berasal dari penanda eksplisit Markdown yang dicocokkan dengan path, lalu contoh request sebagai fallback. Pemanggilan dinamis yang tidak berupa string literal membutuhkan tinjauan terpisah. Alur backend/UI dicantumkan pada level domain dan harus ditinjau per operasi; nama halaman tidak membuktikan seluruh endpoint domain sudah digunakan. Tidak ada klaim kesetaraan terhadap seluruh katalog Shopee terkini.\n`;
 await mkdir(output, { recursive: true });
 await writeFile(path.join(output, "AUDIT-SHOPEE-ENDPOINTS.csv"), csv(apiRows));
 await writeFile(path.join(output, "AUDIT-SHOPEE-GUIDES.csv"), csv(guideRows));
@@ -161,6 +174,7 @@ console.log(
       referenced,
       missing: apiRows.length - referenced,
       sourcePaths: references.size,
+      verifiedMethods: apiRows.filter((row) => row.method !== "Perlu verifikasi").length,
       unmatched,
     },
     null,

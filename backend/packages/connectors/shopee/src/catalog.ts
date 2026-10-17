@@ -7,6 +7,7 @@ import {
   toRupiah,
 } from "@omniseller/connector-core";
 import type { ShopeeClient } from "./client.js";
+import { numericId, shopeeId } from "./identifiers.js";
 import { shopeePrices } from "./prices.js";
 
 /**
@@ -50,7 +51,7 @@ export function shopeeListingStatus(itemStatus: string | undefined, modelStatus?
 
 interface ItemListResponse {
   response?: {
-    item?: { item_id?: number; item_status?: string; update_time?: number }[];
+    item?: { item_id?: number | string; item_status?: string; update_time?: number }[];
     has_next_page?: boolean;
     next_offset?: number;
     total_count?: number;
@@ -64,7 +65,7 @@ interface StockInfoV2 {
 }
 
 interface BaseInfoItem {
-  item_id?: number;
+  item_id?: number | string;
   item_name?: string;
   item_sku?: string;
   description?: string;
@@ -77,7 +78,7 @@ interface BaseInfoItem {
   price_info?: { current_price?: number; original_price?: number }[];
   stock_info_v2?: StockInfoV2;
   brand?: { original_brand_name?: string };
-  category_id?: number;
+  category_id?: number | string;
 }
 
 interface BaseInfoResponse {
@@ -88,7 +89,7 @@ interface ModelListResponse {
   response?: {
     tier_variation?: { name?: string; option_list?: { option?: string; image?: { image_url?: string } }[] }[];
     model?: {
-      model_id?: number;
+      model_id?: number | string;
       model_sku?: string;
       model_status?: string;
       tier_index?: number[];
@@ -102,8 +103,8 @@ interface ModelListResponse {
 
 interface UnlistResponse {
   response?: {
-    success_list?: { item_id?: number; unlist?: boolean }[];
-    failure_list?: { item_id?: number; failed_reason?: string }[];
+    success_list?: { item_id?: number | string; unlist?: boolean }[];
+    failure_list?: { item_id?: number | string; failed_reason?: string }[];
   };
 }
 
@@ -271,14 +272,29 @@ export function shopeeCatalog(client: ShopeeClient, warehouseIds: { fbs: string;
       for (let i = 0; i < externalItemIds.length; i += UNLIST_BATCH) {
         const batch = externalItemIds.slice(i, i + UNLIST_BATCH);
         const res = await client.shopCall<UnlistResponse>(shop, "POST", "/api/v2/product/unlist_item", {
-          body: { item_list: batch.map((id) => ({ item_id: Number(id), unlist: !active })) },
+          body: { item_list: batch.map((id) => ({ item_id: numericId(id), unlist: !active })) },
         });
-        const failed = new Map(
-          (res.response?.failure_list ?? []).map((f) => [String(f.item_id), f.failed_reason ?? "failed"]),
-        );
+        const successes = res.response?.success_list;
+        const failures = res.response?.failure_list;
+        const malformed =
+          !Array.isArray(successes) ||
+          (failures !== undefined && !Array.isArray(failures)) ||
+          (Array.isArray(successes) && successes.some((s) => !s || shopeeId(s.item_id) === null)) ||
+          (Array.isArray(failures) && failures.some((f) => !f || shopeeId(f.item_id) === null));
         for (const id of batch) {
-          const reason = failed.get(id);
-          results.push(reason ? { externalItemId: id, ok: false, error: reason } : { externalItemId: id, ok: true });
+          const failed = Array.isArray(failures)
+            ? failures.find((f) => f && shopeeId(f.item_id) === shopeeId(id))
+            : undefined;
+          const success = Array.isArray(successes)
+            ? successes.filter((s) => s && shopeeId(s.item_id) === shopeeId(id))
+            : [];
+          results.push(
+            failed
+              ? { externalItemId: id, ok: false, error: failed.failed_reason || "failed" }
+              : !malformed && success.length === 1 && success[0]?.unlist === !active
+                ? { externalItemId: id, ok: true }
+                : { externalItemId: id, ok: false, error: "Shopee belum mengonfirmasi status item." },
+          );
         }
       }
       return results;

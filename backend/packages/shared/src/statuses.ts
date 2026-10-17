@@ -2,6 +2,9 @@
  * Status values mirrored from the CHECK constraints in backend/drizzle/migrations.
  * Allowed transitions live only in the database (`<table>_status_transition`, enforced by trigger).
  */
+export const COMMERCE_OPERATION_STATUSES = ["queued", "running", "succeeded", "failed", "uncertain"] as const;
+export type CommerceStatus = (typeof COMMERCE_OPERATION_STATUSES)[number];
+
 export const ORDER_STATUSES = [
   "unpaid",
   "new",

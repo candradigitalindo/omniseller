@@ -1,15 +1,16 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { logger } from "@omniseller/logging";
-import { and, asc, eq, lt } from "drizzle-orm";
+import { and, asc, eq, isNotNull, lt } from "drizzle-orm";
 import type { RequestContext } from "../../common/context/request-context";
 import { lockTenantKeys, TokenVault } from "../../common/security/token-vault";
 import type { DbHandle } from "../../db/client";
-import { storeCredential } from "../../db/schema/channel";
+import { storeAuthorization, storeCredential } from "../../db/schema/channel";
 import { withTenantTx } from "../../db/tenant-tx";
 import { DB_TENANT, TOKEN_VAULT } from "../../infra/tokens";
 import { rotateAffiliateTokensIn } from "../affiliate-accounts/account-token-rotation";
 import { tenantForOpsIn } from "../identity/tenant-ops";
 import { purposeOf } from "./credential.service";
+import { sellerGrantPurpose } from "./store-connect.service";
 
 const BATCH = 50;
 
@@ -82,6 +83,37 @@ export class KeyRotationService {
           throw new Error("rotation requires an active tenant");
         await lockTenantKeys(tx, ctx.tenantId);
         return rotateAffiliateTokensIn(tx, ctx.tenantId, this.vault, version, BATCH);
+      });
+      changed += n;
+      if (n < BATCH) break;
+    }
+    for (;;) {
+      const n = await withTenantTx(this.db, ctx, async (tx) => {
+        if ((await tenantForOpsIn(tx, ctx.tenantId)).status !== "active")
+          throw new Error("rotation requires an active tenant");
+        await lockTenantKeys(tx, ctx.tenantId);
+        const rows = await tx
+          .select()
+          .from(storeAuthorization)
+          .where(and(isNotNull(storeAuthorization.grantEnc), lt(storeAuthorization.grantDekVersion, version)))
+          .orderBy(asc(storeAuthorization.id))
+          .limit(BATCH)
+          .for("update");
+        for (const row of rows) {
+          const raw = await this.vault.open(
+            tx,
+            ctx.tenantId,
+            row.grantEnc!,
+            row.grantDekVersion!,
+            sellerGrantPurpose(row.id),
+          );
+          const sealed = await this.vault.seal(tx, ctx.tenantId, raw, sellerGrantPurpose(row.id));
+          await tx
+            .update(storeAuthorization)
+            .set({ grantEnc: sealed.data, grantDekVersion: sealed.dekVersion })
+            .where(eq(storeAuthorization.id, row.id));
+        }
+        return rows.length;
       });
       changed += n;
       if (n < BATCH) break;

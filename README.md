@@ -2,6 +2,8 @@
 
 Aplikasi manajemen penjualan multi-marketplace. Root repositori hanya berisi dokumen; setiap komponen berada di foldernya sendiri.
 
+Pusat **Fitur Commerce** (`/commerce`) menyediakan operasi seller Shopee dan Tokopedia & Shop serta creator/affiliate partner Indonesia melalui koneksi marketplace yang diotorisasi. Tenant menghubungkan akun melalui consent platform; API key aplikasi saja tidak memberi seluruh izin. [Matriks operasi executable](IMPLEMENTASI-COMMERCE-OPERASI.csv) dan [status implementasi](IMPLEMENTASI-MARKETPLACE.md) membedakan kontrak lokal, alur khusus, batas program dan sandbox nyata yang belum tersedia.
+
 | Dokumen | Isi |
 |---|---|
 | `DOKUMEN-SPESIFIKASI-APLIKASI.md` | PRD: apa yang dibangun |
