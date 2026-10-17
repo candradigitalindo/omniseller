@@ -1,0 +1,145 @@
+{
+  "tree": {
+    "url": "https://partner.tiktokshop.com/api/v1/document/tree?workspace_id=3",
+    "fetched_at": "2026-10-17T03:40:11.604270+00:00",
+    "sha256": "b1005604b13fc9052c89812176caaa07da58b69b4c1a0c8223cc7c363a7b6ec7",
+    "count": 973,
+    "directories": 104,
+    "unchanged_from_existing_snapshot": true
+  },
+  "docs": [
+    {
+      "slug": "20-creator-deauthorization",
+      "official_url": "https://partner.tiktokshop.com/docv2/page/20-creator-deauthorization",
+      "read_endpoint": "https://partner.tiktokshop.com/api/v1/document/detail?document_id=20-creator-deauthorization&workspace_id=3",
+      "fetched_at": "2026-10-17T03:39:50.794229+00:00",
+      "updated_at": "2025-07-02T09:53:51+00:00",
+      "response_sha256": "7fced5be660657adf41a6159696c228dc43f8f2c84c5b9a28bb1d1374a1cc690",
+      "content_sha256": "40a62c0883a4cb112c4e146e28f653dacd9ae42de0d59e747b185c419292174d"
+    },
+    {
+      "slug": "access-scope",
+      "official_url": "https://partner.tiktokshop.com/docv2/page/access-scope",
+      "read_endpoint": "https://partner.tiktokshop.com/api/v1/document/detail?document_id=access-scope&workspace_id=3",
+      "fetched_at": "2026-10-17T03:39:15.039205+00:00",
+      "updated_at": "2025-07-02T09:46:35+00:00",
+      "response_sha256": "3e618477ad3d0d0dcfe9a08e8e2e6023d3d6387bb8c429eba8b2b01a29e0de98",
+      "content_sha256": "e770662963b09d17ab1c45143a04ecc382a939147bab8e487c72dbaa9584f9c8"
+    },
+    {
+      "slug": "authorization-overview-202407",
+      "official_url": "https://partner.tiktokshop.com/docv2/page/authorization-overview-202407",
+      "read_endpoint": "https://partner.tiktokshop.com/api/v1/document/detail?document_id=authorization-overview-202407&workspace_id=3",
+      "fetched_at": "2026-10-17T03:39:50.823443+00:00",
+      "updated_at": "2026-06-26T03:50:17+00:00",
+      "response_sha256": "37d5d755d8f268f90b3d9d10ce6bb4536483518676aee8ea4901c7ba64c9ea2b",
+      "content_sha256": "5a1a7ccd582a93e015b1e9e06177a232b5ca36940ea92736cd029936e5a6fe94"
+    },
+    {
+      "slug": "authorization-via-app-store",
+      "official_url": "https://partner.tiktokshop.com/docv2/page/authorization-via-app-store",
+      "read_endpoint": "https://partner.tiktokshop.com/api/v1/document/detail?document_id=authorization-via-app-store&workspace_id=3",
+      "fetched_at": "2026-10-17T03:39:51.439500+00:00",
+      "updated_at": "2026-06-29T10:00:45+00:00",
+      "response_sha256": "36199debd5ad88ed66f0db20cafd5dc95e9a9cd8fc8f631dbf470b1a6c049e04",
+      "content_sha256": "a91c479cce41614091ed92dba2e2336d68ca1befc1d5f52c49982a7bd912f2c7"
+    },
+    {
+      "slug": "creator-authorization-guide",
+      "official_url": "https://partner.tiktokshop.com/docv2/page/creator-authorization-guide",
+      "read_endpoint": "https://partner.tiktokshop.com/api/v1/document/detail?document_id=creator-authorization-guide&workspace_id=3",
+      "fetched_at": "2026-10-17T03:39:11.525424+00:00",
+      "updated_at": "2026-06-29T09:33:44+00:00",
+      "response_sha256": "68159569e0dca72f037b5bc6618843b85d8bdea33e1c0166176c2df32f93e6d9",
+      "content_sha256": "076dcba88cd940019d22923ba345a4e9e2d563ce5d9d4d389b209fb2a2f2eb69"
+    },
+    {
+      "slug": "developer-onboarding",
+      "official_url": "https://partner.tiktokshop.com/docv2/page/developer-onboarding",
+      "read_endpoint": "https://partner.tiktokshop.com/api/v1/document/detail?document_id=developer-onboarding&workspace_id=3",
+      "fetched_at": "2026-10-17T03:39:14.112585+00:00",
+      "updated_at": "2026-08-11T07:21:23+00:00",
+      "response_sha256": "98c64bf6938a4dad27b02e9b9b427fca9081865c7ead04f1e664776b311c1143",
+      "content_sha256": "3b01093a5e41e15aab4854dcac0018dfb3e9fe3baae075a60b362220c71ade9a"
+    },
+    {
+      "slug": "get-authorized-category-assets-202405",
+      "official_url": "https://partner.tiktokshop.com/docv2/page/get-authorized-category-assets-202405",
+      "read_endpoint": "https://partner.tiktokshop.com/api/v1/document/detail?document_id=get-authorized-category-assets-202405&workspace_id=3",
+      "fetched_at": "2026-10-17T03:39:14.052882+00:00",
+      "updated_at": "2026-10-13T07:08:46+00:00",
+      "response_sha256": "663dc3ba0ede029939c4c971f64afe04c3ef6a497c6bddba91596ceddfa4eabf",
+      "content_sha256": "238f56ece625c86f5b8150f796dd287fdc4b38ea48cea1ddc5d7cb458659155c"
+    },
+    {
+      "slug": "get-creator-profile-202508",
+      "official_url": "https://partner.tiktokshop.com/docv2/page/get-creator-profile-202508",
+      "read_endpoint": "https://partner.tiktokshop.com/api/v1/document/detail?document_id=get-creator-profile-202508&workspace_id=3",
+      "fetched_at": "2026-10-17T03:39:13.627985+00:00",
+      "updated_at": "2026-10-13T06:55:28+00:00",
+      "response_sha256": "c4606f39dad43e4c9958a0084b8c9a7b28f95228b9d90cf4f3343ecdffdc4bd3",
+      "content_sha256": "f95c1bc9465d5b665eec43ba4078849cd7c049e23219123b992708ea704ac27b"
+    },
+    {
+      "slug": "id-market-tokopedia-shop-open-api-integration-one-pager",
+      "official_url": "https://partner.tiktokshop.com/docv2/page/id-market-tokopedia-shop-open-api-integration-one-pager",
+      "read_endpoint": "https://partner.tiktokshop.com/api/v1/document/detail?document_id=id-market-tokopedia-shop-open-api-integration-one-pager&workspace_id=3",
+      "fetched_at": "2026-10-17T03:39:16.460114+00:00",
+      "updated_at": "2024-09-30T07:08:36+00:00",
+      "response_sha256": "17212f7fef0057d7707cdc9106578c72af87879cb175d1195ce7671a316a31d9",
+      "content_sha256": "c93ea8a371bc4eeb4933b9575a918ec5c76c801b6048a35d840647b476e5c4f2"
+    },
+    {
+      "slug": "partner-authorization-guide",
+      "official_url": "https://partner.tiktokshop.com/docv2/page/partner-authorization-guide",
+      "read_endpoint": "https://partner.tiktokshop.com/api/v1/document/detail?document_id=partner-authorization-guide&workspace_id=3",
+      "fetched_at": "2026-10-17T03:39:11.759167+00:00",
+      "updated_at": "2026-07-01T10:47:24+00:00",
+      "response_sha256": "eccd1ea88d5330e6a67ec813d38d3cd280f09783f3953eb6fbcf3a70821cc31a",
+      "content_sha256": "dc2a602df92998c74b6f45059f422dac2bb157cc3a5df533f6ea84d6789d601f"
+    },
+    {
+      "slug": "post-shoppable-photos-202610",
+      "official_url": "https://partner.tiktokshop.com/docv2/page/post-shoppable-photos-202610",
+      "read_endpoint": "https://partner.tiktokshop.com/api/v1/document/detail?document_id=post-shoppable-photos-202610&workspace_id=3",
+      "fetched_at": "2026-10-17T03:39:53.415771+00:00",
+      "updated_at": "2026-10-15T10:12:00+00:00",
+      "response_sha256": "f41b2c4d7ac30aaf5642faa46d89f09b1193784104889df790115165bb3d8c95",
+      "content_sha256": "e73d7f86c15868889e021a0df0c98b86c6fd8218b55ae3acb4adece88e2bf683"
+    },
+    {
+      "slug": "search-cap-affiliate-orders-202603",
+      "official_url": "https://partner.tiktokshop.com/docv2/page/search-cap-affiliate-orders-202603",
+      "read_endpoint": "https://partner.tiktokshop.com/api/v1/document/detail?document_id=search-cap-affiliate-orders-202603&workspace_id=3",
+      "fetched_at": "2026-10-17T03:39:53.954456+00:00",
+      "updated_at": "2026-10-15T10:08:46+00:00",
+      "response_sha256": "07bad57ca0a37b90d91b55e92e626da09585dc5bdb8548daac25096020703979",
+      "content_sha256": "06322941796017a3e87857230e84a0ae97a03bc82009fbdc7b992fb21ea60f17"
+    },
+    {
+      "slug": "seller-authorization-guide",
+      "official_url": "https://partner.tiktokshop.com/docv2/page/seller-authorization-guide",
+      "read_endpoint": "https://partner.tiktokshop.com/api/v1/document/detail?document_id=seller-authorization-guide&workspace_id=3",
+      "fetched_at": "2026-10-17T03:39:12.647442+00:00",
+      "updated_at": "2026-06-29T09:09:44+00:00",
+      "response_sha256": "d2e8062e5bb62f67ff44f4ecfab70d0da867c37b576d4ae572619be60b3daaae",
+      "content_sha256": "9ab714f46ad2505af2d8c74eeb5e7810168b4a89779e820ee6888caa7752851a"
+    },
+    {
+      "slug": "u62dh98s",
+      "official_url": "https://partner.tiktokshop.com/docv2/page/u62dh98s",
+      "read_endpoint": "https://partner.tiktokshop.com/api/v1/document/detail?document_id=u62dh98s&workspace_id=3",
+      "fetched_at": "2026-10-17T03:39:52.018968+00:00",
+      "updated_at": "2026-01-04T09:10:01+00:00",
+      "response_sha256": "0960b3b698aa303898c4602a223efd14eb2fdfc76939b83ea9118b3be3936fd2",
+      "content_sha256": "b9db25420cfeee36f7f55623564dd97d1a451961f2cbb3d090fc3a9b30007323"
+    }
+  ],
+  "code_baseline": "328f872a3baca9db36db5d30741e69761bd5ac0c",
+  "limitations": [
+    "Only the navigation tree and 14 selected public documents were fetched again; this is not a full 869-document body refresh.",
+    "Platform update_time values are preserved as reported and do not prove review dates.",
+    "Public documentation and code references do not establish Indonesia entitlement or sandbox success.",
+    "Shopee official and affiliate portals were inaccessible through the proxy (HTTP 403); the pinned secondary snapshot remains the baseline."
+  ]
+}

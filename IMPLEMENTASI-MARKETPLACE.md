@@ -51,3 +51,17 @@ Typecheck/lint, build web, empat uji browser akun dengan axe pada 320/390/768/14
 empat regresi browser AMS lulus. Halaman akun dan modal pada fixture tetap di dalam tinggi/lebar
 viewport; mobile membaca satu kartu per halaman sejak permintaan pertama. Generator OpenAPI dan
 kedua SDK diperbarui. Pemeriksaan PRD tetap 259 FR, 294 kriteria dan 811 evidence anchors.
+
+Audit ulang 17 Oktober 2026 menegaskan model integrator: pengelola menyimpan kredensial aplikasi,
+tenant memberikan consent menurut platform/principal, lalu fitur berjalan sesuai scope/program.
+[Audit lengkap](AUDIT-INTEGRATOR-COMMERCE.md) dan [50 baris matriks](AUDIT-INTEGRATOR-FITUR.csv)
+memisahkan seluruh 28 modul Shopee/19 modul TikTok, endpoint token dan area yang belum terinventaris.
+Fondasi akun creator/partner di atas khusus TikTok Shop. Creator/publisher Shopee belum tersedia;
+AMS seller tidak menggantikannya. Pada TikTok, showcase, konten video/foto shoppable dan pemetaan
+produk creator juga masih backlog, selain kolaborasi/sample/link/komisi/performa.
+
+Prioritas sebelum perluasan modul: capability/scope per operasi, webhook pencabutan creator,
+penyimpanan grant seller sebelum discovery, ikatan pemohon/izin terbaru, presisi ID Shopee,
+konfirmasi hasil stok dan validasi token seller. Temuan ini masih terbuka; perubahan audit
+hanya dokumentasi. Navigasi TikTok diambil ulang dan identik; 14 dokumen publik dibaca ulang.
+Portal Shopee terhalang proxy HTTP 403. Tidak ada uji sandbox atau perubahan akun nyata.

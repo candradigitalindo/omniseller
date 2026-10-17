@@ -1113,7 +1113,7 @@ erDiagram
 
 ### 11.1 Ringkasan per marketplace
 
-| Marketplace | Platform pengembang | Autentikasi | Push notifikasi | Catatan implementasi |
+| Marketplace | Platform pengembang | Autentikasi | Push notifikasi | Gambaran platform dan kebutuhan integrasi |
 |---|---|---|---|---|
 | Shopee | Shopee Open Platform (OpenAPI v2) | Partner ID + Partner Key, tanda tangan HMAC-SHA256 per permintaan, otorisasi toko oleh seller lewat tautan `open.shopee.com/auth` (akun toko atau akun utama yang memberi beberapa toko sekaligus), access token 4 jam, refresh token 30 hari yang hanya bisa dipakai sekali, izin seller maksimal 365 hari | Ya (webhook push untuk pesanan, chat, dan lainnya) | Modul mencakup shop, product, order, logistics, payment, discount, voucher, bundle deal, add-on deal, flash sale, returns, account health, chat, media space, ads. Butuh pendaftaran partner dan review aplikasi |
 | TikTok Shop dan Tokopedia | TikTok Shop Partner Center ("Tokopedia & Shop" untuk pasar Indonesia) | App Key + App Secret, otorisasi seller lewat `services.tiktokshop.com/open/authorize`, access token 7 hari, refresh token berlaku selama izin seller, `shop_cipher` per toko; seller lokal punya satu toko per otorisasi | Ya | Satu connector untuk kedua toko. Modul: seller, product, order, fulfillment, logistics, finance, return & refund, promotion, affiliate seller, analytics, customer service, events. Gateway hanya menerima HTTPS |
@@ -1122,11 +1122,11 @@ erDiagram
 | Zalora | Seller Center API (berbasis platform e-commerce yang dipakai Zalora) | API key + user | Tidak / polling | Fase 2 |
 | Shopify / WooCommerce | REST/GraphQL API | OAuth / API key | Ya | Fase 2 |
 
-Semua detail teknis di atas wajib diverifikasi ulang terhadap dokumentasi resmi masing-masing marketplace pada saat implementasi, karena kebijakan API dapat berubah. Baris Shopee dan TikTok Shop sudah diverifikasi terhadap dokumentasi resmi per Oktober 2026 saat koneksi toko diimplementasikan.
+Detail platform di atas adalah acuan rancangan yang harus diverifikasi per operasi, principal, market dan izin aplikasi. Untuk SaaS OmniSeller, kunci aplikasi dikelola pengelola integrator; tenant seller/creator/partner memberikan otorisasi melalui metode resmi masing-masing program. Kunci API per tenant hanya digunakan bila kontrak program mensyaratkannya. Cakupan audit saat ini adalah seller serta creator/affiliate partner Indonesia pada Shopee dan TikTok Shop; status aktual, sumber dan keterbatasan verifikasi tersedia pada [audit integrator](AUDIT-INTEGRATOR-COMMERCE.md). Shopee creator belum diimplementasikan, sedangkan koneksi creator/partner yang tersedia khusus TikTok Shop.
 
-### 11.2 Matriks kapabilitas connector
+### 11.2 Matriks target kapabilitas platform (status implementasi ada di audit integrator)
 
-| Kapabilitas | Shopee | TikTok Shop | Lazada | Blibli |
+| Target kapabilitas; seluruh sel perlu verifikasi API/market/izin | Shopee | TikTok Shop | Lazada | Blibli |
 |---|---|---|---|---|
 | Baca produk dan varian | Ya | Ya | Ya | Ya |
 | Buat/ubah produk | Ya | Ya | Ya | Ya |

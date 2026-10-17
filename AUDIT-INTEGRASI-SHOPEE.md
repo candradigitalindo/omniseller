@@ -107,3 +107,11 @@ IMPLEMENTASI-MARKETPLACE.md; sandbox/live dan kontrak resmi terkini tetap belum 
 
 ## Implementasi sesudah audit
 17 Oktober 2026: perubahan harga reguler per listing untuk kedua marketplace telah ditambahkan beserta modal, worker, audit/ekspor dan tes lokal. Referensi kode kini 46/428 (382 tanpa referensi), tanpa mengubah tanggal/provenance snapshot. Baca [status implementasi seluruh modul](IMPLEMENTASI-MARKETPLACE.md); semua fitur Shopee tetap belum selesai dan sandbox nyata belum dijalankan.
+
+Audit ulang integrator 17 Oktober 2026: [model otorisasi dan temuan](AUDIT-INTEGRATOR-COMMERCE.md),
+[matriks seluruh modul](AUDIT-INTEGRATOR-FITUR.csv). Partner ID/Key milik aplikasi operator;
+tenant seller tetap memberikan consent. AMS adalah fitur seller dan tidak menyediakan koneksi
+creator/publisher Shopee. Sebanyak 143 metode HTTP pada snapshot masih perlu verifikasi.
+Presisi ID, konfirmasi hasil stok dan ketahanan grant seller menjadi pekerjaan prioritas.
+Portal resmi dan portal affiliate Indonesia gagal di proxy tunnel HTTP 403; ini bukan penolakan
+akun oleh Shopee. Status audit tidak berubah menjadi terverifikasi live/sandbox.

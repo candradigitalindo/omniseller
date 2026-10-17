@@ -53,7 +53,7 @@ Keputusan kompatibilitas tiap field/operasi lain tetap memerlukan pengujian kont
 | Analytics | Belum ditemukan integrasi API TikTok | Laporan internal penjualan/restock/kinerja tim bukan integrasi seluruh analitik toko, produk, LIVE atau video dari TikTok. |
 | Customer service/engagement | Belum ditemukan integrasi | Belum ada chat/conversation, pengiriman pesan, session dan campaign pelanggan TikTok. |
 | Affiliate creator/partner/seller | Fondasi koneksi creator/partner diuji lokal; operasi bisnis belum tersedia | [Akun terpisah](backend/src/modules/affiliate-accounts/README.md), [UI](frontend/src/features/affiliate-accounts), [ADR-047](backend/docs/adr/0047-affiliate-account-principals.md). Otorisasi, scope/profil/aset kategori ID, refresh/disconnect tersedia. Kolaborasi, open/target collaboration, sample, komisi, link dan performa tetap backlog. Adapter AMS Shopee terpisah. |
-| Supply chain/Tools | Belum ditemukan integrasi | Termasuk pemetaan ID Tokopedia/TikTok dalam API terkait; jangan menyamakan API creator dengan API seller. |
+| Supply chain/Tools | Belum ditemukan integrasi | Confirm Package Shipment (Supply chain) dan Upload File Init (Tools) belum ada. Pemetaan ID produk Tokopedia/TikTok berada di Affiliate creator versi 202606 dan 202607, juga belum ada; principal dan scope mengikuti masing-masing versi/operasi. |
 | Partner Center | Proses eksternal; belum dibuktikan selesai | Registrasi, legalitas, app/scopes, review, publikasi, akun sandbox, dashboard/log/testing tool dikelola di portal. Tidak semuanya perlu disalin menjadi halaman OmniSeller. |
 
 ## Temuan yang perlu diprioritaskan untuk Indonesia
@@ -61,8 +61,8 @@ Keputusan kompatibilitas tiap field/operasi lain tetap memerlukan pengujian kont
 1. **Atribut Imported Goods, efektif 27 Oktober 2026.** [Changelog resmi](https://partner.tiktokshop.com/docv2/page/dmo81egx)
    menyebut attribute `102254`, Yes `1000058` / No `1000059`, wajib untuk kategori selain digital pada
    seller lokal Indonesia. [Get Attributes dan normalisasinya](backend/packages/connectors/tiktokshop/src/products.ts)
-   sudah dinamis, tetapi belum ada bukti uji khusus perubahan ini. Verifikasi aturan terbaru, refresh
-   kategori, pilihan seller dan validasi sebelum publish; jangan mengisi jawaban impor otomatis.
+   sudah dinamis; tes lokal atribut wajib dan penolakan draf yang stale sudah tersedia pada checkpoint harga/produk.
+   Sandbox Indonesia masih perlu diverifikasi; refresh kategori dan pilihan seller tetap wajib sebelum publish.
 2. **Horizon+ dan rincian biaya.** [Perubahan resmi](https://partner.tiktokshop.com/docv2/page/u62dh98s)
    menyebut `order_rights`, `distance_shipping_fee` dan `distance_fee_amount`/`distance_fee`. Adapter order
    kini membaca `sub_total`, harga baris, shipping fee dan total, tanpa memetakan field baru tersebut.
@@ -125,3 +125,10 @@ Get Creator Profile 202508 dan Get Authorized Category Assets 202405 dibaca lang
 publik resmi pada 17 Oktober 2026. Ini menambahkan dua operasi katalog yang dirujuk kode, tanpa
 mengubah snapshot navigasi 16 Oktober. Pengguna mengonfirmasi belum ada akses Creator API/beta/TAP;
 seluruh verifikasi koneksi baru memakai server simulasi lokal dan bukan bukti persetujuan platform.
+
+Audit ulang model integrator 17 Oktober 2026 tersedia di [audit lintas platform](AUDIT-INTEGRATOR-COMMERCE.md).
+Navigasi resmi diambil ulang pukul 10.40 WIB dengan checksum identik; 14 dokumen publik dibaca ulang.
+Temuan tambahan mencakup webhook creator deauthorization tipe 20, capability/scope per operasi,
+validasi token seller, serta kelengkapan showcase/konten/mapping creator. Koneksi dan penayangan
+profil/aset belum berarti operasi bisnis creator/TAP/CAP tersedia. [Matriks](AUDIT-INTEGRATOR-FITUR.csv)
+dan [provenance](backend/docs/audits/2026-10-17-integrator-sources.json) menyimpan rincian pemeriksaan.
