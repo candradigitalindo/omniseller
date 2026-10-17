@@ -1,4 +1,5 @@
 import type { Redis } from "ioredis";
+import { MarketplaceLimiter } from "./marketplace-limiter";
 
 /**
  * Token bucket in Redis, atomic via Lua (technology doc 5.2, 7.1). Used for per-tenant API limits and
@@ -57,10 +58,13 @@ export const RATE_RULES = {
 } satisfies Record<string, BucketRule>;
 
 export class RateLimiter {
+  readonly marketplace: MarketplaceLimiter;
   constructor(
     private readonly redis: Redis,
     private readonly prefix = "rl",
-  ) {}
+  ) {
+    this.marketplace = new MarketplaceLimiter(redis, `${prefix}:marketplace`);
+  }
 
   async take(key: string, rule: BucketRule, cost = 1, nowMs = Date.now()): Promise<RateDecision> {
     const [allowed, remaining, retryMs] = (await this.redis.eval(

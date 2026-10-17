@@ -2,7 +2,7 @@ import type { ConnectorManifest, HttpConfig, MarketplaceConnector } from "@omnis
 import { createShopeeConnector, SHOPEE_MANIFEST } from "@omniseller/connector-shopee";
 import { createTiktokShopConnector, TIKTOKSHOP_MANIFEST } from "@omniseller/connector-tiktokshop";
 import type { Env } from "../../config/env.schema";
-import { connectorCallObserver, connectorRequestGate } from "../sync/connector-calls";
+import { connectorCallObserver, connectorRateFeedback, connectorRequestGate } from "../sync/connector-calls";
 import { channelNotConfigured } from "./channel.errors";
 
 /** Channels with a connector today. Lazada and Blibli follow in phase 2 (PRD 14). */
@@ -46,6 +46,7 @@ export class ConnectorRegistry {
     const http: HttpConfig = {
       observer: connectorCallObserver,
       beforeRequest: connectorRequestGate,
+      afterResponse: connectorRateFeedback,
       ...(fetchImpl ? { fetch: fetchImpl } : {}),
     };
     const entries: [SupportedChannel, MarketplaceConnector][] = [];
@@ -61,6 +62,7 @@ export class ConnectorRegistry {
           ...(partnerKey ? { partnerKey } : {}),
           apiBaseUrl: str(env, "SHOPEE_API_BASE_URL") ?? "https://partner.shopeemobile.com",
           authBaseUrl: str(env, "SHOPEE_AUTH_BASE_URL") ?? "https://open.shopee.com",
+          accountRedirectUri: `${str(env, "PUBLIC_WEB_URL") ?? ""}/integrasi/callback/shopee`,
           ...(num(env, "SHOPEE_VARIANT_DELAY_MS") !== undefined
             ? { variantDelayMs: num(env, "SHOPEE_VARIANT_DELAY_MS")! }
             : {}),

@@ -17,6 +17,8 @@ export const AUTH_META = {
   createdAt: auth.createdAt,
   updatedAt: auth.updatedAt,
   rowVersion: auth.rowVersion,
+  channel: auth.channel,
+  program: auth.program,
   kind: auth.kind,
   accountId: auth.accountId,
   requestedBy: auth.requestedBy,
@@ -60,16 +62,22 @@ export class AffiliateAccountsRepository {
     const query = tx.select().from(account).where(eq(account.id, id));
     return (await (lock ? query.for("update") : query))[0];
   }
-  async byPrincipal(tx: Tx, kind: AffiliateAccountRow["kind"], externalId: string, lock = false) {
+  async byPrincipal(
+    tx: Tx,
+    kind: AffiliateAccountRow["kind"],
+    externalId: string,
+    lock = false,
+    channel: AffiliateAccountRow["channel"] = "tiktokshop",
+  ) {
     const query = tx
       .select()
       .from(account)
-      .where(and(eq(account.kind, kind), eq(account.externalPrincipalId, externalId)));
+      .where(and(eq(account.channel, channel), eq(account.kind, kind), eq(account.externalPrincipalId, externalId)));
     return (await (lock ? query.for("update") : query))[0];
   }
-  async lockPrincipal(tx: Tx, kind: string, externalId: string) {
+  async lockPrincipal(tx: Tx, kind: string, externalId: string, channel = "tiktokshop") {
     await tx.execute(
-      sql`SELECT pg_advisory_xact_lock(hashtextextended(${`affiliate-principal:${kind}:${externalId}`},0))`,
+      sql`SELECT pg_advisory_xact_lock(hashtextextended(${channel === "tiktokshop" ? `affiliate-principal:${kind}:${externalId}` : `affiliate-principal:${channel}:${kind}:${externalId}`},0))`,
     );
   }
   async insert(tx: Tx, values: typeof account.$inferInsert) {
@@ -110,14 +118,14 @@ export class AffiliateAccountsRepository {
     tx: Tx,
     values: Pick<
       typeof auth.$inferInsert,
-      "id" | "tenantId" | "kind" | "accountId" | "requestedBy" | "stateHash" | "expiresAt"
+      "id" | "tenantId" | "channel" | "program" | "kind" | "accountId" | "requestedBy" | "stateHash" | "expiresAt"
     >,
   ) {
     // Drizzle emits DEFAULT for every omitted schema column. A column-scoped API grant
     // intentionally excludes staged secrets, so name only the permitted columns here.
     await tx.execute(sql`INSERT INTO affiliate_authorization
-      (id,tenant_id,kind,account_id,requested_by,state_hash,expires_at)
-      VALUES (${values.id},${values.tenantId},${values.kind},${values.accountId ?? null},
+      (id,tenant_id,channel,program,kind,account_id,requested_by,state_hash,expires_at)
+      VALUES (${values.id},${values.tenantId},${values.channel ?? "tiktokshop"},${values.program ?? "standard"},${values.kind},${values.accountId ?? null},
         ${values.requestedBy ?? null},${values.stateHash},${values.expiresAt})`);
     return (await this.getAuth(tx, values.id))!;
   }

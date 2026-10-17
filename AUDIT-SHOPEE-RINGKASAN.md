@@ -2,7 +2,7 @@
 
 Sumber sekunder: https://github.com/nhutplus/marketplace-api-docs/tree/300344af94cf347268b50847baf14b9c28aaf1ae/shopee. Tanggal snapshot: 2026-05-15; portal resmi tidak dapat diakses dari lingkungan audit (HTTP 403).
 
-428 endpoint dokumentasi, 28 modul, 48 panduan. 46 endpoint dokumentasi memiliki referensi literal pada connector; 382 belum memiliki referensi. Jumlah path unik kode adalah 46. Angka tersebut mengukur referensi kode, bukan fitur lengkap atau keberhasilan sandbox.
+428 endpoint dokumentasi, 28 modul, 48 panduan. 54 endpoint dokumentasi memiliki referensi literal pada connector; 374 belum memiliki referensi. Jumlah path unik kode adalah 54. Angka tersebut mengukur referensi kode, bukan fitur lengkap atau keberhasilan sandbox.
 
 | Modul | Endpoint snapshot | Ada referensi connector | Belum ada referensi |
 |---|---:|---:|---:|
@@ -16,10 +16,10 @@ Sumber sekunder: https://github.com/nhutplus/marketplace-api-docs/tree/300344af9
 | FirstMile | 16 | 0 | 16 |
 | Follow Prize | 6 | 0 | 6 |
 | GlobalProduct | 34 | 0 | 34 |
-| Livestream | 25 | 0 | 25 |
+| Livestream | 25 | 1 | 24 |
 | Logistics | 46 | 14 | 32 |
-| Media | 6 | 0 | 6 |
-| MediaSpace | 6 | 1 | 5 |
+| Media | 6 | 4 | 2 |
+| MediaSpace | 6 | 4 | 2 |
 | Merchant | 6 | 0 | 6 |
 | Order | 21 | 4 | 17 |
 | Payment | 18 | 0 | 18 |

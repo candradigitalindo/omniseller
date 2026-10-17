@@ -67,6 +67,8 @@ export class CommercePrincipalsDto extends createZodDto(
         status: z.string(),
         scopes: z.array(z.string()),
         region: z.string(),
+        regionVerified: z.boolean().optional(),
+        program: z.enum(["standard", "video", "live"]).optional(),
         readOnly: z.boolean(),
         sellerType: z.enum(["cross_border", "local", "unknown"]),
         categories: z.array(z.object({ id: z.number().int().positive(), name: z.string() })),

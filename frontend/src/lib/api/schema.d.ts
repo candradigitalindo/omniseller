@@ -1077,6 +1077,108 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/commerce-inbox/conversations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Mulai percakapan dengan pembeli marketplace melalui worker */
+    post: operations["CommerceInboxController_create"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/commerce-inbox/conversations/search": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Ambil halaman percakapan marketplace melalui worker */
+    post: operations["CommerceInboxController_conversations"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/commerce-inbox/messages/search": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Ambil halaman pesan marketplace melalui worker */
+    post: operations["CommerceInboxController_messages"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/commerce-inbox/messages/send": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Kirim balasan ke marketplace melalui worker */
+    post: operations["CommerceInboxController_send"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/commerce-inbox/messages/read": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Tandai pesan marketplace sudah dibaca melalui worker */
+    post: operations["CommerceInboxController_read"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/commerce-inbox/requests/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Status dan tampilan aman pesan marketplace */
+    get: operations["CommerceInboxController_receipt"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/warehouses": {
     parameters: {
       query?: never;
@@ -1583,6 +1685,70 @@ export interface paths {
     get: operations["StoreAuthorizationsController_get"];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/store-installations/tiktokshop/capture": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["StoreInstallationsController_capture"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/store-installations/tiktokshop": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["StoreInstallationsController_inspect"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/store-installations/tiktokshop/confirm": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["StoreInstallationsController_confirm"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/store-installations/tiktokshop/select-shops": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["StoreInstallationsController_selectShops"];
     delete?: never;
     options?: never;
     head?: never;
@@ -4320,10 +4486,15 @@ export interface components {
       items: {
         id: string;
         /** @enum {string} */
+        channel: "tiktokshop" | "shopee";
+        /** @enum {string} */
+        program: "standard" | "video" | "live";
+        /** @enum {string} */
         kind: "creator" | "affiliate_partner";
         name: string;
         externalPrincipalId: string;
         region: string;
+        regionVerified: boolean;
         /** @enum {string} */
         status: "active" | "verifying" | "reauth_required" | "disconnected";
         scopes: string[];
@@ -4344,10 +4515,15 @@ export interface components {
     AffiliateAccountDto_Output: {
       id: string;
       /** @enum {string} */
+      channel: "tiktokshop" | "shopee";
+      /** @enum {string} */
+      program: "standard" | "video" | "live";
+      /** @enum {string} */
       kind: "creator" | "affiliate_partner";
       name: string;
       externalPrincipalId: string;
       region: string;
+      regionVerified: boolean;
       /** @enum {string} */
       status: "active" | "verifying" | "reauth_required" | "disconnected";
       scopes: string[];
@@ -4369,10 +4545,18 @@ export interface components {
     StartAffiliateAuthorizationDto: {
       /** @enum {string} */
       kind: "creator" | "affiliate_partner";
+      /** @enum {string} */
+      channel?: "tiktokshop" | "shopee";
+      /** @enum {string} */
+      program?: "standard" | "video" | "live";
       accountId?: string;
     };
     StartedAffiliateAuthorizationDto_Output: {
       id: string;
+      /** @enum {string} */
+      channel: "tiktokshop" | "shopee";
+      /** @enum {string} */
+      program: "standard" | "video" | "live";
       /** @enum {string} */
       kind: "creator" | "affiliate_partner";
       accountId: string | null;
@@ -4390,11 +4574,17 @@ export interface components {
     };
     AffiliateAccountCallbackDto: {
       state: string;
+      /** @enum {string} */
+      channel?: "tiktokshop" | "shopee";
       code?: string;
       error?: string;
     };
     AffiliateAuthorizationDto_Output: {
       id: string;
+      /** @enum {string} */
+      channel: "tiktokshop" | "shopee";
+      /** @enum {string} */
+      program: "standard" | "video" | "live";
       /** @enum {string} */
       kind: "creator" | "affiliate_partner";
       accountId: string | null;
@@ -4981,6 +5171,9 @@ export interface components {
         status: string;
         scopes: string[];
         region: string;
+        regionVerified?: boolean;
+        /** @enum {string} */
+        program?: "standard" | "video" | "live";
         readOnly: boolean;
         /** @enum {string} */
         sellerType: "cross_border" | "local" | "unknown";
@@ -5105,6 +5298,73 @@ export interface components {
       sizeBytes: number;
       /** Format: date-time */
       expiresAt: string;
+    };
+    InboxCreateDto: {
+      principalId: string;
+      buyerUserId: string;
+    };
+    InboxConversationsDto: {
+      principalId: string;
+      cursor?: string;
+    };
+    InboxMessagesDto: {
+      principalId: string;
+      cursor?: string;
+      conversationId: string;
+    };
+    InboxSendDto: {
+      principalId: string;
+      conversationId: string;
+      /** @enum {string} */
+      type:
+        | "TEXT"
+        | "IMAGE"
+        | "VIDEO"
+        | "ORDER_CARD"
+        | "PRODUCT_CARD"
+        | "COUPON_CARD"
+        | "LOGISTICS_CARD"
+        | "RETURN_REFUND_CARD";
+      text?: string;
+      uploadRequestId?: string;
+      orderId?: string;
+      productId?: string;
+      couponId?: string;
+      packageId?: string;
+      skuId?: string;
+    };
+    InboxReadDto: {
+      principalId: string;
+      conversationId: string;
+    };
+    InboxReceiptDto_Output: {
+      id: string;
+      principalId: string;
+      /** @enum {string} */
+      status: "queued" | "running" | "succeeded" | "failed" | "uncertain";
+      /** @enum {string} */
+      kind: "conversations" | "messages" | "send" | "read" | "upload" | "video" | "create";
+      nextCursor: string | null;
+      errorMessage: string | null;
+      conversations: {
+        id: string;
+        name: string;
+        preview: string;
+        unread: number;
+        canReply: boolean;
+        updatedAt: string | null;
+      }[];
+      messages: {
+        id: string;
+        type: string;
+        text: string;
+        sender: string;
+        incoming: boolean;
+        createdAt: string | null;
+        mediaUrl: string | null;
+      }[];
+      messageId: string | null;
+      conversationId: string | null;
     };
     WarehouseListDto_Output: {
       items: {
@@ -5858,6 +6118,16 @@ export interface components {
       errorMessage: string | null;
       /** Format: date-time */
       createdAt: string;
+      /** @description App Store only: verified shop identities must be selected before any store is connected */
+      installation?: {
+        awaitingShopSelection: boolean;
+        shops: {
+          externalShopId: string;
+          name: string;
+          region: string;
+        }[];
+        selectedShopIds: string[];
+      } | null;
       /**
        * Format: uri
        * @description open this in the browser (same tab)
@@ -5907,6 +6177,40 @@ export interface components {
       errorMessage: string | null;
       /** Format: date-time */
       createdAt: string;
+      /** @description App Store only: verified shop identities must be selected before any store is connected */
+      installation?: {
+        awaitingShopSelection: boolean;
+        shops: {
+          externalShopId: string;
+          name: string;
+          region: string;
+        }[];
+        selectedShopIds: string[];
+      } | null;
+    };
+    CaptureStoreInstallationDto: {
+      code: string;
+    };
+    CapturedStoreInstallationDto_Output: {
+      /** Format: date-time */
+      expiresAt: string;
+    };
+    StoreInstallationChallengeDto_Output: {
+      confirmationToken: string;
+      /** Format: date-time */
+      expiresAt: string;
+    };
+    ConfirmStoreInstallationDto: {
+      confirmationToken: string;
+      /** @constant */
+      confirmed: true;
+    };
+    SelectInstallationShopsDto: {
+      authorizationId: string;
+      confirmationToken: string;
+      /** @constant */
+      confirmed: true;
+      shopIds: string[];
     };
     StoreListDto_Output: {
       items: {
@@ -11534,6 +11838,8 @@ export interface operations {
         "multipart/form-data": {
           operationId: string;
           principalId: string;
+          /** @description Field berkas tujuan; wajib untuk fitur yang menerima beberapa berkas. */
+          fieldName?: string;
           /** Format: binary */
           file: string;
         };
@@ -11574,6 +11880,152 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+    };
+  };
+  CommerceInboxController_create: {
+    parameters: {
+      query?: never;
+      header: {
+        "Idempotency-Key": string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["InboxCreateDto"];
+      };
+    };
+    responses: {
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CommerceRequestDto_Output"];
+        };
+      };
+    };
+  };
+  CommerceInboxController_conversations: {
+    parameters: {
+      query?: never;
+      header: {
+        "Idempotency-Key": string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["InboxConversationsDto"];
+      };
+    };
+    responses: {
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CommerceRequestDto_Output"];
+        };
+      };
+    };
+  };
+  CommerceInboxController_messages: {
+    parameters: {
+      query?: never;
+      header: {
+        "Idempotency-Key": string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["InboxMessagesDto"];
+      };
+    };
+    responses: {
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CommerceRequestDto_Output"];
+        };
+      };
+    };
+  };
+  CommerceInboxController_send: {
+    parameters: {
+      query?: never;
+      header: {
+        "Idempotency-Key": string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["InboxSendDto"];
+      };
+    };
+    responses: {
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CommerceRequestDto_Output"];
+        };
+      };
+    };
+  };
+  CommerceInboxController_read: {
+    parameters: {
+      query?: never;
+      header: {
+        "Idempotency-Key": string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["InboxReadDto"];
+      };
+    };
+    responses: {
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CommerceRequestDto_Output"];
+        };
+      };
+    };
+  };
+  CommerceInboxController_receipt: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["InboxReceiptDto_Output"];
+        };
       };
     };
   };
@@ -12552,6 +13004,94 @@ export interface operations {
     requestBody?: never;
     responses: {
       200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuthorizationDto_Output"];
+        };
+      };
+    };
+  };
+  StoreInstallationsController_capture: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CaptureStoreInstallationDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CapturedStoreInstallationDto_Output"];
+        };
+      };
+    };
+  };
+  StoreInstallationsController_inspect: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["StoreInstallationChallengeDto_Output"];
+        };
+      };
+    };
+  };
+  StoreInstallationsController_confirm: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ConfirmStoreInstallationDto"];
+      };
+    };
+    responses: {
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuthorizationDto_Output"];
+        };
+      };
+    };
+  };
+  StoreInstallationsController_selectShops: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SelectInstallationShopsDto"];
+      };
+    };
+    responses: {
+      202: {
         headers: {
           [name: string]: unknown;
         };

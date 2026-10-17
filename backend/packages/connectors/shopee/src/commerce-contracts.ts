@@ -4,8 +4,20 @@ import type { CommerceOperation } from "@omniseller/connector-core";
 export interface ShopeeCommerceContract {
   operation: CommerceOperation;
   numericIds: string[];
-  pagination?: { cursorPath: string[]; morePath?: string[] };
-  source: { file: string; sha256: string; structuredFile: string; structuredSha256: string; commit: string };
+  auth?: "shop" | "user" | "public";
+  queryArrays?: Record<string, "comma" | "json" | "repeat">;
+  pagination?: { cursorPath: string[]; morePath?: string[]; numeric?: boolean };
+  source: {
+    file: string;
+    sha256: string;
+    structuredFile: string;
+    structuredSha256: string;
+    compilerFile: string;
+    compilerSha256: string;
+    commit: string;
+    reviewFile?: string;
+    reviewSha256?: string;
+  };
 }
 
 export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
@@ -72,8 +84,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "cb5400b064d8b985da3a2e9d8abc81804dc958ebd6662404c48f7db262ccacba",
       structuredFile: "v2.account_health.get_late_orders.structured.json",
       structuredSha256: "9979add631685f1ead62101549d2557d320be06d2265a5d64d43e5533da171c2",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -137,8 +152,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "fb0913847beb19dd7bae7f5e22c5f478721b0dc08dfe3d7b216b389f56e8826b",
       structuredFile: "v2.account_health.get_listings_with_issues.structured.json",
       structuredSha256: "386125b9baec1ae99eca3e69f54b8473c1b2231ddc8cad9b121fa8e6baabfba1",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -258,8 +276,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "757f95c7f07587b8740220f079e4783edb7fa1f3b5540fb95697109228d34a71",
       structuredFile: "v2.account_health.get_metric_source_detail.structured.json",
       structuredSha256: "fa2d1819f0b49a6198626837d3712f68d2c22095e6fb69de1069232346bb57f4",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -334,8 +355,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "73dec4e0be4dcd4cceff55efb661ad8f3330da66594c954e02708024b9b92ba2",
       structuredFile: "v2.account_health.get_penalty_point_history.structured.json",
       structuredSha256: "d84ca9cb74986a57272d5abb9306b731214949a140dd9cb3c4fe4845dc326cc9",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -412,8 +436,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "3e1b368e14a6187a0df05c2d3d49a355f0b5ef8c0fed0b71f675bc9593883010",
       structuredFile: "v2.account_health.get_punishment_history.structured.json",
       structuredSha256: "4ae6e72a6186de63bb2b6ef424fa027bae8c7961a7d9fb05de85689f255fd350",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -473,8 +500,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "670650c5a6c5b46554370cf9a0487cadca08474bd3764bee0fec353031e9d5eb",
       structuredFile: "v2.account_health.get_shop_performance.structured.json",
       structuredSha256: "e64ae5b9cc86ff3c22393d04e028b8dea0e262de01c0d715b550aacd13bdf0fd",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -508,6 +538,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           type: "integer",
           required: true,
           description: "The time when add on deal activity start.",
+          format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.end_time",
@@ -515,6 +547,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           type: "integer",
           required: true,
           description: "The time when add on deal activity end",
+          format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.promotion_type",
@@ -555,8 +589,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "d3da5a5f7a2c6b8ef41747f7dfb5d562efa23dbe015dd13274e9ad2488903f1b",
       structuredFile: "v2.add_on_deal.add_add_on_deal.structured.json",
       structuredSha256: "2c11dd4e0f2c990cf8a59a7b3435ea0174ebc68548b4a95578800fad4fb1a2aa",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -630,8 +667,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "b0764dec82fc18bb77adfeb7e830774ba8a482852aba01b42e2e6600ff1b7a28",
       structuredFile: "v2.add_on_deal.add_add_on_deal_main_item.structured.json",
       structuredSha256: "12f9910e21c96c167ebb1818b66ec815885cebdd8079644851ea2db8d75888d7",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -651,9 +691,64 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.add_on_deal.add_add_on_deal_sub_item?module=111&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Contoh daftar objek memiliki bentuk bercabang yang belum terverifikasi.",
+      fields: [
+        {
+          name: "body.add_on_deal_id",
+          label: "Add on deal id",
+          type: "string",
+          required: true,
+          description: "Shopee's unique identifier for add on deal activity.",
+        },
+        {
+          name: "body.sub_item_list",
+          label: "Sub item list",
+          type: "array",
+          required: true,
+          description: "The sub items added in this add on deal promotion.",
+          itemType: "object",
+          minimum: 1,
+          children: [
+            {
+              name: "item_id",
+              label: "ID produk",
+              type: "string",
+              required: false,
+              description: "Shopee's unique identifier for an item.",
+            },
+            {
+              name: "model_id",
+              label: "ID varian",
+              type: "string",
+              required: false,
+              description: "Shopee's unique identifier for a model.",
+            },
+            {
+              name: "status",
+              label: "Status",
+              type: "integer",
+              required: false,
+              description: "The status of add on deal item：enable = 1；disable =2",
+            },
+            {
+              name: "sub_item_input_price",
+              label: "Sub item input price",
+              type: "number",
+              required: false,
+              description: "Add-on discount price before tax",
+              format: "money",
+            },
+            {
+              name: "sub_item_limit",
+              label: "Sub item limit",
+              type: "integer",
+              required: false,
+              description: "The purchase limit of sub item.",
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "add_on_deal_id",
         "error",
@@ -668,14 +763,19 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "sub_item_list",
       ],
     },
-    numericIds: [],
+    numericIds: ["body.add_on_deal_id", "body.sub_item_list[].item_id", "body.sub_item_list[].model_id"],
     source: {
       file: "v2.add_on_deal.add_add_on_deal_sub_item.md",
       sha256: "1a8859a6fd491d2a47cf4fd91dd8cfc65db9f970bd414df2914b51575e3549cd",
       structuredFile: "v2.add_on_deal.add_add_on_deal_sub_item.structured.json",
       structuredSha256: "65c2c57d41d5d5549fce476bef6a68e1bd6e3aae75ff8b3c4e15454e6f1380d6",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -714,8 +814,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "b4c581903d3325c48d9076faef743e575b8cea840edab3d9d4cd0a5bfba42180",
       structuredFile: "v2.add_on_deal.delete_add_on_deal.structured.json",
       structuredSha256: "f707b5fe758f518c41c66411e79dd68b8d3bd253e855dc22f61d4265dca0b337",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -772,8 +875,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "34753615efd81f30078c114beba5f0f1ebad9f0d2f3312b9c1be5716368270fd",
       structuredFile: "v2.add_on_deal.delete_add_on_deal_main_item.structured.json",
       structuredSha256: "fdb9556e6a976313f67a67295e1baa4c179296c846fcbf88274483ea27a78a8e",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -853,8 +959,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "dea4fa4c86d12a335aaafde7099888e44abf25324ff2a71ce77a062900fe7708",
       structuredFile: "v2.add_on_deal.delete_add_on_deal_sub_item.structured.json",
       structuredSha256: "37a443eda79c502eb7214f948f15402ca5f9d2be7203588a579a1fe53aa22bd0",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -893,8 +1002,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "7369ffde4c13fce5e66f76fd2cee82ff8657d99bcbd47847da5cbf33dd0b9648",
       structuredFile: "v2.add_on_deal.end_add_on_deal.structured.json",
       structuredSha256: "ba27d23d157a85369b4fb55266ce9f6d32122b929718df74157622059c763830",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -948,8 +1060,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "92c3c086b8e6c70a53ae16a838d320dd3aec6e2cf518aca51a2339d7ca657129",
       structuredFile: "v2.add_on_deal.get_add_on_deal.structured.json",
       structuredSha256: "b3644b28d306a9f93a56bc06d8552c751db030784f9b15eca320e624871f66af",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -1020,8 +1135,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "bb1b71cad43912663c35c82af90c6ce992f771951e3a334ae9e31cc4769a41be",
       structuredFile: "v2.add_on_deal.get_add_on_deal_list.structured.json",
       structuredSha256: "444c21638e2d1a6f60b8acaa31604b84f9160433d93ddea7374bc3e7e74586c5",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -1069,8 +1187,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "b32459deacd292dbf4ea9ce71b6cc06964f03fc2475e58348dbab85dea1d8be0",
       structuredFile: "v2.add_on_deal.get_add_on_deal_main_item.structured.json",
       structuredSha256: "39acd7484704260fc4b3f7eae1c464f885ad540b2d1e4db09d99cddccc42f3eb",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -1123,8 +1244,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "2979207d96b7a3a883109bad3bd444c6cdd395c78acccc504d40ea397968775e",
       structuredFile: "v2.add_on_deal.get_add_on_deal_sub_item.structured.json",
       structuredSha256: "fe3ed6ffe4e0e54dd0746572ee611376ae06b24cade9dd16a8ad05f950adc875",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -1158,6 +1282,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           type: "integer",
           required: false,
           description: "The time when bundle deal activity start.The start time must be 1 hour than current time.",
+          format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.end_time",
@@ -1165,6 +1291,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           type: "integer",
           required: false,
           description: "The time when bundle deal activity end. The end time must be later than start time.",
+          format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.purchase_min_spend",
@@ -1228,8 +1356,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "e478624cd1bcd9c4e0ff09225c29717b3c86000c6f2efacb91eeaeb4a996ab4e",
       structuredFile: "v2.add_on_deal.update_add_on_deal.structured.json",
       structuredSha256: "184967cf40770b03f3b958c3017fcd40de0192c471b8ec19e66ba4818582c113",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -1303,8 +1434,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "88844de8759a4a500e499493b6c0085bad4c8bd68a1403333e3aa8b121fb90db",
       structuredFile: "v2.add_on_deal.update_add_on_deal_main_item.structured.json",
       structuredSha256: "788c7290c2e17c6ae9d8e0d6f162cb630120cdb5466cbb341db52fe9a321db8b",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -1324,10 +1458,65 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.add_on_deal.update_add_on_deal_sub_item?module=111&type=1",
-      fields: [],
-      available: false,
-      unavailableReason:
-        "Letak parameter opsional/bersyarat tidak lengkap dalam contoh payload; pemetaan bertingkat belum terverifikasi.",
+      fields: [
+        {
+          name: "body.add_on_deal_id",
+          label: "Add on deal id",
+          type: "string",
+          required: true,
+          description: "Shopee's unique identifier for add on deal activity.",
+        },
+        {
+          name: "body.sub_item_list",
+          label: "Sub item list",
+          type: "array",
+          required: true,
+          description: "The sub items added in this add on deal promotion.",
+          itemType: "object",
+          minimum: 1,
+          children: [
+            {
+              name: "item_id",
+              label: "ID produk",
+              type: "string",
+              required: false,
+              description: "Shopee's unique identifier for an item.",
+            },
+            {
+              name: "model_id",
+              label: "ID varian",
+              type: "string",
+              required: false,
+              description: "Shopee's unique identifier for a model.",
+            },
+            {
+              name: "status",
+              label: "Status",
+              type: "integer",
+              required: false,
+              description: "The status of add on deal item：enable = 1；disable =2",
+            },
+            {
+              name: "sub_item_input_price",
+              label: "Sub item input price",
+              type: "number",
+              required: false,
+              description: "Add-on discount price before tax",
+              format: "money",
+            },
+            {
+              name: "sub_item_limit",
+              label: "Sub item limit",
+              type: "integer",
+              required: false,
+              description:
+                "The purchase limit of sub item.The purchase limit of each sub item. Only the add on discount can be set and the default limit of gift with mini.spend is 1",
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "add_on_deal_id",
         "error",
@@ -1344,14 +1533,19 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "sub_item_list",
       ],
     },
-    numericIds: [],
+    numericIds: ["body.add_on_deal_id", "body.sub_item_list[].item_id", "body.sub_item_list[].model_id"],
     source: {
       file: "v2.add_on_deal.update_add_on_deal_sub_item.md",
       sha256: "3ed1d9ab9092717aa31a7cc1f912bb74b491769e030587594dc269d95acf140d",
       structuredFile: "v2.add_on_deal.update_add_on_deal_sub_item.structured.json",
       structuredSha256: "eb2a5b5c3dbca46e7a8d15dab8c58e3267c5d9ac5c46192bdc841b0aa9898c85",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -1383,8 +1577,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "1a8c317b9372c42b3fb263d7800c59de1c9e9c06d70b8e3f07d8c48ca245cb6e",
       structuredFile: "v2.ads.check_create_gms_product_campaign_eligibility.structured.json",
       structuredSha256: "a5e446f65f83a259cd82aa1901cb70b1cc41f4f49d23d53d5571d45072e30b8d",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -1453,8 +1650,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "35a41cb4ddea1cc13d6c4faa8b76b026ff9544d6d584f9756e357eb4014fd0ed",
       structuredFile: "v2.ads.create_gms_product_campaign.structured.json",
       structuredSha256: "b52d53fe9f2e5f4e841b056f160f36f1c83e3957cbd9bd2b24b81e5695506b69",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -1599,8 +1799,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "1c7a340048c19a8f70a3dab1f17ba53be7c813b4c055b0099f22a304c93ce6de",
       structuredFile: "v2.ads.create_manual_product_ads.structured.json",
       structuredSha256: "0920b643451c1e9eaf5a1b803b1f18caba09621634d2f1ea92799473c877e877",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -1654,8 +1857,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "ea85b11584b65825cd2d6ac79e55bff24be6580860e9c547b27becd3bd85e85d",
       structuredFile: "v2.ads.edit_gms_item_product_campaign.structured.json",
       structuredSha256: "d07844c89454433f8a13fbd9319c9146b9e64858b77f63f8a9baeb83a0194f1b",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -1740,8 +1946,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "03911762b61bfb0199a11496af6c2eb3e62c033fa2ae84a947aebd29b89058af",
       structuredFile: "v2.ads.edit_gms_product_campaign.structured.json",
       structuredSha256: "64fa2df6ea26a65b77b3b51b8d30328f9b0b62615c6381fdb487a3a3ff7a1773",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -1836,8 +2045,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "8bb4c3f9a0d5e4fab3effc306095757da1128f8d0e74a47747ef1cc2e10df7ef",
       structuredFile: "v2.ads.edit_manual_product_ad_keywords.structured.json",
       structuredSha256: "36c96f2084986e79a2bcc0c7f63125c53ceacdb4a87419560f8478a52d951a48",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -1964,8 +2176,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "aad78f2959a5694d97554875479951ca1f51a010e6b95d96a9f9806a7bdcec73",
       structuredFile: "v2.ads.edit_manual_product_ads.structured.json",
       structuredSha256: "1471109ba82f0378c1debf30919a58655ad1d9c252183c801611b22513d8b229",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -1996,8 +2211,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "64b13417e2bca6da596620f6a3a0af5028e3f1843dc6b903368cc289a030fe11",
       structuredFile: "v2.ads.get_ads_f-cil_shop_rate.structured.json",
       structuredSha256: "41de20f9e2fcf2523d09eaf7013c16a428a3e2ff370526044acfb6efc0cba2d8",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -2065,8 +2283,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "9fd8635accd917e826a43719ae656ddc26dbd4c102de178283298f7e149b3794",
       structuredFile: "v2.ads.get_all_cpc_ads_daily_performance.structured.json",
       structuredSha256: "0b60fa67a70f1fbd368429f497acb2a6bac376fdd13b1640473e72f91b0458bd",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -2129,8 +2350,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "3812b7efa9fe00fe4b4f0381cc005f27edadaf73c47e516ba985d0dd642a3d43",
       structuredFile: "v2.ads.get_all_cpc_ads_hourly_performance.structured.json",
       structuredSha256: "8f8629bed859b46d815ac0ffb8eda6f1698e30e2c41ca40ac386a7872c7955d4",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -2233,8 +2457,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "c7508b63e2a9ca4fc3f6ea5fab048123b9d36ca8fe121a741bba3e56e4d28b74",
       structuredFile: "v2.ads.get_create_product_ad_budget_suggestion.structured.json",
       structuredSha256: "3c45c79763a2e1f775ddc2635629cf16e76d283673774bc39c38b84500a39e61",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -2313,8 +2540,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "d8cc7ed84e4eab4f114e9ab353f03b2f0ed2899657097f0d9efe885eb8306d0f",
       structuredFile: "v2.ads.get_gms_campaign_performance.structured.json",
       structuredSha256: "af757b17d5d328bcc46e9942acb6dd8e582060b73256fdad8d1a7d1e69747495",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -2411,8 +2641,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "fb1d000f0f24102f88a6a1ea6afcf706c590064d665bc1e25a5cc7bc1e45537f",
       structuredFile: "v2.ads.get_gms_item_performance.structured.json",
       structuredSha256: "56106928400afb8b552905b71a197c4bdee9136fc049373cf2b85989d59248a8",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -2498,8 +2731,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "8589b4a2997ca8e3c28cd3b517d96fa0b3bc5fdee97edb60e014c2a9696ccaa7",
       structuredFile: "v2.ads.get_product_campaign_daily_performance.structured.json",
       structuredSha256: "1d1749e3aae3559346a26ff8666ec3cfe3b02511f4c3297a12f5829b023acd4e",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -2579,8 +2815,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "c229531d0f54658bd663db641d958daceff30d2875fdcf817b260fc2f8019182",
       structuredFile: "v2.ads.get_product_campaign_hourly_performance.structured.json",
       structuredSha256: "f73de0042b18760ef53458854832f1a88d36f43c3e34471e6f6cddc685dd689c",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -2632,8 +2871,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "a5a6d8d2fb674705db80554180837dcc7205febf7ca660c22458f399caf97dd8",
       structuredFile: "v2.ads.get_product_level_campaign_id_list.structured.json",
       structuredSha256: "f823fff041b938d2fc83a16463b88b250137f6fe8518b49f244be62664423c91",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -2716,8 +2958,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "4446bc83e90b968f627f2a70cb4310ba4818406dfe1ab6425035e871b0aadd1f",
       structuredFile: "v2.ads.get_product_level_campaign_setting_info.structured.json",
       structuredSha256: "c57660a1c6fac61ac720f05764f175f205b98d6ce8c40df2cf652c5915ff78ad",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -2775,8 +3020,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "75dde12a89d042669ad1515daf2824121263735ab5ccc5b2fbee989308b33a76",
       structuredFile: "v2.ads.get_product_recommended_roi_target.structured.json",
       structuredSha256: "23a1226551d24bbbb8482dea8c0ced486ecfd690fb9c9e5f0404fabf683f9d39",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -2817,8 +3065,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "4cf71a3cd98e1cac75f90f32641e7806095991a5e910f87aa08debccb99e18b3",
       structuredFile: "v2.ads.get_recommended_item_list.structured.json",
       structuredSha256: "8d6bfe2edc26a5fc6463d61054c66b29fbeca65eb920ba439aa9cf2ee936be76",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -2877,8 +3128,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "924f35914c3fe99e2f9e38b3b77c5437b573f427d83b7988be4eb0104f636721",
       structuredFile: "v2.ads.get_recommended_keyword_list.structured.json",
       structuredSha256: "529bee223b3bedeb50cec1b1b345bb0ccefe75c5521adb4953404ae290f240f0",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -2918,8 +3172,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "fc8db6ae211b08faf76242779205711761bc4907d90b14dc8f85ec85e21a8357",
       structuredFile: "v2.ads.get_shop_toggle_info.structured.json",
       structuredSha256: "e1608aba37160a9aa7b90475723ba35e749f0e3f04b04aa13a91ac81868fc425",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -2950,8 +3207,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "4fb54f95ac8512fea7d55a9c63abbb8455233a3edf72f0ceaacf9e6f7ea48fc7",
       structuredFile: "v2.ads.get_total_balance.structured.json",
       structuredSha256: "327c4e0e32fec2352122c91460dfa27b733fad58b3067657b81e04a4e82a916c",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -3007,8 +3267,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "25f3131619d46c721299e978f2d0bce3af69516f0c4a791e35cbb992bc62272b",
       structuredFile: "v2.ads.list_gms_user_deleted_item.structured.json",
       structuredSha256: "ca0d95bcca494dcb1dbd4c24615deffc301bc315f5a29162c508e74acec495eb",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -3043,6 +3306,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: false,
           description: "Period start time, in seconds, if missing, will set 10 minutes later",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.period_end_time",
@@ -3052,6 +3316,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           description:
             "Period end time, in seconds, if missing, will set 32503651199 (2999-12-31 23:59:59) represent of no limit",
           format: "datetime",
+          timestampUnit: "seconds",
         },
       ],
       available: true,
@@ -3064,8 +3329,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "83b672dbb69e1ca7bb6b1cc98ce8149b25e45b31b6d8a34e7ceadfcf0fb26dd1",
       structuredFile: "v2.ams.add_all_products_to_open_campaign.structured.json",
       structuredSha256: "c1bba21d599ef3f102a29c83e57db3aeda0d819713e142a1f468d4d782e3169d",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -3108,6 +3376,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: false,
           description: "Period start time, in seconds, if missing, will set 10 minutes later",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.period_end_time",
@@ -3117,6 +3386,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           description:
             "Period end time, in seconds, if missing, will set 32503651199 (2999-12-31 23:59:59) represent of no limit",
           format: "datetime",
+          timestampUnit: "seconds",
         },
       ],
       available: true,
@@ -3139,8 +3409,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "8f57056f49fd87d36dd2f31fe94e25da920a84122e842682c329abbeed5fc4a4",
       structuredFile: "v2.ams.batch_add_products_to_open_campaign.structured.json",
       structuredSha256: "e60b3d3899997c48738edac00265c804d63b0e473881e0cde043f2380c8785d5",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -3185,6 +3458,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           description:
             "Period start time, in seconds, if missing, will skip and do not update Only allow to update on UPCOMING status, when in other status, will skip too",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.period_end_time",
@@ -3194,6 +3468,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           description:
             "Period end time, in seconds, if missing, will skip and do not update Can set 32503651199 to make period no limit",
           format: "datetime",
+          timestampUnit: "seconds",
         },
       ],
       available: true,
@@ -3216,8 +3491,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "3cb000571c28842378e8d0c5b5e7b5b426e98d7c60a4079030979322c5c94b99",
       structuredFile: "v2.ams.batch_edit_products_open_campaign_setting.structured.json",
       structuredSha256: "a1b3f9d99640428f83279cef17cfa55c84d71ee380ccf5e192677457988b03e8",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -3256,8 +3534,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "c00f79cb5a4157770f956bad8e5ee6d77b9a91cea4a6565a87bf304ad6d79217",
       structuredFile: "v2.ams.batch_get_products_suggested_rate.structured.json",
       structuredSha256: "76ebb632f8a1cc29a9a8ec4764dd245fa69165a92d76d2da24060a1d96ab3aab",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -3308,8 +3589,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "a232526992c69c8918ef9d82f13691d987a3270c3ce422e2828e82e671faf166",
       structuredFile: "v2.ams.batch_remove_products_open_campaign_setting.structured.json",
       structuredSha256: "cf4da4ec0e220847de1194ccab03f3fee429fe93004b9f34c4b5e1570f9ebe95",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -3344,6 +3628,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: true,
           description: "The period start time of campaign, in seconds.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.period_end_time",
@@ -3353,6 +3638,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           description:
             "The period end time of campaign, in seconds. Can set 32503651199 (2999-12-31 23:59:59) represent of no limit.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.is_set_budget",
@@ -3434,8 +3720,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "3b5aec83feb50310f6560244b635d500a67c8b9caf23f6ea1815e5d2f2405a1b",
       structuredFile: "v2.ams.create_new_targeted_campaign.structured.json",
       structuredSha256: "8656a6d49433ba22599a92cf5d25512610002ddd25a3a2f010101defdcf42a6f",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -3508,8 +3797,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "2fbd7f1366b554c5cff6a5aadd0147afd7f6d81a7344749a6d6654daa074b771",
       structuredFile: "v2.ams.edit_affiliate_list_of_targeted_campaign.structured.json",
       structuredSha256: "1dcfd11a9d759f8ecf4aed8384ddcef1b51c62bfd2f19b74614fa60fbc90ac01",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -3547,6 +3839,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           description:
             "Period start time, in seconds, if missing, will skip and do not update Only allow to update on UPCOMING status, when in other status, will skip too",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.period_end_time",
@@ -3556,6 +3849,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           description:
             "Period end time, in seconds, if missing, will skip and do not update Can set 32503651199 to make period no limit",
           format: "datetime",
+          timestampUnit: "seconds",
         },
       ],
       available: true,
@@ -3568,8 +3862,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "d66d97c3456baac8df9d748bcca8a89a615fd114d0632f3defe0ffb049c6f759",
       structuredFile: "v2.ams.edit_all_products_open_campaign_setting.structured.json",
       structuredSha256: "fc776a95591c22dcc98107cd202f4d3f3d539422287d1666c34176c79e89a24c",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -3643,8 +3940,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "3ba237e04df625bd63d79d301aae2b6ced4ac9913e2bd9b82a5e898af508b469",
       structuredFile: "v2.ams.edit_product_list_of_targeted_campaign.structured.json",
       structuredSha256: "294e46ff907f729ea1ecd8b9ff2da7d3e98a8d52f47a83abf6f44978c4b1b31a",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -3755,8 +4055,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "75110e44267e7d6420617449875fdf89649a0b8960a68983e1748ce1f49eb7a7",
       structuredFile: "v2.ams.get_affiliate_performance.structured.json",
       structuredSha256: "d374e4a9bf76fb9c4e4d0c0fc39c8e38ed0948a1ac93e34e8a3928e7d771d53b",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -3788,8 +4091,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "d7f71646de56334a1dccc6e738b60a0d3c378a8b037b919c18575cf17c3290a0",
       structuredFile: "v2.ams.get_auto_add_new_product_toggle_status.structured.json",
       structuredSha256: "4860028040f5249a6d317538ddb32e9b127503251c1b1651e74a78271026e6cd",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -3857,8 +4163,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "1a3e11b6a88d48f61c6d9f1e3a8d462a1849bce3d6bc914d08a0504b924d46ee",
       structuredFile: "v2.ams.get_campaign_key_metrics_performance.structured.json",
       structuredSha256: "86140ea8fc2c7f7d3ffef2ee0d6a4dede6b428b535ed31fe08d267ffb24652d2",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -3980,8 +4289,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "595177fe7fe2e80e2693ec6262e6e7987b8eb22a777c14d5d93d3d5822d7c019",
       structuredFile: "v2.ams.get_content_performance.structured.json",
       structuredSha256: "f7cd97251667b948d0baa9c9245edb3bab40e87046ca910f9ab0b13a7566e6e4",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -4131,6 +4443,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: false,
           description: "Start time (inclusive) of order placement, in timestamp format.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.place_order_time_end",
@@ -4139,6 +4452,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: false,
           description: "End time (inclusive) of order placement, in timestamp format.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.order_completed_time_start",
@@ -4147,6 +4461,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: false,
           description: "Start time (inclusive) of order completion, in timestamp format.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.order_completed_time_end",
@@ -4155,6 +4470,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: false,
           description: "End time (inclusive) of order completion, in timestamp format.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.conversion_completed_time_start",
@@ -4163,6 +4479,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: false,
           description: "Start time (inclusive) of final completion, in timestamp format.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.conversion_completed_time_end",
@@ -4171,6 +4488,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: false,
           description: "End time (inclusive) of final completion, in timestamp format.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.ams_deduction_time_start",
@@ -4179,6 +4497,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: false,
           description: "Start time (inclusive) of fee deduction, in timestamp format.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.ams_deduction_time_end",
@@ -4187,6 +4506,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: false,
           description: "End time (inclusive) of fee deduction, in timestamp format.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
       ],
       available: true,
@@ -4246,8 +4566,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "9df59a1d9c3c1472305bde99c49269645b4fda1c014d0962e384e6b1e9411873",
       structuredFile: "v2.ams.get_conversion_report.structured.json",
       structuredSha256: "d28429f0f2ff24c0a847cb81cc47757e77a66035acad19bdc533ef38fe2af632",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -4323,8 +4646,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "f3e8ffcdbca4db69a5bda96fef08fd69ff9a7f63fa8142d4391e5d8523e85ee7",
       structuredFile: "v2.ams.get_managed_affiliate_list.structured.json",
       structuredSha256: "2bd2393f1a3579231cac78723ce870d85e61be09739d0f39388ba26814d73a99",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -4375,8 +4701,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "331a960e88588993cadb9f345a3c6c9ed86acf2721b8b7f76a96afd5e2838b2e",
       structuredFile: "v2.ams.get_open_campaign_added_product.structured.json",
       structuredSha256: "55259ad121310a75cce68591f1ceb90d34cd60d61235a404e54e33b5d409c0a0",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -4415,8 +4744,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "af765b31a98395f9a274dfd76bc06e70b8748cd39545ec7599e80a591f7bdc71",
       structuredFile: "v2.ams.get_open_campaign_batch_task_result.structured.json",
       structuredSha256: "2aaff1b5d26368bdfaea13f0cf29ad30d37dc645ded47837f8747196fc602674",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -4504,8 +4836,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "6b5328da7b3fa588941bf197bc7e8caa0c15ea6abd4b47150833d35d40899256",
       structuredFile: "v2.ams.get_open_campaign_not_added_product.structured.json",
       structuredSha256: "f338edd72cc0b68e7f48f3b4923e0b6d67440e881a76b854f6aae4d955380372",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
     pagination: { cursorPath: ["cursor"], morePath: ["has_more"] },
   },
   {
@@ -4600,8 +4935,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "bcddeda4cd8a7d2eeaa48008052f45b5899ed2a59e01e8323411ca5ae8149f93",
       structuredFile: "v2.ams.get_open_campaign_performance.structured.json",
       structuredSha256: "7cabd5375645750c375f438cf9f92da022b80eced81bfe928236c33d77647632",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -4682,8 +5020,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "51268e853265ac4f18990f93c129e9175997060ca5d12343fcf7da071c812210",
       structuredFile: "v2.ams.get_optimization_suggestion_product.structured.json",
       structuredSha256: "4267daa35d91c00a9bc95382cc0ea164c377c9319a90e7a3b81546061f869869",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -4723,8 +5064,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "52826c76e1223e749bac27a9a8ebde2f64e6aaffa200c1f4139d87c58e7486f6",
       structuredFile: "v2.ams.get_performance_data_update_time.structured.json",
       structuredSha256: "614a5fc15785da9924164063da356b2e7524770dc065428561948531b6f6d2c1",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -4835,8 +5179,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "a90d2464b4ffbe2fa2875914331496bf6b477f438e1860ff0263942c70546338",
       structuredFile: "v2.ams.get_product_performance.structured.json",
       structuredSha256: "63a70b41ee55ba8f7fcb4266778e96468d0fd9009a0822c06232594bab572bb3",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -4904,8 +5251,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "f161a4f64d724ce8112618aac14a45f63a5b0fce06624f44675761f446a1fb7c",
       structuredFile: "v2.ams.get_recommended_affiliate_list.structured.json",
       structuredSha256: "6056564efd625873ed05186325ab861527e19232a876b3b1fe9ee0a7e417dc96",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -4988,8 +5338,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "ae841bc1ca1dafab83467de59ab59ba0b8d061597c88ab923119970fcd630739",
       structuredFile: "v2.ams.get_shop_performance.structured.json",
       structuredSha256: "ae33f9ac35f35d44866389e48a3baf8571b580ad30971b1fc1742e809e5fe42d",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -5020,8 +5373,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "830ab6b1b3ba09e343a9bf14fe225c7185334cdac2c34dfe5a7ce56aa3423c2a",
       structuredFile: "v2.ams.get_shop_suggested_rate.structured.json",
       structuredSha256: "aacb9a8519aa99ab7ad9c7589388a68596c6087e51c6e086537291004f93f5d9",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -5108,8 +5464,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "15cde571ff642fea549f0e50684e7cc605920bdfddf91d6f979b61302adce52f",
       structuredFile: "v2.ams.get_targeted_campaign_addable_product_list.structured.json",
       structuredSha256: "64c457ca65c958eb02111709787e44539fa006e1d195daf94569ee0ba65ee623",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
     pagination: { cursorPath: ["cursor"] },
   },
   {
@@ -5177,6 +5536,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: false,
           description: "Campaign period start time for query.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.period_end_time",
@@ -5185,6 +5545,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: false,
           description: "Campaign period end time for query.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.item_id",
@@ -5230,8 +5591,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "b3ae3a732715fd3ecb57f98d56c4cf72d35341047046778a16554f2dc2d9ff41",
       structuredFile: "v2.ams.get_targeted_campaign_list.structured.json",
       structuredSha256: "e2f5b83b6eef97e7f114f7adc951261521c2cb5884be16cbbaa07deb7512201d",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -5325,8 +5689,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "ae7c0fe4a50d2004192183d0f853e20de58b123a02a6460e087c01b0a88f344a",
       structuredFile: "v2.ams.get_targeted_campaign_performance.structured.json",
       structuredSha256: "701ba5cd32ba870a71b9b7debd336f158e18dce6ca957f502592c1ceb75b3af6",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -5390,8 +5757,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "a4b783dcc49cafb1e49c3ae004d81f85deb426a1a99705da1fc63c656456fe20",
       structuredFile: "v2.ams.get_targeted_campaign_settings.structured.json",
       structuredSha256: "15e58e436f66c155d0204bd8971b9d2a0877cf1a3a3ff2b9f20285730f8970a5",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -5442,8 +5812,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "187085f4abd622128ee5ae59d49773a88c0a521645c443ebf4ce551403c14efa",
       structuredFile: "v2.ams.get_validation_list.structured.json",
       structuredSha256: "838cfff1abf356ff1b04b24bcd42efb3ecaa7f01df8167a7bbb1db693654baf3",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -5564,6 +5937,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: true,
           description: "Start time (inclusive) of order placement, in timestamp format.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.place_order_time_end",
@@ -5572,6 +5946,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: true,
           description: "End time (inclusive) of order placement, in timestamp format.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
       ],
       available: true,
@@ -5630,8 +6005,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "c1eb4dde3a891db1a1c00a926770231869a2e6302387695886b5726f90439a64",
       structuredFile: "v2.ams.get_validation_report.structured.json",
       structuredSha256: "296609d30e79285115cd999302a2166643a8792ef1a3b0046adc4e38c204036a",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -5715,8 +6093,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "e71a7ddac62104bbb54de940af1a272e702f4760c49df0fd8e607841fca410c2",
       structuredFile: "v2.ams.query_affiliate_list.structured.json",
       structuredSha256: "60a202f17bd16188f0e61d73a2be1e6fb7e5f08e3eb81f9aff2e86e92163dcf3",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -5748,8 +6129,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "a5c6aa399972e6180153533e62954e0caf0c9efb28071ddf7b430e8b4eae6f2c",
       structuredFile: "v2.ams.remove_all_products_open_campaign_setting.structured.json",
       structuredSha256: "a688364c7fa815eb9325244d5fa50c1dc316642632460ae75503646154c78142",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -5788,8 +6172,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "4a9c39effb7f4418879818421e7caedd5f704ece57fd2bf0e0ac7f3d41e445a3",
       structuredFile: "v2.ams.terminate_targeted_campaign.structured.json",
       structuredSha256: "0865477207b0fdf0a57f0d32a667f701c3770b994761af53fea3dd9e7f03dba9",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -5836,8 +6223,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "364bea59ad8a0f2b5acf5b1112871dc00db23a3ad5002f368b7e7159a564ea96",
       structuredFile: "v2.ams.update_auto_add_new_product_setting.structured.json",
       structuredSha256: "bba90f37b045bd2fde166698af0a67af346c5e6ca1219a692433304044f22598",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -5880,6 +6270,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: false,
           description: "The start time of the designated campaign, in seconds.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.period_end_time",
@@ -5889,6 +6280,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           description:
             "The period end time of campaign, in seconds. Can set 32503651199 (2999-12-31 23:59:59) represent of no limit.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.is_set_budget",
@@ -5916,8 +6308,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "1e0bf513bc26b8e07021e9dd14e8a86ec16248906f4d884e05a9799b051fc1da",
       structuredFile: "v2.ams.update_basic_info_of_targeted_campaign.structured.json",
       structuredSha256: "2b53d45c50bf8cd0762230f2078dde5e513ea8926c8cfc713798f3138cb4cf9d",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -5937,9 +6332,121 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.bundle_deal.add_bundle_deal?module=110&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Nama parameter bertingkat berulang; struktur dan syarat per cabang belum terverifikasi.",
+      fields: [
+        {
+          name: "body.rule_type",
+          label: "Rule type",
+          type: "integer",
+          required: true,
+          description: "The bundle deal rule type：FIX_PRICE = 1 ；DISCOUNT_PERCENTAGE = 2； DISCOUNT_VALUE = 3",
+        },
+        {
+          name: "body.discount_value",
+          label: "Discount value",
+          type: "number",
+          required: false,
+          description:
+            "The deducted price when when buying a bundle deal. Need to input it when the bundle deal rule type is 3",
+          format: "money",
+        },
+        {
+          name: "body.fix_price",
+          label: "Fix price",
+          type: "number",
+          required: false,
+          description:
+            "The amount of the buyer needs to spend to purchase a bundle deal. Need to input it when the bundle deal rule type is 1",
+          format: "money",
+        },
+        {
+          name: "body.discount_percentage",
+          label: "Discount percentage",
+          type: "integer",
+          required: false,
+          description:
+            "The discount that the buyer can get when buying a bundle deal. Need to input it when the bundle deal rule type is 2",
+        },
+        {
+          name: "body.min_amount",
+          label: "Min amount",
+          type: "integer",
+          required: true,
+          description: "The quantity of items that need buyer to combine purchased",
+        },
+        {
+          name: "body.start_time",
+          label: "Waktu mulai",
+          type: "integer",
+          required: true,
+          description: "The time when bundle deal activity start.The start time must be later than current time.",
+          format: "datetime",
+          timestampUnit: "seconds",
+        },
+        {
+          name: "body.end_time",
+          label: "Waktu berakhir",
+          type: "integer",
+          required: true,
+          description: "The time when bundle deal activity end. The end time must be 1 hour later than start time.",
+          format: "datetime",
+          timestampUnit: "seconds",
+        },
+        { name: "body.name", label: "Nama", type: "string", required: true, description: "Title of the bundle deal" },
+        {
+          name: "body.purchase_limit",
+          label: "Batas pembelian",
+          type: "integer",
+          required: true,
+          description: "Maximum number of bundle deals that can be bought by a buyer.",
+        },
+        {
+          name: "body.additional_tiers",
+          label: "Additional tiers",
+          type: "array",
+          required: false,
+          description:
+            "Use to create tiered discount for bundle deals, a max of 2 additional tiers are allowed to create. the rule of multiple tiers needs to follow this faq https://open.shopee.com/faq/53 For additional tiers, the fix price, discount_percentage, discount_value should be consistent with tier 1",
+          itemType: "object",
+          maximum: 2,
+          children: [
+            {
+              name: "min_amount",
+              label: "Min amount",
+              type: "integer",
+              required: true,
+              description: "The quantity of items that the buyers need to purchase for additional tier",
+            },
+            {
+              name: "fix_price",
+              label: "Fix price",
+              type: "number",
+              required: false,
+              description:
+                "The bundle price when the buyers purchase a bundle deal for additional tiers. Need to input it when the bundle deal rule type is 1.",
+              format: "money",
+            },
+            {
+              name: "discount_value",
+              label: "Discount value",
+              type: "number",
+              required: false,
+              description:
+                "The bundle deal discount amount the buyer can save when purchasing a bundle deal. Need to input it when the bundle deal rule type is 3",
+              format: "money",
+            },
+            {
+              name: "discount_percentage",
+              label: "Discount percentage",
+              type: "integer",
+              required: false,
+              description:
+                "The bundle deal discount% that the buyer can get when buying a bundle deal for additional tiers. Need to input it when the bundle deal rule type is 2",
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["bundle_deal_id", "error", "message", "request_id", "response"],
     },
     numericIds: [],
@@ -5948,8 +6455,13 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "021fb84a4e98143bc38ecf335d8f7b57fb70eac0ce85370ba742b01656bdafe7",
       structuredFile: "v2.bundle_deal.add_bundle_deal.structured.json",
       structuredSha256: "2c8913f59f7342d742252a91e1a6f60793ed92b397852d3602be1567dceed890",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -6022,8 +6534,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "7c29008b5db81bd4870bd51f506a85307fc74dc970961375d44450ab2dc704c2",
       structuredFile: "v2.bundle_deal.add_bundle_deal_item.structured.json",
       structuredSha256: "607e7a39468bce4a563f0de145e7bd2873b0b8e7c632982c4061c7db18e71f2f",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -6062,8 +6577,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "f4aeb18adf82cdd2c6ea8d00f82ad4214b47a12a64f94594568d7c65962206df",
       structuredFile: "v2.bundle_deal.delete_bundle_deal.structured.json",
       structuredSha256: "f50ac80e47a308b37238e3eb19912f6e988b4caddc9f45ead64560ce021cc417",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -6129,8 +6647,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "f9a8b84a51414f3ee8e1c0914d19df75fdbb1b0b0f61644a097b30026626d077",
       structuredFile: "v2.bundle_deal.delete_bundle_deal_item.structured.json",
       structuredSha256: "62967e6c6b459eab88615a5952d69fc80b25b8dab0dfb6a87001bbb9ce6fc836",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -6169,8 +6690,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "1f0b160828f1c27ca195af2f1872218e824aab1f1084fa257894db45b0211eaa",
       structuredFile: "v2.bundle_deal.end_bundle_deal.structured.json",
       structuredSha256: "0edbffe37ea3502ecd1c1b321c606c759ece77d43260468af61a2370e011b8cc",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -6226,8 +6750,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "689e723123e7f35f041d5efa5458eaf0e0366c90fe44295212b83b9f24372440",
       structuredFile: "v2.bundle_deal.get_bundle_deal.structured.json",
       structuredSha256: "2495c4cc08850a9c664294046f5f2f2b8a0155d9c9c43622dd2266fcaa4c3c1d",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -6266,8 +6793,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "b3932d4278afd517d774b584807b48be7fc286bae2d2664b17f263373bc0626c",
       structuredFile: "v2.bundle_deal.get_bundle_deal_item.structured.json",
       structuredSha256: "46b2f8af831f07669fc968065d90f5418fd9e7aab047277f65de7d6be776e1b5",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -6339,8 +6869,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "4c95863b57fa6055e599cfc4abef6630b84d67b3bafb0bbbee80eda6cf4d0133",
       structuredFile: "v2.bundle_deal.get_bundle_deal_list.structured.json",
       structuredSha256: "69c42b8841e99d8d6ebf634a6057920a1b2596d7b5b8125081b564edb029e0d1",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -6360,9 +6893,126 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.bundle_deal.update_bundle_deal?module=110&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Nama parameter bertingkat berulang; struktur dan syarat per cabang belum terverifikasi.",
+      fields: [
+        {
+          name: "body.rule_type",
+          label: "Rule type",
+          type: "integer",
+          required: false,
+          description: "The bundle deal rule type：FIX_PRICE = 1 ；DISCOUNT_PERCENTAGE = 2； DISCOUNT_VALUE = 3",
+        },
+        {
+          name: "body.discount_value",
+          label: "Discount value",
+          type: "number",
+          required: false,
+          description:
+            "The deducted price when when buying a bundle deal. Need to input it when the bundle deal rule type is 3",
+          format: "money",
+        },
+        {
+          name: "body.fix_price",
+          label: "Fix price",
+          type: "number",
+          required: false,
+          description:
+            "The amount of the buyer needs to spend to purchase a bundle deal.Need to input it when the bundle deal rule type is 1",
+          format: "money",
+        },
+        {
+          name: "body.discount_percentage",
+          label: "Discount percentage",
+          type: "integer",
+          required: false,
+          description:
+            "The discount that the buyer can get when buying a bundle deal. Need to input it when the bundle deal rule type is 2",
+        },
+        {
+          name: "body.min_amount",
+          label: "Min amount",
+          type: "integer",
+          required: false,
+          description: "The quantity of items that need buyer to combine purchased",
+        },
+        {
+          name: "body.start_time",
+          label: "Waktu mulai",
+          type: "integer",
+          required: false,
+          description: "The time when bundle deal activity start.The start time must be later than current time.",
+          format: "datetime",
+          timestampUnit: "seconds",
+        },
+        {
+          name: "body.end_time",
+          label: "Waktu berakhir",
+          type: "integer",
+          required: false,
+          description: "The time when bundle deal activity end. The end time must be later than current time.",
+          format: "datetime",
+          timestampUnit: "seconds",
+        },
+        { name: "body.name", label: "Nama", type: "string", required: false, description: "Title of the bundle deal" },
+        {
+          name: "body.purchase_limit",
+          label: "Batas pembelian",
+          type: "integer",
+          required: false,
+          description: "Maximum number of bundle deals that can be bought by a buyer.",
+        },
+        {
+          name: "body.bundle_deal_id",
+          label: "Bundle deal id",
+          type: "string",
+          required: true,
+          description: "Shopee's unique identifier for a bundle deal activity.",
+        },
+        {
+          name: "body.additional_tiers",
+          label: "Additional tiers",
+          type: "object",
+          required: false,
+          description:
+            "Use to create tiered discount for bundle deals, a max of 2 additional tiers are allowed to create bundle deals like buy 2 get 10% off, buy 3 for 15% off, buy 4 for 20% off; For each tier, we will need to set the following 4 values based on bundle deal type + min_amount = IntAttribute() + fix_price = IntAttribute() + discount_percentage = IntAttribute() + discount_value = IntAttribute()Note: for additional tiers, the fix price, discount_percentage, discount_value should be consistent with tier 1",
+          children: [
+            {
+              name: "min_amount",
+              label: "Min amount",
+              type: "integer",
+              required: true,
+              description: "The quantity of items that the buyers need to purchase for additional tier",
+            },
+            {
+              name: "fix_price",
+              label: "Fix price",
+              type: "number",
+              required: false,
+              description:
+                "The bundle price when the buyers purchase a bundle deal for additional tiers. Need to input it when the bundle deal rule type is 1.",
+              format: "money",
+            },
+            {
+              name: "discount_value",
+              label: "Discount value",
+              type: "number",
+              required: false,
+              description:
+                "The bundle deal discount amount the buyer can save when purchasing a bundle deal. Need to input it when the bundle deal rule type is 3",
+              format: "money",
+            },
+            {
+              name: "discount_percentage",
+              label: "Discount percentage",
+              type: "integer",
+              required: false,
+              description:
+                "The bundle deal discount% that the buyer can get when buying a bundle deal for additional tiers. Need to input it when the bundle deal rule type is 2",
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "additional_tiers",
         "bundle_deal_id",
@@ -6382,14 +7032,19 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "start_time",
       ],
     },
-    numericIds: [],
+    numericIds: ["body.bundle_deal_id"],
     source: {
       file: "v2.bundle_deal.update_bundle_deal.md",
       sha256: "f3c96defc5db1a5d932c09169ff759277f2adcb69122044759d3ce5cb3707536",
       structuredFile: "v2.bundle_deal.update_bundle_deal.structured.json",
       structuredSha256: "0e0a37227a7b46c6930df377b5fb68bf0c351160008c571bc25f07615d3decae",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -6462,8 +7117,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "1207df81c24aa39ae5005ed3565c63a7cec6d31638e7bdd42e06a438d6c4307f",
       structuredFile: "v2.bundle_deal.update_bundle_deal_item.structured.json",
       structuredSha256: "33f2c3e3646461e82c4a7799c55a6d81268bfd6814c696f1cad500c41f0f66f5",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -6498,6 +7156,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: true,
           description: "The time when discount activity start.The start time must be 1 hour later than current time.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.end_time",
@@ -6507,6 +7166,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           description:
             "The time when discount activity end.The end time must be 1 hour later than start time,and the discount period must be less than 180 days.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
       ],
       available: true,
@@ -6519,8 +7179,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "85238430fec47f86708ddc38da131c8fd2020a761f68898c64ac71450e5010ca",
       structuredFile: "v2.discount.add_discount.structured.json",
       structuredSha256: "ab4f2a031dddcf90adfa932ad0bb9fbf20557df58cb0ce2df45a4df8e0616233",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -6540,9 +7203,93 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.discount.add_discount_item?module=99&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Contoh payload mengandung bentuk atau nama duplikat yang belum dapat diverifikasi.",
+      fields: [
+        {
+          name: "body.discount_id",
+          label: "ID diskon",
+          type: "string",
+          required: true,
+          description: "Shopee's unique identifier for a discount activity.",
+        },
+        {
+          name: "body.item_list",
+          label: "Daftar produk",
+          type: "array",
+          required: true,
+          description: "The items added in this discount promotion.",
+          itemType: "object",
+          minimum: 1,
+          children: [
+            {
+              name: "item_id",
+              label: "ID produk",
+              type: "string",
+              required: true,
+              description: "Shopee's unique identifier for an item.",
+            },
+            {
+              name: "item_promotion_price",
+              label: "Harga promo produk",
+              type: "number",
+              required: false,
+              description: "The discount price of the item. If the item has no variation, this param is necessary.",
+              format: "money",
+            },
+            {
+              name: "item_promotion_stock",
+              label: "Item promotion stock",
+              type: "integer",
+              required: false,
+              description: "The reserved stock of the item.",
+            },
+            {
+              name: "model_list",
+              label: "Model list",
+              type: "array",
+              required: false,
+              description: "The models which belongs to this item.",
+              itemType: "object",
+              minimum: 1,
+              children: [
+                {
+                  name: "model_id",
+                  label: "ID varian",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Shopee's unique identifier for a variation of an item. If there is no variation of this item, you don't need to input this param. Dafault is 0.",
+                },
+                {
+                  name: "model_promotion_price",
+                  label: "Harga promo varian",
+                  type: "number",
+                  required: true,
+                  description: "The discount price of the item.",
+                  format: "money",
+                },
+                {
+                  name: "model_promotion_stock",
+                  label: "Model promotion stock",
+                  type: "integer",
+                  required: false,
+                  description:
+                    "The reserved stock of the model, default is no limit, and can not update. To edit the promotion stock, you need to delete the exist discount and re-add again.",
+                },
+              ],
+            },
+            {
+              name: "purchase_limit",
+              label: "Batas pembelian",
+              type: "integer",
+              required: true,
+              description:
+                "The max number of this product in the promotion price. If it's No Limit, please input the 0 for this request data.",
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "count",
         "discount_id",
@@ -6558,14 +7305,19 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "warning",
       ],
     },
-    numericIds: [],
+    numericIds: ["body.discount_id", "body.item_list[].item_id", "body.item_list[].model_list[].model_id"],
     source: {
       file: "v2.discount.add_discount_item.md",
       sha256: "bc4fa7c71885715f07e634e29f28883c4332b6f73cdafb610113d19b48e7d67c",
       structuredFile: "v2.discount.add_discount_item.structured.json",
       structuredSha256: "f5a3b2c052d37998d5b8f584f5385645557ee58548e00b4356f7de02614a1b77",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -6604,8 +7356,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "cb2afb225a32456e9e4c9e73b2e87a91bb75cefa0e6d4efbef543125d043a2e6",
       structuredFile: "v2.discount.delete_discount.structured.json",
       structuredSha256: "95351c7281679fd85013241e23fae361703b0a46e708d06e01dfcb4f41c1c123",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -6670,8 +7425,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "2bd5ad2f0535338b74677d686e7e4e54d574aaa72f462bfb84996e937468a504",
       structuredFile: "v2.discount.delete_discount_item.structured.json",
       structuredSha256: "8870218e4c47a47df084ac2d9a5bff34e79836817dcb4f359a80df5f10c07670",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -6710,8 +7468,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "9ec480c4f4113ff508c84fd47c6bdb33cc3d3269e1f86b773a767c9c1a6a27f8",
       structuredFile: "v2.discount.delete_sip_discount.structured.json",
       structuredSha256: "58862467b807eb92c8413a9c8966efbe1c7b65c1f3b8e531572c2ee8d7c1c2ba",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -6750,8 +7511,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "d51c8f8efcdbccdd761b8d68ed1c802e292fe74cf7d31285906e02ab1784627e",
       structuredFile: "v2.discount.end_discount.structured.json",
       structuredSha256: "e80ecba99760d39331660e438e1bd1ab71dbfa4acd3e99a597e72f7f016fcfd3",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -6852,8 +7616,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "bfcae9b370c4ea5fba51d0537411f6c78cb40f12674ceabe2bb838de00f3178d",
       structuredFile: "v2.discount.get_discount.structured.json",
       structuredSha256: "4e91ca32f975067062231b0bd0b27de7c6c9a71e351fa3ed84820addefd88041",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -6905,6 +7672,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           description:
             "The update_time_from and update_time_to fields specify a date range for retrieving orders (based on the discount update time). The maximum date range that may be specified with the update_time_from and update_time_to fields is 30 days.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.update_time_to",
@@ -6914,6 +7682,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           description:
             "The update_time_from and update_time_to fields specify a date range for retrieving orders (based on the discount update time). The maximum date range that may be specified with the update_time_from and update_time_to fields is 30 days.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
       ],
       available: true,
@@ -6939,8 +7708,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "4aeceef4ed162588a6ab1461d014c0e52ca5f6ce4ae3afcfdf7ac058cf5034d9",
       structuredFile: "v2.discount.get_discount_list.structured.json",
       structuredSha256: "c18e0e9daed68edb258e09e55e9d07af6e83510e48d3bcacd8a59b002088e340",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -6993,8 +7765,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "94f2d8a00375a2b1e0ecad0f809efab95310d7f65b5553da6784feb31e72c4bd",
       structuredFile: "v2.discount.get_sip_discounts.structured.json",
       structuredSha256: "bd2e52785d5ff160db625279f7a82473ce818b3a74847a7542df379f36310b22",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -7053,8 +7828,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "2fdb0ce3a51dd58e3455d1ac8335f3db07385b669317c7616241b65e56e141da",
       structuredFile: "v2.discount.set_sip_discount.structured.json",
       structuredSha256: "6303f0a793fe959fc1abc2c1a2a36d99d7f9806800077f1c70638d35c1ce1ca6",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -7095,6 +7873,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           type: "integer",
           required: false,
           description: "The time when discount activity end. The end time must be 1 hour later than start time.",
+          format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.start_time",
@@ -7102,6 +7882,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           type: "integer",
           required: false,
           description: "The time when discount activity start. The new start time must later than original start time.",
+          format: "datetime",
+          timestampUnit: "seconds",
         },
       ],
       available: true,
@@ -7114,8 +7896,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "dbbfbad115f868a78666f0d9be0d34937ede4d93d23927f0ac763bef2f2f4674",
       structuredFile: "v2.discount.update_discount.structured.json",
       structuredSha256: "c5655bba8b135b9081169076d7501547e4d114190dcf98d1d985ada9c98f2f4d",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -7135,9 +7920,77 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.discount.update_discount_item?module=99&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Contoh daftar objek memiliki bentuk bercabang yang belum terverifikasi.",
+      fields: [
+        {
+          name: "body.discount_id",
+          label: "ID diskon",
+          type: "string",
+          required: true,
+          description: "Shopee's unique identifier for a discount activity.",
+        },
+        {
+          name: "body.item_list",
+          label: "Daftar produk",
+          type: "array",
+          required: true,
+          description: "The items selected to this discount. You can update at most 50 items per call.",
+          itemType: "object",
+          minimum: 1,
+          children: [
+            {
+              name: "item_id",
+              label: "ID produk",
+              type: "string",
+              required: true,
+              description: "Shopee's unique identifier for an item.",
+            },
+            {
+              name: "item_promotion_price",
+              label: "Harga promo produk",
+              type: "number",
+              required: false,
+              description: "The discount price of the item.",
+              format: "money",
+            },
+            {
+              name: "model_list",
+              label: "Model list",
+              type: "array",
+              required: false,
+              description: "The models selected to this discount.",
+              itemType: "object",
+              minimum: 1,
+              children: [
+                {
+                  name: "model_id",
+                  label: "ID varian",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Shopee's unique identifier for a variation of an item. If there is no variation of this item, you don't need to input this param. Dafault is 0.",
+                },
+                {
+                  name: "model_promotion_price",
+                  label: "Harga promo varian",
+                  type: "number",
+                  required: true,
+                  description: "The discount price of the item.",
+                  format: "money",
+                },
+              ],
+            },
+            {
+              name: "purchase_limit",
+              label: "Batas pembelian",
+              type: "integer",
+              required: false,
+              description: "The max number of this product in the promotion price.",
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "count",
         "discount_id",
@@ -7153,14 +8006,19 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "warning",
       ],
     },
-    numericIds: [],
+    numericIds: ["body.discount_id", "body.item_list[].item_id", "body.item_list[].model_list[].model_id"],
     source: {
       file: "v2.discount.update_discount_item.md",
       sha256: "a95a6b76585bf11b2ae8ab31c52890f62fa454ca56a4225e9d504318c4072d47",
       structuredFile: "v2.discount.update_discount_item.structured.json",
       structuredSha256: "bc7fe21163cf48e243ac15ef555d95756012e1fce9503f0525cac26aeb925b83",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -7191,8 +8049,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "feba1dbd69eb4ed24b8b95c6b30ac9cd8631293a5b464d92b2fc9efae74c8d95",
       structuredFile: "v2.fbs.query_br_shop_block_status.structured.json",
       structuredSha256: "6645b74ca463a84aca72d33cb4d4637cf970b00c960e5048a6285fc2f7e8ed3f",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -7223,8 +8084,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "8b9b1d72c8f1fa81e00063fee55a2c9d4e6ece3d1a4715645acd680ebabb0695",
       structuredFile: "v2.fbs.query_br_shop_enrollment_status.structured.json",
       structuredSha256: "75320e51cb39b87a04ead93ba2587df59bdeeff11ef70a73ef49890db82665a1",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -7283,8 +8147,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "7998c1e779762a8fe04928a2047441f42be8e5a4a0a9272f688225dd38d8b77b",
       structuredFile: "v2.fbs.query_br_shop_invoice_error.structured.json",
       structuredSha256: "b422beddb302ad3e4ae71a32afbf7ceace9c011c7f0ee053c2597165ba742d62",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -7326,8 +8193,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "1cfaf098f60ced37f19ca40ca819ac2bdf5cc967ca8fc2830b5390dbcde33f13",
       structuredFile: "v2.fbs.query_br_sku_block_status.structured.json",
       structuredSha256: "3f7a8bc0ea65f6be642dfaf858005d7403a806767effe75ad3367f44b763853e",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -7348,10 +8218,51 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       write: true,
       officialUrl:
         "https://open.shopee.com/documents/v2/v2.first_mile.bind_courier_delivery_first_mile_tracking_number?module=96&type=1",
-      fields: [],
-      available: false,
-      unavailableReason:
-        "Letak parameter opsional/bersyarat tidak lengkap dalam contoh payload; pemetaan bertingkat belum terverifikasi.",
+      fields: [
+        {
+          name: "body.shipment_method",
+          label: "Shipment method",
+          type: "string",
+          required: true,
+          description: "The shipment method for generate and bind orders. Available value: courier_delivery.",
+        },
+        {
+          name: "body.binding_id",
+          label: "Binding id",
+          type: "string",
+          required: true,
+          description:
+            'If using courier_delivery as the shipment method, the "binding_id" field should pass the value generated from v2.first_mile.generate_and_bind_first_mile_tracking_number.',
+        },
+        {
+          name: "body.order_list",
+          label: "Order list",
+          type: "array",
+          required: true,
+          description:
+            "The list of order_sn. You can specify up to 50 order_sns in this call. One fm_tn maximum number of total bind orders is 10000.",
+          itemType: "object",
+          children: [
+            {
+              name: "order_sn",
+              label: "Nomor pesanan",
+              type: "string",
+              required: true,
+              description: "Shopee's unique identifier for an order.",
+            },
+            {
+              name: "package_number",
+              label: "Package number",
+              type: "string",
+              required: false,
+              description:
+                "Shopee's unique identifier for the package under an order. You should't fill the field with empty string when there isn't a package number.",
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "binding_id",
         "error",
@@ -7372,8 +8283,13 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "adfe6d741ce99a42b825bff9d785739e84d80aea9b5653c9b20932a98b5c9885",
       structuredFile: "v2.first_mile.bind_courier_delivery_first_mile_tracking_number.structured.json",
       structuredSha256: "6cc6ea911a311636b3c0bdb881e97da34cf3ec403d85a31b494dd7afac8e3368",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -7394,10 +8310,119 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       write: true,
       officialUrl:
         "https://open.shopee.com/documents/v2/v2.first_mile.bind_first_mile_tracking_number?module=96&type=1",
-      fields: [],
-      available: false,
-      unavailableReason:
-        "Letak parameter opsional/bersyarat tidak lengkap dalam contoh payload; pemetaan bertingkat belum terverifikasi.",
+      fields: [
+        {
+          name: "body.first_mile_tracking_number",
+          label: "First mile tracking number",
+          type: "string",
+          required: true,
+          description:
+            'If using "pickup" or "self_deliver" as the shipment method the "first_mile_tracking_number" field should pass the value generated from v2.first_mile.generate_first_mile_tracking_number. If using "dropoff" as the shipment method the "first_mile_tracking_number" field should pass the tracking number provide by the supplier.',
+        },
+        {
+          name: "body.shipment_method",
+          label: "Shipment method",
+          type: "string",
+          required: true,
+          description: "The shipment method for bound orders, should be pickup, dropoff or self_deliver.",
+        },
+        {
+          name: "body.region",
+          label: "Region",
+          type: "string",
+          required: true,
+          description:
+            "Use this field to specify the region you want to ship parcel. Available value: cn,kr. Please fill in the field according to the region of the Merchant to which the shop belongs.",
+        },
+        {
+          name: "body.logistics_channel_id",
+          label: "Logistics channel id",
+          type: "string",
+          required: true,
+          description:
+            'The identity of first-mile logistic channel. If you using "dropoff" or "pickup" as shipment method, please call v2.first_mile.get_channel_list to get the logsitc_channel_id then fill it. If you using "self_deliver"as shipment method then the logistics_channel_id should be "null".',
+        },
+        {
+          name: "body.volume",
+          label: "Volume",
+          type: "number",
+          required: false,
+          description: "The volume of the parcel.",
+        },
+        {
+          name: "body.weight",
+          label: "Weight",
+          type: "number",
+          required: false,
+          description: "The weight of the parcel.",
+        },
+        {
+          name: "body.width",
+          label: "Width",
+          type: "number",
+          required: false,
+          description: "The width of the parcel.",
+        },
+        {
+          name: "body.length",
+          label: "Length",
+          type: "number",
+          required: false,
+          description: "The length of the parcel.",
+        },
+        {
+          name: "body.height",
+          label: "Height",
+          type: "number",
+          required: false,
+          description: "The height of the parcel.",
+        },
+        {
+          name: "body.order_list",
+          label: "Order list",
+          type: "array",
+          required: true,
+          description:
+            "The set of ordersn. You can specify up to 50 ordersns in this call.one fm_tn maximum number of total bind orders is 10000.",
+          itemType: "object",
+          children: [
+            {
+              name: "order_sn",
+              label: "Nomor pesanan",
+              type: "string",
+              required: true,
+              description: "Shopee's unique identifier for an order.",
+            },
+            {
+              name: "package_number",
+              label: "Package number",
+              type: "string",
+              required: false,
+              description:
+                "Shopee's unique identifier for the package under an order. You should't fill the field with empty string when there is't a package number.",
+              allowEmpty: true,
+            },
+          ],
+        },
+        {
+          name: "body.warehouse_id",
+          label: "Warehouse id",
+          type: "string",
+          required: false,
+          description:
+            'The identity of transit warehouse address. Retrieved from v2.first_mile.get_transit_warehouse_list. Note: When the first-mile delivery mode is "Drop Off", this field is expected to be a required field. However, to avoid affecting your existing services, this field will be temporarily optional until April 30, 2026. Please complete the integration before then to avoid any impact on your services if it is changed to a required field later.',
+        },
+        {
+          name: "body.warehouse_type",
+          label: "Warehouse type",
+          type: "integer",
+          required: false,
+          description:
+            'Warehouse type. Retrieved from v2.first_mile.get_transit_warehouse_list. 0 = normal warehouse 1 = vendor warehouse Note: When the first-mile delivery mode is "Drop Off", this field is expected to be a required field. However, to avoid affecting your existing services, this field will be temporarily optional until April 30, 2026. Please complete the integration before then to avoid any impact on your services if it is changed to a required field later.',
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "error",
         "fail_error",
@@ -7410,15 +8435,21 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "response",
         "warning",
       ],
+      accountRequirements: ["cross_border"],
     },
-    numericIds: [],
+    numericIds: ["body.logistics_channel_id"],
     source: {
       file: "v2.first_mile.bind_first_mile_tracking_number.md",
       sha256: "97a18e198200f782f54f155c673cf353a53aec0ff9a14ad6595f6e4abc0160e0",
       structuredFile: "v2.first_mile.bind_first_mile_tracking_number.structured.json",
       structuredSha256: "ab63a47725f3cab21107fe947c07b3b1abf51910726eb14918740a251f471b72",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -7439,10 +8470,99 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       write: true,
       officialUrl:
         "https://open.shopee.com/documents/v2/v2.first_mile.generate_and_bind_first_mile_tracking_number?module=96&type=1",
-      fields: [],
-      available: false,
-      unavailableReason:
-        "Letak parameter opsional/bersyarat tidak lengkap dalam contoh payload; pemetaan bertingkat belum terverifikasi.",
+      fields: [
+        {
+          name: "body.shipment_method",
+          label: "Shipment method",
+          type: "string",
+          required: true,
+          description: "The shipment method for generate and bind orders. Available value: courier_delivery.",
+        },
+        {
+          name: "body.region",
+          label: "Region",
+          type: "string",
+          required: false,
+          description: "Use this field to specify the region you want to ship parcel. Available value: CN.",
+        },
+        {
+          name: "body.order_list",
+          label: "Order list",
+          type: "array",
+          required: true,
+          description:
+            "The list of order_sn. You can specify up to 50 order_sns in this call. One fm_tn maximum number of total bind orders is 10000.",
+          itemType: "object",
+          children: [
+            {
+              name: "order_sn",
+              label: "Nomor pesanan",
+              type: "string",
+              required: true,
+              description: "Shopee's unique identifier for an order.",
+            },
+            {
+              name: "package_number",
+              label: "Package number",
+              type: "string",
+              required: false,
+              description:
+                "Shopee's unique identifier for the package under an order. You should fill the field with empty string when there isn't a package number.",
+              allowEmpty: true,
+            },
+          ],
+        },
+        {
+          name: "body.courier_delivery_info",
+          label: "Courier delivery info",
+          type: "object",
+          required: true,
+          description: "The set of information you need to generate FM tracking number and bind orders.",
+          children: [
+            {
+              name: "address_id",
+              label: "Address id",
+              type: "string",
+              required: true,
+              description:
+                "The identity of address. Retrieved from v2.logistics.get_address_list, address_type need to be FIRST_MILE_PICKUP_ADDRESS.",
+            },
+            {
+              name: "warehouse_id",
+              label: "Warehouse id",
+              type: "string",
+              required: true,
+              description:
+                "The identity of transit warehouse address. Retrieved from v2.first_mile.get_transit_warehouse_list.",
+            },
+            {
+              name: "logistics_product_id",
+              label: "Logistics product id",
+              type: "string",
+              required: true,
+              description:
+                "The definition of logistics product ID: 1010003 (kuaidi100 to C) - seller book courier pickup and pay offline 1010004 (kuaidi100 prepaid(MP)) - seller can use prepaid account to place courier order, so prepaid_account_id is required",
+            },
+            {
+              name: "prepaid_account_id",
+              label: "Prepaid account id",
+              type: "string",
+              required: false,
+              description: "ID of prepaid account. Retrieved from v2.merchant.get_merchant_prepaid_account_list.",
+            },
+            {
+              name: "courier_service_id",
+              label: "Courier service id",
+              type: "string",
+              required: true,
+              description:
+                "The identity of courier service. Retrieved from v2.first_mile.get_courier_delivery_channel_list.",
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "binding_id",
         "error",
@@ -7456,15 +8576,25 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "response",
         "success_list",
       ],
+      accountRequirements: ["cross_border"],
     },
-    numericIds: [],
+    numericIds: [
+      "body.courier_delivery_info.address_id",
+      "body.courier_delivery_info.logistics_product_id",
+      "body.courier_delivery_info.prepaid_account_id",
+    ],
     source: {
       file: "v2.first_mile.generate_and_bind_first_mile_tracking_number.md",
       sha256: "1ce52a40f37136d0f171a20d399b77a1b308eeeab07bbafadd9ec7ed75277fa3",
       structuredFile: "v2.first_mile.generate_and_bind_first_mile_tracking_number.structured.json",
       structuredSha256: "0ae0f5f40da3e87f9a3d34d0c08256644b9c27f8c2bb713e72f6cefcb2283b4a",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -7513,8 +8643,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "4276128b153f321d3c910115c519151c34fce1c9800132c90bdb9705ef8c1aeb",
       structuredFile: "v2.first_mile.generate_first_mile_tracking_number.structured.json",
       structuredSha256: "45c19ac85ca3f6227c045b65c77610383ff4c866f76191b369234c4551645f3c",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -7562,8 +8695,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "808a4e295c97ff64fbe539bbab26624430e91cfa492735189c6fd169651e7eb4",
       structuredFile: "v2.first_mile.get_channel_list.structured.json",
       structuredSha256: "adf162f05b6dd2e01da5da7873f7abe165d51d414b5f26422ee0e53b9df42faa",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -7615,8 +8751,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "df01dfdefead05353b359718dfab561f3fad8e895b20311bdbd7ad90e54fb21e",
       structuredFile: "v2.first_mile.get_courier_delivery_channel_list.structured.json",
       structuredSha256: "ad0ae24323e7edbe1b3962edb40a7e6df226dd9042fb5ba3660d2bf1312ceea3",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -7681,8 +8820,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "3b323fb951b599561b664f6feff75c359f123e7957a95afee61346ca006c92f0",
       structuredFile: "v2.first_mile.get_courier_delivery_detail.structured.json",
       structuredSha256: "ec44537d2aeb96f9a7a82ee41bd14c55f6c36d7ddde03a6422dbda3ba5b85353",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
     pagination: { cursorPath: ["next_cursor"], morePath: ["more"] },
   },
   {
@@ -7760,8 +8902,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "4f94a9ed96f3472d5bbac53cc4040aa0572c38d69ec98c10f50734245cb852da",
       structuredFile: "v2.first_mile.get_courier_delivery_tracking_number_list.structured.json",
       structuredSha256: "264aa46add6509674df68f72c1b304ceb8ebae396ebe988aad80c1164372fbc1",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
     pagination: { cursorPath: ["next_cursor"], morePath: ["more"] },
   },
   {
@@ -7802,8 +8947,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "aa29a9fe0047e9d65ead6d9fd607ee516969b37703734389ae8e6e5741061dac",
       structuredFile: "v2.first_mile.get_courier_delivery_waybill.structured.json",
       structuredSha256: "190691e925e6dd622fccecf4432aac956197f689c7aca0a042eafeb6b9e08292",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -7867,8 +9015,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "f4dee20829ce0850a3e3e53abc4afc5004b42b8979f06455da1f9c554cc09140",
       structuredFile: "v2.first_mile.get_detail.structured.json",
       structuredSha256: "4ee35ca52d93f4aa033cc829125ce655d89989f43600b6a8d674e8c0858b8cd5",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
     pagination: { cursorPath: ["next_cursor"], morePath: ["more"] },
   },
   {
@@ -7934,8 +9085,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "5d7d5d3c9485659ce35906f0c1b325ff2168c42b0732e73814ae8385687430f9",
       structuredFile: "v2.first_mile.get_tracking_number_list.structured.json",
       structuredSha256: "8bc7c31e391cabb9b824e9e71197f3b0fefbde894ed0f67a7ca4912fe09c9050",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
     pagination: { cursorPath: ["next_cursor"], morePath: ["more"] },
   },
   {
@@ -7993,8 +9147,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "bee7be868f52d5aa468a7201f9f7845bb55df4359d2eecda8d34d45b342e7154",
       structuredFile: "v2.first_mile.get_transit_warehouse_list.structured.json",
       structuredSha256: "615c1ef596808b380d6ef44d712f830044a4546ea232f9c0affba35eab078a12",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -8062,8 +9219,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "f607b3cc09cccfac5fbc0d09920f5f8ab03b87eb48009fb93fd788ca7b8641d8",
       structuredFile: "v2.first_mile.get_unbind_order_list.structured.json",
       structuredSha256: "803151b3756d15c897342533a8e2ef4dab257d3007fd84e3f9ae9266b3d99c46",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
     pagination: { cursorPath: ["next_cursor"], morePath: ["more"] },
   },
   {
@@ -8104,8 +9264,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "5faf9557ceb2baf604053e1ceae43baea40d33b550447bdf414c5e289c0c5af0",
       structuredFile: "v2.first_mile.get_waybill.structured.json",
       structuredSha256: "c51023942a2f119c023b7e9177d928248df0d6f78577f7894b819afb87fccb89",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -8126,9 +9289,43 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       write: true,
       officialUrl:
         "https://open.shopee.com/documents/v2/v2.first_mile.unbind_first_mile_tracking_number?module=96&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Contoh daftar objek memiliki bentuk bercabang yang belum terverifikasi.",
+      fields: [
+        {
+          name: "body.first_mile_tracking_number",
+          label: "First mile tracking number",
+          type: "string",
+          required: true,
+          description: "The identifier for an API request for error tracking.",
+        },
+        {
+          name: "body.order_list",
+          label: "Order list",
+          type: "array",
+          required: true,
+          description:
+            "The list of order info you want to unbind from the given first mile tracking number. You can specify up to 50 orders in this call.",
+          itemType: "object",
+          children: [
+            {
+              name: "order_sn",
+              label: "Nomor pesanan",
+              type: "string",
+              required: true,
+              description: "Shopee's unique identifier for an order.",
+            },
+            {
+              name: "package_number",
+              label: "Package number",
+              type: "string",
+              required: false,
+              description:
+                "Shopee's unique identifier for the package under an order. You should't fill the field with empty string when there is't a package number.",
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "error",
         "fail_error",
@@ -8148,8 +9345,13 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "35cd7b31cc3aeea3b5e82618338f5d5aca062847ff7d1732fec1a6a8697c9246",
       structuredFile: "v2.first_mile.unbind_first_mile_tracking_number.structured.json",
       structuredSha256: "c4e078ef30ea188be49148b07cf034394e708e5402fba3f20ae1b3be81772a57",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -8220,8 +9422,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "d6ee641069b1af8a7b48f254ba758b771c1b75a0517a332b3a1a5a559fcfbbff",
       structuredFile: "v2.first_mile.unbind_first_mile_tracking_number_all.structured.json",
       structuredSha256: "b8e4024d5c6976df759a08fdf89be6b6cf6ad5504f8fe1a661d413ce1cf1b007",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -8257,6 +9462,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           description:
             'The timing from when the follow prize is valid,the start time later than the current time.If the start time and end time passed in by the seller overlap with other upcoming/ongoing activities, it will prompt "Another Follow Prize voucher already exists during this time period, please set another period."',
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.end_time",
@@ -8266,6 +9472,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           description:
             'The timing until when the follow prize is still valid,the end time must be greater than the start time by at least 1 day and end time cannot exceed 3 months after start time.If the start time and end time passed in by the seller overlap with other upcoming/ongoing activities, it will prompt "Another Follow Prize voucher already exists during this time period, please set another period."',
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.usage_quantity",
@@ -8326,8 +9533,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "608ade998fcc460788aa96d326cdb86d417aac3c7a70e7ac82c55136c33b98cf",
       structuredFile: "v2.follow_prize.add_follow_prize.structured.json",
       structuredSha256: "d24eb824d85026ffe98ede2644d99109c736382b13d2a9f4ffb03c915a184c83",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -8366,8 +9576,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "b367c3c969e9eebfacc3f953b0d843189a9f9c31db1f462ea24f3a5939b247a5",
       structuredFile: "v2.follow_prize.delete_follow_prize.structured.json",
       structuredSha256: "268b643ff5e3eda6a319fb10746fd69536baa0b6080d89f4d32525075ce67ab7",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -8406,8 +9619,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "3b8526968de28c8d6ef5035167ebbdc1b68cf2df864e4c855ec615d845e56bdb",
       structuredFile: "v2.follow_prize.end_follow_prize.structured.json",
       structuredSha256: "fcf3347595e80dd3f3c4eba85fc725b31bb2281d25389959b722724e287137d4",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -8462,8 +9678,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "d7635c043fa354d872a723efcc46493540dfc661c769e544048c06b0f69936b9",
       structuredFile: "v2.follow_prize.get_follow_prize_detail.structured.json",
       structuredSha256: "c0d5af6d485a396eafdf9e9fdf75e0f6fc582413bde9e05357be230daccf574f",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -8532,8 +9751,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "60b44beac5ec489b70ee14454fcb374606e3c07c76c80ac62880aece63330304",
       structuredFile: "v2.follow_prize.get_follow_prize_list.structured.json",
       structuredSha256: "7c6a192d1c939739c96fcb0ae1de162eba8dd0886a555a847862197e0a06a7cd",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -8576,6 +9798,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           description:
             'The timing from when the follow prize is valid,the start time later than the current time.If the start time and end time passed in by the seller overlap with other upcoming/ongoing activities, it will prompt "Another Follow Prize voucher already exists during this time period, please set another period."',
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.end_time",
@@ -8585,6 +9808,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           description:
             'The timing until when the follow prize is still valid,the end time must be greater than the start time by at least 1 day and end time cannot exceed 3 months after start time.If the start time and end time passed in by the seller overlap with other upcoming/ongoing activities, it will prompt "Another Follow Prize voucher already exists during this time period, please set another period."',
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.usage_quantity",
@@ -8611,8 +9835,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "7c5d311c891a1a9281390d68b1aae90f95b38c393d38503972c0ce33b39d6447",
       structuredFile: "v2.follow_prize.update_follow_prize.structured.json",
       structuredSha256: "77959addd8665e4288ddba567d496e690a2b6cb41f2a470c52786676bada2a77",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -8643,8 +9870,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "b04b14e04466b2370147997aee12c4186e358e53f62aef642b488c2eb53db087",
       structuredFile: "v2.global_product.add_global_item.structured.json",
       structuredSha256: "a7e4934d47d086988a77147c7884c01120229821b39e73874042e3501c345a50",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -8675,8 +9905,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "356c6d76818765500d2fd8887ba3be89f4063629749fa5c63798c1b4fc2cb866",
       structuredFile: "v2.global_product.add_global_model.structured.json",
       structuredSha256: "4f9c608735b635a6fbff5731a4117ec174a32fffcf6a4f74f0372f42d4bbb49e",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -8707,8 +9940,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "2347541692ad40aa3e8422d6c43194a8dd853c74971a37d7bf6a3f255e7b21bd",
       structuredFile: "v2.global_product.category_recommend.structured.json",
       structuredSha256: "466b9209e2af201c6647da1f0aa551892e30bee7457ce511b8378ed9b6ff6c44",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -8739,8 +9975,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "f5f8664388cee09d6a27fe4c782b6829b80faf499d2d5f2808ab2e10940fee18",
       structuredFile: "v2.global_product.create_publish_task.structured.json",
       structuredSha256: "4f6d2cb90d0f3ddc10a2e3ab18a603510ec47e8e9114210180d5a30c0f23bbf8",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -8771,8 +10010,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "8b9b381425757c2813a88e9640cdb5cbd9adb985610830129b16444cfcf23a00",
       structuredFile: "v2.global_product.delete_global_item.structured.json",
       structuredSha256: "55bf9470009a659d9e2c6fcf85df4e6e6b76e04e931760aefbff6cd12bc97dcd",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -8813,8 +10055,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "facfa5100f2ad7031b09a3237c5d5b74959c862665888a72a4d0d38272a0becc",
       structuredFile: "v2.global_product.delete_global_model.structured.json",
       structuredSha256: "d90c67ba344790b9f1f19367c3507a9e661fa1ffe36e85ef18c96e426183dbef",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -8875,8 +10120,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "4cd9ec800ea086cc7ee92bacfe3ba1491cfb68719e426621d3632c0a33793f39",
       structuredFile: "v2.global_product.get_attribute_tree.structured.json",
       structuredSha256: "5db7ae43e4fd2683b39ae10806b6ec9bd56fd2198aea18a5e7873f938a42260d",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -8921,8 +10169,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "4fc36229bb507baaf6f22f66b46f551fcd76e6c255a967c00910f1ba0749e554",
       structuredFile: "v2.global_product.get_brand_list.structured.json",
       structuredSha256: "7e4c25007a5d8972befb439ed9bad8da54f72affe6a0b8d61f03e9985c589964",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -8965,8 +10216,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "75a943e1388d02ea60e514242aeaef53aade060746bc965893ef575c2b7de507",
       structuredFile: "v2.global_product.get_category.structured.json",
       structuredSha256: "dcdfde317f898daae5362449c13026726d4dac42488e4a14272e2a074f9a4d90",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9006,8 +10260,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "cc4562eb2fe258cd5011de396595da958f55dd5a850651b88a661a53a7143de9",
       structuredFile: "v2.global_product.get_global_item_id.structured.json",
       structuredSha256: "75e07d524817b23d8fdc79e02492a0eed5b43ae37fee0a0b7e3cdc7998cef944",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9102,8 +10359,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "d31810f713d0730199e4ccdecb3bf05a26dbdba1c2ff9e14cb331fd2e83c61be",
       structuredFile: "v2.global_product.get_global_item_info.structured.json",
       structuredSha256: "5c995ef64e6ad0aa70fbacc9accaa1a914a701b62a1652c38fdc31b9736835c3",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9169,8 +10429,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "fcde88bc27295be9b34265fd5966a9535e53ea3331a66df3ff3438d686f6351b",
       structuredFile: "v2.global_product.get_global_item_limit.structured.json",
       structuredSha256: "bdfbccd3db1a999058e517c31946bc99d7f4dcffe6d23611ce88e36c3a7768e2",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9213,8 +10476,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "49d412a85304696f24e69b60c388e18667c0b68394a557d8617463e09b3b8ce5",
       structuredFile: "v2.global_product.get_global_item_list.structured.json",
       structuredSha256: "8e00071eebc1cde82b3632551c9b1046c69c6db29acb3dbf22544a222511f76f",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9285,8 +10551,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "df9403e14249b48afddd4e083f16835461b08042938529bf3bf8aeb6dd4718cf",
       structuredFile: "v2.global_product.get_global_model_list.structured.json",
       structuredSha256: "918c753246ed215e56c7b716714242d0deb0f859e78b34a6c245e6f74ba51e66",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9317,8 +10586,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "7996fa8e7baba162d19f55c48e2e2fe4b6c17cfee67594869657501672477751",
       structuredFile: "v2.global_product.get_local_adjustment_rate.structured.json",
       structuredSha256: "7a9b11e3181cfbbf7e6cdab3f8c6547a4132500fbd537d4a49f6249333ad5118",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9361,8 +10633,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "5b7d0b5251760e323a2cde54582407feaed85ddacb6f137d45d00cf4d5125f21",
       structuredFile: "v2.global_product.get_publish_task_result.structured.json",
       structuredSha256: "cf463ff7ebbfa280bec0b4f414ef65c33b96cf38f9fa733498085dfb25a5609b",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9393,8 +10668,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "79db95ec56ab5bd4e76ba40fa43e9901685d90d68e6c736546a8c5a5933c885e",
       structuredFile: "v2.global_product.get_publishable_shop.structured.json",
       structuredSha256: "02aabc2b02180ab049fd2809cf7ecc9ee0b6ff536b65bceb21088fd30e4ecfb7",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9435,8 +10713,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "29feb72e235723ae3732e27d73ce1462ea4e838b30c3b49c1af18919d3e0d3ad",
       structuredFile: "v2.global_product.get_published_list.structured.json",
       structuredSha256: "c1185c9b869f89034eca10017a2acd8154c37b8179fe8a6814cc0835831110a2",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9477,8 +10758,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "861df4f4cca87e5cd164b7aca84807c89dc95f0d0fe20e5b8e8578c6a65b3bc3",
       structuredFile: "v2.global_product.get_recommend_attribute.structured.json",
       structuredSha256: "21454edb0d68e096c9541245afb024bf156939733263ff8c7fe21a5534b15a30",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9522,8 +10806,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "fde1839ed88202b9d7ac3a257a89e6937b4cb947b762919e95b507faa41f900e",
       structuredFile: "v2.global_product.get_shop_publishable_status.structured.json",
       structuredSha256: "437fa77fa18fab9749273d055eb4e09b28b9e5e81b0af34f0f304f5dc27bdd98",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9573,8 +10860,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "478030462fb869b64a25e90c623700ab13d1b4a6bfecd390265f18c4d4887420",
       structuredFile: "v2.global_product.get_size_chart_detail.structured.json",
       structuredSha256: "8685c4a24c6f90c5534ba9c4ef23a1f79496de5bca9fa295a6eb8240dd7b0f0c",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9616,8 +10906,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "97993dc46532e094b8488bc525c05546df41e1033a92735515df9657201bd4ae",
       structuredFile: "v2.global_product.get_size_chart_list.structured.json",
       structuredSha256: "daf4eb4409f02477e86c591e5c0ad19c9f144e8c43b84ff6a25b9877b39fd721",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9663,8 +10956,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "07e3c963f4501f24e540d64e29e830d7351342577a787fa1f0143225882c2218",
       structuredFile: "v2.global_product.get_variations.structured.json",
       structuredSha256: "7dc2ab151fec0427c5794974f3d96f8cd865bf8d8da957e082f4cce8b93feed6",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9695,8 +10991,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "3e457a3ed411c4ffc8678cbc6bc60c7bf91556d4dd18ca8aacd679c1d5f6e3fb",
       structuredFile: "v2.global_product.init_tier_variation.structured.json",
       structuredSha256: "c398a233e1a6c916697cfc6b23efe0ad440fb2ac0ea9b479294e8e65287e5b58",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9741,8 +11040,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "7db6478b7973f804361bc9e859801834e71520026120550b865c3db9e050f771",
       structuredFile: "v2.global_product.search_global_attribute_value_list.structured.json",
       structuredSha256: "2914069f2b24cf8fe53ead569c917dbeb671a5de251653709216025b45eebce2",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9773,8 +11075,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "f0acedad3b252f048513242fb36f99e6689a69d2b3e81b9b52b5a459dd00d81c",
       structuredFile: "v2.global_product.set_sync_field.structured.json",
       structuredSha256: "8a61b3efb5d664d045859ff08f54a0fd630bbf34de2ac71183d04838327be79a",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9805,8 +11110,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "17ce92337c4f6358642e61c9c7b8690055a47b09471d87cb062223c7249118ac",
       structuredFile: "v2.global_product.support_size_chart.structured.json",
       structuredSha256: "34f452388589f5fb3f3ea475d4a71ac0053ce54bbc49a0ab9c32a871d3ffcb52",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9837,8 +11145,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "1cdd44374692bb125df7e5b61e4a03686f405792cc1c160adbe2c25aa81a570b",
       structuredFile: "v2.global_product.update_global_item.structured.json",
       structuredSha256: "f78725cc9e39555574f9507414a1b675cb5429afaaaf9e9832fd44ebc685026c",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9869,8 +11180,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "5177920cd83a94c2ccd85e92a707d1ff603dca2aafc12bb9f76bb4a4c049a247",
       structuredFile: "v2.global_product.update_global_model.structured.json",
       structuredSha256: "cff7e81e2d1a286a330a330f67235ce067d23c94888455dc90a7d0c28d60ecf6",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9902,8 +11216,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "6326c4235b34b51d1d3f37fdc3ee7fc436dfed3b643891c205c425815d565593",
       structuredFile: "v2.global_product.update_local_adjustment_rate.structured.json",
       structuredSha256: "cb16cc8004f0a56ffa93e6275748856abfac779f5f2012ecf39dd72580bad1c0",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9934,8 +11251,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "e39b7dff831c9f5e7be63d7e4b7fe9dc49f1af48680c2d775911dde2984587c8",
       structuredFile: "v2.global_product.update_price.structured.json",
       structuredSha256: "4ca8065f9c16b9cfb5e9384f9196f9ecd2933a9aeb3b0084ace4a59cc3710d74",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9966,8 +11286,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "fd31956e1b28028bd6446ebf9325c34d3dc8ab702cc331ab345a77616e168039",
       structuredFile: "v2.global_product.update_size_chart.structured.json",
       structuredSha256: "98e8f144cddf6bcec0e4789fb94b44f1e6603f65cd4747048e0cdbeaa91e2079",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -9998,8 +11321,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "fdc89794c70feb61ce19de316ab9028ebd2bd72d6b73603b484fe4782791d50d",
       structuredFile: "v2.global_product.update_stock.structured.json",
       structuredSha256: "8762a1ddaefaa9c0f1c69a68d011de92516e65f3d919baf76c142c3512713737",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -10030,8 +11356,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "61424f14d14b7051499d4f4e25cb41aeb9d9b047183a3dea3e774f62e7b20ea3",
       structuredFile: "v2.global_product.update_tier_variation.structured.json",
       structuredSha256: "a7ad416987596c6357b7d33501c3bfc1533c513a6e38669a47a707063a044791",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -10051,19 +11380,54 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.add_item_list?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "body.session_id",
+          label: "Session id",
+          type: "string",
+          required: true,
+          description: "The identifier of livestream session.",
+        },
+        {
+          name: "body.item_list",
+          label: "Daftar produk",
+          type: "array",
+          required: true,
+          description: "The list of item to add.",
+          itemType: "object",
+          children: [
+            {
+              name: "item_id",
+              label: "ID produk",
+              type: "string",
+              required: true,
+              description: "Shopee's unique identifier for an item.",
+            },
+            {
+              name: "shop_id",
+              label: "Shop id",
+              type: "string",
+              required: true,
+              description: "The shop id of this item.",
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "message", "request_id", "response"],
     },
-    numericIds: [],
+    numericIds: ["body.session_id", "body.item_list[].item_id", "body.item_list[].shop_id"],
     source: {
       file: "v2.livestream.add_item_list.md",
       sha256: "8518378b2f1b0ee943175c0a97cb51a03f052935b6f5db0d71abb973dce2d7ae",
       structuredFile: "v2.livestream.add_item_list.structured.json",
       structuredSha256: "7f14f334b69fbd898aa690fc8c39bd6045152553122eadf4e4ed3f416bebec6a",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10083,19 +11447,38 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.apply_item_set?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "body.session_id",
+          label: "Session id",
+          type: "string",
+          required: true,
+          description: "The identifier of livestream session.",
+        },
+        {
+          name: "body.item_set_ids",
+          label: "Item set ids",
+          type: "array",
+          required: true,
+          description: "List of item set id to apply.",
+          itemType: "string",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "message", "request_id", "response"],
     },
-    numericIds: [],
+    numericIds: ["body.session_id", "body.item_set_ids[]"],
     source: {
       file: "v2.livestream.apply_item_set.md",
       sha256: "6ae6afaa960e11fcc7e180d2c88531d7d86b2d557bb82618f1d9fe98f063ad32",
       structuredFile: "v2.livestream.apply_item_set.structured.json",
       structuredSha256: "aaf748814eec0f3f29279449346a0c1ac321e54d17f9b39b43bb5e8942195b57",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10115,19 +11498,37 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.ban_user_comment?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "body.session_id",
+          label: "Session id",
+          type: "string",
+          required: true,
+          description: "The identifier of livestream session.",
+        },
+        {
+          name: "body.ban_user_id",
+          label: "Ban user id",
+          type: "string",
+          required: true,
+          description: "The user id that will be banned from posting comments.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "message", "request_id", "response"],
     },
-    numericIds: [],
+    numericIds: ["body.session_id", "body.ban_user_id"],
     source: {
       file: "v2.livestream.ban_user_comment.md",
       sha256: "00816865ce3ee82b908c289f6563fa62a69caa1274f181209fd4e3f86f2808fa",
       structuredFile: "v2.livestream.ban_user_comment.structured.json",
       structuredSha256: "71326b3b1076c89688d205287051bd16f3efd6892910f416b948b59cbc64cd6c",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10147,9 +11548,39 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.create_session?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "body.title",
+          label: "Title",
+          type: "string",
+          required: true,
+          description: "The title of livestream session, cannot exceed 200 characters.",
+        },
+        {
+          name: "body.description",
+          label: "Deskripsi",
+          type: "string",
+          required: false,
+          description: "The description of livestream session, cannot exceed 200 characters.",
+        },
+        {
+          name: "body.cover_image_url",
+          label: "Cover image url",
+          type: "string",
+          required: true,
+          description:
+            "The cover image URL of livestream session. Please call the v2.livestream.upload_image to upload the cover image file and get the cover_image_url.",
+        },
+        {
+          name: "body.is_test",
+          label: "Is test",
+          type: "boolean",
+          required: false,
+          description: "Indicate whether the livestream session is for testing purpose only.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "message", "request_id", "response", "session_id"],
     },
     numericIds: [],
@@ -10158,8 +11589,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "48f015a7cab9f507b6e0e00f4f67be75ad8e229860b1d01e54a5261040321829",
       structuredFile: "v2.livestream.create_session.structured.json",
       structuredSha256: "70cf55491c63016ed41f945ce6a52fa642eabe05752d223ef0dea66446019c39",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10179,19 +11613,54 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.delete_item_list?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "body.session_id",
+          label: "Session id",
+          type: "string",
+          required: true,
+          description: "The identifier of livestream session.",
+        },
+        {
+          name: "body.item_list",
+          label: "Daftar produk",
+          type: "array",
+          required: true,
+          description: "The list of item to delete.",
+          itemType: "object",
+          children: [
+            {
+              name: "item_id",
+              label: "ID produk",
+              type: "string",
+              required: true,
+              description: "Shopee's unique identifier for an item.",
+            },
+            {
+              name: "shop_id",
+              label: "Shop id",
+              type: "string",
+              required: true,
+              description: "The shop id of this item.",
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "message", "request_id", "response"],
     },
-    numericIds: [],
+    numericIds: ["body.session_id", "body.item_list[].item_id", "body.item_list[].shop_id"],
     source: {
       file: "v2.livestream.delete_item_list.md",
       sha256: "7266c823edd5930850e9bcc02ebe349004eb72cd77aa8b5467c450e6bc5ffcc7",
       structuredFile: "v2.livestream.delete_item_list.structured.json",
       structuredSha256: "c4cf38972c162539cb5d3835e88ff37f166801062be21329bf1df923e738a855",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10211,19 +11680,30 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.delete_show_item?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "body.session_id",
+          label: "Session id",
+          type: "string",
+          required: true,
+          description: "The identifier of livestream session.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "message", "request_id", "response"],
     },
-    numericIds: [],
+    numericIds: ["body.session_id"],
     source: {
       file: "v2.livestream.delete_show_item.md",
       sha256: "2f21f565bc80998c88d3218f5c52794ba8dfc680ed3b56227ce07e0a908805a1",
       structuredFile: "v2.livestream.delete_show_item.structured.json",
       structuredSha256: "4e60f581950bc4ec73ad4673e74f8f56363e3b89d9ce460488da83edd6f5baa4",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10243,19 +11723,30 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.end_session?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "body.session_id",
+          label: "Session id",
+          type: "string",
+          required: true,
+          description: "The identifier of livestream session.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "message", "request_id", "response"],
     },
-    numericIds: [],
+    numericIds: ["body.session_id"],
     source: {
       file: "v2.livestream.end_session.md",
       sha256: "7f924f696df026b4974f01e4bf897dbbfc016c96a43313b681cece268e342f91",
       structuredFile: "v2.livestream.end_session.structured.json",
       structuredSha256: "5c3d0bcc489888588654c3e80c73633482545181a50dbb57571bce1e53bff14f",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10275,19 +11766,30 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.get_item_count?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.session_id",
+          label: "Session id",
+          type: "string",
+          required: true,
+          description: "The identifier of livestream session.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "item_count", "max_item_count", "message", "request_id", "response"],
     },
-    numericIds: [],
+    numericIds: ["query.session_id"],
     source: {
       file: "v2.livestream.get_item_count.md",
       sha256: "fd9306234a46ada67b133d97a86f9fbbe0993c0c774d69503a6e34b3cccc0d73",
       structuredFile: "v2.livestream.get_item_count.structured.json",
       structuredSha256: "cd218e642c523e660a6f68d407362c89eef1299dd0c4910101f4df78d78f4962",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10307,9 +11809,33 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.get_item_list?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.session_id",
+          label: "Session id",
+          type: "string",
+          required: true,
+          description: "The identifier of livestream session.",
+        },
+        {
+          name: "query.offset",
+          label: "Posisi awal",
+          type: "integer",
+          required: true,
+          description:
+            "Specifies the starting entry of data to return in the current call. Default is 0, if data is more than one page, the offset can be some entry to start next call.",
+        },
+        {
+          name: "query.page_size",
+          label: "Jumlah per halaman",
+          type: "integer",
+          required: true,
+          description:
+            'Each result set is returned as a page of entries. Use the "page_size" filters to control the maximum number of entries to retrieve per page (i.e., per call). This integer value is used to specify the maximum number of entries to return in a single "page" of data. The limit of page_size if between 1 and 100.',
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "affiliate_info",
         "campaign_end_time",
@@ -10334,14 +11860,17 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "response",
       ],
     },
-    numericIds: [],
+    numericIds: ["query.session_id"],
     source: {
       file: "v2.livestream.get_item_list.md",
       sha256: "e9b821b6846eda54c2e49874ceb69c1c833afb9b7b473a33274488f3fa90f28f",
       structuredFile: "v2.livestream.get_item_list.structured.json",
       structuredSha256: "fcb231e7cff4e7101a00668c01ed09babddba8c42dcf670c91e3f061d0e28b60",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10361,9 +11890,33 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.get_item_set_item_list?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.item_set_id",
+          label: "Item set id",
+          type: "string",
+          required: true,
+          description: "The identifier of the item set.",
+        },
+        {
+          name: "query.offset",
+          label: "Posisi awal",
+          type: "integer",
+          required: true,
+          description:
+            "Specifies the starting entry of data to return in the current call. Default is 0, if data is more than one page, the offset can be some entry to start next call.",
+        },
+        {
+          name: "query.page_size",
+          label: "Jumlah per halaman",
+          type: "integer",
+          required: true,
+          description:
+            'Each result set is returned as a page of entries. Use the "page_size" filters to control the maximum number of entries to retrieve per page (i.e., per call). This integer value is used to specify the maximum number of entries to return in a single "page" of data. The limit of page_size if between 1 and 100.',
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "affiliate_info",
         "campaign_end_time",
@@ -10387,14 +11940,17 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "response",
       ],
     },
-    numericIds: [],
+    numericIds: ["query.item_set_id"],
     source: {
       file: "v2.livestream.get_item_set_item_list.md",
       sha256: "0c2661d25ac2836f545eeb251d94b96c3ec8d06b39ddf6dd9445ee4c68069f10",
       structuredFile: "v2.livestream.get_item_set_item_list.structured.json",
       structuredSha256: "640f94d87c135d14132ced2e9e5e10a0d6fd1165d82228a332165ece1b3fce83",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10414,9 +11970,33 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.get_item_set_list?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.offset",
+          label: "Posisi awal",
+          type: "integer",
+          required: true,
+          description:
+            "Specifies the starting entry of data to return in the current call. Default is 0, if data is more than one page, the offset can be some entry to start next call.",
+        },
+        {
+          name: "query.page_size",
+          label: "Jumlah per halaman",
+          type: "integer",
+          required: true,
+          description:
+            'Each result set is returned as a page of entries. Use the "page_size" filters to control the maximum number of entries to retrieve per page (i.e., per call). This integer value is used to specify the maximum number of entries to return in a single "page" of data. The limit of page_size if between 1 and 100.',
+        },
+        {
+          name: "query.keyword",
+          label: "Kata pencarian",
+          type: "string",
+          required: false,
+          description: "Search the item set with it's name matching the keyword.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "error",
         "item_count",
@@ -10436,8 +12016,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "b91803b0813c4d82bdd7eb70eedec439d1dcf6b95479a5570a5a1190f794ad86",
       structuredFile: "v2.livestream.get_item_set_list.structured.json",
       structuredSha256: "4643dc65b897721449425b1345f0c50f9867aeeb36aa34269db88cc77177607f",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10457,19 +12040,38 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.get_latest_comment_list?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.session_id",
+          label: "Session id",
+          type: "string",
+          required: true,
+          description: "The identifier of livestream session.",
+        },
+        {
+          name: "query.offset",
+          label: "Posisi awal",
+          type: "integer",
+          required: false,
+          description:
+            "Specifies the starting entry of data to return in the current call. Default is 0, if data is more than one page, the offset can be some entry to start next call.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["comment_id", "content", "error", "list", "message", "next_offset", "request_id", "response"],
     },
-    numericIds: [],
+    numericIds: ["query.session_id"],
     source: {
       file: "v2.livestream.get_latest_comment_list.md",
       sha256: "527834bfdd2fd906b7cac414c44f5d24db18f5a47b0e064343268c7217665b84",
       structuredFile: "v2.livestream.get_latest_comment_list.structured.json",
       structuredSha256: "d2320d6ede1655e5403187c2c7ade1f44df4ff2de638eca74a6c8c9d92ee25f6",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10489,9 +12091,33 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.get_like_item_list?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.offset",
+          label: "Posisi awal",
+          type: "integer",
+          required: true,
+          description:
+            "Specifies the starting entry of data to return in the current call. Default is 0, if data is more than one page, the offset can be some entry to start next call.",
+        },
+        {
+          name: "query.page_size",
+          label: "Jumlah per halaman",
+          type: "integer",
+          required: true,
+          description:
+            'Each result set is returned as a page of entries. Use the "page_size" filters to control the maximum number of entries to retrieve per page (i.e., per call). This integer value is used to specify the maximum number of entries to return in a single "page" of data. The limit of page_size if between 1 and 100.',
+        },
+        {
+          name: "query.keyword",
+          label: "Kata pencarian",
+          type: "string",
+          required: false,
+          description: "Search items with name matching this keyword.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "affiliate_info",
         "campaign_end_time",
@@ -10521,8 +12147,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "ba5bb01cd62bfd2ab16b41057358965919e1fbcc5b17b18680b5ce9d5f9d248c",
       structuredFile: "v2.livestream.get_like_item_list.structured.json",
       structuredSha256: "02648e6061f95ca3fbc58597d43e449b78ee0c1aa7a252a8879134611f257fdd",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10542,9 +12171,26 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.get_recent_item_list?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.offset",
+          label: "Posisi awal",
+          type: "integer",
+          required: true,
+          description:
+            "Specifies the starting entry of data to return in the current call. Default is 0, if data is more than one page, the offset can be some entry to start next call.",
+        },
+        {
+          name: "query.page_size",
+          label: "Jumlah per halaman",
+          type: "integer",
+          required: true,
+          description:
+            'Each result set is returned as a page of entries. Use the "page_size" filters to control the maximum number of entries to retrieve per page (i.e., per call). This integer value is used to specify the maximum number of entries to return in a single "page" of data. The limit of page_size if between 1 and 100.',
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "affiliate_info",
         "campaign_end_time",
@@ -10574,8 +12220,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "9d0810b85e586ace2fc8a2138f3db1f5b0ada126c24124c05f05fb0b94d7e76a",
       structuredFile: "v2.livestream.get_recent_item_list.structured.json",
       structuredSha256: "c41e4762a21b2bafab502a57600c9ca8079667ee6845853a175a1dd1431c4475",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10595,9 +12244,17 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.get_session_detail?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.session_id",
+          label: "Session id",
+          type: "string",
+          required: true,
+          description: "The identifier of livestream session.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "cover_image_url",
         "create_time",
@@ -10607,9 +12264,6 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "error",
         "is_test",
         "message",
-        "play_url",
-        "push_key",
-        "push_url",
         "request_id",
         "response",
         "session_id",
@@ -10621,14 +12275,17 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "update_time",
       ],
     },
-    numericIds: [],
+    numericIds: ["query.session_id"],
     source: {
       file: "v2.livestream.get_session_detail.md",
       sha256: "9e04401f8427cbfecd9b90921f2db7ba86b92af2c6e96e24ccca50b2259798bf",
       structuredFile: "v2.livestream.get_session_detail.structured.json",
       structuredSha256: "c31476c8ecec4897b0402fcf58ffcb0eed537a679a45980a0632fa9727748c97",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10648,9 +12305,33 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.get_session_item_metric?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.session_id",
+          label: "Session id",
+          type: "string",
+          required: true,
+          description: "The identifier of livestream session.",
+        },
+        {
+          name: "query.offset",
+          label: "Posisi awal",
+          type: "integer",
+          required: true,
+          description:
+            "Specifies the starting entry of data to return in the current call. Default is 0, if data is more than one page, the offset can be some entry to start next call.",
+        },
+        {
+          name: "query.page_size",
+          label: "Jumlah per halaman",
+          type: "integer",
+          required: true,
+          description:
+            'Each result set is returned as a page of entries. Use the "page_size" filters to control the maximum number of entries to retrieve per page (i.e., per call). This integer value is used to specify the maximum number of entries to return in a single "page" of data. The limit of page_size if between 1 and 100.',
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "atc",
         "currency",
@@ -10673,14 +12354,17 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "sold_items",
       ],
     },
-    numericIds: [],
+    numericIds: ["query.session_id"],
     source: {
       file: "v2.livestream.get_session_item_metric.md",
       sha256: "d6bd6d2debdaeebe729db10d948d5d8e0be6283396c68cd265abdbff2278f349",
       structuredFile: "v2.livestream.get_session_item_metric.structured.json",
       structuredSha256: "2c4c61d0f369517e86ec1e6d202baa3831289021a9370b88cd2e9cc051fc8651",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10700,9 +12384,17 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.get_session_metric?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.session_id",
+          label: "Session id",
+          type: "string",
+          required: true,
+          description: "The identifier of livestream session.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "atc",
         "avg_viewing_duration",
@@ -10723,14 +12415,17 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "views",
       ],
     },
-    numericIds: [],
+    numericIds: ["query.session_id"],
     source: {
       file: "v2.livestream.get_session_metric.md",
       sha256: "6309afcfc575399f3aa402d7c0cf2eebddc86ad28e8be0ebe3b01c50858be178",
       structuredFile: "v2.livestream.get_session_metric.structured.json",
       structuredSha256: "a60f6c5ebe982a7efe3547d60d5068d761f2037b0438b30817ccf0d664f9ebba",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10750,9 +12445,17 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.get_show_item?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.session_id",
+          label: "Session id",
+          type: "string",
+          required: true,
+          description: "The identifier of livestream session.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "currency",
         "current_price",
@@ -10770,14 +12473,17 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "response",
       ],
     },
-    numericIds: [],
+    numericIds: ["query.session_id"],
     source: {
       file: "v2.livestream.get_show_item.md",
       sha256: "3a49e98482d59a509935ff63373defd67ccc1175559f5945aab34a04b32b6937",
       structuredFile: "v2.livestream.get_show_item.structured.json",
       structuredSha256: "e0d65369f6ee03a6ba151b0691a579de6e230d3c75026218f18a721ee9eade0e",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10797,19 +12503,37 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.post_comment?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "body.session_id",
+          label: "Session id",
+          type: "string",
+          required: true,
+          description: "The identifier of livestream session.",
+        },
+        {
+          name: "body.content",
+          label: "Content",
+          type: "string",
+          required: true,
+          description: "The comment content, cannot exceed 150 characters.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["comment_id", "error", "message", "request_id", "response"],
     },
-    numericIds: [],
+    numericIds: ["body.session_id"],
     source: {
       file: "v2.livestream.post_comment.md",
       sha256: "63fd15e3b2ba71fb398efa5a54fffd839982ad6e667c51b14be58b7ca3f10810",
       structuredFile: "v2.livestream.post_comment.structured.json",
       structuredSha256: "6c5043c2a65ab9837516c5b1038c3cdec5588d61a0adc7b33f4cbd9ad8d339eb",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10829,19 +12553,37 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.start_session?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "body.session_id",
+          label: "Session id",
+          type: "string",
+          required: true,
+          description: "The identifier of livestream session.",
+        },
+        {
+          name: "body.domain_id",
+          label: "Domain id",
+          type: "string",
+          required: true,
+          description: "The identifier of the stream domain.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "message", "request_id", "response"],
     },
-    numericIds: [],
+    numericIds: ["body.session_id", "body.domain_id"],
     source: {
       file: "v2.livestream.start_session.md",
       sha256: "2b5fbcc19cbaeb37ff3f9c4abc9d4ab0fb59196e38c5a79934bc2451f300d390",
       structuredFile: "v2.livestream.start_session.structured.json",
       structuredSha256: "de47b22382d3bc8562bf83125e884cf34939063f9f7244513bb57de6eeb24803",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10861,19 +12603,37 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.unban_user_comment?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "body.session_id",
+          label: "Session id",
+          type: "string",
+          required: true,
+          description: "The identifier of livestream session.",
+        },
+        {
+          name: "body.unban_user_id",
+          label: "Unban user id",
+          type: "string",
+          required: true,
+          description: "The user ID that will be unbanned from posting comments.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "message", "request_id", "response"],
     },
-    numericIds: [],
+    numericIds: ["body.session_id", "body.unban_user_id"],
     source: {
       file: "v2.livestream.unban_user_comment.md",
       sha256: "4b1ccd0a4abb661b20db10d4ad980d2f17d6a896380b983fae9772fc8c4f02ca",
       structuredFile: "v2.livestream.unban_user_comment.structured.json",
       structuredSha256: "a6a78cc604eaf1fca1d4a8444cc91b8bf1e754ae294a8762e96223f4fdab2d42",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10893,19 +12653,54 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.update_item_list?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "body.session_id",
+          label: "Session id",
+          type: "string",
+          required: true,
+          description: "The identifier of livestream session.",
+        },
+        {
+          name: "body.item_list",
+          label: "Daftar produk",
+          type: "array",
+          required: true,
+          description: "The list of item with updated order.",
+          itemType: "object",
+          children: [
+            {
+              name: "item_id",
+              label: "ID produk",
+              type: "string",
+              required: true,
+              description: "Shopee's unique identifier for an item.",
+            },
+            {
+              name: "shop_id",
+              label: "Shop id",
+              type: "string",
+              required: true,
+              description: "The shop id of this item.",
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "message", "request_id", "response"],
     },
-    numericIds: [],
+    numericIds: ["body.session_id", "body.item_list[].item_id", "body.item_list[].shop_id"],
     source: {
       file: "v2.livestream.update_item_list.md",
       sha256: "5653d4d37ea9196bdb4f6a2b5c31ef6e89031612765330bdd023bebb4d48ef52",
       structuredFile: "v2.livestream.update_item_list.structured.json",
       structuredSha256: "d4651cdf2a14bdf616e2de44cc82465548dc64b9872dc4bc6a004473c63d384a",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10925,19 +12720,59 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.update_session?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "body.session_id",
+          label: "Session id",
+          type: "string",
+          required: true,
+          description: "The identifier of livestream session.",
+        },
+        {
+          name: "body.title",
+          label: "Title",
+          type: "string",
+          required: true,
+          description: "The title of the livestream session, cannot exceed 200 characters.",
+        },
+        {
+          name: "body.description",
+          label: "Deskripsi",
+          type: "string",
+          required: false,
+          description: "The description of the livestream session, cannot exceed 200 characters.",
+        },
+        {
+          name: "body.cover_image_url",
+          label: "Cover image url",
+          type: "string",
+          required: true,
+          description:
+            "The cover image url of the livestream session. Please call the v2.livestream.upload_image to upload the cover image file and get the cover_image_url.",
+        },
+        {
+          name: "body.is_test",
+          label: "Is test",
+          type: "boolean",
+          required: true,
+          description: "Indicate whether this livestream session if for testing purpose only.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "message", "request_id", "response"],
     },
-    numericIds: [],
+    numericIds: ["body.session_id"],
     source: {
       file: "v2.livestream.update_session.md",
       sha256: "8cdf1b356bb94ecd29372c1a8d40db305a04f8b1a69005983d2497e5b8306167",
       structuredFile: "v2.livestream.update_session.structured.json",
       structuredSha256: "05b83fa23f01b83e2919b90d86731fed6b54cffb24d4b58f63b62ea2c98e66cd",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10957,19 +12792,44 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.update_show_item?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "body.session_id",
+          label: "Session id",
+          type: "string",
+          required: true,
+          description: "The identifier of livestream session.",
+        },
+        {
+          name: "body.item_id",
+          label: "ID produk",
+          type: "string",
+          required: true,
+          description: "Shopee's unique identifier for an item.",
+        },
+        {
+          name: "body.shop_id",
+          label: "Shop id",
+          type: "string",
+          required: true,
+          description: "The shop id of this item.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "message", "request_id", "response"],
     },
-    numericIds: [],
+    numericIds: ["body.session_id", "body.item_id", "body.shop_id"],
     source: {
       file: "v2.livestream.update_show_item.md",
       sha256: "c48a870294487453672984ff4c32a2801ae4709d99724277a0efaa4bba211e55",
       structuredFile: "v2.livestream.update_show_item.structured.json",
       structuredSha256: "452a37769b8152a9eb79c9bf5ec269da333efa411dfd56de6a81d21dfdb55588",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -10986,12 +12846,21 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       eligibility: "unverified",
       eligibilityReason:
         "Ketersediaan program dan persetujuan aplikasi harus dikonfirmasi di Shopee Partner Console; API key tidak membuktikan izin toko.",
-      transport: "json",
+      transport: "multipart",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.upload_image?module=125&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "body.image",
+          label: "Gambar",
+          type: "file",
+          required: true,
+          accept: ["image/jpeg", "image/png"],
+          maxBytes: 10485760,
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "image_url", "message", "request_id", "response"],
     },
     numericIds: [],
@@ -11000,8 +12869,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "07fc56b6e4eaa2bb5882cbd8adb7f2c67c85ed044dd16f22f2cdb941a5843252",
       structuredFile: "v2.livestream.upload_image.structured.json",
       structuredSha256: "bf1a85cfbea6eeb868c11c90ea2045fdcf24f5478cde533ae0d10c5166f04a3a",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -11021,9 +12893,117 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.logistics.batch_ship_order?module=95&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Nama parameter bertingkat berulang; struktur dan syarat per cabang belum terverifikasi.",
+      fields: [
+        {
+          name: "body.order_list",
+          label: "Order list",
+          type: "array",
+          required: true,
+          description: "The list of order.",
+          itemType: "object",
+          children: [
+            {
+              name: "order_sn",
+              label: "Nomor pesanan",
+              type: "string",
+              required: true,
+              description: "Shopee's unique identifier for an order. Limit 150.",
+            },
+            {
+              name: "package_number",
+              label: "Package number",
+              type: "string",
+              required: false,
+              description:
+                "Shopee's unique identifier for the package under an order. You should't fill the field with empty string when there is't a package number.",
+            },
+          ],
+        },
+        {
+          name: "body.pickup",
+          label: "Pickup",
+          type: "object",
+          required: false,
+          description:
+            'Required parameter ONLY if GetParameterForInit returns "pickup" or if GetLogisticsInfo returns "pickup" under "info_needed" for the same order. Developer should still include "pickup" field in the call even if "pickup" has empty value.',
+          children: [
+            {
+              name: "address_id",
+              label: "Address id",
+              type: "string",
+              required: false,
+              description: "The identity of address. Retrieved from shopee.logistics.GetAddress.",
+            },
+            {
+              name: "pickup_time_id",
+              label: "Pickup time id",
+              type: "string",
+              required: false,
+              description: "The pickup time id. Retrieved from shopee.logistics.GetTimeSlot.",
+            },
+            {
+              name: "tracking_number",
+              label: "Tracking number",
+              type: "string",
+              required: false,
+              description:
+                'Need input this field when "tracking_number" is returned from "info_need". Please note that this tracking number is assigned by third-party shipping carrier for item shipment.',
+            },
+          ],
+        },
+        {
+          name: "body.dropoff",
+          label: "Dropoff",
+          type: "object",
+          required: false,
+          description:
+            'Required parameter ONLY if GetParameterForInit returns "dropoff" or if GetLogisticsInfo returns "dropoff" under "info_needed" for the same order. Developer should still include "dropoff" field in the call even if "dropoff" has empty value. For logistic_id 80003 and 80004, both Regular and JOB shipping methods are supported. If you choose Regular shipping method, please use "tracking_no" to call Init API. If you choose JOB shipping method, please use "sender_real_name" to call Init API. Note that only one of "tracking_no" and "sender_real_name" can be selected.',
+          children: [
+            {
+              name: "branch_id",
+              label: "Branch id",
+              type: "string",
+              required: false,
+              description: "The identity of branch. Retrieved from shopee.logistics.GetBranch branch.",
+            },
+            {
+              name: "sender_real_name",
+              label: "Sender real name",
+              type: "string",
+              required: false,
+              description: "The real name of sender.",
+            },
+            {
+              name: "tracking_number",
+              label: "Tracking number",
+              type: "string",
+              required: false,
+              description:
+                'Need input this field when "tracking_number" is returned from "info_need". Please note that this tracking number is assigned by third-party shipping carrier for item shipment.',
+            },
+          ],
+        },
+        {
+          name: "body.non_integrated",
+          label: "Non integrated",
+          type: "object",
+          required: false,
+          description:
+            'Optional parameter when GetParameterForInit returns "non-integrated" or GetLogisticsInfo returns "non-integrated" under "info_needed".',
+          children: [
+            {
+              name: "tracking_number",
+              label: "Tracking number",
+              type: "string",
+              required: false,
+              description:
+                "Optional parameter for non-integrated channel order. The tracking number assigned by the shipping carrier for item shipment.",
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "error",
         "fail_error",
@@ -11037,14 +13017,19 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "warning",
       ],
     },
-    numericIds: [],
+    numericIds: ["body.pickup.address_id", "body.dropoff.branch_id"],
     source: {
       file: "v2.logistics.batch_ship_order.md",
       sha256: "8589c596beef4f05bad2c4f3b7ff4033df520419d55df9b9c2d3068e0c28a9f7",
       structuredFile: "v2.logistics.batch_ship_order.structured.json",
       structuredSha256: "8c6394fd0853748fdb22a4def9b5bf03d74ab8bba2189e61352cead127d64cae",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -11111,6 +13096,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
               required: true,
               description:
                 "This is to indicate timestamp of the 3PF tracking status. Timestamp should be within order create time and order pick up by 3PL time.",
+              format: "datetime",
+              timestampUnit: "seconds",
             },
           ],
         },
@@ -11136,8 +13123,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "7040497be45e0afd07bb336b5988c6048ac0613b6da64471208d40ee331eab54",
       structuredFile: "v2.logistics.batch_update_tpf_warehouse_tracking_status.structured.json",
       structuredSha256: "5aff3ccc388c058a37131674fc3e5460f769d35a686f52f9373b91a3f8905517",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -11168,8 +13158,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "ddff6d2e62ae6b4e728da29d6317d1e8f616c825a03ced54e1c78791e61fa27d",
       structuredFile: "v2.logistics.check_polygon_update_status.structured.json",
       structuredSha256: "30cd5ceeff96534db239089c808bf18b8350c6431a475ad79de29a093ec32671",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -11245,8 +13238,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "71f0418c41f2473cdde118a2bda31933098890455762a57222c2cb22cd2878ea",
       structuredFile: "v2.logistics.create_booking_shipping_document.structured.json",
       structuredSha256: "d84df6b77b39437712a744c94f7c962621e4437beacc41d256065d8458619b20",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -11288,8 +13284,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "640a1fc45594d8214253c3e3d527a34475a4fc99e31efb81bc053fd73ffb2d1e",
       structuredFile: "v2.logistics.create_shipping_document.structured.json",
       structuredSha256: "621669934d75e97750c1893ce7da1a26b8782b19c0186c9631c31adabeb8d47b",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -11309,10 +13308,54 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.logistics.create_shipping_document_job?module=95&type=1",
-      fields: [],
-      available: false,
-      unavailableReason:
-        "Letak parameter opsional/bersyarat tidak lengkap dalam contoh payload; pemetaan bertingkat belum terverifikasi.",
+      fields: [
+        {
+          name: "body.shipping_document_type",
+          label: "Shipping document type",
+          type: "enum",
+          required: true,
+          description: "The type of shipping document. Available values: THERMAL_UNPACKAGED_LABEL",
+          options: ["THERMAL_UNPACKAGED_LABEL"],
+        },
+        {
+          name: "body.unpackaged_sku_requests",
+          label: "Unpackaged sku requests",
+          type: "array",
+          required: false,
+          description:
+            "List of Unpackaged SKUs to generate labels for. Note: The unpackaged_sku_requests and package_list cannot be populated at the same time, please select one.",
+          itemType: "object",
+          children: [
+            {
+              name: "unpackaged_sku_id",
+              label: "Unpackaged sku id",
+              type: "string",
+              required: false,
+              description: "Unpackaged SKU ID of the model.",
+            },
+            {
+              name: "quantity",
+              label: "Quantity",
+              type: "integer",
+              required: false,
+              description: "Number of copies for the generated labels (maximum 600 total across all requested SKUs).",
+              minimum: 1,
+              maximum: 600,
+            },
+          ],
+        },
+        {
+          name: "body.package_list",
+          label: "Package list",
+          type: "array",
+          required: false,
+          description:
+            "List of Package Numbers to generate labels for. (maximum 600 total) Note: The unpackaged_sku_requests and package_list cannot be populated at the same time, please select one.",
+          itemType: "string",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "error",
         "fail_error",
@@ -11332,8 +13375,13 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "b04bef1fe09a46fb47738d488ecc033927b37354fa68b34379930d2179d4074f",
       structuredFile: "v2.logistics.create_shipping_document_job.structured.json",
       structuredSha256: "1b0d62d99ea89eb84872fe9265b17a98e4f5c4fce81f1ce9f76e96e5a503d2cf",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -11372,8 +13420,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "0b10314c69f7dc4ea93271dbd4fe63319f67fa4d6620977bd7c1f3d38f9fe375",
       structuredFile: "v2.logistics.delete_address.structured.json",
       structuredSha256: "5791d9aeca956e02d7e70113909fc5f6add456018831153f10620625461b99c7",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -11413,8 +13464,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "89551025272389fe3d982951d907b9198e172f894cf4c0ccf9ac64b272503b71",
       structuredFile: "v2.logistics.delete_special_operating_hour.structured.json",
       structuredSha256: "69be067ec02ee019cd456e986808bddd5c80644ebe7137076abb4d5dc7fb1d27",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -11471,8 +13525,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "f17e8925cb5a1d416056989392788b1bad0aa6f1c0ed0818dcde2f6854115998",
       structuredFile: "v2.logistics.download_booking_shipping_document.structured.json",
       structuredSha256: "ac3db5cd1c6e5c53e6e562ca38c69b88451575d95f4dc04ae8fdc88e7f84fafa",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -11503,8 +13560,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "d781271ada50e88bcea5f162534724994aaba44fb9c4b2906b6417972d9ab5e9",
       structuredFile: "v2.logistics.download_shipping_document.structured.json",
       structuredSha256: "f5b94ec117df6c339e81f55e842fe9f3aea37bff4b5187e8305c5489098e608d",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -11543,8 +13603,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "860595373b3f1367fde9164cb6db3eb7cf5ca7090df2323c6eecbcfdd4bf2819",
       structuredFile: "v2.logistics.download_shipping_document_job.structured.json",
       structuredSha256: "b92f8a729e9ea998089900a73a9444b2cfaeac99066b5662aeeead87e712c280",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -11575,8 +13638,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "67e8aff52f2b219cb702304f8cad115d52275883debc5f93e1bc2143c668875b",
       structuredFile: "v2.logistics.download_to_label.structured.json",
       structuredSha256: "f9f3f2ebd89aba1c78f500ae4d4cec31534632ae764905b15491e432bd17cd37",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -11618,8 +13684,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "8f3c2f2ae820dcce46c61ddd18f30d38917a1cdc8ce1e9ac5a11ac70f442a271",
       structuredFile: "v2.logistics.get_address_list.structured.json",
       structuredSha256: "5613d179624a5d69ade9f9df389a78b1c5d7878ffaea70edabbf3eba42bec5ed",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -11640,10 +13709,85 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       write: false,
       officialUrl:
         "https://open.shopee.com/documents/v2/v2.logistics.get_booking_shipping_document_data_info?module=95&type=1",
-      fields: [],
-      available: false,
-      unavailableReason:
-        "Letak parameter opsional/bersyarat tidak lengkap dalam contoh payload; pemetaan bertingkat belum terverifikasi.",
+      fields: [
+        {
+          name: "body.booking_sn",
+          label: "Booking sn",
+          type: "string",
+          required: true,
+          description: "Shopee's unique identifier for a booking.",
+        },
+        {
+          name: "body.recipient_address_info",
+          label: "Recipient address info",
+          type: "array",
+          required: false,
+          description: "recipient address to query as image",
+          itemType: "object",
+          children: [
+            {
+              name: "key",
+              label: "Key",
+              type: "string",
+              required: true,
+              description:
+                "fields to query in the recipient address, should be name, phone, full_address, town, district, city, state, region, zipcode.",
+            },
+            {
+              name: "style",
+              label: "Style",
+              type: "object",
+              required: false,
+              description: "image style",
+              children: [
+                {
+                  name: "text_style",
+                  label: "Text style",
+                  type: "array",
+                  required: false,
+                  description: "supports bold and italic",
+                  itemType: "string",
+                },
+                {
+                  name: "font_size",
+                  label: "Font size",
+                  type: "integer",
+                  required: false,
+                  description: "supports 1 - 108",
+                  minimum: 1,
+                  maximum: 108,
+                },
+                {
+                  name: "text_color",
+                  label: "Text color",
+                  type: "string",
+                  required: false,
+                  description: 'color string like "#AbCd12"',
+                },
+                {
+                  name: "image_width",
+                  label: "Image width",
+                  type: "number",
+                  required: false,
+                  description: "supports 0.1-30, in centimeters",
+                  minimum: 0.1,
+                  maximum: 30,
+                },
+                {
+                  name: "h_align",
+                  label: "H align",
+                  type: "enum",
+                  required: false,
+                  description: "text horizontal align, supports left, center and right.",
+                  options: ["left", "center", "right"],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "booking_weight",
         "create_date_ymd_sl",
@@ -11683,8 +13827,13 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "55a6dbccc1f1a75b501beaf57a3516d8ce686cba36ba2107dea84db03360e91f",
       structuredFile: "v2.logistics.get_booking_shipping_document_data_info.structured.json",
       structuredSha256: "06b529cb04c4fa83d8f5c6e3af9a05f9f5b645c3ac650342937608c20d6a4a7c",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -11746,8 +13895,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "75ed426868fcedb71b89d8ea609d2056066fe94dc599861a370240c71ed54dbb",
       structuredFile: "v2.logistics.get_booking_shipping_document_parameter.structured.json",
       structuredSha256: "577a040c476f70ba6fa3a905e74d2f231c8c05d5cf8cdb6068e95d66b8493df7",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -11815,8 +13967,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "1cace358b54468498332d3d61399ff611e3755ddd1e12fe95696f6347680d21c",
       structuredFile: "v2.logistics.get_booking_shipping_document_result.structured.json",
       structuredSha256: "47a8fd5a325096ebb18495c7600fdc2ce7d5cad59b24c3cb11bc10a9b3e5d07e",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -11875,8 +14030,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "0c445ca8babcda8b47fe8a7010f418d606570333c5a0d069c45906614018b5e3",
       structuredFile: "v2.logistics.get_booking_shipping_parameter.structured.json",
       structuredSha256: "7223d00087eaf24761b38e51b9018c8df368d47a607828824d472ff095f30f1f",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -11925,8 +14083,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "4bc012a17c4649ff440c6a7a378c8fc90436f9f259fdb7026345214df66d7e70",
       structuredFile: "v2.logistics.get_booking_tracking_info.structured.json",
       structuredSha256: "51073db31465bf8364c36a7b50e24eac06c232368c81fb764d4b8766ed71d113",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -11965,8 +14126,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "01d3133f0980871b882d6373f7cebb8403aef71edcd7656ffcc9451b4d0dbc79",
       structuredFile: "v2.logistics.get_booking_tracking_number.structured.json",
       structuredSha256: "4ce752df06485a1c0cc34b90a8cd162671e2566ccfb59620553e84686ba67599",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -12042,8 +14206,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "f955a03d3c05518b27cf0f9e56f31febe8434fbef95ac297edcfa3988a42f033",
       structuredFile: "v2.logistics.get_channel_list.structured.json",
       structuredSha256: "77af82b654b37f71abc0498f7a7c5df73d2f2e95f5972fd34cb1894c9e7df53d",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -12086,8 +14253,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "6b770606f9f7e0e5b95a05bfc26543d0f79e21962ea859ed3dec4317a1f3298f",
       structuredFile: "v2.logistics.get_mart_packaging_info.structured.json",
       structuredSha256: "b841755efc2bd77f18810bfcfc89b1dcefe0d3d1916219d7625bec338f3f8823",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -12144,8 +14314,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "e316c13009117cca4d15c24cf7039e92896f773dc3277acdaadee3cb0b116b06",
       structuredFile: "v2.logistics.get_mass_shipping_parameter.structured.json",
       structuredSha256: "bc2217d352f18221a48a765ed758744ecb46c582ed1d06feeec963f4ce61c545",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -12188,8 +14361,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "0d87a41d469c444814107957b5ea5707f2f29d9a5c2dde8dca009cbdfd0368e0",
       structuredFile: "v2.logistics.get_mass_tracking_number.structured.json",
       structuredSha256: "ca8cb070cf53aa96a9a2b540ef9aced4cc147e1afbf6932f140a6585218aa931",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -12247,8 +14423,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "aec244d5ec068bbb8b4d067814a13b69ef7a3cb8c54b83d9f093e95515996e4b",
       structuredFile: "v2.logistics.get_operating_hour_restrictions.structured.json",
       structuredSha256: "1c47a06996e50a5cc35c889f0a1e84742fbd1bd2f1550af893c7f6cb7352bce2",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -12304,8 +14483,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "8df11f953829cd1257f7ccc73d7652ac5883c4c83834382ad641085a9fe4eb5c",
       structuredFile: "v2.logistics.get_operating_hours.structured.json",
       structuredSha256: "7aa768b7e14cf6b7941e2a930eaded7e5d3686950f1190f5b2fa1185a1059c6a",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -12344,8 +14526,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "9d38936e884a9df9a0d97a00b4b31d4b239ceca9fc6c3fbaa9482f76c761f4ee",
       structuredFile: "v2.logistics.get_pause_status.structured.json",
       structuredSha256: "eb7d874747c58bb3befebda8258b998951efdb335e3742c81dfa7421ea354cbb",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -12566,8 +14751,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "fe2f1a8c72f69a1af39ecffb7e31e8c9f83ac8480b1b56b69061ec10d00369b9",
       structuredFile: "v2.logistics.get_shipping_document_data_info.structured.json",
       structuredSha256: "de980aa12ab7bad71602d6682a60c85df79b4624f597a259f9c45a3c6f5e38b7",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -12607,8 +14795,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "a7d226cb89ab6345299f27ed2ac683f4f81038ed1532640ee67cfa9bfa278cea",
       structuredFile: "v2.logistics.get_shipping_document_job_status.structured.json",
       structuredSha256: "e63c3b015ed594f4591543dffe1019d01cc86d113a3b17cc53912fbd655777ee",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -12652,8 +14843,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "4d20cb4e7149a2c4f3a6a8d9e9c6d3471ece56cfa30b59caf00f9fde649c6f64",
       structuredFile: "v2.logistics.get_shipping_document_parameter.structured.json",
       structuredSha256: "3169ce112c7556e65c3be89555682a776d1e9ead0ef2ae9301f1d93c893308d7",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -12696,8 +14890,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "e653bf797bd883be0a5f3e4939d6d31bb7d1da2d2d9f17616cc096775d761b39",
       structuredFile: "v2.logistics.get_shipping_document_result.structured.json",
       structuredSha256: "6d3994684d80fd8a9cb66c07179af08f384375872cea8af10844ca3b83cccb97",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -12753,8 +14950,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "6903960e7a8a726de7f7675561bff0e8dcaa7be4e6647c434936e529d71e14d1",
       structuredFile: "v2.logistics.get_shipping_parameter.structured.json",
       structuredSha256: "1fb8284bdd2260c564e4835ba91f85b9e58a825a1ef18d986ea322d38178aa93",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -12799,8 +14999,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "274d9464d319a2d294df6a79a294f2cb828610cc51b4ee949dfea20d6be867d5",
       structuredFile: "v2.logistics.get_tracking_info.structured.json",
       structuredSha256: "1d8437f6a26a756e7fbb5b2d63cabc1d5b0386e84b647b300d67dfab1b7a2b5d",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -12831,8 +15034,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "04565afcbf82afe35d55b9d0e9dd7dda71d58b11c255a7383894c865d17dbbd4",
       structuredFile: "v2.logistics.get_tracking_number.structured.json",
       structuredSha256: "057539a926510abc9a3febf054d926e0e4baab77e74f459d2469f031f138eb1e",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -12872,8 +15078,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "43de8d7686404d79499572b50d6948ac91e7b6e6374f40db0df444c47ff5e966",
       structuredFile: "v2.logistics.mass_ship_order.structured.json",
       structuredSha256: "14367f6738bae4e42cc65384445df4b8642340f4bb9d732d84776be39468b76f",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -12893,19 +15102,50 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.logistics.set_address_config?module=95&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Contoh payload mengandung parameter yang tidak ada pada tabel: show_pick_up_address",
+      fields: [
+        {
+          name: "body.address_type_config",
+          label: "Address type config",
+          type: "object",
+          required: false,
+          description: "The config of your shop addres.",
+          children: [
+            {
+              name: "address_id",
+              label: "Address id",
+              type: "string",
+              required: false,
+              description: "The identifier id of the address.",
+            },
+            {
+              name: "address_type",
+              label: "Address type",
+              type: "array",
+              required: false,
+              description:
+                "The type of address. Available values: DEFAULT_ADDRESS, PICKUP_ADDRESS, RETURN_ADDRESS, INBOUND_PICKUP_ADDRESS.",
+              itemType: "string",
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "message", "request_id"],
     },
-    numericIds: [],
+    numericIds: ["body.address_type_config.address_id"],
     source: {
       file: "v2.logistics.set_address_config.md",
       sha256: "05343934dc3676e1fc07b8553288451eef80a7772bb0d2328b60b8d55c78204d",
       structuredFile: "v2.logistics.set_address_config.structured.json",
       structuredSha256: "19edcaaa70ebc23419700739d4b19cd1db3b1b9a57a7d067d7386cd9b2e78392",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -13004,8 +15244,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "79ddf908dcdcfa7390325f14d62cb4169c59642c2faea3d04f681a7fafc31d85",
       structuredFile: "v2.logistics.set_mart_packaging_info.structured.json",
       structuredSha256: "fc9feb68304952bd04bdedd284d3b36ef86b1524e036f38302f2418590ec5f68",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -13053,8 +15296,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "cb41e646b7b2d8bf964b29758e58281aa68a428fc7fc0b0c93c25ba533c177d9",
       structuredFile: "v2.logistics.set_pause_status.structured.json",
       structuredSha256: "683fe3773229468fb2c6e62490566e018613d41d00c7760a3427d33b5520be40",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -13074,20 +15320,66 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.logistics.ship_booking?module=95&type=1",
-      fields: [],
-      available: false,
-      unavailableReason:
-        "Letak parameter opsional/bersyarat tidak lengkap dalam contoh payload; pemetaan bertingkat belum terverifikasi.",
+      fields: [
+        {
+          name: "body.booking_sn",
+          label: "Booking sn",
+          type: "string",
+          required: true,
+          description: "Shopee's unique identifier for a booking.",
+        },
+        {
+          name: "body.pickup",
+          label: "Pickup",
+          type: "object",
+          required: false,
+          description:
+            'Required parameter ONLY if get_shipping_parameter returns "pickup" under "info_needed". Developer should still include "pickup" field in the call even if "pickup" has empty value.',
+          children: [
+            {
+              name: "address_id",
+              label: "Address id",
+              type: "string",
+              required: true,
+              description: "The identity of address. Retrieved from v2.logistics.get_booking_shipping_parameter.",
+            },
+            {
+              name: "pickup_time_id",
+              label: "Pickup time id",
+              type: "string",
+              required: false,
+              description:
+                "The pickup time id. Retrieved from v2.logistics.get_shipping_booking_parameter, you can only select one from the time_slot_list. Some logistics channels may not return any date or time for pickup time slots. In such cases, sellers can arrange shipment without selecting any time slot, and Shopee will arrange a suitable timing for these situations.",
+            },
+          ],
+        },
+        {
+          name: "body.dropoff",
+          label: "Dropoff",
+          type: "object",
+          required: false,
+          description:
+            'Required parameter ONLY if get_shipping_parameter returns "dropoff" under "info_needed". Developer should still include "dropoff" field in the call even if "dropoff" has empty value. If you choose Regular shipping method, please use "tracking_no" to call Init API. If you choose JOB shipping method, please use "sender_real_name" to call Init API. Note that only one of "tracking_no" and "sender_real_name" can be selected.',
+          children: [],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "message", "request_id"],
     },
-    numericIds: [],
+    numericIds: ["body.pickup.address_id"],
     source: {
       file: "v2.logistics.ship_booking.md",
       sha256: "1c33df384ebd56593980b05b170999d9003fded99d544e68ace6e9a30ffa603d",
       structuredFile: "v2.logistics.ship_booking.structured.json",
       structuredSha256: "135cca93fd63bd9cf11a4881e22715c9cfbf86badfe97806ffae5a51f9493972",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -13118,8 +15410,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "1d6c4485c774a33e028ef16ed566784c64f5a9011c3044dc32209c8054a6e85b",
       structuredFile: "v2.logistics.ship_order.structured.json",
       structuredSha256: "b890fe8c2e6af97e8061f99a39d3f819f230d86181eeea0cd4d1d32b512aab64",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -13218,8 +15513,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "cab2e0a577d804d3770d1fe483de6ed630d0c7e9856206c39e3a792134a9dffa",
       structuredFile: "v2.logistics.update_address.structured.json",
       structuredSha256: "64e6ab7cb432b0447ca8f1226517cb841fc428dd8c05d67b92efe9fd7ff92b17",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -13239,10 +15537,55 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.logistics.update_channel?module=95&type=1",
-      fields: [],
-      available: false,
-      unavailableReason:
-        "Letak parameter opsional/bersyarat tidak lengkap dalam contoh payload; pemetaan bertingkat belum terverifikasi.",
+      fields: [
+        {
+          name: "body.logistics_channel_id",
+          label: "Logistics channel id",
+          type: "string",
+          required: true,
+          description: "The identity of logistic channel.",
+        },
+        {
+          name: "body.enabled",
+          label: "Enabled",
+          type: "boolean",
+          required: false,
+          description: "Whether to enable this logistic channel.",
+        },
+        {
+          name: "body.cod_enabled",
+          label: "Cod enabled",
+          type: "boolean",
+          required: false,
+          description: "Whether to enable COD for this logistic channel. Only COD supported channels are applicable.",
+        },
+        {
+          name: "body.auto_call_driver_setting",
+          label: "Auto call driver setting",
+          type: "object",
+          required: false,
+          description: "",
+          children: [
+            {
+              name: "auto_call_driver_enabled",
+              label: "Auto call driver enabled",
+              type: "boolean",
+              required: false,
+              description: "Whether to enable Auto Call Driver for this logistic channel.",
+            },
+            {
+              name: "preparation_time",
+              label: "Preparation time",
+              type: "integer",
+              required: false,
+              description:
+                "Used to set the Preparation Time for this channel, in minutes. Required when auto_call_driver_enabled = true. Note: Please ensure the passed preparation_time value falls within the preparation_time_limit range returned by v2.logistics.get_channel_list.",
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "auto_call_driver_enabled",
         "auto_call_driver_setting",
@@ -13263,14 +15606,19 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "warehouse_name",
       ],
     },
-    numericIds: [],
+    numericIds: ["body.logistics_channel_id"],
     source: {
       file: "v2.logistics.update_channel.md",
       sha256: "12ce33ee628a9b3acc8c99b6602fd8e622f03737d16dd9a11069ac2b595b4b1a",
       structuredFile: "v2.logistics.update_channel.structured.json",
       structuredSha256: "f44cafdde2bc7330214ebcc7814d0f187d2fa1f8088ca691faf8a3d6522fec77",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -13290,9 +15638,790 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.logistics.update_operating_hours?module=95&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Nama parameter bertingkat berulang; struktur dan syarat per cabang belum terverifikasi.",
+      fields: [
+        {
+          name: "body.regular_operating_hour",
+          label: "Regular operating hour",
+          type: "object",
+          required: false,
+          description:
+            "Details of Pickup Operating Hours / Preferred Pickup Hours: You can skip this parameter if you are not updating the Pickup Operating Hours / Preferred Pickup Hours",
+          children: [
+            {
+              name: "monday",
+              label: "Monday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Monday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+            {
+              name: "tuesday",
+              label: "Tuesday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Tuesday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+            {
+              name: "wednesday",
+              label: "Wednesday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Wednesday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+            {
+              name: "thursday",
+              label: "Thursday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Thursday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+            {
+              name: "friday",
+              label: "Friday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Friday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+            {
+              name: "saturday",
+              label: "Saturday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Saturday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+            {
+              name: "sunday",
+              label: "Sunday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Sunday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+            {
+              name: "public_holiday",
+              label: "Public holiday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for public holiday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+          ],
+        },
+        {
+          name: "body.special_operating_hour",
+          label: "Special operating hour",
+          type: "object",
+          required: false,
+          description:
+            "Details of Special Operating Hours : You can skip this parameter if you are not creating Special Operating Hours or if you do not have access to create Special Operating Hours",
+          children: [
+            {
+              name: "name",
+              label: "Nama",
+              type: "string",
+              required: true,
+              description: "The name of Special Operating Hours",
+            },
+            {
+              name: "start_date",
+              label: "Start date",
+              type: "string",
+              required: true,
+              description:
+                "The start date of the Special Operating Hours. The value should be within [today + 1] and [today + 365 days].",
+              format: "date",
+            },
+            {
+              name: "end_date",
+              label: "End date",
+              type: "string",
+              required: true,
+              description:
+                "The end date of the Special Operating Hours. The value should be within [start_date + 30 days]",
+              format: "date",
+            },
+            {
+              name: "operating_hours",
+              label: "Operating hours",
+              type: "array",
+              required: true,
+              description: "To specify the operating hours for each date",
+              itemType: "object",
+              children: [
+                {
+                  name: "date",
+                  label: "Date",
+                  type: "string",
+                  required: true,
+                  description: "Date: it should be include all date from start_date until end_date",
+                  format: "date",
+                },
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that date: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+                {
+                  name: "enable",
+                  label: "Enable",
+                  type: "boolean",
+                  required: true,
+                  description: "To specify this value as False if you're not operate on that date (close)",
+                },
+              ],
+            },
+          ],
+        },
+        {
+          name: "body.instant_operating_hour",
+          label: "Instant operating hour",
+          type: "object",
+          required: false,
+          description:
+            "Details of Instant Operating Hours : You can skip this parameter if you are not creating/updating Instant Operating Hours or if you do not have access to create/update Instant Operating Hours",
+          children: [
+            {
+              name: "monday",
+              label: "Monday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Monday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+            {
+              name: "tuesday",
+              label: "Tuesday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Tuesday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+            {
+              name: "wednesday",
+              label: "Wednesday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Wednesday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+            {
+              name: "thrusday",
+              label: "Thrusday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Thursday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+            {
+              name: "friday",
+              label: "Friday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Friday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+            {
+              name: "saturday",
+              label: "Saturday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Saturday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+            {
+              name: "sunday",
+              label: "Sunday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Sunday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+            {
+              name: "public_holiday",
+              label: "Public holiday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for public holiday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+          ],
+        },
+        {
+          name: "body.shop_collection_operating_hour",
+          label: "Shop collection operating hour",
+          type: "object",
+          required: false,
+          description:
+            "Details of Shop Collection Operating Hours : You can skip this parameter if you are not creating/updating Shop Collection Operating Hours or if you do not have access to create/update Shop Collection Operating Hours",
+          children: [
+            {
+              name: "monday",
+              label: "Monday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Monday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+            {
+              name: "tuesday",
+              label: "Tuesday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Tuesday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+            {
+              name: "wednesday",
+              label: "Wednesday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Wednesday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+            {
+              name: "thursday",
+              label: "Thursday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Thursday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+            {
+              name: "friday",
+              label: "Friday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Friday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+            {
+              name: "saturday",
+              label: "Saturday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Saturday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+            {
+              name: "sunday",
+              label: "Sunday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Sunday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+            {
+              name: "public_holiday",
+              label: "Public holiday",
+              type: "object",
+              required: false,
+              description:
+                "Operating hours for Public Holiday: You can skip this information if you want to mark the day as closed.",
+              children: [
+                {
+                  name: "start_time",
+                  label: "Waktu mulai",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30.",
+                  format: "time",
+                },
+                {
+                  name: "end_time",
+                  label: "Waktu berakhir",
+                  type: "string",
+                  required: true,
+                  description:
+                    "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59",
+                  format: "time",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "error",
         "fail_message",
@@ -13313,8 +16442,13 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "ce89f5ef095cc4387b0ba48825d78fac4bd342fa7ca2578d39d2cb1adb674af7",
       structuredFile: "v2.logistics.update_operating_hours.structured.json",
       structuredSha256: "323e9ac84db6b5603d7c2212692d5c99ce4b1417c857c04fcbbc8916995d6ddd",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -13377,8 +16511,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "b0ec7fe99e0d7710fcd72ca21450ff91665a4933f87001ccc2500532054b0598",
       structuredFile: "v2.logistics.update_self_collection_order_logistics.structured.json",
       structuredSha256: "29c8e0fc386931f47aefda01835f69586be8e78384465c0a4e594abc8005e43a",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -13409,8 +16546,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "463cb6b54a2626cc5328f4209732ee374b94754241ff94610f85e9bc6971df71",
       structuredFile: "v2.logistics.update_shipping_order.structured.json",
       structuredSha256: "629792c3f54547a070fa7ecdc47d66ca10428662898905f8f1814ded5f6ffd60",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -13441,8 +16581,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "956543163d1b0851320cf54da93a95cb8b5c0ae999c09fadda56f8f1ea4130db",
       structuredFile: "v2.logistics.update_tracking_status.structured.json",
       structuredSha256: "8a9f775e41e4e04ab2d52c6292d2351b1165d3fb73727ead516d3710d0bb9d95",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -13473,14 +16616,17 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "41dd33f54fcbf837a015e9cc644cb2dc48c6e3a47bb8c52378eef41d59b314a4",
       structuredFile: "v2.logistics.upload_serviceable_polygon.structured.json",
       structuredSha256: "bce1647953e86bfbca4996a975b4bb8895a1e8d6447b74be9c720aa22aef46d0",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
       id: "shopee.media.cancel_video_upload",
       channel: "shopee",
-      principalKind: "seller",
+      principalKind: "creator",
       title: "Batalkan cancel video upload",
       group: "Media",
       method: "POST",
@@ -13501,9 +16647,17 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.media.cancel_video_upload?module=130&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "body.video_upload_id",
+          label: "Video upload id",
+          type: "string",
+          required: true,
+          description: "The unique ID of the upload task, returned by v2.media.init_video_upload.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "message", "request_id", "warning"],
     },
     numericIds: [],
@@ -13512,8 +16666,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "69a46387690addfe16d0bf7a28e42f4b262fcab5eb7e42128facadfa4db315ce",
       structuredFile: "v2.media.cancel_video_upload.structured.json",
       structuredSha256: "9ba1848ae3c5cdf8c1c52bf8d701bce1a2879858cc4056fedc9c3422583e5a57",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -13542,7 +16699,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       officialUrl: "https://open.shopee.com/documents/v2/v2.media.complete_video_upload?module=130&type=1",
       fields: [],
       available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      unavailableReason:
+        "Dijalankan otomatis oleh alur unggah video lengkap, termasuk pembagian bagian, checksum, dan penyelesaian unggahan.",
       responseFields: ["error", "message", "request_id", "warning"],
     },
     numericIds: [],
@@ -13551,14 +16709,17 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "9a378c0e842079588679e6b23dd7b25399624efdeeff5b4f7c23e632e189cd50",
       structuredFile: "v2.media.complete_video_upload.structured.json",
       structuredSha256: "ea477fb970ff3b41a875322a5c8a46fce7a67d03843609acf3be38693aee6d1f",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
       id: "shopee.media.get_video_upload_result",
       channel: "shopee",
-      principalKind: "seller",
+      principalKind: "creator",
       title: "Lihat get video upload result",
       group: "Media",
       method: "GET",
@@ -13579,9 +16740,17 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.media.get_video_upload_result?module=130&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.video_upload_id",
+          label: "Video upload id",
+          type: "string",
+          required: true,
+          description: "The unique ID of the upload task, returned by v2.media.init_video_upload.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "duration",
         "error",
@@ -13606,14 +16775,17 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "9cae8a5926d4983b6a4777a08f661083ff06a11a8ce6710bee8ba120c67bfb4a",
       structuredFile: "v2.media.get_video_upload_result.structured.json",
       structuredSha256: "27d9c9bde4703d2ae2e036c4b00b7cf41f281e5e7c33c82979fd96660c10728c",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
       id: "shopee.media.init_video_upload",
       channel: "shopee",
-      principalKind: "seller",
+      principalKind: "creator",
       title: "Kelola init video upload",
       group: "Media",
       method: "POST",
@@ -13631,12 +16803,29 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       eligibility: "unverified",
       eligibilityReason:
         "Ketersediaan program dan persetujuan aplikasi harus dikonfirmasi di Shopee Partner Console; API key tidak membuktikan izin toko.",
-      transport: "json",
+      transport: "large_upload",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.media.init_video_upload?module=130&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "body.file",
+          label: "Video Shopee",
+          type: "file",
+          required: true,
+          accept: ["video/mp4"],
+          maxBytes: 524288000,
+        },
+        {
+          name: "body.duration",
+          label: "Durasi video (detik)",
+          type: "integer",
+          required: true,
+          minimum: 1,
+          maximum: 180,
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "message", "part_size", "request_id", "response", "video_upload_id", "warning"],
     },
     numericIds: [],
@@ -13645,16 +16834,19 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "c9c6ebc7af4b075f159ffa95199353755d7eacb42964bc607c52b740c7c1a852",
       structuredFile: "v2.media.init_video_upload.structured.json",
       structuredSha256: "1992f48708d4ca6f361c983562abcc04f56eb7f299ea14659888ad0d230391ab",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
       id: "shopee.media.upload_image",
       channel: "shopee",
       principalKind: "seller",
-      title: "Unggah upload image",
-      group: "Media",
+      title: "Unggah bukti pengambilan retur",
+      group: "Retur Shopee",
       method: "POST",
       path: "/api/v2/media/upload_image",
       scopes: [],
@@ -13671,12 +16863,21 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       eligibility: "unverified",
       eligibilityReason:
         "Ketersediaan program dan persetujuan aplikasi harus dikonfirmasi di Shopee Partner Console; API key tidak membuktikan izin toko.",
-      transport: "json",
+      transport: "multipart",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.media.upload_image?module=130&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "body.images",
+          label: "Gambar",
+          type: "file",
+          required: true,
+          accept: ["image/jpeg", "image/png"],
+          maxBytes: 10485760,
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "image_id", "image_list", "image_url", "message", "request_id", "response", "warning"],
     },
     numericIds: [],
@@ -13685,8 +16886,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "f0bb6749f39f322ddcaae634b0803334d31e1193906be62d1784909623e56e71",
       structuredFile: "v2.media.upload_image.structured.json",
       structuredSha256: "d4b690600e9e7c95aa08b57e68461eb13746d21b8fe8b11cde16de43298ffe08",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -13715,7 +16919,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       officialUrl: "https://open.shopee.com/documents/v2/v2.media.upload_video_part?module=130&type=1",
       fields: [],
       available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      unavailableReason:
+        "Dijalankan otomatis oleh alur unggah video lengkap, termasuk pembagian bagian, checksum, dan penyelesaian unggahan.",
       responseFields: ["error", "message", "request_id", "warning"],
     },
     numericIds: [],
@@ -13724,8 +16929,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "cd229ca98bcff5989eb818cc587abeec660118f06263d914b752db637b244e42",
       structuredFile: "v2.media.upload_video_part.structured.json",
       structuredSha256: "fdd7be224c9f12b88716046afd50f43b71dd5cb0bbd57a2b551fa1aa96431265",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -13764,8 +16972,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "2c6331b15d8912ec3eafbcddf12027b7deb50ad5748e1e5ced47d672aa7202d3",
       structuredFile: "v2.media_space.cancel_video_upload.structured.json",
       structuredSha256: "159d4da505257eec3487953f83689f1d35dd071711834b1aeeb60c9bee59c302",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -13787,7 +16998,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       officialUrl: "https://open.shopee.com/documents/v2/v2.media_space.complete_video_upload?module=91&type=1",
       fields: [],
       available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      unavailableReason:
+        "Dijalankan otomatis oleh alur unggah video lengkap, termasuk pembagian bagian, checksum, dan penyelesaian unggahan.",
       responseFields: ["error", "message", "request_id", "warning"],
     },
     numericIds: [],
@@ -13796,8 +17008,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "cf46b0b188366b60b212afe6af4233558b488a85d61875391370b729caa7141e",
       structuredFile: "v2.media_space.complete_video_upload.structured.json",
       structuredSha256: "4cfa7f92a577d4fce038a040f9e3e481ed5bc5b9c620fb83f440ae072a1d0a8b",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -13845,8 +17060,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "d0d79659428d83cdee224e5daac1fe1648502866ae46bf7a4179448e9ad5ecf5",
       structuredFile: "v2.media_space.get_video_upload_result.structured.json",
       structuredSha256: "5032e3451ee08be277ddfe7bda397142ce6fe4a04c420018562e67a07c818972",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -13863,17 +17081,17 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       eligibility: "unverified",
       eligibilityReason:
         "Ketersediaan program dan persetujuan aplikasi harus dikonfirmasi di Shopee Partner Console; API key tidak membuktikan izin toko.",
-      transport: "json",
+      transport: "multipart",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.media_space.init_video_upload?module=91&type=1",
       fields: [
-        { name: "body.file_md5", label: "File md5", type: "string", required: true, description: "md5 of video file" },
         {
-          name: "body.file_size",
-          label: "File size",
-          type: "integer",
+          name: "body.file",
+          label: "Video produk",
+          type: "file",
           required: true,
-          description: "size of video file, in bytes, maximum is 30MB",
+          accept: ["video/mp4"],
+          maxBytes: 31457280,
         },
       ],
       available: true,
@@ -13886,8 +17104,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "6bb797758d288b5a6aab63e88ce86adfcc5919345fd0799a228f0a396c088175",
       structuredFile: "v2.media_space.init_video_upload.structured.json",
       structuredSha256: "91bbee1f838870a94246b7b00315cca3b0aad4cfae86a543854dce363ed20e4f",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -13904,12 +17125,23 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       eligibility: "unverified",
       eligibilityReason:
         "Ketersediaan program dan persetujuan aplikasi harus dikonfirmasi di Shopee Partner Console; API key tidak membuktikan izin toko.",
-      transport: "json",
+      transport: "multipart",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.media_space.upload_image?module=91&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "body.image",
+          label: "Gambar",
+          type: "file",
+          required: true,
+          accept: ["image/jpeg", "image/png"],
+          maxBytes: 10485760,
+        },
+        { name: "body.scene", label: "Penggunaan gambar", type: "enum", required: false, options: ["normal", "desc"] },
+        { name: "body.ratio", label: "Rasio gambar", type: "enum", required: false, options: ["1:1", "3:4"] },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "error",
         "id",
@@ -13931,8 +17163,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "ad80360a0ef1dceea45955a8e939f8794455bf53f537d2dd0486a25482232067",
       structuredFile: "v2.media_space.upload_image.structured.json",
       structuredSha256: "b21b2b31a0137707d5bfeb489afc37facd3d3a8f73fa3104eb96d1adf9797d95",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -13954,7 +17189,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       officialUrl: "https://open.shopee.com/documents/v2/v2.media_space.upload_video_part?module=91&type=1",
       fields: [],
       available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      unavailableReason:
+        "Dijalankan otomatis oleh alur unggah video lengkap, termasuk pembagian bagian, checksum, dan penyelesaian unggahan.",
       responseFields: ["error", "message", "request_id", "warning"],
     },
     numericIds: [],
@@ -13963,8 +17199,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "7c7bf636249f5bf044a94074a4443419012ef1401038a5399446c8541ff0abab",
       structuredFile: "v2.media_space.upload_video_part.structured.json",
       structuredSha256: "b7f380f0cc9660f7643c39037ba497a1d1ab0ce13c955878917256a3e455dd53",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -14006,8 +17245,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "8ba9d3d1869ef50d8e9566a2df9d1ba68876244b10bb314d18d82e072f54453c",
       structuredFile: "v2.merchant.get_merchant_info.structured.json",
       structuredSha256: "1b03d18af671ca2afa65350382d0cf194fa33567eff3079a286251617b12953d",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -14057,8 +17299,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "23439e6356269815490cc8197e66bcf45cd806320565f249d24bdc8969716862",
       structuredFile: "v2.merchant.get_merchant_prepaid_account_list.structured.json",
       structuredSha256: "38ec0126e81cd038cc42b7f9fdba2b5bec2bd38358905f368646658a33ec51d9",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -14116,8 +17361,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "3c2f1bdea1e876e74a18fa0f5c94c83a073de9882ca0e3f77ab3cb6fca632949",
       structuredFile: "v2.merchant.get_merchant_warehouse_list.structured.json",
       structuredSha256: "3dae16959277a1d424120e0e2cfed681596247913e2d61069c209722ff2e8009",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -14149,8 +17397,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "b17dd1f26aaa95b93387e4475f0c2feb6c9c682ca0abb05062c0adaf91d178f6",
       structuredFile: "v2.merchant.get_merchant_warehouse_location_list.structured.json",
       structuredSha256: "27a4f210a5b493258ad9f2ba4d25a21dd298d03502ba82b363e7d3c70cfaebd7",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -14181,8 +17432,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "b4de709fbaf56ff64e1661a9df85ad197d366adda87bad313044df3daedad15a",
       structuredFile: "v2.merchant.get_shop_list_by_merchant.structured.json",
       structuredSha256: "899bbba950c066db91367ae40fd7beb615dd6bddc6c16cf421b5654546c5ebf1",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -14224,8 +17478,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "65f0f5fdd9c6a02c995acb0be0cc85c5f032fe9189978271c5217966a3692b50",
       structuredFile: "v2.merchant.get_warehouse_eligible_shop_list.structured.json",
       structuredSha256: "d0b6d8f5584e913e3e31ccfb8b49b26d9646ae56fbde3ffa3e3b5c37ecc3f221",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -14256,8 +17513,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "f8d201a967b7e90216ac3582c2ebc191333a2d3176bf06a2e9343709f2db5fd7",
       structuredFile: "v2.order.cancel_order.structured.json",
       structuredSha256: "b8be40d9e4dc1b2f2255dddd47818d8c522dc1d34245628e44244e4a62fa8718",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -14280,8 +17540,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       fields: [],
       available: false,
       unavailableReason:
-        "Struktur permintaan FBS dan host file_link belum dapat diverifikasi; tautan berkas tidak diikuti secara otomatis.",
-      responseFields: ["error", "error_msg", "file_link", "request_id", "response"],
+        "Dokumen pajak FBS ini belum terbukti berlaku untuk Indonesia; format status, envelope, dan host tautan berkas memerlukan kontrak resmi yang konsisten.",
+      responseFields: ["error", "error_msg", "request_id", "response"],
     },
     numericIds: [],
     source: {
@@ -14289,8 +17549,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "cf54cc39e7f02a366cf3d945847641c664a9cc55fd2b5093aeb81745c509f3fc",
       structuredFile: "v2.order.download_fbs_invoices.structured.json",
       structuredSha256: "7affa610f3d80d7b91da997798212502c97c683ef9e782cd4ef59bd37af75f90",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -14321,8 +17584,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "02d1f3632809dcd0255602c4d566f92f44ff6d76c42fd9afef43933d24cf2bc5",
       structuredFile: "v2.order.download_invoice_doc.structured.json",
       structuredSha256: "28f26046bd1f75d8a39834fb943dd62fa984a2740391f9168cf0966466ee7c72",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -14344,7 +17610,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       officialUrl: "https://open.shopee.com/documents/v2/v2.order.generate_fbs_invoices?module=94&type=1",
       fields: [],
       available: false,
-      unavailableReason: "Struktur objek bertingkat tidak memiliki contoh payload lengkap yang dapat diverifikasi.",
+      unavailableReason:
+        "Dokumen pajak FBS ini belum terbukti berlaku untuk Indonesia; format status, envelope, dan host tautan berkas memerlukan kontrak resmi yang konsisten.",
       responseFields: ["error", "error_msg", "fail_error", "fail_message", "request_id", "result_list"],
     },
     numericIds: [],
@@ -14353,8 +17620,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "66a3355b980123fdf076aa29f58c321a08a162efcb37aa4b9c177b4a7cb3f5cb",
       structuredFile: "v2.order.generate_fbs_invoices.structured.json",
       structuredSha256: "1c9eb1537883102f45b155c41c20e1d1fb3b1a13e4276691d06329b11a90994d",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -14441,8 +17711,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "fa0aeefe9d5c1cbe0e636fcbe791d0595385949181928e42e60bb9a9abc90cdd",
       structuredFile: "v2.order.get_booking_detail.structured.json",
       structuredSha256: "e31c2b679c45d7c77415584f968907919ffab076aff1c5bd0eb4f09a7c3f4d1b",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -14477,6 +17750,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: true,
           description:
             "The time_from and time_to fields specify a date range for retrieving bookings (based on the time_range_field). The time_from field is the starting date range. The maximum date range that may be specified with the time_from and time_to fields is 15 days.",
+          format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.time_to",
@@ -14485,6 +17760,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: true,
           description:
             "The time_from and time_to fields specify a date range for retrieving bookings (based on the time_range_field). The time_from field is the starting date range. The maximum date range that may be specified with the time_from and time_to fields is 15 days.",
+          format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.page_size",
@@ -14533,8 +17810,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "306addde454e8806bc006359577b41609f79170b3ae975dd42982ccf1379bca4",
       structuredFile: "v2.order.get_booking_list.structured.json",
       structuredSha256: "8e1040ae83d16e2c4a0f93cae0ace7323bf2dd063f3114b313bff729575ca8af",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -14605,8 +17885,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "d8ede0e129aa6281ee5747c1754e5c1701405668f8cd20507947c3c953c3352e",
       structuredFile: "v2.order.get_buyer_invoice_info.structured.json",
       structuredSha256: "5fc371a72b122ce2a3bdac9fec28a3e8e016c5a3da724b1b73817e31502885b0",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -14628,7 +17911,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       officialUrl: "https://open.shopee.com/documents/v2/v2.order.get_fbs_invoices_result?module=94&type=1",
       fields: [],
       available: false,
-      unavailableReason: "Struktur objek bertingkat tidak memiliki contoh payload lengkap yang dapat diverifikasi.",
+      unavailableReason:
+        "Dokumen pajak FBS ini belum terbukti berlaku untuk Indonesia; format status, envelope, dan host tautan berkas memerlukan kontrak resmi yang konsisten.",
       responseFields: ["error", "error_msg", "file_name", "request_id", "result_list", "status"],
     },
     numericIds: [],
@@ -14637,8 +17921,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "ae749ed875165c6ea2165340e320468d12590b84a146238844826a28dfca5c31",
       structuredFile: "v2.order.get_fbs_invoices_result.structured.json",
       structuredSha256: "82f95367365d4ae0e4133131cd458b850b54762e50dbfb01d848bd146a8dced5",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -14791,8 +18078,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "91fd557846087475e6b981e6ee61b3453532951814bc346d071217dc92b19067",
       structuredFile: "v2.order.get_order_detail.structured.json",
       structuredSha256: "4d2a23973fc0d74412e5879fd13a81356526523296875ab4b78fad471dff8228",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -14844,8 +18134,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "6acf7a1c9ed95e858ff1bdf5325f8f90661fe6cad16507d6e96b0b76a8116f28",
       structuredFile: "v2.order.get_order_list.structured.json",
       structuredSha256: "498c514957a64bcd9966d6dad18c429cc253f9e123e11104dc2a86c914700c29",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -14949,8 +18242,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "76d16593c58440165fe0edac553307fb9d8dd968d396d5aa39d4d71a908f9d3c",
       structuredFile: "v2.order.get_package_detail.structured.json",
       structuredSha256: "e4d289134fc5c8e6aa9500a9bdf9539dfbc5b52c0797ad147b203651ecdec6b2",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -14982,8 +18278,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "e8ca001f0fa69663ed79e4f2f19161c022b97288ca7391e9ca080e82714b186c",
       structuredFile: "v2.order.get_pending_buyer_invoice_order_list.structured.json",
       structuredSha256: "00687a9e7e221697ca11041db125d7187c85cfcf44db64520dcca9d8af0d7831",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -15042,8 +18341,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "b34669dcd42a2aee1a3181543e2c712147cc54b26d553f2494a75665fea5e630",
       structuredFile: "v2.order.get_shipment_list.structured.json",
       structuredSha256: "4cfa7fd132723740a5953b0a7fe83630f15a9a8130207ce36ae124e14cdd2f74",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
     pagination: { cursorPath: ["next_cursor"], morePath: ["more"] },
   },
   {
@@ -15084,8 +18386,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "c50d60ced4ef2efad6eb9935df2a50a7ecbf06995f753cf426e4d9367d13e465",
       structuredFile: "v2.order.get_warehouse_filter_config.structured.json",
       structuredSha256: "d13b478fd654c420c260f9dabd2ba57a45afed6aa0c4d025899680592887b073",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -15116,8 +18421,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "673b99edf5b5543d31fc7a4994524bab78a44fadd9be56b55fd39ee8bb3b71eb",
       structuredFile: "v2.order.handle_buyer_cancellation.structured.json",
       structuredSha256: "53df60063f0b277610ef474f59a22558ec5e17c6fa3c98b282e4693e9e34be80",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -15137,19 +18445,96 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.order.handle_prescription_check?module=94&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Contoh payload mengandung bentuk atau nama duplikat yang belum dapat diverifikasi.",
+      fields: [
+        {
+          name: "body.order_sn",
+          label: "Nomor pesanan",
+          type: "string",
+          required: true,
+          description: "Shopee's unique identifier for an order.",
+        },
+        {
+          name: "body.is_approved",
+          label: "Is approved",
+          type: "boolean",
+          required: true,
+          description: "Approve or reject the prescription. Available values: TRUE, FALSE.",
+        },
+        {
+          name: "body.reject_reason_code",
+          label: "Reject reason code",
+          type: "integer",
+          required: false,
+          description:
+            "Reject reason code. Available values: 1 = Invalid Prescription (counterfeit/incorrect format) 2 = Incorrect Dosage 3 = No Prescription 4 = Unclear Image 5 = Free Text",
+          minimum: 1,
+          maximum: 5,
+        },
+        {
+          name: "body.items",
+          label: "Items",
+          type: "array",
+          required: false,
+          description: "The list of invalid items that make the prescription get rejected",
+          itemType: "object",
+          minimum: 1,
+          children: [
+            {
+              name: "item_id",
+              label: "ID produk",
+              type: "string",
+              required: true,
+              description: "Shopee's unique identifier for an item.",
+            },
+            {
+              name: "model_id",
+              label: "ID varian",
+              type: "string",
+              required: true,
+              description: "Shopee's unique identifier for a model of an item.",
+            },
+            {
+              name: "group_id",
+              label: "Group id",
+              type: "string",
+              required: true,
+              description:
+                "The identify of product promotion. For items in one same add on deal promotion, the group_id should share the same id. For items not in add on deal promotion, the group_id should be 0. And the data is from group_id of shopee.orders.GetOrderDetails.",
+            },
+          ],
+        },
+        {
+          name: "body.pharmacist_name",
+          label: "Pharmacist name",
+          type: "string",
+          required: false,
+          description: "Full name of the pharmacist. Required for PH and ID Prescription Orders.",
+        },
+        {
+          name: "body.free_text",
+          label: "Free text",
+          type: "string",
+          required: false,
+          description: "The reason for rejecting the prescription. Only usable when the reject_reason_code = 5.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "is_success", "message", "request_id", "response"],
     },
-    numericIds: [],
+    numericIds: ["body.items[].item_id", "body.items[].model_id", "body.items[].group_id"],
     source: {
       file: "v2.order.handle_prescription_check.md",
       sha256: "8a1689ecef3737b6d5e929a93398bcbffd88f37e607702a833b29f36a61fad8d",
       structuredFile: "v2.order.handle_prescription_check.structured.json",
       structuredSha256: "400706f8e6f7ac54b47d8793d011f433bc1bd43c50e6a4ff6e2f806a42e0f653",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -15334,8 +18719,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "8ddd7c2c14e4178d5885a880bc6d56192cb278be113c55ac4c2a74967f79325a",
       structuredFile: "v2.order.search_package_list.structured.json",
       structuredSha256: "002f96c39324c258321a470842038f6fb5e9cccdd69c97156e578eeb7cb788fa",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
     pagination: { cursorPath: ["pagination", "next_cursor"], morePath: ["pagination", "more"] },
   },
   {
@@ -15382,8 +18770,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "ff885696f0cb2bcab1640c2b69b400221e1487c68b0b7d8cbfcea80af1a8c2bb",
       structuredFile: "v2.order.set_note.structured.json",
       structuredSha256: "487b60c3f483ce3404257d4d92a6af382c2c9b1b8362519107febebf6c5341e2",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -15403,10 +18794,70 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.order.split_order?module=94&type=1",
-      fields: [],
-      available: false,
-      unavailableReason:
-        "Letak parameter opsional/bersyarat tidak lengkap dalam contoh payload; pemetaan bertingkat belum terverifikasi.",
+      fields: [
+        {
+          name: "body.order_sn",
+          label: "Nomor pesanan",
+          type: "string",
+          required: true,
+          description: "Shopee's unique identifier for an order.",
+        },
+        {
+          name: "body.package_list",
+          label: "Package list",
+          type: "array",
+          required: true,
+          description:
+            "The list of packages that you want to split. Note: - Orders that include installation services cannot be split by quantity. - When splitting the order, must contain all items in the order in one request. - You can split the order into 30 parcels at most in TW and 5 parcels at most in other regions.",
+          itemType: "object",
+          children: [
+            {
+              name: "item_list",
+              label: "Daftar produk",
+              type: "array",
+              required: true,
+              description: "The list of items under the same package.",
+              itemType: "object",
+              minimum: 1,
+              children: [
+                {
+                  name: "item_id",
+                  label: "ID produk",
+                  type: "string",
+                  required: true,
+                  description: "Shopee's unique identifier for an item.",
+                },
+                {
+                  name: "model_id",
+                  label: "ID varian",
+                  type: "string",
+                  required: true,
+                  description:
+                    "Shopee's unique identifier for a model of an item. For single item without variation, you can set model_id as 0.",
+                },
+                {
+                  name: "order_item_id",
+                  label: "Order item id",
+                  type: "string",
+                  required: false,
+                  description:
+                    "The identify of order item. For items in one same bundle deal promotion, the order_item_id should share the same id, such as 1,2. For items not in bundle deal promotion, the order_item_id should be the same as item_id.",
+                },
+                {
+                  name: "promotion_group_id",
+                  label: "Promotion group id",
+                  type: "string",
+                  required: false,
+                  description:
+                    "The identify of product promotion.It's required for add on deal and bundle deal items. For items in one same add on deal or bundle deal promotion, the promotion_group_id should share the same id. For items not in add on deal or bundle deal promotion, the promotion_group_id should be 0. And the data is from promotion_group_id of v2,order.get_order_detail.",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "error",
         "item_id",
@@ -15423,14 +18874,24 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "response",
       ],
     },
-    numericIds: [],
+    numericIds: [
+      "body.package_list[].item_list[].item_id",
+      "body.package_list[].item_list[].model_id",
+      "body.package_list[].item_list[].order_item_id",
+      "body.package_list[].item_list[].promotion_group_id",
+    ],
     source: {
       file: "v2.order.split_order.md",
       sha256: "ca9e7e6a00fe593c765b03a5cb6adb43a6d4b46130f37eaf035efc927d7ce7e6",
       structuredFile: "v2.order.split_order.structured.json",
       structuredSha256: "53715d152bf94d425510025631e433c8d3d8915c7ea0f728d1fa6b9c9e61fbe3",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -15469,8 +18930,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "f0f27c7344575d88200cb908ac0baf601fe2d1f9d8536cfaa46a3ff8aac2c63b",
       structuredFile: "v2.order.unsplit_order.structured.json",
       structuredSha256: "4921657397575099ad508eb0f086d50e4e2009d306b6afdd0cbb9f6cecf1dc39",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -15501,8 +18965,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "6e61e865a7cc45d2f21def81aa16d7e39722f1c6512029024f50ccdfd2a04d4d",
       structuredFile: "v2.order.upload_invoice_doc.structured.json",
       structuredSha256: "3dd6e90059daa7e6ea35d0eeb9bab1f3b51db15580898f7d63d6b3aa6cc5ad08",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -15529,6 +18996,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           type: "integer",
           required: true,
           description: "Start time in epoch",
+          format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.release_time_to",
@@ -15536,6 +19005,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           type: "integer",
           required: true,
           description: "End time in epoch",
+          format: "datetime",
+          timestampUnit: "seconds",
         },
       ],
       available: true,
@@ -15548,8 +19019,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "5f57217285c75c3f627125f8026dd80bc607d4d7c20dfc64c86c4212cc3cefee",
       structuredFile: "v2.payment.generate_income_report.structured.json",
       structuredSha256: "ebd9070390a0c65226f8d598883be0ffc75a74ecdf0eb8440a357e2d2b6cdf0b",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -15577,6 +19051,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: true,
           description:
             "The release_time_from must be - Monday (local time) for a weekly report - The 1st day (local time) of a Month for a monthly report",
+          format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.release_time_to",
@@ -15585,6 +19061,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: true,
           description:
             "The release_time_to must be - Sunday (local time) for a weekly report - The last day (local time) of a Month for a monthly report",
+          format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.statement_type",
@@ -15605,8 +19083,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "d9f802ec83b061d09ed5fbc518d06850eac3fd47a7d319df15d609f311cff406",
       structuredFile: "v2.payment.generate_income_statement.structured.json",
       structuredSha256: "93f34b82c73f80c4cc38488b325106fbd17bbef44c6d06b4ec8985d00fbd7354",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -15688,8 +19169,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "6fa8b4da1b0fb82e6ea5c48f81cce46b203f00b9e50e7e752d7e2a58c2295ff2",
       structuredFile: "v2.payment.get_billing_transaction_info.structured.json",
       structuredSha256: "8fab8ba088f7b9d86a9d47e868fcc77f9206acfb54a4c3f90be0e25b96fa1b94",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
     pagination: { cursorPath: ["next_cursor"], morePath: ["more"] },
   },
   {
@@ -15895,8 +19379,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "34d2746856af7c9b774b3d72ed8eba32d0713ce6436140bec3589bdf02227f11",
       structuredFile: "v2.payment.get_escrow_detail.structured.json",
       structuredSha256: "1d9d6e1a38a7e76ce65aa288143e6a82b00299d8c1ea71323c03211e6069aed1",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -16088,8 +19575,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "eb4d3f8ab7ae3a6b421ae070d1b0aebccc3ba7bc1ae34fe54773adc06d070ae8",
       structuredFile: "v2.payment.get_escrow_detail_batch.structured.json",
       structuredSha256: "3bfbacd22f10aca8c14203557f88f04f45140185eb0e0be991b7633a355a976b",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -16117,6 +19607,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: true,
           description: "Query start time",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.release_time_to",
@@ -16125,6 +19616,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: true,
           description: "Query end time",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.page_size",
@@ -16161,8 +19653,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "27dd3783f6cdeeaa78e653b1e3c1206da2680491624b37f765fe948df73d3d56",
       structuredFile: "v2.payment.get_escrow_list.structured.json",
       structuredSha256: "3e5e501be2e162e56aad8623a666c2c966311142da1f2ef996f3797687813373",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -16255,8 +19750,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "17a7bc4ad5ed12cfa217f14b4592e5793a5134aa0fc50c970f0b0fd3a1b3c527",
       structuredFile: "v2.payment.get_income_detail.structured.json",
       structuredSha256: "115a6559e30e178ada92fbe7ed374bdc1268284ef1c6d93bf9cfca454cfa7d6f",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
     pagination: { cursorPath: ["income_detail_list", "next_page", "cursor"] },
   },
   {
@@ -16307,8 +19805,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "064a8f5217d252919ed020747b2ca4014b358d273f1f21f3d1f765ca09acd40d",
       structuredFile: "v2.payment.get_income_overview.structured.json",
       structuredSha256: "b68dfb839829a1b7fad9fd1b34c2d42abd43f1f980d3aaaf73f4ad46aa93603a",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -16339,17 +19840,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       ],
       available: true,
       unavailableReason: null,
-      responseFields: [
-        "error",
-        "file_link",
-        "file_name",
-        "generated_time",
-        "id",
-        "msg",
-        "request_id",
-        "response",
-        "status",
-      ],
+      responseFields: ["error", "file_name", "generated_time", "id", "msg", "request_id", "response", "status"],
     },
     numericIds: ["query.income_report_id"],
     source: {
@@ -16357,8 +19848,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "46ab44697584f61746bbc331be4dfc456d5d725f6b0b49a33926189def847469",
       structuredFile: "v2.payment.get_income_report.structured.json",
       structuredSha256: "ebf6bfca8527d2ef31f65274b4d92c1a4abcc7f3554858c086afadeaa05e7a62",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -16390,7 +19884,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       ],
       available: true,
       unavailableReason: null,
-      responseFields: ["error", "file_link", "file_name", "generated_time", "id", "message", "response", "status"],
+      responseFields: ["error", "file_name", "generated_time", "id", "message", "response", "status"],
     },
     numericIds: ["query.income_statement_id"],
     source: {
@@ -16398,8 +19892,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "f20117551486c06561d0025c590613a5967d584654a95dd1288aed51ec8c80d1",
       structuredFile: "v2.payment.get_income_statement.structured.json",
       structuredSha256: "d3d746ecc293ee235f359556e65944d16d7b6846ed7f741eab8da705a13a35f7",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -16440,8 +19937,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "7e65b8f7c891a700ae343242bf02491d7d1b73ef889b62297a6aed87ffb9d0a1",
       structuredFile: "v2.payment.get_item_installment_status.structured.json",
       structuredSha256: "a486a4265c07e2598ce0eaa9d6969a838ccb43f1a1dd65c9579f52c3b9cfffff",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -16462,8 +19962,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.payment.get_payment_method_list?module=97&type=1",
       fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "message", "payment_method", "region", "request_id", "response"],
     },
     numericIds: [],
@@ -16472,8 +19972,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "6b6891e2c40532a377f17785a6839a9b52fb3be86f7e17f5faab70f4ed50fbab",
       structuredFile: "v2.payment.get_payment_method_list.structured.json",
       structuredSha256: "fd35b53221c81d991b460cb3b3d0ce5bc27ab0bc039c858d757d13ccc110bab5",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -16515,6 +20018,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: true,
           description: "Strat time. Maximum time range is 15 days",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.payout_time_to",
@@ -16523,6 +20027,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: true,
           description: "End time",
           format: "datetime",
+          timestampUnit: "seconds",
         },
       ],
       available: true,
@@ -16562,8 +20067,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "e3e4a86a120039c58d1b675ae27a75ab511d8e5a2839e3c567ce284b22d7a2d0",
       structuredFile: "v2.payment.get_payout_detail.structured.json",
       structuredSha256: "563ac496da2e4a8d407a9178790d36f252fe99b9a650d1416ff2cb08d3baf074",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -16591,6 +20099,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: true,
           description: "Start time. Maximum time range is 15 days",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.payout_time_to",
@@ -16599,6 +20108,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: true,
           description: "Payout End time",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.page_size",
@@ -16645,8 +20155,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "a97e87e25dd671d6356cb4a11728646bd60d2abce0b2a455503a6dc35d7dd671",
       structuredFile: "v2.payment.get_payout_info.structured.json",
       structuredSha256: "e70d737fd8f8480f3f46d4997abde89a87673ab12b55944e8a7a5fd654984781",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
     pagination: { cursorPath: ["next_cursor"], morePath: ["more"] },
   },
   {
@@ -16678,8 +20191,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "56116110459b25bbbf9a485175132a85ddc880feaf3764187378930dac8fb3e2",
       structuredFile: "v2.payment.get_shop_installment_status.structured.json",
       structuredSha256: "4c21041e3f9e0e7dd646f549850436bc37b1e08a79688b24f01ed4949124c714",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -16800,8 +20316,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "554a78da965b0c50dd9cc35a8fbf30c9bab0180ba2523941d5faf04dfc00eea9",
       structuredFile: "v2.payment.get_wallet_transaction_list.structured.json",
       structuredSha256: "cded05bb67034d063a47fdf979d94e2e3b32ecff011c311da04c44fdf81fd6bf",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -16842,8 +20361,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "aefd95ac7d71a2b722ec423af632889dc1df8742843287c90b5e91c02ef1b7fe",
       structuredFile: "v2.payment.set_item_installment_status.structured.json",
       structuredSha256: "d4e693c3e6a2400925485b1daa8f81fe3282f2bd6a4d24383144a53474119e0b",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -16882,8 +20404,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "00fd9f278349be03fa2b783ca10082eabed8644f191c1651c6da7bd2ecc027e0",
       structuredFile: "v2.payment.set_shop_installment_status.structured.json",
       structuredSha256: "194b727dc5d400eae8b09e3e3d96c1ee628b8282f70465fb39a60bbb0a1165f0",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -16980,8 +20505,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "571ba93681018207a19ffe39800865dc08ca5ffed0cb4308ca37718b4ba2d0c4",
       structuredFile: "v2.product.add_item.structured.json",
       structuredSha256: "e8fb109897b1bccfa137f8417f18f5cfc0cf632391279d5670445bf6cc8c3595",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -17001,19 +20529,405 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.product.add_kit_item?module=89&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Nama parameter bertingkat berulang; struktur dan syarat per cabang belum terverifikasi.",
+      fields: [
+        {
+          name: "body.item_setting",
+          label: "Item setting",
+          type: "object",
+          required: true,
+          description: "",
+          children: [
+            {
+              name: "item_name",
+              label: "Item name",
+              type: "string",
+              required: true,
+              description: "The name of this kit item.",
+            },
+            {
+              name: "images",
+              label: "Images",
+              type: "object",
+              required: true,
+              description: "Item images with 1:1 ratio.",
+              children: [
+                {
+                  name: "image_id_list",
+                  label: "Image id list",
+                  type: "array",
+                  required: true,
+                  description: "ID of image.",
+                  itemType: "string",
+                },
+              ],
+            },
+            {
+              name: "long_images",
+              label: "Long images",
+              type: "object",
+              required: false,
+              description: "Item images with 3:4 ratio.",
+              children: [
+                {
+                  name: "image_id_list",
+                  label: "Image id list",
+                  type: "array",
+                  required: true,
+                  description: "ID of image.",
+                  itemType: "string",
+                },
+              ],
+            },
+            {
+              name: "video_upload_id",
+              label: "Video upload id",
+              type: "array",
+              required: false,
+              description: "Video upload ID returned from video uploading API. Only accept one video_upload_id.",
+              itemType: "string",
+            },
+            {
+              name: "description",
+              label: "Deskripsi",
+              type: "string",
+              required: false,
+              description: "If description_type is normal, description information should be set by this field.",
+            },
+            {
+              name: "description_info",
+              label: "Description info",
+              type: "object",
+              required: false,
+              description:
+                "Rich text description field. Only whitelist sellers can use it. If you use the field, please upload the description_type=extended otherwise api will return error. If you don't use this field, you don't need to upload the description_type or upload description_type=normal",
+              children: [
+                {
+                  name: "extended_description",
+                  label: "Extended description",
+                  type: "object",
+                  required: true,
+                  description: "If description_type is extended , Description information should be set by this field.",
+                  children: [
+                    {
+                      name: "field_list",
+                      label: "Field list",
+                      type: "array",
+                      required: true,
+                      description: "Field of extended description.",
+                      itemType: "object",
+                      children: [
+                        {
+                          name: "field_type",
+                          label: "Field type",
+                          type: "enum",
+                          required: true,
+                          description:
+                            "Type of extended description field. See Data Definition- description_field_type (text , image).",
+                          options: ["text", "image"],
+                        },
+                        {
+                          name: "text",
+                          label: "Text",
+                          type: "string",
+                          required: false,
+                          description: "If field_type is text, text information will be set by this field.",
+                        },
+                        {
+                          name: "image_info",
+                          label: "Image info",
+                          type: "object",
+                          required: false,
+                          description: "If field_type is image, image will be set by this field.",
+                          children: [
+                            {
+                              name: "image_id",
+                              label: "Image id",
+                              type: "string",
+                              required: true,
+                              description: "Image id.",
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              name: "description_type",
+              label: "Description type",
+              type: "string",
+              required: true,
+              description:
+                "See Data Definition- description_type (normal , extended). If you want to use extended_description, this field must be inputed.",
+            },
+            {
+              name: "logistic_info",
+              label: "Logistic info",
+              type: "array",
+              required: true,
+              description: "Logistic channel setting.",
+              itemType: "object",
+              children: [
+                {
+                  name: "logistic_id",
+                  label: "Logistic id",
+                  type: "string",
+                  required: true,
+                  description: "ID of the channel.",
+                },
+                {
+                  name: "enabled",
+                  label: "Enabled",
+                  type: "boolean",
+                  required: true,
+                  description: "Whether channel is enabled for this kit item.",
+                },
+                {
+                  name: "shipping_fee",
+                  label: "Shipping fee",
+                  type: "number",
+                  required: false,
+                  description: "Shipping fee. Only needed when logistics fee_type = CUSTOM_PRICE.",
+                  format: "money",
+                },
+                {
+                  name: "size_id",
+                  label: "Size id",
+                  type: "string",
+                  required: false,
+                  description: "Size ID. Only needed when logistic fee_type = SIZE_SELECTION.",
+                },
+                {
+                  name: "is_free",
+                  label: "Is free",
+                  type: "boolean",
+                  required: false,
+                  description: "Whether cover shipping fee for buyer.",
+                },
+              ],
+            },
+            { name: "unlisted", label: "Unlisted", type: "boolean", required: false, description: "Unlist or not." },
+            { name: "item_sku", label: "Item sku", type: "string", required: false, description: "SKU tag of item" },
+            {
+              name: "weight",
+              label: "Weight",
+              type: "number",
+              required: true,
+              description: "The weight of this kit item, the unit is KG.",
+            },
+            {
+              name: "dimension",
+              label: "Dimension",
+              type: "object",
+              required: false,
+              description: "The dimension of this kit item.",
+              children: [
+                {
+                  name: "package_length",
+                  label: "Package length",
+                  type: "integer",
+                  required: true,
+                  description: "The length of package for this kit item, the unit is CM.",
+                },
+                {
+                  name: "package_width",
+                  label: "Package width",
+                  type: "integer",
+                  required: true,
+                  description: "The width of package for this kit item, the unit is CM.",
+                },
+                {
+                  name: "package_height",
+                  label: "Package height",
+                  type: "integer",
+                  required: true,
+                  description: "The height of package for this kit item, the unit is CM.",
+                },
+              ],
+            },
+            {
+              name: "pre_order",
+              label: "Pre order",
+              type: "object",
+              required: false,
+              description: "Pre order setting.",
+              children: [
+                {
+                  name: "is_pre_order",
+                  label: "Is pre order",
+                  type: "boolean",
+                  required: true,
+                  description: "Whether kit item is pre order.",
+                },
+                {
+                  name: "days_to_ship",
+                  label: "Days to ship",
+                  type: "integer",
+                  required: false,
+                  description:
+                    "The guaranteed days to ship orders. Please get the days_to_ship range from get_kit_item_limit api.",
+                },
+              ],
+            },
+            {
+              name: "model_list",
+              label: "Model list",
+              type: "array",
+              required: true,
+              description: "Model info list, model number at most 9.",
+              itemType: "object",
+              minimum: 1,
+              children: [
+                {
+                  name: "tier_index",
+                  label: "Tier index",
+                  type: "array",
+                  required: true,
+                  description: "Tier index of this kit model.",
+                  itemType: "integer",
+                },
+                {
+                  name: "model_sku",
+                  label: "Model sku",
+                  type: "string",
+                  required: false,
+                  description:
+                    "Seller SKU of this kit model, model_sku length information needs to be no more than 100 characters.",
+                },
+                {
+                  name: "original_price",
+                  label: "Original price",
+                  type: "number",
+                  required: true,
+                  description: "Original price of this kit model.",
+                  format: "money",
+                },
+                {
+                  name: "component_list",
+                  label: "Component list",
+                  type: "array",
+                  required: true,
+                  description:
+                    "Please get the amount of item/model that one kit model support from get_kit_item_limit.",
+                  itemType: "object",
+                  minimum: 1,
+                  children: [
+                    {
+                      name: "component_item_id",
+                      label: "Component item id",
+                      type: "string",
+                      required: true,
+                      description: "ID of the item that composes this kit model.",
+                    },
+                    {
+                      name: "component_model_id",
+                      label: "Component model id",
+                      type: "string",
+                      required: false,
+                      description: "ID of the model that composes this kit model.",
+                    },
+                    {
+                      name: "quantity",
+                      label: "Quantity",
+                      type: "integer",
+                      required: true,
+                      description: "The amount of the item/model that composes this kit model.",
+                    },
+                    {
+                      name: "main_component",
+                      label: "Main component",
+                      type: "boolean",
+                      required: false,
+                      description:
+                        "Whether this item/model is the main component for this kit. One kit item can only have one item/model as main component.",
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              name: "tier_variation_list",
+              label: "Tier variation list",
+              type: "array",
+              required: true,
+              description:
+                "Tier variation info list. Only support one tier variation, and each kit item can have from 1 to 9 kit variations.",
+              itemType: "object",
+              children: [
+                { name: "name", label: "Nama", type: "string", required: false, description: "Tier variation name." },
+                {
+                  name: "option_list",
+                  label: "Option list",
+                  type: "array",
+                  required: true,
+                  description: "Tier variation option info list.",
+                  itemType: "object",
+                  children: [
+                    { name: "option", label: "Option", type: "string", required: true, description: "Option name." },
+                    {
+                      name: "image",
+                      label: "Image",
+                      type: "object",
+                      required: false,
+                      description: "Option image.",
+                      children: [
+                        {
+                          name: "image_id",
+                          label: "Image id",
+                          type: "string",
+                          required: true,
+                          description:
+                            "ID of image. If you choose to define, you need to define an image for all options.",
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          name: "body.sync_setting",
+          label: "Sync setting",
+          type: "object",
+          required: false,
+          description: "",
+          children: [
+            {
+              name: "auto_sync_dts",
+              label: "Auto sync dts",
+              type: "boolean",
+              required: true,
+              description: "Auto sync the pre_order setting from main component or not.",
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "item_id", "message", "request_id", "response", "warning"],
     },
-    numericIds: [],
+    numericIds: [
+      "body.item_setting.logistic_info[].logistic_id",
+      "body.item_setting.logistic_info[].size_id",
+      "body.item_setting.model_list[].component_list[].component_item_id",
+      "body.item_setting.model_list[].component_list[].component_model_id",
+    ],
     source: {
       file: "v2.product.add_kit_item.md",
       sha256: "a4f5b7e9963bba0d9c14c1f9a8447d814a9066257bba5868b659aa5d780686bb",
       structuredFile: "v2.product.add_kit_item.structured.json",
       structuredSha256: "e72cf5ed321c12c68b846d4104c1ab723f0a934c1525313a2c13270f60dbce1e",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -17065,8 +20979,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "210b41da67d4927582b9107c6a56d14a4651c14057cf0c54febc12c20c165e04",
       structuredFile: "v2.product.add_model.structured.json",
       structuredSha256: "5f10f940b08df0acc857a585e1cf044244d9f8b4ce990ee6a5291f72b66cf932",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -17098,8 +21015,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "587db95f5c50c4e3a25e760c4b4121b11073074229d15695324186fec563f8fb",
       structuredFile: "v2.product.add_ssp_item.structured.json",
       structuredSha256: "c3219db4f4200c1afbfa3f9b88734e0339569f0fa4185c3abfa24e230df82ded",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -17150,8 +21070,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "a7529a8a6abc61c0e0febbc1ce9a06c52d664fa0e62360f4cdb6b46181e37906",
       structuredFile: "v2.product.boost_item.structured.json",
       structuredSha256: "8708e64545ea73094831b7cd84c0bda4587762aa87a070600d934281928df917",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -17182,8 +21105,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "34cf71f3408de69be3ada4c24fbbb3e450193885250f8d2bb97b18ceabb93bed",
       structuredFile: "v2.product.category_recommend.structured.json",
       structuredSha256: "5ce4ffd1a64c5e0ed631771397b40d64cf57cafd1cde5d9aac922fd7f6a8fbee",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -17222,8 +21148,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "995335eeeb8f9a7b185e10153f67f4bc53522f5a60d53735d750c61ff209f889",
       structuredFile: "v2.product.delete_item.structured.json",
       structuredSha256: "c6e14753f943e0bd2619d71f0af3a9129f6f9326f23af0cbe75524de46b64665",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -17257,8 +21186,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "646644550bf1cb8f987a98c57b75142f2b29c70e57d0a1613593b289151166dd",
       structuredFile: "v2.product.delete_model.structured.json",
       structuredSha256: "6ea7f68b4413e4447b3ac33c1026aa2103650bb9149106167d21901edddb9761",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -17278,19 +21210,50 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.product.generate_kit_image?module=89&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Struktur objek bertingkat tidak memiliki contoh payload lengkap yang dapat diverifikasi.",
+      fields: [
+        {
+          name: "body.component_list",
+          label: "Component list",
+          type: "array",
+          required: true,
+          description: "Please send up until 9 components.",
+          itemType: "object",
+          minimum: 1,
+          children: [
+            {
+              name: "component_item_id",
+              label: "Component item id",
+              type: "string",
+              required: true,
+              description: "ID of the item that composes this kit model.",
+            },
+            {
+              name: "component_model_id",
+              label: "Component model id",
+              type: "string",
+              required: false,
+              description: "ID of the model that composes this kit model.",
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "kit_image", "message", "request_id", "response"],
     },
-    numericIds: [],
+    numericIds: ["body.component_list[].component_item_id", "body.component_list[].component_model_id"],
     source: {
       file: "v2.product.generate_kit_image.md",
       sha256: "fe2ee758c03c16332a43b18f686a1d7926d1c8143ede8fc518f02b383c7b50fc",
       structuredFile: "v2.product.generate_kit_image.structured.json",
       structuredSha256: "b680ac1f31d02954ae623e767a3b50996963c02cba06525d728ee199c8fc24fa",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -17342,8 +21305,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "09b347187db8a8fc6c1961502920f70b5855e7a7a306adcfa37d3e3f80fdae4e",
       structuredFile: "v2.product.get_aitem_by_pitem_id.structured.json",
       structuredSha256: "8308032f61e03cb80ec355c76e992e790383b5cc7a6cef6832b47c1c49f408d2",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -17415,8 +21381,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "9dd1a39ae79492d434b01ef653c294f8502d050eea2c50e5f542138efb6b00a6",
       structuredFile: "v2.product.get_all_vehicle_list.structured.json",
       structuredSha256: "822627cab9da49f2c2a9fe61050e0cb2d60a77178c544d3f7feb69f2640b3d15",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -17476,8 +21445,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "310074f089c3c27b5626ef83a3db041517eb6db407fc66a4f7e32dd5a4d598e4",
       structuredFile: "v2.product.get_attribute_tree.structured.json",
       structuredSha256: "a2b1276c48be972eaf2ade994a84d42b2cfe0117a941166519b6473626ed9947",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -17517,8 +21489,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "3a914b6ec8cd1aef6c19e90431f5bbe04fb18f0aa52ce415159433ed61158d7d",
       structuredFile: "v2.product.get_boosted_list.structured.json",
       structuredSha256: "fd1bbf2cece97f7dc58c61d8beb3b4758649267d393751fdf1960d1c7f36bba3",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -17563,8 +21538,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "5a4b931e1569a0d989b50b471cec5e1c3f12cebea2243164f66b70b90af6401f",
       structuredFile: "v2.product.get_brand_list.structured.json",
       structuredSha256: "8d571d426deca6891c81b118f6eeca9f35523a918583f6298d08ab28ae6e28ad",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -17618,8 +21596,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "54e98f929175d0a274e91b200a7232e5f1ce63f688aea01893c6a430df841cdb",
       structuredFile: "v2.product.get_category.structured.json",
       structuredSha256: "755b5611a3859c8c14c624fc1717a8c395e626eecac65caac40ddae90a719ea4",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -17714,8 +21695,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "934f3ba63305d44bd1fce86ad907f31cf420612650be48b8a35c32d00dbd948f",
       structuredFile: "v2.product.get_comment.structured.json",
       structuredSha256: "c18c6c961d5e8e45f23c246158891a557aab3d418a12b9956ec65739814e7b77",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
     pagination: { cursorPath: ["next_cursor"], morePath: ["more"] },
   },
   {
@@ -17736,9 +21720,18 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.product.get_direct_item_list?module=89&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Serialisasi daftar dalam query belum terverifikasi pada kontrak contoh.",
+      fields: [
+        {
+          name: "query.main_item_id",
+          label: "Main item id",
+          type: "array",
+          required: true,
+          description: "Item id of main shop.",
+          itemType: "string",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "direct_item_id",
         "direct_item_list",
@@ -17752,14 +21745,20 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "warning",
       ],
     },
-    numericIds: [],
+    numericIds: ["query.main_item_id[]"],
     source: {
       file: "v2.product.get_direct_item_list.md",
       sha256: "f225173f1fe8c4aa6a71c75fc22e5a1294f4b4780c235658deb31203f66fb297",
       structuredFile: "v2.product.get_direct_item_list.structured.json",
       structuredSha256: "9c5cad65722e2b78e04fded579c9d83219b15418f6d6330e8c94b38073a40e4b",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
+    queryArrays: { main_item_id: "json" },
   },
   {
     operation: {
@@ -17781,7 +21780,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       officialUrl: "https://open.shopee.com/documents/v2/v2.product.get_direct_shop_recommended_price?module=89&type=1",
       fields: [],
       available: false,
-      unavailableReason: "Struktur objek bertingkat tidak memiliki contoh payload lengkap yang dapat diverifikasi.",
+      unavailableReason:
+        "Serialisasi objek dan daftar dalam query GET rekomendasi harga direct shop belum terverifikasi; alamat dan payload tidak ditebak.",
       responseFields: [
         "direct_item_price",
         "error",
@@ -17803,8 +21803,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "967f305cd7315e2219462bea54c5c6813185970ca29c4cb1238c52098700c2a7",
       structuredFile: "v2.product.get_direct_shop_recommended_price.structured.json",
       structuredSha256: "2bdb6ef490318e47d0661fa17eec0638292c78bc637fa6a5e1512fb0628f536c",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -18006,8 +22009,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "e7c599d75ebcccb3dc9c3b6d820cf64b87d3d62fc55020ccec562cdb712bcd57",
       structuredFile: "v2.product.get_item_base_info.structured.json",
       structuredSha256: "f92a0008bffbb96a4e2903c1d6bcd2dc4deda6160fdcd17e05f7bc52d4198339",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -18061,8 +22067,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "f93df400bba009c85994a861c4255771c894b12c067047454f03582cbc9657a8",
       structuredFile: "v2.product.get_item_content_diagnosis_result.structured.json",
       structuredSha256: "df1b918d1d6f0f4ddb44129109471458c89fcdd7673d7e84575ab5615bf4605e",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -18095,9 +22104,18 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.product.get_item_extra_info?module=89&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Serialisasi daftar dalam query belum terverifikasi pada kontrak contoh.",
+      fields: [
+        {
+          name: "query.item_id_list",
+          label: "Daftar ID produk",
+          type: "array",
+          required: true,
+          description: "item_id list, limit [0,50]",
+          itemType: "string",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "comment_count",
         "error",
@@ -18113,14 +22131,20 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "warning",
       ],
     },
-    numericIds: [],
+    numericIds: ["query.item_id_list[]"],
     source: {
       file: "v2.product.get_item_extra_info.md",
       sha256: "176f06b457bbc9ed7cc5df3697e4ab5e8570558e12c2907335fe54710f899734",
       structuredFile: "v2.product.get_item_extra_info.structured.json",
       structuredSha256: "ff786587308b47468ff92296ad6c75aa1ea4f794cb33a6cffc5f14440a35ae9a",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
+    queryArrays: { item_id_list: "comma" },
   },
   {
     operation: {
@@ -18190,8 +22214,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "2452c9cd8e03e3c681553ecc7fa1ad959d6834cb72edc717b9b75d03c110e86b",
       structuredFile: "v2.product.get_item_limit.structured.json",
       structuredSha256: "75448750163f734019586428c9bffd33c3a9996db53998d3644cfe333cc2420c",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -18250,8 +22277,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "e9955d374185268bb54ab9e1e48d5170b4120bb36f6dbe4902a18af52d377fff",
       structuredFile: "v2.product.get_item_list.structured.json",
       structuredSha256: "7b4ab8a5e5084d6e1254e014eaedcdedecd3bce9b310764c182ab8b275788c29",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -18332,8 +22362,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "76b9d7d5218975dd5601d8ff30bfce0dddaaedc511fa225078e53f117b2825f6",
       structuredFile: "v2.product.get_item_list_by_content_diagnosis.structured.json",
       structuredSha256: "5490e921854cdb98f7d8eb29d11f2c3efadf664728db2d4e9ed41db23332bd8c",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -18367,9 +22400,18 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.product.get_item_promotion?module=89&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Serialisasi daftar dalam query belum terverifikasi pada kontrak contoh.",
+      fields: [
+        {
+          name: "query.item_id_list",
+          label: "Daftar ID produk",
+          type: "array",
+          required: true,
+          description: "Item ID list, can send 1 to 50 items.",
+          itemType: "string",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "end_time",
         "error",
@@ -18394,14 +22436,20 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "warning",
       ],
     },
-    numericIds: [],
+    numericIds: ["query.item_id_list[]"],
     source: {
       file: "v2.product.get_item_promotion.md",
       sha256: "09aa4867eaa27f947156317443c46657ac70583ba0276c21b92d836093102652",
       structuredFile: "v2.product.get_item_promotion.structured.json",
       structuredSha256: "1f5aa88cd5f9b9d38cb9eee7544212abc1d6809ce62db602b6fcacab954e5add",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
+    queryArrays: { item_id_list: "comma" },
   },
   {
     operation: {
@@ -18455,8 +22503,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "626b47209c7b63489db459eeaa1fc5ad4013a91cbd682f2f52aedf526dc1fc05",
       structuredFile: "v2.product.get_item_violation_info.structured.json",
       structuredSha256: "f614e444b3aa1f228e19be71e35cec43cfb339e11bf0db8c9c266c52b71f7370",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -18567,8 +22618,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "d3b49aa23eda744aa9cebef6d0098349b93dd8dbecc86d9baf7b465bc91c0d74",
       structuredFile: "v2.product.get_kit_item_info.structured.json",
       structuredSha256: "1d209fda34bc00ca8da8a83999bd56486dfe7eb131be1cc369d93c053dcdf3c5",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -18640,8 +22694,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "cfd8a3d63fc77f6cbb8ff2c08d1e5246a85d8b8ef62a168b6ec3e1e6d6b420c8",
       structuredFile: "v2.product.get_kit_item_limit.structured.json",
       structuredSha256: "a3c681c5be5f5d5b9a3c586ef2a8e53498f5aa28b7a0d2d48ec0e68fef4060a2",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -18661,9 +22718,18 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.product.get_main_item_list?module=89&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Serialisasi daftar dalam query belum terverifikasi pada kontrak contoh.",
+      fields: [
+        {
+          name: "query.direct_item_id",
+          label: "Direct item id",
+          type: "array",
+          required: true,
+          description: "Item id of direct shop.",
+          itemType: "string",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "direct_item_id",
         "error",
@@ -18676,14 +22742,20 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "warning",
       ],
     },
-    numericIds: [],
+    numericIds: ["query.direct_item_id[]"],
     source: {
       file: "v2.product.get_main_item_list.md",
       sha256: "f4d5017ee5424c83c4371754856ac0cc0efd31ab9940580f810db2e6c0785bed",
       structuredFile: "v2.product.get_main_item_list.structured.json",
       structuredSha256: "e99a6321713dffe734d6c713a78e96164d62118d148d447d1a0f0c47a21fbb93",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
+    queryArrays: { direct_item_id: "json" },
   },
   {
     operation: {
@@ -18705,7 +22777,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       officialUrl: "https://open.shopee.com/documents/v2/v2.product.get_mart_item_by_outlet_item_id?module=89&type=1",
       fields: [],
       available: false,
-      unavailableReason: "Persyaratan program aplikasi belum dapat dipetakan lengkap dari dokumentasi.",
+      unavailableReason: "Shopee menyatakan belum ada jenis aplikasi yang dapat mengakses API ini.",
       responseFields: [
         "error",
         "item_mapping_list",
@@ -18726,8 +22798,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "02b8467ac12aab447650cd1ace9f9cfc3d26cb8b883dab9d5ecf4b758362fccc",
       structuredFile: "v2.product.get_mart_item_by_outlet_item_id.structured.json",
       structuredSha256: "9a3009a610c3ae0e3911f96be1ad89e2efcaa51135f6fa70e76cb9dd68947def",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -18786,8 +22861,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "f33bf0519f2ac6f76261bc429a63381527ed2154b04efcb71d493d6503e8877d",
       structuredFile: "v2.product.get_mart_item_mapping_by_id.structured.json",
       structuredSha256: "40a8c48b95a85dd4807c49104196fe15f2c6ffe603daf16a8f1e2cd6d6958dc1",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -18891,8 +22969,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "690195dad499cb05f323b308c5287e7baad0f7095883a8001b6e45c43a76e23c",
       structuredFile: "v2.product.get_model_list.structured.json",
       structuredSha256: "a815ed31dfcff6fe93754f588e7446f49144059e962907db84d70fc87ef9bd76",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -18912,9 +22993,67 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.product.get_product_certification_rule?module=89&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Struktur objek bertingkat tidak memiliki contoh payload lengkap yang dapat diverifikasi.",
+      fields: [
+        {
+          name: "body.attribute_list",
+          label: "Attribute list",
+          type: "array",
+          required: false,
+          description: "Item attributes.",
+          itemType: "object",
+          children: [
+            {
+              name: "attribute_id",
+              label: "Attribute id",
+              type: "string",
+              required: true,
+              description: "ID of attribute.",
+            },
+            {
+              name: "attribute_value_list",
+              label: "Attribute value list",
+              type: "array",
+              required: false,
+              description: "",
+              itemType: "object",
+              children: [
+                {
+                  name: "value_id",
+                  label: "Value id",
+                  type: "string",
+                  required: true,
+                  description:
+                    "ID of attribute value. In the following cases, the value id needs to be uploaded as 0, and original_value_name is mandatory, needs to be filled in customized value. (1) AttributeInputType is TEXT_FILED; (2) AttributeInputType is COMBO_BOX or MULTIPLE_SELECT_COMBO_BOX, and the seller want to fill in a customized value.",
+                },
+                {
+                  name: "original_value_name",
+                  label: "Original value name",
+                  type: "string",
+                  required: false,
+                  description:
+                    "Value name. original_value_name from produc.get_attributes api. If value id=0, this field is required. If AttributeType is DATE_TYPE or TIMESTAMP_TYPE, you can upload timestamp(string type) as the original_value_name.",
+                },
+                {
+                  name: "value_unit",
+                  label: "Value unit",
+                  type: "string",
+                  required: false,
+                  description: "Unit of attribute value (quantitative attribute only).",
+                },
+              ],
+            },
+          ],
+        },
+        {
+          name: "body.category_id",
+          label: "Category id",
+          type: "string",
+          required: false,
+          description: "ID of category.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "certification_rule_list",
         "certification_type",
@@ -18928,14 +23067,23 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "warning",
       ],
     },
-    numericIds: [],
+    numericIds: [
+      "body.attribute_list[].attribute_id",
+      "body.attribute_list[].attribute_value_list[].value_id",
+      "body.category_id",
+    ],
     source: {
       file: "v2.product.get_product_certification_rule.md",
       sha256: "ba0827e53a73a573f0c031a21d21ee46f786824f715e47ca192a7452607b2882",
       structuredFile: "v2.product.get_product_certification_rule.structured.json",
       structuredSha256: "0aba1bf07b55cf418d0b4fdfc1db1a2b200888d337b1b0f0c254638d9d41ab42",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -19003,8 +23151,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "8f3c14b9e517561bd3509b75a799c37505c6af497633f7ec88a34fe9991c52a7",
       structuredFile: "v2.product.get_recommend_attribute.structured.json",
       structuredSha256: "752dd076effacb4e595126d7376d6c058dda39d00a18355db319140b3ae2115e",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -19063,8 +23214,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "64d65becc00adb4faac1787a8839d9469dc75afc65d24867638673a7bdf14634",
       structuredFile: "v2.product.get_size_chart_detail.structured.json",
       structuredSha256: "2dc71e069a2e47439f0b61a03a26d2115f705b4b602e51e84a2c9de239b78006",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -19130,8 +23284,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "cbb8c95fa9e28370706630bbc78d9260dbf778a09aa56c65ab6b44258c9580ad",
       structuredFile: "v2.product.get_size_chart_list.structured.json",
       structuredSha256: "f6bd6b2a18882d1b44e2ba8fa5666e6fd5d813b8959ff6b2d65dfedfbbd0ef41",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
     pagination: { cursorPath: ["next_cursor"] },
   },
   {
@@ -19224,8 +23381,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "4167d6e608feb4880fe5694c489375d8bff4419ae735a47d48763906946890e0",
       structuredFile: "v2.product.get_ssp_info.structured.json",
       structuredSha256: "1dae2a1dae1f2b4ecec4336457de26cb9d728a89806a6af23cf89c23f4f07f9f",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -19288,8 +23448,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "b39f80495c42d7ae9baf786ed54f8d5099fda4b1ac7a3059504a39be700ae4ae",
       structuredFile: "v2.product.get_ssp_list.structured.json",
       structuredSha256: "7982ab82d892372a6ba7c57557d28923d2989a5d8b72f87475a230442811d578",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -19343,8 +23506,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "30a66b99bcec5481b6e399bf8a22291d57e7bb5d0f8b683409b3afd1709b3b79",
       structuredFile: "v2.product.get_variations.structured.json",
       structuredSha256: "2e409e0cdb7ac8c029983f9098c78606123da4d0e2f92d6066c2d143f3cf4abe",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -19417,8 +23583,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "097e4fcfce5ae57f27fea7b4d2dc847d77f4964ec6e012466fb1bd035335e3f8",
       structuredFile: "v2.product.get_vehicle_list_by_compatibility_detail.structured.json",
       structuredSha256: "55d54e208884124a3096cafa96fe814819c21e6750ef680b0b138d7c71e1988a",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -19438,19 +23607,175 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.product.get_weight_recommendation?module=89&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Contoh payload mengandung bentuk atau nama duplikat yang belum dapat diverifikasi.",
+      fields: [
+        {
+          name: "body.item_name",
+          label: "Item name",
+          type: "string",
+          required: true,
+          description: "Name of the item in local language.",
+        },
+        {
+          name: "body.cover_image_id",
+          label: "Cover image id",
+          type: "string",
+          required: true,
+          description: "Image id of first product image.",
+        },
+        {
+          name: "body.category_id",
+          label: "Category id",
+          type: "string",
+          required: true,
+          description: "Shopee's unique identifier for a category.",
+        },
+        {
+          name: "body.attribute_list",
+          label: "Attribute list",
+          type: "array",
+          required: true,
+          description: "",
+          itemType: "object",
+          children: [
+            {
+              name: "attribute_id",
+              label: "Attribute id",
+              type: "string",
+              required: true,
+              description: "The Identify of each attribute.",
+            },
+            {
+              name: "attribute_value_list",
+              label: "Attribute value list",
+              type: "array",
+              required: true,
+              description: "",
+              itemType: "object",
+              children: [
+                {
+                  name: "value_id",
+                  label: "Value id",
+                  type: "string",
+                  required: true,
+                  description: "Unique identifier for value of this item attribute.",
+                },
+                {
+                  name: "original_value_name",
+                  label: "Original value name",
+                  type: "string",
+                  required: false,
+                  description: "Value name of this item attribute.",
+                },
+                {
+                  name: "value_unit",
+                  label: "Value unit",
+                  type: "string",
+                  required: false,
+                  description: "Value unit of this item attribute.",
+                },
+              ],
+            },
+          ],
+        },
+        { name: "body.brand_id", label: "Brand id", type: "string", required: true, description: "Id of brand." },
+        {
+          name: "body.description_type",
+          label: "Description type",
+          type: "string",
+          required: true,
+          description: "Type of description, values: See Data Definition- description_type (normal , extended).",
+        },
+        {
+          name: "body.description",
+          label: "Deskripsi",
+          type: "string",
+          required: false,
+          description: "If description_type is normal , Description information should be set by this field.",
+        },
+        {
+          name: "body.description_info",
+          label: "Description info",
+          type: "object",
+          required: false,
+          description:
+            "New description field. Only whitelist sellers can use it. If you use the field, please upload the description_type=extended.",
+          children: [
+            {
+              name: "extended_description",
+              label: "Extended description",
+              type: "object",
+              required: false,
+              description: "If description_type is extended , Description information should be set by this field.",
+              children: [
+                {
+                  name: "field_list",
+                  label: "Field list",
+                  type: "array",
+                  required: false,
+                  description: "Field of extended description.",
+                  itemType: "object",
+                  children: [
+                    {
+                      name: "field_type",
+                      label: "Field type",
+                      type: "enum",
+                      required: false,
+                      description:
+                        "Type of extended description field, values: See Data Definition- description_field_type (text , image).",
+                      options: ["text", "image"],
+                    },
+                    {
+                      name: "text",
+                      label: "Text",
+                      type: "string",
+                      required: false,
+                      description: "If field_type is text, text information will be set by this field.",
+                    },
+                    {
+                      name: "image_info",
+                      label: "Image info",
+                      type: "object",
+                      required: false,
+                      description: "If field_type is image, image information will be set by this field.",
+                      children: [
+                        {
+                          name: "image_id",
+                          label: "Image id",
+                          type: "string",
+                          required: false,
+                          description: "Image id.",
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "message", "normal_weight_range", "request_id", "response", "warning"],
     },
-    numericIds: [],
+    numericIds: [
+      "body.category_id",
+      "body.attribute_list[].attribute_id",
+      "body.attribute_list[].attribute_value_list[].value_id",
+      "body.brand_id",
+    ],
     source: {
       file: "v2.product.get_weight_recommendation.md",
       sha256: "2c861491668a51ece4811454f37f13bb03ffa62bcc9cc6fc9b3c2d82238e4074",
       structuredFile: "v2.product.get_weight_recommendation.structured.json",
       structuredSha256: "7ff4ae40378e010c144284443eea41f48eaa814607ec1d53c4c45222a2108c0d",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -19508,8 +23833,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "654caf4ef274bfbb32d95bae1f490fffa9f0f7e8900844fa6817af4ebb08b76a",
       structuredFile: "v2.product.init_tier_variation.structured.json",
       structuredSha256: "fedfac120674a9d7bb7f0c94a127a15a9a10f2c2841975b3eb6b3ef3ea71eed3",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -19541,8 +23869,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "c7eb194fc0ccefe0ab0a7e1a4f77fa017bd0ba3e7f99a33d43b43a50a79e3698",
       structuredFile: "v2.product.link_ssp.structured.json",
       structuredSha256: "af741808cb4d940479067325043ad3875d6c489c5340cacbc0cebf9f20e80404",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -19562,10 +23893,118 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.product.register_brand?module=89&type=1",
-      fields: [],
-      available: false,
-      unavailableReason:
-        "Letak parameter opsional/bersyarat tidak lengkap dalam contoh payload; pemetaan bertingkat belum terverifikasi.",
+      fields: [
+        {
+          name: "body.original_brand_name",
+          label: "Original brand name",
+          type: "string",
+          required: true,
+          description: "Brand name, length<=254.",
+        },
+        {
+          name: "body.category_list",
+          label: "Category list",
+          type: "array",
+          required: true,
+          description:
+            "Category_id list for this brand, please input category in L1 or L2. Max input num of category_id is 50.",
+          itemType: "integer",
+        },
+        {
+          name: "body.product_image",
+          label: "Product image",
+          type: "object",
+          required: false,
+          description: "",
+          children: [
+            {
+              name: "image_id_list",
+              label: "Image id list",
+              type: "array",
+              required: true,
+              description:
+                "Image Id of product image for this brand, max input num of file = 10 ,each file's length<=498. ID market is optional.",
+              itemType: "string",
+            },
+          ],
+        },
+        {
+          name: "body.app_logo_image_id",
+          label: "App logo image id",
+          type: "string",
+          required: false,
+          description: "Image_id of logo for app client,please input hashcode of this picture.",
+        },
+        {
+          name: "body.brand_website",
+          label: "Brand website",
+          type: "string",
+          required: false,
+          description: "Official website of brand, length<=254.",
+        },
+        {
+          name: "body.brand_description",
+          label: "Brand description",
+          type: "string",
+          required: false,
+          description: "The description of this brand, can input the information, length<=254.",
+        },
+        {
+          name: "body.additional_information",
+          label: "Additional information",
+          type: "string",
+          required: false,
+          description: "Additional notes or comment can seller can add, length<=254.",
+        },
+        {
+          name: "body.pc_logo_image_id",
+          label: "Pc logo image id",
+          type: "string",
+          required: false,
+          description: "Image_id of logo for pc client,please input hashcode of this picture.",
+        },
+        {
+          name: "body.brand_region",
+          label: "Brand region",
+          type: "string",
+          required: true,
+          description: "origin region of brand.",
+        },
+        {
+          name: "body.licenses",
+          label: "Licenses",
+          type: "array",
+          required: false,
+          description: "For appeal blacklisted brand data",
+          itemType: "object",
+          children: [
+            {
+              name: "file_name",
+              label: "File name",
+              type: "string",
+              required: false,
+              description: "Brand registration certificate image name, len < 254",
+            },
+            {
+              name: "file_hash",
+              label: "File hash",
+              type: "string",
+              required: false,
+              description:
+                "Image id of brand registration certificate image , max input num of file = 1 , each file's length<=498",
+            },
+          ],
+        },
+        {
+          name: "body.brand_registration_website",
+          label: "Brand registration website",
+          type: "string",
+          required: false,
+          description: "The link to brand registration website, It is mandatory when brand name hit blacklist.len<254",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["brand_id", "error", "message", "original_brand_name", "request_id", "response", "warning"],
     },
     numericIds: [],
@@ -19574,8 +24013,13 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "e584269f31753bae57baf77292f3175dcfa21d212eb98eef785be0637d246df6",
       structuredFile: "v2.product.register_brand.structured.json",
       structuredSha256: "41bae725866082c3acb4e8aab64c69edb2917ff236643fb9d7bd169ed555b87e",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -19641,8 +24085,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "9b300842b506704a51bf445e180429a8e332c18ef19a65ec1837a2a848b6510f",
       structuredFile: "v2.product.reply_comment.structured.json",
       structuredSha256: "0e4731c8550bda4ead23ccd743ed7b08d83c95df5e47a73a44b3d8eb69c81a28",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -19678,10 +24125,12 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           type: "integer",
           required: true,
           description: "The range is 1 to 100",
+          minimum: 1,
+          maximum: 100,
         },
       ],
-      available: false,
-      unavailableReason: "Letak kursor respons belum terverifikasi dari contoh respons sukses.",
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "cursor",
         "debug_message",
@@ -19703,8 +24152,14 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "d0bd9d3f9960d2ef640c7dfd32a172dbc15dd09561498407b64115123a42aaae",
       structuredFile: "v2.product.search_attribute_value_list.structured.json",
       structuredSha256: "c87cc2e421510bd5749c9258fd9307d920d618d5e8fcd7904bceffcca771b82b",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
+    pagination: { cursorPath: ["page_info", "cursor"], morePath: ["page_info", "has_next"], numeric: true },
   },
   {
     operation: {
@@ -19724,9 +24179,59 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.product.search_item?module=89&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Serialisasi daftar dalam query belum terverifikasi pada kontrak contoh.",
+      fields: [
+        {
+          name: "query.offset",
+          label: "Posisi awal",
+          type: "string",
+          required: false,
+          description:
+            "Specifies the starting entry of data to return in the current call. Default is empty. if data is more than one page, the offset can be some entry to start next call.",
+          allowEmpty: true,
+        },
+        {
+          name: "query.page_size",
+          label: "Jumlah per halaman",
+          type: "integer",
+          required: true,
+          description: "the size of one page.",
+        },
+        { name: "query.item_name", label: "Item name", type: "string", required: false, description: "name of item." },
+        {
+          name: "query.attribute_status",
+          label: "Attribute status",
+          type: "integer",
+          required: false,
+          description: "1:get item lack of requires attribute. 2:get item lack of optional attribute.",
+        },
+        {
+          name: "query.item_sku",
+          label: "Item sku",
+          type: "string",
+          required: false,
+          description:
+            "sku. If you search for item_sku and item_name at the same time, only the results that match item_sku will be returned. If you search for item_sku and attribute_status at the same time, the results that match both item_sku and attribute_status will be returned.",
+        },
+        {
+          name: "query.item_status",
+          label: "Item status",
+          type: "array",
+          required: false,
+          description:
+            "NORMAL/BANNED/UNLIST/REVIEWING/SELLER_DELETE/SHOPEE_DELETE If you want to search multiple status, please upload the url like this: item_status=NORMAL&item_status=BANNED",
+          itemType: "string",
+        },
+        {
+          name: "query.deboost_only",
+          label: "Deboost only",
+          type: "boolean",
+          required: false,
+          description:
+            "If deboost_only is true, then API will return items whose deboost is true, if deboost_only is empty or false, then API will return items whose deboost is true and false simultaneously",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "error",
         "item_id_list",
@@ -19744,8 +24249,14 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "6d8a94ca435c6dbcc417b9e012ee44bcc27362f75b665818af89aee8a97a6b62",
       structuredFile: "v2.product.search_item.structured.json",
       structuredSha256: "524eb1497ba38af105b673434266ee89c84a3d754fc4e7ecc8ea3777c40b93aa",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
+    queryArrays: { item_status: "repeat" },
   },
   {
     operation: {
@@ -19835,8 +24346,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "01ca2077d37eda089dd30fccdac1f588fb307313d5cba56e6c501f493a30f3a5",
       structuredFile: "v2.product.search_unpackaged_model_list.structured.json",
       structuredSha256: "3114a8b49648e21895ea716bcedbb15629db46905ccde8763e82e58a32a98e34",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
     pagination: { cursorPath: ["next_cursor"] },
   },
   {
@@ -19870,8 +24384,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "1ee5af03996ef2046798bf7f61adf2f63c51fba004bc2646259f8de8001699bf",
       structuredFile: "v2.product.unlink_ssp.structured.json",
       structuredSha256: "81966645d906e8b2ec2743b9c58a3f9b0359ebda06b477972aa768fbd7f9ee82",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -19913,8 +24430,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "e8e9908367f2c4c98da99d168996ac72b9a28269a575f0a48a213c6ca3f092cd",
       structuredFile: "v2.product.unlist_item.structured.json",
       structuredSha256: "f8b1bc9aab1fbb092488f077e6f748c40a4155dd2af4a46fc24f8c75adff6fb6",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -19934,9 +24454,485 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.product.update_item?module=89&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Nama parameter bertingkat berulang; struktur dan syarat per cabang belum terverifikasi.",
+      fields: [
+        {
+          name: "body.description",
+          label: "Deskripsi",
+          type: "string",
+          required: false,
+          description: "Description of item.",
+        },
+        {
+          name: "body.weight",
+          label: "Weight",
+          type: "number",
+          required: false,
+          description:
+            "The weight of this item, the unit is KG. Updating the weight of this item will overwrite the weight of all models under this item.",
+        },
+        {
+          name: "body.pre_order",
+          label: "Pre order",
+          type: "object",
+          required: false,
+          description: "Pre Order setting.",
+          children: [
+            {
+              name: "days_to_ship",
+              label: "Days to ship",
+              type: "integer",
+              required: true,
+              description: "Days to ship.",
+            },
+            {
+              name: "is_pre_order",
+              label: "Is pre order",
+              type: "boolean",
+              required: true,
+              description: "Whether the item is pre order.",
+            },
+          ],
+        },
+        { name: "body.item_name", label: "Item name", type: "string", required: false, description: "Item name." },
+        {
+          name: "body.attribute_list",
+          label: "Attribute list",
+          type: "array",
+          required: false,
+          description: "Item attributes.",
+          itemType: "object",
+          children: [
+            {
+              name: "attribute_id",
+              label: "Attribute id",
+              type: "string",
+              required: true,
+              description: "ID of attribute.",
+            },
+            {
+              name: "attribute_value_list",
+              label: "Attribute value list",
+              type: "array",
+              required: false,
+              description: "",
+              itemType: "object",
+              children: [
+                {
+                  name: "value_id",
+                  label: "Value id",
+                  type: "string",
+                  required: true,
+                  description:
+                    "ID of attribute value. In the following cases, the value id needs to be uploaded as 0, and original_value_name is mandatory, needs to be filled in customized value. (1) AttributeInputType is TEXT_FILED; (2) AttributeInputType is COMBO_BOX or MULTIPLE_SELECT_COMBO_BOX, and the seller want to fill in a customized value.",
+                },
+                {
+                  name: "original_value_name",
+                  label: "Original value name",
+                  type: "string",
+                  required: false,
+                  description:
+                    "Value name. original_value_name from produc.get_attributes api. If value id=0, this field is required. If AttributeType is DATE_TYPE or TIMESTAMP_TYPE, you can upload timestamp(string type) as the original_value_name.",
+                },
+                {
+                  name: "value_unit",
+                  label: "Value unit",
+                  type: "string",
+                  required: false,
+                  description: "Unit of attribute value (quantitative attribute only).",
+                },
+              ],
+            },
+          ],
+        },
+        { name: "body.item_sku", label: "Item sku", type: "string", required: false, description: "SKU tag for item." },
+        {
+          name: "body.item_status",
+          label: "Item status",
+          type: "string",
+          required: false,
+          description: "Item status, could be UNLIST or NORMAL.",
+        },
+        {
+          name: "body.logistic_info",
+          label: "Logistic info",
+          type: "array",
+          required: false,
+          description: "Logistic channel setting.",
+          itemType: "object",
+          children: [
+            { name: "size_id", label: "Size id", type: "string", required: false, description: "Size ID." },
+            {
+              name: "shipping_fee",
+              label: "Shipping fee",
+              type: "number",
+              required: false,
+              description: "Shipping fee.",
+              format: "money",
+            },
+            {
+              name: "enabled",
+              label: "Enabled",
+              type: "boolean",
+              required: true,
+              description: "Whether the channel is enabled for this item.",
+            },
+            {
+              name: "logistic_id",
+              label: "Logistic id",
+              type: "string",
+              required: true,
+              description: "ID of logistics channel.",
+            },
+            {
+              name: "is_free",
+              label: "Is free",
+              type: "boolean",
+              required: false,
+              description: "Whether cover shipping fee for buyer.",
+            },
+          ],
+        },
+        {
+          name: "body.wholesale",
+          label: "Wholesale",
+          type: "array",
+          required: false,
+          description: "Wholesale setting. If you want to delete it, please pass it with blank.",
+          itemType: "object",
+          children: [
+            {
+              name: "min_count",
+              label: "Min count",
+              type: "integer",
+              required: true,
+              description: "Minimum count of this tier.",
+            },
+            {
+              name: "unit_price",
+              label: "Unit price",
+              type: "number",
+              required: true,
+              description: "Price of this tier.",
+              format: "money",
+            },
+            {
+              name: "max_count",
+              label: "Max count",
+              type: "integer",
+              required: true,
+              description: "Maximum count of this tier.",
+            },
+          ],
+        },
+        { name: "body.item_id", label: "ID produk", type: "string", required: true, description: "ID of item." },
+        {
+          name: "body.category_id",
+          label: "Category id",
+          type: "string",
+          required: false,
+          description: "ID of category.",
+        },
+        {
+          name: "body.dimension",
+          label: "Dimension",
+          type: "object",
+          required: false,
+          description:
+            "The dimension of this item. Updating the dimension of this item will overwrite the dimension of all models under this item.",
+          children: [
+            {
+              name: "package_height",
+              label: "Package height",
+              type: "integer",
+              required: true,
+              description: "The height of package for this item, the unit is CM.",
+            },
+            {
+              name: "package_length",
+              label: "Package length",
+              type: "integer",
+              required: true,
+              description: "The length of package for this item, the unit is CM.",
+            },
+            {
+              name: "package_width",
+              label: "Package width",
+              type: "integer",
+              required: true,
+              description: "The width of package for this item, the unit is CM.",
+            },
+          ],
+        },
+        {
+          name: "body.condition",
+          label: "Condition",
+          type: "string",
+          required: false,
+          description: "Condition of item, could be NEW or USED.",
+        },
+        {
+          name: "body.video_upload_id",
+          label: "Video upload id",
+          type: "array",
+          required: false,
+          description:
+            "Video upload ID returned from video uploading API. If you want to delete it, please pass it with blank.",
+          itemType: "string",
+        },
+        {
+          name: "body.brand",
+          label: "Brand",
+          type: "object",
+          required: false,
+          description: "",
+          children: [
+            { name: "brand_id", label: "Brand id", type: "string", required: false, description: "Id of brand." },
+            {
+              name: "original_brand_name",
+              label: "Original brand name",
+              type: "string",
+              required: false,
+              description: "Original name of brand.",
+            },
+          ],
+        },
+        {
+          name: "body.item_dangerous",
+          label: "Item dangerous",
+          type: "integer",
+          required: false,
+          description:
+            "This field is only applicable for local sellers in Indonesia and Malaysia. Use this field to identify whether a product is a dangerous product. 0 for non-dangerous product and 1 for dangerous product. For more information, please visit the market's respective Seller Education Hub.",
+        },
+        {
+          name: "body.description_info",
+          label: "Description info",
+          type: "object",
+          required: false,
+          description:
+            "New description field. Only whitelist sellers can use it. If you use the field, please upload the description_type=extended otherwise api will return error. If you don't use this field, you don't need to upload the description_type or upload description_type=normal",
+          children: [
+            {
+              name: "extended_description",
+              label: "Extended description",
+              type: "object",
+              required: false,
+              description: "If description_type is extended , description information should be set by this field.",
+              children: [
+                {
+                  name: "field_list",
+                  label: "Field list",
+                  type: "array",
+                  required: false,
+                  description: "Field of extended description.",
+                  itemType: "object",
+                  children: [
+                    {
+                      name: "field_type",
+                      label: "Field type",
+                      type: "enum",
+                      required: false,
+                      description:
+                        "Type of extended description field ：values: See Data Definition- description_field_type (text , image).",
+                      options: ["text", "image"],
+                    },
+                    {
+                      name: "text",
+                      label: "Text",
+                      type: "string",
+                      required: false,
+                      description: "If field_type is text， text information will be set by this field.",
+                    },
+                    {
+                      name: "image_info",
+                      label: "Image info",
+                      type: "object",
+                      required: false,
+                      description: "If field_type is image，image url will be set by this field.",
+                      children: [
+                        {
+                          name: "image_id",
+                          label: "Image id",
+                          type: "string",
+                          required: false,
+                          description: "Image id.",
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          name: "body.description_type",
+          label: "Description type",
+          type: "string",
+          required: false,
+          description:
+            "Values: See Data Definition- description_type (normal , extended). If you want to use extended_description or change description type ,this field must be inputed",
+        },
+        {
+          name: "body.gtin_code",
+          label: "Gtin code",
+          type: "string",
+          required: false,
+          description:
+            '- GTIN is an identifier for trade items, developed by the international organization GS1. - They have 8 to 14 digits. The most common are UPC, EAN, JAN and ISBN. - GTIN will help boost positioning in online marketing channels like Google and Facebook. - That incorporation with GTIN will also aid in Search and Recommendation in Shopee itself allowing buyers to have higher likelihood of finding one\'s listing. Note: If you want to set “Item without GTIN”, please pass the gtin_code as "00". The validation rule is based on the value return in gtin_validation_rule" field in v2.product.get_item_limit API - Mandatory: This field is required and must contain a correctly formatted GTiN number. - Flexible: This field is required and must contain either a correctly formatted GTlN number or "00" to declare that the item/model has no valid GTlN. - Optional: This field is optional and can contain a correctly formatted GTiN number, "00" or be omitted entirely.',
+        },
+        {
+          name: "body.ds_cat_rcmd_id",
+          label: "Ds cat rcmd id",
+          type: "string",
+          required: false,
+          description: "category recommendation service id",
+        },
+        {
+          name: "body.promotion_images",
+          label: "Promotion images",
+          type: "object",
+          required: false,
+          description:
+            "Promotion Image Currently only allow one promoton image You could set promotion image only if the product images' ratio is 3:4",
+          children: [
+            {
+              name: "image_id_list",
+              label: "Image id list",
+              type: "array",
+              required: false,
+              description: "Promotion Image",
+              itemType: "string",
+            },
+          ],
+        },
+        {
+          name: "body.compatibility_info",
+          label: "Compatibility info",
+          type: "object",
+          required: false,
+          description: "",
+          children: [
+            {
+              name: "vehicle_info_list",
+              label: "Vehicle info list",
+              type: "array",
+              required: true,
+              description: "",
+              itemType: "object",
+              children: [
+                {
+                  name: "brand_id",
+                  label: "Brand id",
+                  type: "string",
+                  required: true,
+                  description: "ID of the brand.",
+                },
+                {
+                  name: "model_id",
+                  label: "ID varian",
+                  type: "string",
+                  required: true,
+                  description: "ID of the model.",
+                },
+                { name: "year_id", label: "Year id", type: "string", required: false, description: "ID of the year." },
+                {
+                  name: "version_id",
+                  label: "Version id",
+                  type: "string",
+                  required: false,
+                  description: "ID of the version.",
+                },
+              ],
+            },
+          ],
+        },
+        {
+          name: "body.scheduled_publish_time",
+          label: "Scheduled publish time",
+          type: "integer",
+          required: false,
+          description:
+            "Scheduled publish time of this item: 1) Can only set scheduled_publish_time for item with UNLIST status 2) Can only set the time from current time +1hour to current time +90days, and the time is only allowed to be accurate to the minute",
+          format: "datetime",
+          timestampUnit: "seconds",
+        },
+        {
+          name: "body.authorised_brand_id",
+          label: "Authorised brand id",
+          type: "string",
+          required: false,
+          description: "ID of authorised reseller brand.",
+        },
+        {
+          name: "body.size_chart_info",
+          label: "Size chart info",
+          type: "object",
+          required: false,
+          description: "",
+          children: [
+            {
+              name: "size_chart",
+              label: "Size chart",
+              type: "string",
+              required: false,
+              description:
+                'ID of size chart image. If you want to remove the image size chart of the item, please pass the "size_chart" empty. You only need to fill out either the image or template. If both are filled, only the template will be kept. Notes: Both CB shops and local shops are supported to set "size_chart".',
+              allowEmpty: true,
+            },
+            {
+              name: "size_chart_id",
+              label: "Size chart id",
+              type: "string",
+              required: false,
+              description:
+                'ID of template size chart. If you want to remove the template size chart of the item, please pass the "size_chart_id" as 0. You only need to fill out either the image or template. If both are filled, only the template will be kept. Notes: Only local shops are supported to set "size_chart_id", for CB shops please use "size_chart".',
+            },
+          ],
+        },
+        {
+          name: "body.purchase_limit_info",
+          label: "Purchase limit info",
+          type: "object",
+          required: false,
+          description: "purchase limit info",
+          children: [
+            {
+              name: "min_purchase_limit",
+              label: "Min purchase limit",
+              type: "integer",
+              required: false,
+              description: "minimum purchase count for each order",
+            },
+            {
+              name: "max_purchase_limit",
+              label: "Max purchase limit",
+              type: "object",
+              required: false,
+              description: "",
+              children: [
+                {
+                  name: "purchase_limit",
+                  label: "Batas pembelian",
+                  type: "integer",
+                  required: false,
+                  description: "maximum purchase limit for each order.",
+                },
+              ],
+            },
+          ],
+        },
+        {
+          name: "body.medicine_id",
+          label: "Medicine id",
+          type: "string",
+          required: false,
+          description:
+            "[Only for ID local sellers] as a unique identifier for each standardized medicine, the medicine id can only be obtained offline",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "additional_information",
         "brand",
@@ -19984,14 +24980,34 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "weight",
       ],
     },
-    numericIds: [],
+    numericIds: [
+      "body.attribute_list[].attribute_id",
+      "body.attribute_list[].attribute_value_list[].value_id",
+      "body.logistic_info[].size_id",
+      "body.logistic_info[].logistic_id",
+      "body.item_id",
+      "body.category_id",
+      "body.brand.brand_id",
+      "body.compatibility_info.vehicle_info_list[].brand_id",
+      "body.compatibility_info.vehicle_info_list[].model_id",
+      "body.compatibility_info.vehicle_info_list[].year_id",
+      "body.compatibility_info.vehicle_info_list[].version_id",
+      "body.authorised_brand_id",
+      "body.size_chart_info.size_chart_id",
+      "body.medicine_id",
+    ],
     source: {
       file: "v2.product.update_item.md",
       sha256: "b20245f05d8e5e35a52307e8603223340e1f83be9bda0e762ae7736123f80e75",
       structuredFile: "v2.product.update_item.structured.json",
       structuredSha256: "73cbf11398f440828be724933e0392355bb93900e65c853ace5187e87ef4667f",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -20011,19 +25027,416 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.product.update_kit_item?module=89&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Nama parameter bertingkat berulang; struktur dan syarat per cabang belum terverifikasi.",
+      fields: [
+        { name: "body.item_id", label: "ID produk", type: "string", required: true, description: "ID of kit item." },
+        {
+          name: "body.item_setting",
+          label: "Item setting",
+          type: "object",
+          required: false,
+          description: "",
+          children: [
+            {
+              name: "item_name",
+              label: "Item name",
+              type: "string",
+              required: false,
+              description: "The name of this kit item.",
+            },
+            {
+              name: "images",
+              label: "Images",
+              type: "object",
+              required: false,
+              description: "Item images with 1:1 ratio.",
+              children: [
+                {
+                  name: "image_id_list",
+                  label: "Image id list",
+                  type: "array",
+                  required: true,
+                  description: "ID of image.",
+                  itemType: "string",
+                },
+              ],
+            },
+            {
+              name: "long_images",
+              label: "Long images",
+              type: "object",
+              required: false,
+              description: "Item images with 3:4 ratio.",
+              children: [
+                {
+                  name: "image_id_list",
+                  label: "Image id list",
+                  type: "array",
+                  required: true,
+                  description: "ID of image.",
+                  itemType: "string",
+                },
+              ],
+            },
+            {
+              name: "video_upload_id",
+              label: "Video upload id",
+              type: "array",
+              required: false,
+              description: "Video upload ID returned from video uploading API. Only accept one video_upload_id.",
+              itemType: "string",
+            },
+            {
+              name: "description",
+              label: "Deskripsi",
+              type: "string",
+              required: false,
+              description: "If description_type is normal, description information should be set by this field.",
+            },
+            {
+              name: "description_info",
+              label: "Description info",
+              type: "object",
+              required: false,
+              description:
+                "Rich text description field. Only whitelist sellers can use it. If you use the field, please upload the description_type=extended otherwise api will return error. If you don't use this field, you don't need to upload the description_type or upload description_type=normal",
+              children: [
+                {
+                  name: "extended_description",
+                  label: "Extended description",
+                  type: "object",
+                  required: true,
+                  description: "If description_type is extended , Description information should be set by this field.",
+                  children: [
+                    {
+                      name: "field_list",
+                      label: "Field list",
+                      type: "array",
+                      required: true,
+                      description: "Field of extended description.",
+                      itemType: "object",
+                      children: [
+                        {
+                          name: "field_type",
+                          label: "Field type",
+                          type: "enum",
+                          required: true,
+                          description:
+                            "Type of extended description field. See Data Definition- description_field_type (text , image).",
+                          options: ["text", "image"],
+                        },
+                        {
+                          name: "text",
+                          label: "Text",
+                          type: "string",
+                          required: false,
+                          description: "If field_type is text, text information will be set by this field.",
+                        },
+                        {
+                          name: "image_info",
+                          label: "Image info",
+                          type: "object",
+                          required: false,
+                          description: "If field_type is image, image will be set by this field.",
+                          children: [
+                            {
+                              name: "image_id",
+                              label: "Image id",
+                              type: "string",
+                              required: true,
+                              description: "Image id.",
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              name: "description_type",
+              label: "Description type",
+              type: "string",
+              required: false,
+              description:
+                "See Data Definition- description_type (normal , extended). If you want to use extended_description, this field must be inputed.",
+            },
+            {
+              name: "logistic_info",
+              label: "Logistic info",
+              type: "array",
+              required: false,
+              description: "Logistic channel setting.",
+              itemType: "object",
+              children: [
+                {
+                  name: "logistic_id",
+                  label: "Logistic id",
+                  type: "string",
+                  required: true,
+                  description: "ID of the channel.",
+                },
+                {
+                  name: "enabled",
+                  label: "Enabled",
+                  type: "boolean",
+                  required: true,
+                  description: "Whether channel is enabled for this kit item.",
+                },
+                {
+                  name: "shipping_fee",
+                  label: "Shipping fee",
+                  type: "number",
+                  required: false,
+                  description: "Shipping fee. Only needed when logistics fee_type = CUSTOM_PRICE.",
+                  format: "money",
+                },
+                {
+                  name: "size_id",
+                  label: "Size id",
+                  type: "string",
+                  required: false,
+                  description: "Size ID. Only needed when logistic fee_type = SIZE_SELECTION.",
+                },
+                {
+                  name: "is_free",
+                  label: "Is free",
+                  type: "boolean",
+                  required: false,
+                  description: "Whether cover shipping fee for buyer.",
+                },
+              ],
+            },
+            { name: "unlisted", label: "Unlisted", type: "boolean", required: false, description: "Unlist or not." },
+            { name: "item_sku", label: "Item sku", type: "string", required: false, description: "SKU tag of item" },
+            {
+              name: "weight",
+              label: "Weight",
+              type: "number",
+              required: false,
+              description: "The weight of this kit item, the unit is KG.",
+            },
+            {
+              name: "dimension",
+              label: "Dimension",
+              type: "object",
+              required: false,
+              description: "The dimension of this kit item.",
+              children: [
+                {
+                  name: "package_length",
+                  label: "Package length",
+                  type: "integer",
+                  required: true,
+                  description: "The length of package for this kit item, the unit is CM.",
+                },
+                {
+                  name: "package_width",
+                  label: "Package width",
+                  type: "integer",
+                  required: true,
+                  description: "The width of package for this kit item, the unit is CM.",
+                },
+                {
+                  name: "package_height",
+                  label: "Package height",
+                  type: "integer",
+                  required: true,
+                  description: "The height of package for this kit item, the unit is CM.",
+                },
+              ],
+            },
+            {
+              name: "pre_order",
+              label: "Pre order",
+              type: "object",
+              required: false,
+              description: "Pre order setting.",
+              children: [
+                {
+                  name: "is_pre_order",
+                  label: "Is pre order",
+                  type: "boolean",
+                  required: true,
+                  description: "Whether kit item is pre order.",
+                },
+                {
+                  name: "days_to_ship",
+                  label: "Days to ship",
+                  type: "string",
+                  required: false,
+                  description:
+                    "The guaranteed days to ship orders. Please get the days_to_ship range from get_kit_item_limit api.",
+                },
+              ],
+            },
+            {
+              name: "model_list",
+              label: "Model list",
+              type: "array",
+              required: false,
+              description: "Model info list, model number at most 9.",
+              itemType: "object",
+              minimum: 1,
+              children: [
+                {
+                  name: "model_id",
+                  label: "ID varian",
+                  type: "string",
+                  required: false,
+                  description: "ID of this kit model.",
+                },
+                {
+                  name: "tier_index",
+                  label: "Tier index",
+                  type: "array",
+                  required: true,
+                  description: "Tier index of this kit model.",
+                  itemType: "integer",
+                },
+                {
+                  name: "model_sku",
+                  label: "Model sku",
+                  type: "string",
+                  required: false,
+                  description:
+                    "Seller SKU of this kit model, model_sku length information needs to be no more than 100 characters.",
+                },
+                {
+                  name: "original_price",
+                  label: "Original price",
+                  type: "number",
+                  required: false,
+                  description: "Original price of this kit model.",
+                  format: "money",
+                },
+                {
+                  name: "component_list",
+                  label: "Component list",
+                  type: "array",
+                  required: false,
+                  description:
+                    "Please get the amount of item/model that one kit model support from get_kit_item_limit.",
+                  itemType: "object",
+                  minimum: 1,
+                  children: [
+                    {
+                      name: "component_item_id",
+                      label: "Component item id",
+                      type: "string",
+                      required: true,
+                      description: "ID of the item that composes this kit model.",
+                    },
+                    {
+                      name: "component_model_id",
+                      label: "Component model id",
+                      type: "string",
+                      required: false,
+                      description: "ID of the model that composes this kit model.",
+                    },
+                    {
+                      name: "quantity",
+                      label: "Quantity",
+                      type: "integer",
+                      required: true,
+                      description: "The amount of the item/model that composes this kit model.",
+                    },
+                    {
+                      name: "main_component",
+                      label: "Main component",
+                      type: "boolean",
+                      required: false,
+                      description:
+                        "Whether this item/model is the main component for this kit. One kit item can only have one item/model as main component.",
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              name: "tier_variation_list",
+              label: "Tier variation list",
+              type: "array",
+              required: false,
+              description:
+                "Tier variation info list. Only support one tier variation, and each kit item can have from 1 to 9 kit variations.",
+              itemType: "object",
+              children: [
+                { name: "name", label: "Nama", type: "string", required: false, description: "Tier variation name." },
+                {
+                  name: "option_list",
+                  label: "Option list",
+                  type: "array",
+                  required: true,
+                  description: "Tier variation option info list.",
+                  itemType: "object",
+                  children: [
+                    { name: "option", label: "Option", type: "string", required: true, description: "Option name." },
+                    {
+                      name: "image",
+                      label: "Image",
+                      type: "object",
+                      required: false,
+                      description: "Option image.",
+                      children: [
+                        {
+                          name: "image_id",
+                          label: "Image id",
+                          type: "string",
+                          required: true,
+                          description:
+                            "ID of image. If you choose to define, you need to define an image for all options.",
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          name: "body.sync_setting",
+          label: "Sync setting",
+          type: "object",
+          required: false,
+          description: "",
+          children: [
+            {
+              name: "auto_sync_dts",
+              label: "Auto sync dts",
+              type: "boolean",
+              required: true,
+              description: "Auto sync the pre_order setting from main component or not.",
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "message", "request_id", "warning"],
     },
-    numericIds: [],
+    numericIds: [
+      "body.item_id",
+      "body.item_setting.logistic_info[].logistic_id",
+      "body.item_setting.logistic_info[].size_id",
+      "body.item_setting.pre_order.days_to_ship",
+      "body.item_setting.model_list[].model_id",
+      "body.item_setting.model_list[].component_list[].component_item_id",
+      "body.item_setting.model_list[].component_list[].component_model_id",
+    ],
     source: {
       file: "v2.product.update_kit_item.md",
       sha256: "7ad4e7b7b1ee01b05dc5546ac5a4743df4fffa6fe4eb6ec7b9d9c0eed6c858e2",
       structuredFile: "v2.product.update_kit_item.structured.json",
       structuredSha256: "aeaa1d58b02d6f4e0b8dc809ce433a64ebc29652b5a4c369eba22c1281bc5128",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -20043,20 +25456,124 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.product.update_model?module=89&type=1",
-      fields: [],
-      available: false,
-      unavailableReason:
-        "Letak parameter opsional/bersyarat tidak lengkap dalam contoh payload; pemetaan bertingkat belum terverifikasi.",
+      fields: [
+        { name: "body.item_id", label: "ID produk", type: "string", required: true, description: "ID of item" },
+        {
+          name: "body.model",
+          label: "Model",
+          type: "array",
+          required: true,
+          description: "Length should be between 1 to 50",
+          itemType: "object",
+          children: [
+            { name: "model_id", label: "ID varian", type: "string", required: true, description: "ID of model" },
+            {
+              name: "model_sku",
+              label: "Model sku",
+              type: "string",
+              required: true,
+              description:
+                "Seller SKU for model, model_sku length information needs to be no more than 100 characters. CNSC and KRSC sellers are not allowed to update the MPSKU model sku.",
+              maxLength: 100,
+            },
+            {
+              name: "pre_order",
+              label: "Pre order",
+              type: "object",
+              required: false,
+              description: "",
+              children: [
+                {
+                  name: "is_pre_order",
+                  label: "Is pre order",
+                  type: "boolean",
+                  required: true,
+                  description: "Pre-order",
+                },
+                {
+                  name: "days_to_ship",
+                  label: "Days to ship",
+                  type: "integer",
+                  required: false,
+                  description: "The days to ship. Only work for is_pre_order=true",
+                },
+              ],
+            },
+            {
+              name: "gtin_code",
+              label: "Gtin code",
+              type: "string",
+              required: false,
+              description:
+                '- GTIN is an identifier for trade items, developed by the international organization GS1. - They have 8 to 14 digits. The most common are UPC, EAN, JAN and ISBN. - GTIN will help boost positioning in online marketing channels like Google and Facebook. - That incorporation with GTIN will also aid in Search and Recommendation in Shopee itself allowing buyers to have higher likelihood of finding one\'s listing. Note: If you want to set “Item without GTIN”, please pass the gtin_code as "00". The validation rule is based on the value return in gtin_validation_rule" field in v2.product.get_item_limit API - Mandatory: This field is required and must contain a correctly formatted GTiN number. - Flexible: This field is required and must contain either a correctly formatted GTlN number or "00" to declare that the item/model has no valid GTlN. - Optional: This field is optional and can contain a correctly formatted GTiN number, "00" or be omitted entirely.',
+            },
+            {
+              name: "model_status",
+              label: "Model status",
+              type: "string",
+              required: false,
+              description:
+                'can be "NORMAL" or "UNAVAILABLE". Only CNSC and KRSC sellers can set the model_status. Normal models can be sold on the buyer\'s side, and UNAVAILABLE models cannot be sold on the buyer\'s side.',
+            },
+            {
+              name: "weight",
+              label: "Weight",
+              type: "number",
+              required: false,
+              description:
+                "The weight of this model, the unit is KG. If don't set the weight of this model, will use the weight of item by default. If set the dimension of this model, them must set the weight of this model.",
+            },
+            {
+              name: "dimension",
+              label: "Dimension",
+              type: "object",
+              required: false,
+              description:
+                "The dimension of this model. If don't set the dimension of this model, will use the dimension of item by default.",
+              children: [
+                {
+                  name: "package_height",
+                  label: "Package height",
+                  type: "integer",
+                  required: true,
+                  description: "The height of package for this model, the unit is CM.",
+                },
+                {
+                  name: "package_length",
+                  label: "Package length",
+                  type: "integer",
+                  required: true,
+                  description: "The length of package for this model, the unit is CM.",
+                },
+                {
+                  name: "package_width",
+                  label: "Package width",
+                  type: "integer",
+                  required: true,
+                  description: "The width of package for this model, the unit is CM.",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "message", "request_id", "warning"],
     },
-    numericIds: [],
+    numericIds: ["body.item_id", "body.model[].model_id"],
     source: {
       file: "v2.product.update_model.md",
       sha256: "1600d4124ed6b5e8c4ba976bd631683f391ad821a09db3639143338e2c62fca6",
       structuredFile: "v2.product.update_model.structured.json",
       structuredSha256: "42df309d083e3d831bc7937672745cf4b692b4a74386496d3ff7fbe8de4ea742",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -20098,8 +25615,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "b311112cfdc53df2838ff96f9a9d7c06e1272470eb900bc73e4c0cc34671eb44",
       structuredFile: "v2.product.update_price.structured.json",
       structuredSha256: "ab8ba4e1ccf43792ccbe38b1049644ada18b08771120362bdf4512b01b804002",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -20121,7 +25641,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       officialUrl: "https://open.shopee.com/documents/v2/v2.product.update_sip_item_price?module=89&type=1",
       fields: [],
       available: false,
-      unavailableReason: "Nama parameter bertingkat berulang; struktur dan syarat per cabang belum terverifikasi.",
+      unavailableReason:
+        "Perubahan harga SIP memerlukan alur harga khusus beserta sinkronisasi harga produk; tidak dijalankan lewat formulir umum.",
       responseFields: ["error", "message", "request_id", "warning"],
     },
     numericIds: [],
@@ -20130,8 +25651,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "57eacd5e173bd9f941e8bd0ee6c178651d57acd633c9b9c37fe087b35912fd33",
       structuredFile: "v2.product.update_sip_item_price.structured.json",
       structuredSha256: "930f49bd90a03a32c55d928980712a201c347b8ec404da6d4711cceee8c1cdf6",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -20174,8 +25698,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "6f8b84c79140a848ab4d5e9ebbfc3ae792faf876b2a1357b511f6b8035e10d02",
       structuredFile: "v2.product.update_stock.structured.json",
       structuredSha256: "117df2c72fd269c375c0bc9d948331343244f5e79573015aa5ded4c4e771df19",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -20195,20 +25722,109 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.product.update_tier_variation?module=89&type=1",
-      fields: [],
-      available: false,
-      unavailableReason:
-        "Letak parameter opsional/bersyarat tidak lengkap dalam contoh payload; pemetaan bertingkat belum terverifikasi.",
+      fields: [
+        { name: "body.item_id", label: "ID produk", type: "string", required: true, description: "ID of item." },
+        {
+          name: "body.model_list",
+          label: "Model list",
+          type: "array",
+          required: false,
+          description: "Item's model list",
+          itemType: "object",
+          minimum: 1,
+          children: [
+            { name: "model_id", label: "ID varian", type: "string", required: true, description: "ID of model" },
+            {
+              name: "tier_index",
+              label: "Tier index",
+              type: "array",
+              required: true,
+              description: "Model's tier_variation",
+              itemType: "integer",
+            },
+          ],
+        },
+        {
+          name: "body.standardise_tier_variation",
+          label: "Standardise tier variation",
+          type: "array",
+          required: false,
+          description:
+            "item standardise tier variation There is at least one standardise_tier_variation and tier_variation",
+          itemType: "object",
+          children: [
+            {
+              name: "variation_id",
+              label: "Variation id",
+              type: "string",
+              required: true,
+              description: "standardise tier variation ID",
+            },
+            {
+              name: "variation_name",
+              label: "Variation name",
+              type: "string",
+              required: false,
+              description: "standardise tier variation name",
+            },
+            {
+              name: "variation_group_id",
+              label: "Variation group id",
+              type: "string",
+              required: false,
+              description: "standardise tier variation group id",
+            },
+            {
+              name: "variation_option_list",
+              label: "Variation option list",
+              type: "array",
+              required: true,
+              description: "standardise tier variation option list",
+              itemType: "object",
+              children: [
+                {
+                  name: "variation_option_id",
+                  label: "Variation option id",
+                  type: "string",
+                  required: true,
+                  description: "standardise tier variation option ID",
+                },
+                {
+                  name: "variation_option_name",
+                  label: "Variation option name",
+                  type: "string",
+                  required: false,
+                  description: "standardise tier variation option value",
+                },
+                { name: "image_id", label: "Image id", type: "string", required: false, description: "ID of image" },
+              ],
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "message", "request_id", "warning"],
     },
-    numericIds: [],
+    numericIds: [
+      "body.item_id",
+      "body.model_list[].model_id",
+      "body.standardise_tier_variation[].variation_id",
+      "body.standardise_tier_variation[].variation_group_id",
+      "body.standardise_tier_variation[].variation_option_list[].variation_option_id",
+    ],
     source: {
       file: "v2.product.update_tier_variation.md",
       sha256: "7a098afea264cc10cbd198b23578507271718442b829192eba92c2e31959b68f",
       structuredFile: "v2.product.update_tier_variation.structured.json",
       structuredSha256: "b8c29474f8978823093b4d9c695eb32415ad46d777234044ef35db5234669ac0",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -20267,8 +25883,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "78c9f54be99e6dd17591bb3692763169b3633626ca327cec6a12124c137302e9",
       structuredFile: "v2.public.get_access_token.structured.json",
       structuredSha256: "178c8ee542a77e419a6ba8abf60dfd8d0f6c341e96b816f641959c7f2ba5b375",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -20327,8 +25946,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "407c08f8dad874810a8f1fc7d5b45402d4a3ee0e075de81556491a7709eee9a6",
       structuredFile: "v2.public.get_merchants_by_partner.structured.json",
       structuredSha256: "3b2508721dc9d0509faa77e1e9c541e98166246e3f843c1d58c18f093c83f460",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -20379,8 +26001,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "1039a3f711ad81c25bd2fbfb6e71cf9304652c30c5734912d865a60594a796ae",
       structuredFile: "v2.public.get_shopee_ip_ranges.structured.json",
       structuredSha256: "19e6fb6aea94b57c178f0d30f3feef799af4a35a7f52e5556aeff6e0d300605d",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -20439,8 +26064,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "64f7f99d3181178a30268df6f0a01bfad81977fdfca962acb31a0bcf5739516e",
       structuredFile: "v2.public.get_shops_by_partner.structured.json",
       structuredSha256: "10af8fa5537495cb681332bc9310b5d4a5bf00ca4d510cd0dc5e9569cbaea13a",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -20490,8 +26118,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "4bf9517433ebd53af3db577083444e068e993078f5c8809e59401d083cea6fdb",
       structuredFile: "v2.public.get_token_by_resend_code.structured.json",
       structuredSha256: "69841ec7d675fc0138958f1e46b8cb9db6340a75fc0dadec0fa310bbddb0304a",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -20541,8 +26172,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "7fd56a8b423c3b3c660efe8bc6ab4201def2b74e9cff0d73cc3dc4786b5651f6",
       structuredFile: "v2.public.refresh_access_token.structured.json",
       structuredSha256: "f7ba0f9ec791550abda682bfb08284b16c8613cdb35d467248a9aa5fa384962f",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -20591,8 +26225,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "41abc569b4703c729087f647206ed76e35d3251239daaf9ec744e3b544d51804",
       structuredFile: "v2.push.confirm_consumed_lost_push_message.structured.json",
       structuredSha256: "32faf4fd6935249e7d18fbd7f459430f474b787791b530508de8dccd1c198f0e",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -20652,8 +26289,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "baa50b825ef6d977cd8c4bab4890cbd4bbb4a5063555b4bf792bd811f58f564a",
       structuredFile: "v2.push.get_app_push_config.structured.json",
       structuredSha256: "1ebc14a7e9e5207dd9958f139075be5c4446ae32a80648c1ae19d4edb6c440e9",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -20713,8 +26353,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "2b143c4a1f8e4dc1b2d60ce37762b41cdc227b41db07a6da8a46abde4d8819f4",
       structuredFile: "v2.push.get_lost_push_message.structured.json",
       structuredSha256: "1261ee4baed0b1a0e5d099bc0bd101f5c3400947ec88d6bd97a66da4f2b4ec52",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -20763,8 +26406,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "dadeeef486509d6d115fbd52584708f4d8abd7761cee2cdde419d2283502096b",
       structuredFile: "v2.push.set_app_push_config.structured.json",
       structuredSha256: "87a4791deda879deb2e340c582463798591d9e83b67bd51b78dbb49f4f0ddd3c",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "public",
   },
   {
     operation: {
@@ -20803,8 +26449,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "7f7c85051288f19580f7d2fbb143a295c573b2cbcf328214b57fa9b5c3aaeb7e",
       structuredFile: "v2.returns.accept_offer.structured.json",
       structuredSha256: "37750b4a2117351868f49352c7aee06b3ceaf0a2a5ba32551d5a894564b604e2",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -20852,8 +26501,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "18321ca268ff0abfa14320f7b471ab1c70146b3b63ec2eb980cf8c51014162c3",
       structuredFile: "v2.returns.cancel_dispute.structured.json",
       structuredSha256: "8e6cee70f7005cbf9a84dc0b945aa35545ce5f5f4bf3e8021db3b802a812bc85",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -20884,8 +26536,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "e80f836af3b6ca264124f658166c79e13523747524fbde4cb277623338100917",
       structuredFile: "v2.returns.confirm.structured.json",
       structuredSha256: "dcaeb81f38781a262e9eb5bdf66b379b390d8d28b0ca1f26266b85b0ccaae58e",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -20916,8 +26571,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "81ca2102f65311e429d53fbaebf4997a9b9e99545e8313a4e00acb6b5af2b1fa",
       structuredFile: "v2.returns.convert_image.structured.json",
       structuredSha256: "6899aae87bed330b2e53cac63036ed48162225e547162ce397dcafb184d2952a",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -20948,8 +26606,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "878de7c1543136e4207d7087aa925a2d65ed763878f0fe74da9118df34d84577",
       structuredFile: "v2.returns.dispute.structured.json",
       structuredSha256: "7a2e3d5910bc1e52117ff28a1142dd2775b832ff504cb639402cf75526dee18a",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -21000,8 +26661,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "f14f0f0157977ee4a3e71cb4ef87903c6831b1820f9c452f0157e2f6c6222c64",
       structuredFile: "v2.returns.get_available_solutions.structured.json",
       structuredSha256: "4e482a6bfe7828030e33b34667d4b2ea1f235791524c5992f33ff9ed4fe6351b",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -21119,8 +26783,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "bdb80bda9996535a0a4b13d85d81bfcceffc7702e176a55b8c2851c18a08da70",
       structuredFile: "v2.returns.get_return_detail.structured.json",
       structuredSha256: "8c973c6b114658d6803ea8492f7f41eca428108400a7cb7d97bde396f16c32eb",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -21167,8 +26834,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "a5ff565702fe218b496223ca69d0a8ea8cd517d2fa8bff15e07f6f3ccccf4ab9",
       structuredFile: "v2.returns.get_return_dispute_reason.structured.json",
       structuredSha256: "ea88678be1fee1c17455755bdbab7c0b36a97e393688fe661c017fe30b63fae3",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -21253,8 +26923,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "69f55abdc6ca324f64c624e51aa2d346d352e642458d4c2d4db9c3269eaa88f0",
       structuredFile: "v2.returns.get_return_list.structured.json",
       structuredSha256: "122e2fd4fcc50500ce2226f01c4a8394ee808886c884c2bffb8d265ad9488b7a",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -21313,8 +26986,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "224ac73675a87d923a4aa237656f7fe6ac622b3d91828d5d625deb2cdbe45f1f",
       structuredFile: "v2.returns.get_reverse_tracking_info.structured.json",
       structuredSha256: "2ba2fd492ec2104162dfc9661e5f2e6ee1a627e09f52fb12073bc6ddf832e437",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -21357,8 +27033,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "96ae9db4b3bba9e9acc090641cac5da04344d3004ed4b248c45925063711a571",
       structuredFile: "v2.returns.get_shipping_carrier.structured.json",
       structuredSha256: "83f82819016a9396ab1cd465a226bea1b9361bca357abe80398ffbc18073d457",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -21412,8 +27091,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "17ad74064792595009b91d9de16ace1e2bef0adb48c1bdffd98426f7612ee339",
       structuredFile: "v2.returns.offer.structured.json",
       structuredSha256: "dc972bdeb8270dff0f2131d40d61542d0d97dc4ad842192ba9d4f567cec301be",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -21462,8 +27144,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "5e2802ef1e91491a5ff7cfe732c363e40dfd5e17b8078ba1f31954f8ea82d8c0",
       structuredFile: "v2.returns.query_proof.structured.json",
       structuredSha256: "982b0d6db5b9c61118e758515bc8ec28f39b5bb72a1f12f00b970cc8c33b4e39",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -21534,8 +27219,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "fbb74587085cbedbd90c9ee2f358375df5dea05aa1a980bbd6f2f338d8655c47",
       structuredFile: "v2.returns.upload_proof.structured.json",
       structuredSha256: "2f0dd52157eae08e0c939fae78ec7e896216275792139112af4739c9f96bacf7",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -21566,8 +27254,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "c035b111786eeb3654cc3acc0964ab1d9317ea6853dfeb164b2f63257e93abbc",
       structuredFile: "v2.returns.upload_shipping_proof.structured.json",
       structuredSha256: "ecd4e15c3af8922ba07f923d0a70bc86859dbf868bcbc276f2b080cdabe1619d",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -21598,8 +27289,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "bb1107dcfbfd033c5b2f395a821eb3e8ea5277c065452413daef3b2ca7cbe520",
       structuredFile: "v2.sbs.get_bound_whs_info.structured.json",
       structuredSha256: "400ef5ed9cf521dc28a17ab467f4510d5e0c9a1510d621dcedd870663aa8e463",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -21751,8 +27445,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "fe75af00a0f33f0ec4a5e981ca11f90f8ac0b0bce94b78333b9d7613c683e518",
       structuredFile: "v2.sbs.get_current_inventory.structured.json",
       structuredSha256: "5e2f65416026f90e7a0ac12e7e390093b3dfb1d44b17185b549afa9869b81c6a",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -21855,8 +27552,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "17d45359067c5b78fcdcb550f2c44ea7cbb19ebd7fada0299101bd191fdb439b",
       structuredFile: "v2.sbs.get_expiry_report.structured.json",
       structuredSha256: "1e884f32ae35294eed93426c0a81e2ca0ae92189899df22690786ad62a851f8e",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -21979,8 +27679,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "a608eb95c49a8eb59caf36af125fe489f013c92ac32b49865b335860e902edde",
       structuredFile: "v2.sbs.get_stock_aging.structured.json",
       structuredSha256: "a23e1d8555cef8dbf118b24124f8797f3d5574a6914e6f08a432c1b2daada717",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -22127,8 +27830,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "92377609b452308bd7e7b0cd5e95cd1c3c64a2b97b70ea624d6443cb6394f197",
       structuredFile: "v2.sbs.get_stock_movement.structured.json",
       structuredSha256: "0b18b90f263bf8ecc30d379d82aac3337079d83e480d4e7cb4d59e98ad7bdf51",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -22187,8 +27893,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "d25d572f7972a1411908a96a19406a273e82fb964aab30c3aba453485b389399",
       structuredFile: "v2.shop.get_authorised_reseller_brand.structured.json",
       structuredSha256: "4e1302cd0e2eb79bf9de1ba173f72dc9c706ccf7b4d87031472dfe2be2b1c8ac",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -22244,8 +27953,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "84a0a0bd4a1bf7733630c11d47ecc863a211b42f171f76c712a6aada803fc3c8",
       structuredFile: "v2.shop.get_br_shop_onboarding_info.structured.json",
       structuredSha256: "7ae63ef9494181bb6e7ec168b1f9127341e982982d144072534ef820d052bdd6",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -22297,8 +28009,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "df01bac78fd1d30a4589b0eab5fdbefaabf1a82b77b0e4c4c49590d13f6a9ac7",
       structuredFile: "v2.shop.get_profile.structured.json",
       structuredSha256: "b98f814888d3b72a9f7839d51d5dfdd3f39433d6597fc4e6fc105e048ec9cd75",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -22341,8 +28056,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "c2f73ee4bd53361094ff51c0a974f3343455d5d1275f042cc9b0e14ba7b245a4",
       structuredFile: "v2.shop.get_shop_holiday_mode.structured.json",
       structuredSha256: "37af21ea6bd90fb40626a2185184c881aa7336a7a68a35d52021ccc691958ee7",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -22414,8 +28132,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "696638c0f9c0ee72368b7a4ba993ca42e7983093598480afc6fc71551691da76",
       structuredFile: "v2.shop.get_shop_info.structured.json",
       structuredSha256: "ad46a28397f00bbeb96d702f68b2e3f3f3980fcd1323c8756803bceafb70bf66",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -22456,7 +28177,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         {
           name: "query.cursor",
           label: "Kursor halaman",
-          type: "integer",
+          type: "string",
           required: false,
           description:
             "The last notification_id returned on the page. When using the cursor, notifications will start with the one following this cursor notification. If no cursor is provided, the latest message from the shop will be returned.",
@@ -22469,18 +28190,24 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           description: "Default 10; maximum 50",
         },
       ],
-      available: false,
-      unavailableReason: "Letak kursor respons belum terverifikasi dari contoh respons sukses.",
+      available: true,
+      unavailableReason: null,
       responseFields: ["content", "create_time", "cursor", "data", "title", "url"],
     },
-    numericIds: [],
+    numericIds: ["query.cursor"],
     source: {
       file: "v2.shop.get_shop_notification.md",
       sha256: "8f340b0422964a20d7cd816f6189d5cde31bc50578aa4fc19e161b8e92410b11",
       structuredFile: "v2.shop.get_shop_notification.structured.json",
       structuredSha256: "cd711d3943929c255a9b83462747aa76d511fc0ea942f97902d5ee364a0ba7a8",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
+    pagination: { cursorPath: ["cursor"], numeric: true },
   },
   {
     operation: {
@@ -22528,8 +28255,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "7dee30152133d17fadc12cd5bc9caf23d3d91a3e637bbbdf73954d26aec38c3e",
       structuredFile: "v2.shop.get_warehouse_detail.structured.json",
       structuredSha256: "e479f81640c5ca4547154f438f92599fca34a58a95c363e6760a171a75a4bd0e",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -22573,6 +28303,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: false,
           description: 'Holiday start time should be whole hour and could be parsed as "2026:01:16 15:00:00"',
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.holiday_mode_end_time",
@@ -22582,6 +28313,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           description:
             'Holiday end time plus one second should be whole hour, which means the input timestamp must be able to be parsed as "2025:01:20 17:59:59" and the holiday_end_time must be larger than holiday_start_time',
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.holiday_mode_description",
@@ -22601,8 +28333,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "faa231ea1aa01b23179491915cde715884a27f78c5425d6eb87be43934e62919",
       structuredFile: "v2.shop.set_shop_holiday_mode.structured.json",
       structuredSha256: "eb2a6aeae4bf7848b10fd3bc812dcbf6a0cd40e669507fe56c255326e1fced53",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -22662,8 +28397,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "0f538e3e23e2974ef116f3d11b7f31be89efb0007722a471283fc128cbc430fc",
       structuredFile: "v2.shop.update_profile.structured.json",
       structuredSha256: "b1b1c6f6c2c99b2ff129f9a5cf59413d15b7d43c12f5052c6157cef6dd61285f",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -22721,8 +28459,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "4dffd03e98a4a72a1b842fe27eea8ea82a29056ad3d9df1e0eb95436e8585ee2",
       structuredFile: "v2.shop_category.add_item_list.structured.json",
       structuredSha256: "1a792c0e9c57de44940fee97534c54ac8d4ff7236b74fc9f89a5762e5a4daca8",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -22762,8 +28503,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "cb11b68e9eaad82121ad997587afc55c47ed2c2951fb9ab4a28c23f89172b327",
       structuredFile: "v2.shop_category.add_shop_category.structured.json",
       structuredSha256: "d48d662fc3c2b60f28dcdce033be4c332571e4590c7cf46c88fada1eeac210d4",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -22823,8 +28567,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "1f3bf59ad43d161e1448e62cc51f145d3d567384f719542946d6fac9115dde8c",
       structuredFile: "v2.shop_category.delete_item_list.structured.json",
       structuredSha256: "94b41df49645b72ad1669eaaaed0682f3a22404738403fa436998ebe0df98316",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -22863,8 +28610,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "1d3489705fd6a148fe7ab95d038c32ed593cccf66eff850cb8f35e7a9ea8d555",
       structuredFile: "v2.shop_category.delete_shop_category.structured.json",
       structuredSha256: "896713da9d45cffbbd7a9cf2d5742af71dc489bc62064c9ccca55c7fa944bb77",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -22926,8 +28676,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "8089f6196cf9be0b88f50956afedb9306216eeb1576fef732ebc546d1aa17da7",
       structuredFile: "v2.shop_category.get_item_list.structured.json",
       structuredSha256: "dc93d33f378fbcad32ce712d31368af5696fc5676231664f3b56d06d1dbab655",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -22994,8 +28747,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "5ce4efb6e55231fe158c35d2f25099d4b26b5e3ca40a7d20016525d3824537f4",
       structuredFile: "v2.shop_category.get_shop_category_list.structured.json",
       structuredSha256: "583d462d6b019a88487f82fcfa9ac66239ec872acc8e357af28d236a003c9ef3",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -23058,8 +28814,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "d044808c74ce42d8fa1782002c8d74b330a7dda432dbd2521a564683b216b583",
       structuredFile: "v2.shop_category.update_shop_category.structured.json",
       structuredSha256: "e963971891a546874915194dd6267dc3c3a0d9ed50c155daa9b5e5039695c260",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -23080,9 +28839,84 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       write: true,
       officialUrl:
         "https://open.shopee.com/documents/v2/v2.shop_flash_sale.add_shop_flash_sale_items?module=123&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Struktur objek bertingkat tidak memiliki contoh payload lengkap yang dapat diverifikasi.",
+      fields: [
+        { name: "body.flash_sale_id", label: "ID flash sale", type: "string", required: true, description: "" },
+        {
+          name: "body.items",
+          label: "Items",
+          type: "array",
+          required: true,
+          description: "",
+          itemType: "object",
+          minimum: 1,
+          children: [
+            { name: "item_id", label: "ID produk", type: "string", required: true, description: "" },
+            {
+              name: "purchase_limit",
+              label: "Batas pembelian",
+              type: "integer",
+              required: true,
+              description: "min=0, 0 means no limit",
+              minimum: 0,
+            },
+            {
+              name: "models",
+              label: "Models",
+              type: "array",
+              required: false,
+              description: "If the item has variation, this param is necessary.",
+              itemType: "object",
+              minimum: 1,
+              children: [
+                {
+                  name: "model_id",
+                  label: "ID varian",
+                  type: "string",
+                  required: true,
+                  description: "If the item has variation, this param is necessary.",
+                },
+                {
+                  name: "input_promo_price",
+                  label: "Input promo price",
+                  type: "number",
+                  required: true,
+                  description: "promotion price without tax",
+                  format: "money",
+                },
+                {
+                  name: "stock",
+                  label: "Stock",
+                  type: "integer",
+                  required: true,
+                  description:
+                    "min=1, Campaign Stock, Campaign stock can only be reserved from either Shopee stock or Seller stock",
+                  minimum: 1,
+                },
+              ],
+            },
+            {
+              name: "item_input_promo_price",
+              label: "Item input promo price",
+              type: "number",
+              required: false,
+              description:
+                "promotion price without tax of the item. If the item has no variation, this param is necessary, otherwise don't use this field",
+              format: "money",
+            },
+            {
+              name: "item_stock",
+              label: "Item stock",
+              type: "integer",
+              required: false,
+              description:
+                "min=1, The campaign stock of the item. If the item has no variation, this param is necessary, otherwise don't use this field",
+              minimum: 1,
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "err_code",
         "err_msg",
@@ -23098,14 +28932,19 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "unqualified_msg",
       ],
     },
-    numericIds: [],
+    numericIds: ["body.flash_sale_id", "body.items[].item_id", "body.items[].models[].model_id"],
     source: {
       file: "v2.shop_flash_sale.add_shop_flash_sale_items.md",
       sha256: "7ba1e766ff8417285e895ae077b7cae1eceba24e0e696f97fcc0e8bb669b24bc",
       structuredFile: "v2.shop_flash_sale.add_shop_flash_sale_items.structured.json",
       structuredSha256: "55f441a6b75830981efabe6ceb95de4637d9555ed296b7f73122084a26cdb638",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -23145,8 +28984,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "d3f61e038d16d79b0ffdbaccc3afeb5e91c6b510dbcee50e9168904f62889d7e",
       structuredFile: "v2.shop_flash_sale.create_shop_flash_sale.structured.json",
       structuredSha256: "04bdb32dc295be5c4fb4c8b198fa31b3c1cd65efba361ef73f9938531b1dc757",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -23185,8 +29027,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "8280524446e764815888db569bdae6a7dad222ac5eb60e836d6f4be38c26fc9e",
       structuredFile: "v2.shop_flash_sale.delete_shop_flash_sale.structured.json",
       structuredSha256: "7377c97abed5d654c4d3757ce864508678aa62eed465ba9e531c556f6a99d408",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -23241,8 +29086,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "d12da2ca30390e99070a05ee5d00dcece553dd3cf6ff18f878ccf9a8bf2f2f44",
       structuredFile: "v2.shop_flash_sale.delete_shop_flash_sale_items.structured.json",
       structuredSha256: "c3d1c94a49e1c4acc3177dc5ec666329dba54b94cd7d9d86e19d617a833ee08b",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -23299,8 +29147,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "8d63663dc91faf31fe9406a71c45990438724a27c9a7cc1f535a1fe7e1618762",
       structuredFile: "v2.shop_flash_sale.get_item_criteria.structured.json",
       structuredSha256: "3da8fdf59bfa8f2b052b9e573a9523306ccecc4806fe4f84c92d87a3af6a0b72",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -23346,8 +29197,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "435fc3bd4c09aa012d6511c11b426f159df7152b87016ec7eeed2f918e8914a6",
       structuredFile: "v2.shop_flash_sale.get_shop_flash_sale.structured.json",
       structuredSha256: "0f233344e0a2e6a593de003b4104f2fe22009aadc471fad9c9b72af3893148ce",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -23408,8 +29262,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "0aef651f5d6ecc788d1435770175b02c40fbcd987972b147f4fa7870df0d98a0",
       structuredFile: "v2.shop_flash_sale.get_shop_flash_sale_items.structured.json",
       structuredSha256: "ce89cd45638e306a2db0b5c45ac24c06db0ab0c1e5e1faf27025cd1cded63e99",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -23445,6 +29302,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: false,
           description: "you should use start_time and end_time together, and start_time shoule be < end_time",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.end_time",
@@ -23453,6 +29311,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: false,
           description: "you should use start_time and end_time together, and start_time shoule be < end_time",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         { name: "query.offset", label: "Posisi awal", type: "integer", required: true, description: "min=0,max=1000" },
         { name: "query.limit", label: "Jumlah hasil", type: "integer", required: true, description: "min=1,max=100" },
@@ -23484,8 +29343,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "abfccdc05a351372b0ca89d6b88fef45d65aa1458ae61edfc1709967c76e52e5",
       structuredFile: "v2.shop_flash_sale.get_shop_flash_sale_list.structured.json",
       structuredSha256: "43b736ccaae60c3d133cc468af6b73e52bb8f5ad3c3ef51d44d932c961a624f6",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -23513,6 +29375,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: true,
           description: "min = now, max=2145887999, should be < end_time",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "query.end_time",
@@ -23521,6 +29384,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           required: true,
           description: "should be > start_time, max=2145887999",
           format: "datetime",
+          timestampUnit: "seconds",
         },
       ],
       available: true,
@@ -23533,8 +29397,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "b89564dd7ff3c0309e495273b8252e6b0991e14eae393b944ab5b1fb24316245",
       structuredFile: "v2.shop_flash_sale.get_time_slot_id.structured.json",
       structuredSha256: "f3cab377e0689b04d67511e84e98e401989650def270d89ba25018b23f5fd2b0",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -23575,8 +29442,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "46fdf485ad5b6d598d04f956c771bd3e9990b867d4fea8fda44273d0aee22ba9",
       structuredFile: "v2.shop_flash_sale.update_shop_flash_sale.structured.json",
       structuredSha256: "f34fbf216588f787803a90d3b2623c62f3449aba83c7a4c14a13d665781d9831",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -23597,9 +29467,105 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       write: true,
       officialUrl:
         "https://open.shopee.com/documents/v2/v2.shop_flash_sale.update_shop_flash_sale_items?module=123&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Struktur objek bertingkat tidak memiliki contoh payload lengkap yang dapat diverifikasi.",
+      fields: [
+        { name: "body.flash_sale_id", label: "ID flash sale", type: "string", required: true, description: "" },
+        {
+          name: "body.items",
+          label: "Items",
+          type: "array",
+          required: true,
+          description: "",
+          itemType: "object",
+          minimum: 1,
+          children: [
+            { name: "item_id", label: "ID produk", type: "string", required: true, description: "" },
+            {
+              name: "purchase_limit",
+              label: "Batas pembelian",
+              type: "integer",
+              required: false,
+              description:
+                "min=0, 0 means no limit if the item is in enabled status or the item has models in enabled status, you can't set this field",
+              minimum: 0,
+            },
+            {
+              name: "models",
+              label: "Models",
+              type: "array",
+              required: false,
+              description: "If the item has variation, this param is necessary, otherwise please don't use this field",
+              itemType: "object",
+              minimum: 1,
+              children: [
+                {
+                  name: "model_id",
+                  label: "ID varian",
+                  type: "string",
+                  required: true,
+                  description: "If the item has variation, this param is necessary.",
+                },
+                {
+                  name: "status",
+                  label: "Status",
+                  type: "integer",
+                  required: true,
+                  description: "you can use this field to set the status of model 0: disable 1: enable",
+                  minimum: 0,
+                  maximum: 1,
+                },
+                {
+                  name: "input_promo_price",
+                  label: "Input promo price",
+                  type: "number",
+                  required: false,
+                  description:
+                    "promotion price without tax if the model is enabled(status = 1) now, you can't set this field, you can only disable the model if the model is disabled(status = 0) now and you want to set this field, you should also set status to 1",
+                  format: "money",
+                },
+                {
+                  name: "stock",
+                  label: "Stock",
+                  type: "integer",
+                  required: false,
+                  description:
+                    "min=1, Campaign Stock, Campaign stock can only be reserved from either Shopee stock or Seller stock if the model is enabled(status = 1) now, you can't set this field, you can only disable the model if the model is disabled(status = 0) now and you want to set this field, you should also set status to 1",
+                  minimum: 1,
+                },
+              ],
+            },
+            {
+              name: "item_status",
+              label: "Item status",
+              type: "integer",
+              required: false,
+              description:
+                "The status of the item. If the item has no variation, this param is necessary, otherwise don't use this field you can use this field to set the status of item 0: disable 1: enable",
+              minimum: 0,
+              maximum: 1,
+            },
+            {
+              name: "item_input_promo_price",
+              label: "Item input promo price",
+              type: "number",
+              required: false,
+              description:
+                "The promotion price of the item. If the item has no variation, you can use this field to update the promotion price of the item, otherwise don't use this field if the item is enabled(item_status = 1) now, you can't set this field, you can only disable the item if the item is disabled(item_status = 0) now and you want to set this field, you should also set item_status to 1",
+              format: "money",
+            },
+            {
+              name: "item_stock",
+              label: "Item stock",
+              type: "integer",
+              required: false,
+              description:
+                "min=1, The campaign stock of the item. If the item has no variation, you can use this field to update the campaign stock of the item, otherwise don't use this field if the item is enabled(item_status = 1) now, you can't set this field, you can only disable the item if the item is disabled(item_status = 0) now and you want to set this field, you should also set item_status to 1",
+              minimum: 1,
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "err_code",
         "err_msg",
@@ -23615,14 +29581,19 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "unqualified_msg",
       ],
     },
-    numericIds: [],
+    numericIds: ["body.flash_sale_id", "body.items[].item_id", "body.items[].models[].model_id"],
     source: {
       file: "v2.shop_flash_sale.update_shop_flash_sale_items.md",
       sha256: "e3f80767e24b7f96e4fde7c68f6a5c276ed027817565973dbce9a262247cab82",
       structuredFile: "v2.shop_flash_sale.update_shop_flash_sale_items.structured.json",
       structuredSha256: "fd92c18c98efb034b8f24b5156c3fc2101b1d27e2bd9fa611b4aec9ea3bd1a38",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+      reviewFile: "tools/shopee-commerce-schema-reviews.json",
+      reviewSha256: "c4954bb2af3234f256076903d1b7b344eb8edcfe8fc9748768813380d2492290",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -23679,8 +29650,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "8682f17edaced8b48fde552acdc418b3798e09fad885a07a928eacb9e7f65caa",
       structuredFile: "v2.top_picks.add_top_picks.structured.json",
       structuredSha256: "0f139f21a955786cbeaba46cf498ca5d5311f2c6acbe7c4d82a1e3c92336f909",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -23719,8 +29693,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "04d30905cfee871646e7e60cab34b81bea8230b9aa4d0b622214d4cef76fa0d3",
       structuredFile: "v2.top_picks.delete_top_picks.structured.json",
       structuredSha256: "e6dba2c3ac1db460cde0dafaefd2b710e69847a1b53635ffdd6cc5c790160fab",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -23766,8 +29743,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "a41a636bab3285357abf74b973ac34561f69e8ff1c69ccbedea95c8cfc31c54c",
       structuredFile: "v2.top_picks.get_top_picks_list.structured.json",
       structuredSha256: "6ecfec898ddb594366c1bc2d5833fc4e4e4061423ec7bc9771cfd5daf475f2b0",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -23837,8 +29817,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "139f2cce30cf960cc95b3e078b734fef323c5a3f440e5fa5a99430de33ffac2b",
       structuredFile: "v2.top_picks.update_top_picks.structured.json",
       structuredSha256: "6b7dc73af6ba992d9004c0acd4416b5910ab57e281baf3b03faebdb663110791",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -23858,9 +29841,28 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.video.delete_video?module=129&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "body.video_upload_id_list",
+          label: "Video upload id list",
+          type: "array",
+          required: false,
+          description:
+            "You can only select one from video_upload_id_list and post_id_list: - If you want to delete video with draft status, please pass video_upload_id_list. - If you want to delete video with post status, please pass post_id_list.",
+          itemType: "string",
+        },
+        {
+          name: "body.post_id_list",
+          label: "Post id list",
+          type: "array",
+          required: false,
+          description:
+            "You can only select one from video_upload_id_list and post_id_list: - If you want to delete video with draft status, please pass video_upload_id_list. - If you want to delete video with post status, please pass post_id_list.",
+          itemType: "string",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "error",
         "fail_post_id",
@@ -23881,8 +29883,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "efcf3000e6d3043d28ed6ff9c6f82fe923b6084478e8a6e5c9732e9531414a3c",
       structuredFile: "v2.video.delete_video.structured.json",
       structuredSha256: "d3f0a35db703435aed41df2988445d212ace1c661088750edbf90a78adfff421",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -23902,9 +29907,115 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.video.edit_video_info?module=129&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "body.video_upload_list",
+          label: "Video upload list",
+          type: "array",
+          required: true,
+          description: "Video information collection, no more than 5.",
+          itemType: "object",
+          children: [
+            {
+              name: "video_upload_id",
+              label: "Video upload id",
+              type: "string",
+              required: true,
+              description: "ID of uploaded video. Obtain from v2.media.get_video_upload_result.",
+            },
+            {
+              name: "caption",
+              label: "Caption",
+              type: "string",
+              required: false,
+              description: "Description of the Shopee Video.",
+            },
+            {
+              name: "cover_image_url",
+              label: "Cover image url",
+              type: "string",
+              required: true,
+              description: "Selected cover image url of the Shopee Video. Obtain from v2.video.get_cover_list.",
+            },
+            {
+              name: "item_info",
+              label: "Item info",
+              type: "array",
+              required: false,
+              description: "List of products to be linked with the Shopee Video, no more than 6.",
+              itemType: "object",
+              children: [
+                {
+                  name: "item_id",
+                  label: "ID produk",
+                  type: "string",
+                  required: true,
+                  description: "Shopee's unique identifier for an item.",
+                },
+                {
+                  name: "custom_item_name",
+                  label: "Custom item name",
+                  type: "string",
+                  required: false,
+                  description: "Product display name in Shopee Video.",
+                },
+              ],
+            },
+            {
+              name: "allow_info",
+              label: "Allow info",
+              type: "object",
+              required: true,
+              description: "Whether allow stitch and duet.",
+              children: [
+                {
+                  name: "allow_duet",
+                  label: "Allow duet",
+                  type: "boolean",
+                  required: true,
+                  description: "Whether allow duet.",
+                },
+                {
+                  name: "allow_stitch",
+                  label: "Allow stitch",
+                  type: "boolean",
+                  required: true,
+                  description: "Whether allow stitch.",
+                },
+              ],
+            },
+            {
+              name: "scheduled_info",
+              label: "Scheduled info",
+              type: "object",
+              required: true,
+              description:
+                "When scheduled_post is true, scheduled_post_time must not empty. When scheduled_post is false, scheduled_post_time must empty.",
+              children: [
+                {
+                  name: "scheduled_post",
+                  label: "Scheduled post",
+                  type: "boolean",
+                  required: true,
+                  description: "Whether post it to Shopee Video at scheduled time.",
+                },
+                {
+                  name: "scheduled_post_time",
+                  label: "Scheduled post time",
+                  type: "integer",
+                  required: false,
+                  description:
+                    "Scheduled post time, millisecond timestamp. When scheduled_post is true, scheduled_post_time must not empty.",
+                  format: "datetime",
+                  timestampUnit: "milliseconds",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "error",
         "fail_video_upload_id",
@@ -23916,14 +30027,17 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "success_list",
       ],
     },
-    numericIds: [],
+    numericIds: ["body.video_upload_list[].item_info[].item_id"],
     source: {
       file: "v2.video.edit_video_info.md",
       sha256: "d6bcc9f582c56ff5f82dfe493f891c4c101e78bf1c3b5343d4ec544ca9b3e4aa",
       structuredFile: "v2.video.edit_video_info.structured.json",
       structuredSha256: "66043b5cea845eb9231b8f135c28a8802e51250f5100f1c5b6384fb944c66b60",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -23943,9 +30057,17 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.video.get_cover_list?module=129&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.video_upload_id",
+          label: "Video upload id",
+          type: "string",
+          required: true,
+          description: "ID of uploaded video. Obtain from v2.media.get_video_upload_result.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: ["error", "image_url_list", "message", "request_id", "response"],
     },
     numericIds: [],
@@ -23954,8 +30076,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "709da451eef5c5d5483076c49c896bb91878500d898e3770b021c9f96ed98e53",
       structuredFile: "v2.video.get_cover_list.structured.json",
       structuredSha256: "e41db3af4d68a54c7931a1d25cb9dc345669bbe5bd20435fa9279ed10ecc58f2",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -23975,9 +30100,27 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.video.get_metric_trend?module=129&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.period_type",
+          label: "Period type",
+          type: "string",
+          required: true,
+          description:
+            "Period Type. Applicable values: Day Week Month Last7d Last15d Last30d Note: The end date must align with the Period Type.",
+        },
+        {
+          name: "query.end_date",
+          label: "End date",
+          type: "string",
+          required: true,
+          description:
+            'The end_date format should be "YYYY-MM-DD". - For Day, Last7d, Last15d, and Last30d, the end_date must before current day. - For Week, the end_date must be Sunday and must be less than or equal to the current week. - For Month, the end_date must be the end of the month and must be less than or equal to the current month.',
+          format: "date",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "avg_view_duration",
         "confirmed_abs",
@@ -24018,8 +30161,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "ad4dcafdf80a40a612d5383a6e537e9b6a8f2f3d25153eca23e859cfa830972e",
       structuredFile: "v2.video.get_metric_trend.structured.json",
       structuredSha256: "fb37785e32adeeae2672026f8d29b0ec0bc5327b45f0f34440122f6383b9a2ed",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -24039,9 +30185,27 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.video.get_overview_performance?module=129&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.period_type",
+          label: "Period type",
+          type: "string",
+          required: true,
+          description:
+            "Period Type. Applicable values: Day Week Month Last7d Last15d Last30d Note: The end date must align with the Period Type.",
+        },
+        {
+          name: "query.end_date",
+          label: "End date",
+          type: "string",
+          required: true,
+          description:
+            'The end_date format should be "YYYY-MM-DD". - For Day, Last7d, Last15d, and Last30d, the end_date must before current day. - For Week, the end_date must be Sunday and must be less than or equal to the current week. - For Month, the end_date must be the end of the month and must be less than or equal to the current month.',
+          format: "date",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "avg_view_duration",
         "confirmed_abs",
@@ -24084,8 +30248,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "e1ae9757f44042839f0215c64f9a3aecb9228c24d471110e499bb2e8e0a070f0",
       structuredFile: "v2.video.get_overview_performance.structured.json",
       structuredSha256: "13df970c3e0974298e80544612b526fec9f30ad7f7bcf44bc24d9f5be864aead",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -24105,9 +30272,71 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.video.get_prodcut_performance_list?module=129&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.page_no",
+          label: "Halaman",
+          type: "integer",
+          required: true,
+          description: "The start index of request. Starting from 1.",
+        },
+        {
+          name: "query.page_size",
+          label: "Jumlah per halaman",
+          type: "integer",
+          required: true,
+          description: "The number of item returned by this request. Max is 20.",
+        },
+        {
+          name: "query.period_type",
+          label: "Period type",
+          type: "string",
+          required: true,
+          description:
+            "Period Type. Applicable values: Day Week Month Last7d Last15d Last30d Note: The end date must align with the Period Type.",
+        },
+        {
+          name: "query.end_date",
+          label: "End date",
+          type: "string",
+          required: true,
+          description:
+            'The end_date format should be "YYYY-MM-DD". - For Day, Last7d, Last15d, and Last30d, the end_date must before current day. - For Week, the end_date must be Sunday and must be less than or equal to the current week. - For Month, the end_date must be the end of the month and must be less than or equal to the current month.',
+          format: "date",
+        },
+        {
+          name: "query.order_by",
+          label: "Order by",
+          type: "string",
+          required: true,
+          description:
+            "Use this field to specify which field to use to sort the returned list. Available values: PlacedOrders PlacedSales PlacedUniqueBuyers ConfirmedOrders ConfirmedSales ConfirmedUniqueBuyers",
+        },
+        {
+          name: "query.sort",
+          label: "Urutan",
+          type: "string",
+          required: true,
+          description:
+            "Use this field to specify whether the returned list is sorted in ascending or descending order_by. Available values: asc desc",
+        },
+        {
+          name: "query.item_id",
+          label: "ID produk",
+          type: "string",
+          required: false,
+          description: "Shopee's unique identifier for an item.",
+        },
+        {
+          name: "query.item_name",
+          label: "Item name",
+          type: "string",
+          required: false,
+          description: "Search by product name.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "confirmed_orders",
         "confirmed_sales",
@@ -24127,14 +30356,17 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "total_count",
       ],
     },
-    numericIds: [],
+    numericIds: ["query.item_id"],
     source: {
       file: "v2.video.get_prodcut_performance_list.md",
       sha256: "049138c0ea22ef5302cd3ec6583ce9056cbf11795400302b1a5aa6e94bd8b395",
       structuredFile: "v2.video.get_prodcut_performance_list.structured.json",
       structuredSha256: "349de476ba85ee17e6a1bcc7f15880a418731765cd86f7e6321de0422bd315f7",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -24155,8 +30387,8 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.video.get_user_demographics?module=129&type=1",
       fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "activity",
         "age",
@@ -24176,8 +30408,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "693de9fa862f48640a2d14be4b145ac644c43f44f0299b26cc46add85ed9a667",
       structuredFile: "v2.video.get_user_demographics.structured.json",
       structuredSha256: "4ad438b9e29e57ef073497fb2e543b1f5ece0dd44f111d3793c9b288d0df6399",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -24197,9 +30432,26 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.video.get_video_detail?module=129&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.video_upload_id",
+          label: "Video upload id",
+          type: "string",
+          required: false,
+          description:
+            "You can only select one from video_upload_id and post_id: - If you want to get detail information of video with draft status, please pass video_upload_id. - If you want to get detail information of video with post status, please pass post_id.",
+        },
+        {
+          name: "query.post_id",
+          label: "Post id",
+          type: "string",
+          required: false,
+          description:
+            "You can only select one from video_upload_id and post_id: - If you want to get detail information of video with draft status, please pass video_upload_id. - If you want to get detail information of video with post status, please pass post_id.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "allow_duet",
         "allow_info",
@@ -24240,8 +30492,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "f2f6c7525cb3a6e0afc798809813de3d72d253c779591de50924c61ce93cb74a",
       structuredFile: "v2.video.get_video_detail.structured.json",
       structuredSha256: "62b4b204ef94f57f976a2cfefce462dac0b282075a3d293612f10d68dd88391a",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -24262,9 +30517,17 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       write: false,
       officialUrl:
         "https://open.shopee.com/documents/v2/v2.video.get_video_detail_audience_distribution?module=129&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.post_id",
+          label: "Post id",
+          type: "string",
+          required: true,
+          description: "A unique identifier for Shopee videos.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "0",
         "1",
@@ -24327,8 +30590,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "362a234b576db97b8a19c006c0293fab65b402ff7f7056ff79f4736c12fa00d6",
       structuredFile: "v2.video.get_video_detail_audience_distribution.structured.json",
       structuredSha256: "3d8cb192280c6797af2c8628fb3eb56313bf531c4203e92291c3c0f20f6ac4d2",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -24348,9 +30614,25 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.video.get_video_detail_metric_trend?module=129&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.post_id",
+          label: "Post id",
+          type: "string",
+          required: true,
+          description: "A unique identifier for Shopee videos.",
+        },
+        {
+          name: "query.metric_name",
+          label: "Metric name",
+          type: "string",
+          required: true,
+          description:
+            "The name of metric that require obtaining trend data. Applicable values: Views, Likes, Comments, Shares, FollowersGrowth, PlacedOrders, PlacedSales, UniqueBuyers, ConversionRate, SoldItems, SalesPerOrder, SalesPerBuyer",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "1761670800000",
         "1761757200000",
@@ -24385,8 +30667,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "30753c2a0f810b7c5a4047158c21ea6190c595952d45f928c6a43388dd8ed8c8",
       structuredFile: "v2.video.get_video_detail_metric_trend.structured.json",
       structuredSha256: "7cdd2497b7371f0064a936c4ffa2042afbb1be92d46664d12ead3b21cfb27e29",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -24406,9 +30691,17 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.video.get_video_detail_performance?module=129&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.post_id",
+          label: "Post id",
+          type: "string",
+          required: true,
+          description: "A unique identifier for Shopee videos.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "caption",
         "comments",
@@ -24443,8 +30736,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "d5e50f5dcf46ddc6c43bd72a0b939b514ebc7cec3c15b38211ab7a78aef940b0",
       structuredFile: "v2.video.get_video_detail_performance.structured.json",
       structuredSha256: "431a0d7e61c78b15983ae7e0d85c75221a5d1166e4c8d105632ecccee7ff7b2c",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -24465,9 +30761,45 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       write: false,
       officialUrl:
         "https://open.shopee.com/documents/v2/v2.video.get_video_detail_product_performance?module=129&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.page_no",
+          label: "Halaman",
+          type: "integer",
+          required: true,
+          description: "The start index of request. Starting from 1.",
+        },
+        {
+          name: "query.page_size",
+          label: "Jumlah per halaman",
+          type: "integer",
+          required: true,
+          description: "The number of item returned by this request. Max is 20.",
+        },
+        {
+          name: "query.post_id",
+          label: "Post id",
+          type: "string",
+          required: true,
+          description: "The unique identifier for post Shopee Video.",
+        },
+        {
+          name: "query.item_id",
+          label: "ID produk",
+          type: "string",
+          required: false,
+          description: "Shopee's unique identifier for an item.",
+        },
+        {
+          name: "query.item_name",
+          label: "Item name",
+          type: "string",
+          required: false,
+          description: "Name of the item.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "comments",
         "conversion_rate",
@@ -24491,14 +30823,17 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
         "total_count",
       ],
     },
-    numericIds: [],
+    numericIds: ["query.item_id"],
     source: {
       file: "v2.video.get_video_detail_product_performance.md",
       sha256: "49a27cae94afa0ba4553547ae839279041f2e4bdded39b9e777b36fcc1bb6e9a",
       structuredFile: "v2.video.get_video_detail_product_performance.structured.json",
       structuredSha256: "6e07a45f202b59d25e8bdfe67339dd6fecc94d80f82a0929d0bc484f932e9f72",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -24518,9 +30853,31 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.video.get_video_list?module=129&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.page_no",
+          label: "Halaman",
+          type: "integer",
+          required: true,
+          description: "The start index of request. Starting from 1.",
+        },
+        {
+          name: "query.page_size",
+          label: "Jumlah per halaman",
+          type: "integer",
+          required: true,
+          description: "The number of affiliate returned by this request, Max is 20.",
+        },
+        {
+          name: "query.list_type",
+          label: "List type",
+          type: "integer",
+          required: true,
+          description: "Search tpye for video in draft status or video already post to Shopee Video. 1: draft 2: post",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "allow_duet",
         "allow_info",
@@ -24564,8 +30921,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "3b72daa00d0ef27c60f0058fe8a6ffe43aeaed0805d8a9a8ce1b456c4281ad48",
       structuredFile: "v2.video.get_video_list.structured.json",
       structuredSha256: "140af84c7e45c19d9dd5177694af6782e4badd601981d53a86c09891c1c2a1b6",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -24585,9 +30945,64 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: false,
       officialUrl: "https://open.shopee.com/documents/v2/v2.video.get_video_performance_list?module=129&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "query.page_no",
+          label: "Halaman",
+          type: "integer",
+          required: true,
+          description: "The start index of request. Starting from 1.",
+        },
+        {
+          name: "query.page_size",
+          label: "Jumlah per halaman",
+          type: "integer",
+          required: true,
+          description: "The number of video returned by this request. Max is 20.",
+        },
+        {
+          name: "query.period_type",
+          label: "Period type",
+          type: "string",
+          required: true,
+          description:
+            "Period Type. Applicable values: Day Week Month Last7d Last15d Last30d Note: The end date must align with the Period Type.",
+        },
+        {
+          name: "query.end_date",
+          label: "End date",
+          type: "string",
+          required: true,
+          description:
+            'The end_date format should be "YYYY-MM-DD". - For Day, Last7d, Last15d, and Last30d, the end_date must before current day. - For Week, the end_date must be Sunday and must be less than or equal to the current week. - For Month, the end_date must be the end of the month and must be less than or equal to the current month.',
+          format: "date",
+        },
+        {
+          name: "query.caption",
+          label: "Caption",
+          type: "string",
+          required: false,
+          description: "Description of the Shopee Video.",
+        },
+        {
+          name: "query.order_by",
+          label: "Order by",
+          type: "string",
+          required: true,
+          description:
+            "Use this field to specify which field to use to sort the returned list. Available values: Views Likes Comments AvgViewsDuration",
+        },
+        {
+          name: "query.sort",
+          label: "Urutan",
+          type: "string",
+          required: true,
+          description:
+            "Use this field to specify whether the returned list is sorted in ascending or descending order_by. Available values: asc desc",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "avg_views_duration",
         "caption",
@@ -24625,8 +31040,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "e940ecb4e08dee0e16742c154e84c36c0709fcef3e9204a58343d03fc086d01d",
       structuredFile: "v2.video.get_video_performance_list.structured.json",
       structuredSha256: "d1ca85d00b1003707f2f1c105f5dd4d0c9110f3e47efa557e380641c2d2fd976",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -24646,9 +31064,18 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       transport: "json",
       write: true,
       officialUrl: "https://open.shopee.com/documents/v2/v2.video.post_video?module=129&type=1",
-      fields: [],
-      available: false,
-      unavailableReason: "Memerlukan otorisasi user_id/partner khusus; alur akun Shopee ini belum tersedia.",
+      fields: [
+        {
+          name: "body.video_upload_id_list",
+          label: "Video upload id list",
+          type: "array",
+          required: true,
+          description: "ID of uploaded video. Obtain from v2.media.get_video_upload_result. No more than 5.",
+          itemType: "string",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
       responseFields: [
         "error",
         "fail_video_upload_id",
@@ -24668,8 +31095,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "5db5d010636ecd6b213cc9a5009ca4a5b13aec1bdc0faa78e9e622e3d556d03e",
       structuredFile: "v2.video.post_video.structured.json",
       structuredSha256: "2db50ed77778eec41d1afb45096547880c426f858696dc976c514b1c9b7fba88",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "user",
   },
   {
     operation: {
@@ -24712,6 +31142,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           description:
             "The timing from when the voucher is valid; so buyer is allowed to claim and to use. Field can only be updated if voucher has not started.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.end_time",
@@ -24721,6 +31152,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           description:
             "The timing until when the voucher is still valid. Any time after this end_time, buyer is not allowed to claim or to use.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.voucher_type",
@@ -24815,8 +31247,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "b3524fd14f1fd43c60eba6998699ad23d24cd120ad536622dd9b9c8c4e587ab4",
       structuredFile: "v2.voucher.add_voucher.structured.json",
       structuredSha256: "edfe535d05c3e9eba8d4dc21a979ebfae8e7c49e3d2645f8ece962cc3cb14ffd",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -24855,8 +31290,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "8ce261268d276d0f4fa4bc65643cfc731085dd9da87bdeea25609ddfcb5aedc3",
       structuredFile: "v2.voucher.delete_voucher.structured.json",
       structuredSha256: "127869a2de14caa143b4eda8ea5883c149475e6b4d152a2affcfe50ee9d97e82",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -24895,8 +31333,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "c68c292590e7a8c5d7fc7c3d3122d7bd2bd3bd2300f1979eb9c65699a31ddafd",
       structuredFile: "v2.voucher.end_voucher.structured.json",
       structuredSha256: "f722c7c2f878145442234de945c2f1ce3ef00ede5cb2d6deee9d64957a613059",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -24961,8 +31402,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "6d1065e62353fdd2daff0ac45bfeac5f0f90394d61fbacfefb2719e6e86117ee",
       structuredFile: "v2.voucher.get_voucher.structured.json",
       structuredSha256: "af2bbe299895e2b1fc1b2eb4067b5d711c75cf3ea55cd4bd1ef34760adcde0db",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -25047,8 +31491,11 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "05bd11bf36b9f786e3d83f35b7bfc8a8d99ad0d299e735bba9f24a66ca194ded",
       structuredFile: "v2.voucher.get_voucher_list.structured.json",
       structuredSha256: "e92f8edf23b151ff9ee771d380817c4cd78ad7e2cc1e646ffca9c87260c6370a",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
   {
     operation: {
@@ -25091,6 +31538,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           description:
             "The timing from when the voucher is valid; so buyer is allowed to claim and to use. Field can only be updated if voucher has not started.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.end_time",
@@ -25100,6 +31548,7 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
           description:
             "The timing until when the voucher is still valid. Any time after this end_time, buyer is not allowed to claim or to use.",
           format: "datetime",
+          timestampUnit: "seconds",
         },
         {
           name: "body.usage_quantity",
@@ -25178,11 +31627,61 @@ export const SHOPEE_COMMERCE_CONTRACTS: readonly ShopeeCommerceContract[] = [
       sha256: "475d1347f35ff9897cba77279ad46db0c917932fbc113c19fdb0519b9d7ac805",
       structuredFile: "v2.voucher.update_voucher.structured.json",
       structuredSha256: "17b6d696e550eb39dab7272e0454c26a5a0f850a5f07562c161f8b91b81e5869",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
       commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
     },
+    auth: "shop",
   },
 ];
 
-export const SHOPEE_COMMERCE_OPERATIONS: readonly CommerceOperation[] = SHOPEE_COMMERCE_CONTRACTS.map(
-  (entry) => entry.operation,
-);
+export const SHOPEE_COMMERCE_AUXILIARY_CONTRACTS: readonly ShopeeCommerceContract[] = [
+  {
+    operation: {
+      id: "shopee.livestream.get_stream_credentials",
+      channel: "shopee",
+      principalKind: "creator",
+      title: "Unduh kredensial streaming OBS",
+      group: "Shopee Live",
+      method: "GET",
+      path: "/api/v2/livestream/get_session_detail",
+      scopes: [],
+      authMode: "shopee_app_program",
+      appPrograms: ["Livestream Management"],
+      eligibility: "unverified",
+      eligibilityReason:
+        "Ketersediaan program dan persetujuan aplikasi harus dikonfirmasi di Shopee Partner Console; API key tidak membuktikan izin toko.",
+      transport: "private_download",
+      write: false,
+      officialUrl: "https://open.shopee.com/documents/v2/v2.livestream.get_session_detail?module=125&type=1",
+      fields: [
+        {
+          name: "query.session_id",
+          label: "Session id",
+          type: "string",
+          required: true,
+          description: "The identifier of livestream session.",
+        },
+      ],
+      available: true,
+      unavailableReason: null,
+      responseFields: ["session_id"],
+    },
+    numericIds: ["query.session_id"],
+    source: {
+      file: "v2.livestream.get_session_detail.md",
+      sha256: "9e04401f8427cbfecd9b90921f2db7ba86b92af2c6e96e24ccca50b2259798bf",
+      structuredFile: "v2.livestream.get_session_detail.structured.json",
+      structuredSha256: "c31476c8ecec4897b0402fcf58ffcb0eed537a679a45980a0632fa9727748c97",
+      compilerFile: "tools/generate-shopee-commerce.py",
+      compilerSha256: "a5ddcaff98a810d1f359e4acefa682439a3815f4145fb5ee2babe80dfe3373c8",
+      commit: "300344af94cf347268b50847baf14b9c28aaf1ae",
+    },
+    auth: "user",
+  },
+];
+
+export const SHOPEE_COMMERCE_OPERATIONS: readonly CommerceOperation[] = [
+  ...SHOPEE_COMMERCE_CONTRACTS,
+  ...SHOPEE_COMMERCE_AUXILIARY_CONTRACTS,
+].map((entry) => entry.operation);

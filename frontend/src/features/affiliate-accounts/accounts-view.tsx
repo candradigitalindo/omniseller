@@ -112,7 +112,12 @@ export function AffiliateAccountsView() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <h2 className="truncate font-semibold">{a.name}</h2>
-                    <p className="text-sm text-text-500">{t(`kind.${a.kind}`)}</p>
+                    <p className="text-sm text-text-500">
+                      {t(`channel.${a.channel ?? "tiktokshop"}`)} · {t(`kind.${a.kind}`)}
+                    </p>
+                    {a.regionVerified === false ? (
+                      <p className="mt-1 text-xs text-warning">{t("regionUnverifiedShort")}</p>
+                    ) : null}
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -173,11 +178,19 @@ function ConnectDialog({
 }) {
   const t = useTranslations("affiliateAccounts");
   const [kind, setKind] = useState<Kind>(target?.kind ?? "creator");
+  const [channel, setChannel] = useState<"tiktokshop" | "shopee">(target?.channel ?? "tiktokshop");
+  const [program, setProgram] = useState<"video" | "live">(target?.program === "live" ? "live" : "video");
+  const selectedChannel = target?.channel ?? channel;
   const start = useMutation({
     mutationFn: () =>
       unwrap(
         api.POST("/v1/affiliate/authorizations", {
-          body: { kind: target?.kind ?? kind, ...(target ? { accountId: target.id } : {}) },
+          body: {
+            channel: selectedChannel,
+            program: selectedChannel === "shopee" ? program : "standard",
+            kind: selectedChannel === "shopee" ? "creator" : (target?.kind ?? kind),
+            ...(target ? { accountId: target.id } : {}),
+          },
         }),
       ),
     onSuccess: (result) => leaveTo(result.authorizeUrl),
@@ -192,7 +205,9 @@ function ConnectDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{target ? t("reconnect") : t("connectTitle")}</DialogTitle>
-          <DialogDescription>{t("requirements")}</DialogDescription>
+          <DialogDescription>
+            {t(selectedChannel === "shopee" ? "shopeeRequirements" : "requirements")}
+          </DialogDescription>
         </DialogHeader>
         <form
           className="grid gap-4"
@@ -202,23 +217,63 @@ function ConnectDialog({
           }}
         >
           <div className="grid gap-2">
-            <label htmlFor="account-kind" className="font-medium">
-              {t("kindLabel")}
+            <label htmlFor="account-channel" className="font-medium">
+              {t("channelLabel")}
             </label>
             <Select
-              value={target?.kind ?? kind}
-              onValueChange={(v) => setKind(v as Kind)}
+              value={selectedChannel}
+              onValueChange={(v) => setChannel(v as "tiktokshop" | "shopee")}
               disabled={!!target || start.isPending}
             >
-              <SelectTrigger id="account-kind">
+              <SelectTrigger id="account-channel">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="creator">{t("kind.creator")}</SelectItem>
-                <SelectItem value="affiliate_partner">{t("kind.affiliate_partner")}</SelectItem>
+                <SelectItem value="tiktokshop">{t("channel.tiktokshop")}</SelectItem>
+                <SelectItem value="shopee">{t("channel.shopee")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
+          {selectedChannel === "shopee" ? (
+            <div className="grid gap-2">
+              <label htmlFor="account-program" className="font-medium">
+                {t("programLabel")}
+              </label>
+              <Select
+                value={program}
+                onValueChange={(v) => setProgram(v as "video" | "live")}
+                disabled={start.isPending}
+              >
+                <SelectTrigger id="account-program">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="video">{t("program.video")}</SelectItem>
+                  <SelectItem value="live">{t("program.live")}</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="rounded-xl bg-warning-soft p-3 text-sm">{t("shopeeRegionHint")}</p>
+            </div>
+          ) : (
+            <div className="grid gap-2">
+              <label htmlFor="account-kind" className="font-medium">
+                {t("kindLabel")}
+              </label>
+              <Select
+                value={target?.kind ?? kind}
+                onValueChange={(v) => setKind(v as Kind)}
+                disabled={!!target || start.isPending}
+              >
+                <SelectTrigger id="account-kind">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="creator">{t("kind.creator")}</SelectItem>
+                  <SelectItem value="affiliate_partner">{t("kind.affiliate_partner")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="flex gap-2 rounded-xl bg-primary-50 p-3 text-sm">
             <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
             <p>{t("consentHint")}</p>
@@ -349,13 +404,20 @@ function AccountDialog({ initial, onClose }: { initial: Account; onClose: () => 
                 </div>
                 <div>
                   <dt className="text-text-500">{t("region")}</dt>
-                  <dd>{t("indonesia")}</dd>
+                  <dd>{t(a.regionVerified === false ? "indonesiaUnverified" : "indonesia")}</dd>
+                </div>
+                <div>
+                  <dt className="text-text-500">{t("channelLabel")}</dt>
+                  <dd>{t(`channel.${a.channel ?? "tiktokshop"}`)}</dd>
                 </div>
                 <div>
                   <dt className="text-text-500">{t("connectedAt")}</dt>
                   <dd>{formatDateTime(a.connectedAt, zone)}</dd>
                 </div>
               </dl>
+              {a.regionVerified === false ? (
+                <p className="rounded-xl bg-warning-soft p-3 text-sm">{t("shopeeRegionHint")}</p>
+              ) : null}
               {a.errorMessage ? (
                 <p role="alert" className="rounded-xl bg-warning-soft p-3 text-sm">
                   {a.errorMessage}
@@ -368,7 +430,7 @@ function AccountDialog({ initial, onClose }: { initial: Account; onClose: () => 
               ) : null}
             </TabsContent>
             <TabsContent value="access" className="grid gap-3 text-sm">
-              <p>{t("scopeHint")}</p>
+              <p>{t(a.channel === "shopee" ? "shopeeScopeHint" : "scopeHint")}</p>
               <Input
                 aria-label={t("searchScopes")}
                 placeholder={t("searchScopes")}

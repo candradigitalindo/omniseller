@@ -9,7 +9,9 @@ import { TIKTOK_COMMERCE_OPERATIONS } from "@omniseller/connector-tiktokshop";
 const require = createRequire(import.meta.url);
 const { publicOperation } = require("../dist/modules/commerce/commerce-policy.js");
 const root = path.resolve(import.meta.dirname, "../..");
-const operations = [...SHOPEE_COMMERCE_OPERATIONS, ...TIKTOK_COMMERCE_OPERATIONS].map(publicOperation);
+const contracts = [...SHOPEE_COMMERCE_OPERATIONS, ...TIKTOK_COMMERCE_OPERATIONS];
+const sourceContracts = new Map(contracts.map((operation) => [operation.id, operation]));
+const operations = contracts.map(publicOperation);
 if (new Set(operations.map((operation) => operation.id)).size !== operations.length)
   throw new Error("Duplicate commerce operation id");
 const rows = operations.map((operation) => ({
@@ -19,7 +21,11 @@ const rows = operations.map((operation) => ({
   principal: operation.principalKind,
   method: operation.method,
   path: operation.path,
-  catalog: operation.id.startsWith("tiktok_large_") ? "Alur tambahan berkas besar" : "Katalog default",
+  catalog: operation.id.startsWith("tiktok_large_")
+    ? "Alur tambahan berkas besar"
+    : operation.id === "shopee.livestream.get_stream_credentials"
+      ? "Alur tambahan berkas privat"
+      : "Katalog default",
   workspace_available: operation.available ? "Ya" : "Tidak",
   transport: operation.transport ?? "json",
   action: operation.write ? "Perubahan" : "Pembacaan",
@@ -29,6 +35,10 @@ const rows = operations.map((operation) => ({
     operation.authMode === "shopee_app_program" ? "Persetujuan app/program Shopee" : (operation.scopeMode ?? "all"),
   account_requirements: (operation.accountRequirements ?? []).join("; "),
   unavailable_reason: operation.unavailableReason ?? "",
+  // Public descriptions intentionally collapse technical details. The audit keeps the original
+  // contract evidence so a dedicated workflow is not misreported as an undocumented schema.
+  source_contract_available: sourceContracts.get(operation.id).available ? "Ya" : "Tidak",
+  source_unavailable_reason: sourceContracts.get(operation.id).unavailableReason ?? "",
   ui: operation.available ? "/commerce" : "Lihat alasan dan alur khusus pada katalog",
   official_url: operation.officialUrl,
   verification: "Kontrak dan pengujian lokal; akses program dan sandbox nyata belum diverifikasi",

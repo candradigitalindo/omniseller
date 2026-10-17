@@ -10,6 +10,12 @@ import {
   validateCommerceInput,
 } from "@omniseller/connector-core";
 import { TiktokShopClient } from "./client.js";
+import {
+  assertTiktokReadOutcome,
+  tiktokCommerceBody,
+  tiktokCommerceQuery,
+  tiktokCommerceVisibleData,
+} from "./commerce-contract-overrides.js";
 import { TIKTOK_COMMERCE_OPERATIONS as JSON_OPERATIONS } from "./commerce-contracts.js";
 import { commerceFileOperation, largeVideoOperations, largeVideoTarget } from "./commerce-file-contracts.js";
 import { assertTiktokCommerceOutcome } from "./commerce-outcome.js";
@@ -42,7 +48,7 @@ export function tiktokCommerce(client: TiktokShopClient): MarketplaceCommerce {
         return encodeURIComponent(value);
       });
       const query = Object.fromEntries(
-        Object.entries(input.query ?? {}).map(([key, value]) => [key, queryValue(value)]),
+        Object.entries(input.query ?? {}).map(([key, value]) => [key, tiktokCommerceQuery(operation, key, value)]),
       );
       if (operation.categoryAsset) {
         const assets =
@@ -151,8 +157,9 @@ export function tiktokCommerce(client: TiktokShopClient): MarketplaceCommerce {
             accessToken: credentials.accessToken,
             ...(operation.principalKind === "seller" ? { shopCipher: credentials.shopCipher } : {}),
             query,
-            ...(input.body === undefined ? {} : { body: input.body }),
+            ...(input.body === undefined ? {} : { body: tiktokCommerceBody(operation, input) }),
           });
+        assertTiktokReadOutcome(operation, data);
         assertTiktokCommerceOutcome(operation, data);
         if (operation.transport === "private_download") {
           const file = data.file && typeof data.file === "object" ? (data.file as { base64?: unknown }) : {};
@@ -175,8 +182,9 @@ export function tiktokCommerce(client: TiktokShopClient): MarketplaceCommerce {
             download: { bytes, mime: "application/octet-stream", ext: "bin" },
           };
         }
+        const publicData = tiktokCommerceVisibleData(operation, data);
         const allowed = operation.responseFields
-          ? Object.fromEntries(Object.entries(data).filter(([key]) => operation.responseFields!.includes(key)))
+          ? Object.fromEntries(Object.entries(publicData).filter(([key]) => operation.responseFields!.includes(key)))
           : {};
         const safe = safeCommerceResult(allowed);
         if (JSON.stringify(safe).length > 262_000)

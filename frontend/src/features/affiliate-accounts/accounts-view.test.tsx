@@ -10,6 +10,9 @@ vi.mock("@/lib/navigate", () => ({ leaveTo: leave }));
 type Account = components["schemas"]["AffiliateAccountDto_Output"];
 const base: Account = {
   id: "01JACCOUNT00000000000000001",
+  channel: "tiktokshop",
+  program: "standard",
+  regionVerified: true,
   kind: "affiliate_partner",
   name: "Mitra Candra",
   externalPrincipalId: "partner-id",
@@ -63,8 +66,51 @@ describe("creator and partner account management", () => {
     await user.click(screen.getByRole("option", { name: "Affiliate Partner Indonesia" }));
     await user.click(within(dialog).getByRole("button", { name: "Lanjutkan otorisasi" }));
     await waitFor(() => expect(leave).toHaveBeenCalledWith(expect.stringContaining("https://partner.tiktokshop.com/")));
-    expect(calls.find((c) => c.method === "POST")?.body).toEqual({ kind: "affiliate_partner" });
+    expect(calls.find((c) => c.method === "POST")?.body).toEqual({
+      channel: "tiktokshop",
+      program: "standard",
+      kind: "affiliate_partner",
+    });
   });
+  it("connects a separate Shopee LIVE creator and explains that account country is unverified", async () => {
+    leave.mockClear();
+    const calls = setup();
+    const user = userEvent.setup();
+    renderApp(<AffiliateAccountsView />, { me: testMe([...permissions]) });
+    await user.click(screen.getByRole("button", { name: "Hubungkan akun" }));
+    const dialog = screen.getByRole("dialog", { name: "Hubungkan akun Indonesia" });
+    await user.click(within(dialog).getByRole("combobox", { name: "Marketplace" }));
+    await user.type(screen.getByRole("searchbox", { name: "Cari pilihan…" }), "Shopee");
+    await user.click(screen.getByRole("option", { name: "Shopee" }));
+    expect(within(dialog).queryByRole("combobox", { name: "Jenis akun" })).not.toBeInTheDocument();
+    expect(within(dialog).getByText(/Shopee tidak mengirim wilayah akun/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("combobox", { name: "Program creator" }));
+    await user.type(screen.getByRole("searchbox", { name: "Cari pilihan…" }), "live");
+    await user.click(screen.getByRole("option", { name: "Shopee LIVE" }));
+    await user.click(within(dialog).getByRole("button", { name: "Lanjutkan otorisasi" }));
+    await waitFor(() => expect(leave).toHaveBeenCalled());
+    expect(calls.find((c) => c.method === "POST")?.body).toEqual({
+      channel: "shopee",
+      program: "live",
+      kind: "creator",
+    });
+  });
+
+  it("displays Shopee target country without claiming provider verification", async () => {
+    const shopee = { ...base, channel: "shopee", program: "video", kind: "creator", regionVerified: false, scopes: [] };
+    mockApi({
+      "GET /v1/affiliate/accounts": () => ({ items: [shopee], next_cursor: null }),
+      [`GET ${detailPath}`]: () => shopee,
+    });
+    const user = userEvent.setup();
+    renderApp(<AffiliateAccountsView />, { me: testMe([...permissions]) });
+    await user.click(await screen.findByRole("button", { name: "Detail Mitra Candra" }));
+    const dialog = screen.getByRole("dialog", { name: "Detail akun" });
+    expect(within(dialog).getByText("Indonesia · wilayah akun belum terverifikasi")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("tab", { name: "Izin" }));
+    expect(within(dialog).getByText(/Shopee tidak mengembalikan daftar scope/)).toBeInTheDocument();
+  });
+
   it("shows only public category metadata, saves with optimistic locking, queues refresh and requires disconnect confirmation", async () => {
     const calls = setup();
     const user = userEvent.setup();

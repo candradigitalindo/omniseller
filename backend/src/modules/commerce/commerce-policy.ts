@@ -44,6 +44,8 @@ export function publicOperation(operation: CommerceOperation): CommerceOperation
   };
 }
 export function domainPermission(operation: CommerceOperation): string {
+  if (operation.id === "shopee.media.upload_image") return "return:respond";
+  if (operation.principalKind !== "seller") return operation.write ? "affiliate:write" : "affiliate:read";
   const path = operation.path;
   if (operation.transport === "private_download" && /logistics|shipping_document|booking/.test(path))
     return "shipment:print";

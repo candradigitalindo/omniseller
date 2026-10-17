@@ -73,6 +73,7 @@ export class MarketplaceGateway {
             limiter: this.limiter,
             key: `mp:${connector.manifest.id}:${storeId}`,
             rule: connector.manifest.shopRateLimit,
+            channel: connector.manifest.id,
             background: options.background === true,
           };
           const invoke = () =>
@@ -112,8 +113,9 @@ export class MarketplaceGateway {
     entry: Omit<SyncLogEntry, "storeId">,
     fn: (connector: MarketplaceConnector) => Promise<T>,
     summarize?: (result: T) => Record<string, unknown>,
+    channel: "tiktokshop" | "shopee" = "tiktokshop",
   ): Promise<T> {
-    const connector = this.connectors.get("tiktokshop");
+    const connector = this.connectors.get(channel);
     return this.syncLog.run(
       ctx,
       { ...entry, storeId: null },
@@ -121,8 +123,9 @@ export class MarketplaceGateway {
         withRequestGate(
           {
             limiter: this.limiter,
-            key: `mp:principal:${ctx.tenantId}:${principalKey}`,
+            key: `mp:principal:${channel}:${ctx.tenantId}:${principalKey}`,
             rule: connector.manifest.shopRateLimit,
+            channel: connector.manifest.id,
             background: false,
           },
           () => fn(connector),

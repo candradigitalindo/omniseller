@@ -9,12 +9,14 @@ import {
 import { logger } from "@omniseller/logging";
 import { eq } from "drizzle-orm";
 import type { RequestContext } from "../../common/context/request-context";
+import type { RateLimiter } from "../../common/security/rate-limiter";
 import { lockTenantKeys, type TokenVault } from "../../common/security/token-vault";
 import { withAdvisoryLock } from "../../db/advisory-lock";
 import type { DbHandle, Tx } from "../../db/client";
 import { tenant } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
-import { DB_TENANT, TOKEN_VAULT } from "../../infra/tokens";
+import { DB_TENANT, RATE_LIMITER, TOKEN_VAULT } from "../../infra/tokens";
+import { withRequestGate } from "../sync/connector-calls";
 import { SyncLogService } from "../sync/sync-log.service";
 import { type StoreStatusReason, storeNotActive, storeNotFound } from "./channel.errors";
 import { ChannelRepository, type CredentialRow, type StoreRow } from "./channel.repository";
@@ -71,6 +73,7 @@ export class CredentialService {
     @Inject(CONNECTORS) private readonly connectors: ConnectorRegistry,
     @Inject(SyncLogService) private readonly syncLog: SyncLogService,
     @Inject(StoresService) private readonly stores: StoresService,
+    @Inject(RATE_LIMITER) private readonly limiter: RateLimiter,
   ) {}
 
   /** Seals and stores a new token set, inside the caller's transaction. */
@@ -152,14 +155,23 @@ export class CredentialService {
             ...(opts.queueJobId ? { queueJobId: opts.queueJobId } : {}),
           },
           () =>
-            connector.auth.refresh({
-              refreshToken: current.refreshToken,
-              externalShopId: current.store.externalShopId,
-              ...(typeof current.store.marketplaceInfo.open_id === "string"
-                ? { expectedPrincipalId: current.store.marketplaceInfo.open_id }
-                : {}),
-              expectedScopes: current.credential.scopes,
-            }),
+            withRequestGate(
+              {
+                limiter: this.limiter,
+                key: `mp:${connector.manifest.id}:${storeId}`,
+                channel: connector.manifest.id,
+                rule: connector.manifest.shopRateLimit,
+              },
+              () =>
+                connector.auth.refresh({
+                  refreshToken: current.refreshToken,
+                  externalShopId: current.store.externalShopId,
+                  ...(typeof current.store.marketplaceInfo.open_id === "string"
+                    ? { expectedPrincipalId: current.store.marketplaceInfo.open_id }
+                    : {}),
+                  expectedScopes: current.credential.scopes,
+                }),
+            ),
           (t) => ({ accessExpiresAt: t.accessExpiresAt.toISOString() }),
         );
       } catch (err) {

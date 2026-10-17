@@ -22,8 +22,8 @@ const POLL_MS = 2_000;
  */
 export function AuthorizationCallback({ channel }: { channel: string }) {
   const params = useSearchParams();
-  return channel === "tiktokshop" && params.get("state")?.startsWith("a1_") ? (
-    <AffiliateAccountCallback />
+  return (channel === "tiktokshop" || channel === "shopee") && params.get("state")?.startsWith("a1_") ? (
+    <AffiliateAccountCallback channel={channel} />
   ) : (
     <SellerAuthorizationCallback channel={channel} />
   );

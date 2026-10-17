@@ -33,6 +33,7 @@ function harness(
   const calls: SeenRequest[] = [];
   const records: CallRecord[] = [];
   const gates = vi.fn(async () => {});
+  const feedback = vi.fn(async (_value: unknown) => {});
   let count = 0;
   let total = 0;
   const client = new TiktokShopClient({
@@ -43,6 +44,7 @@ function harness(
     authorizeUrl: "https://services.tiktokshop.com/open/authorize",
     http: {
       beforeRequest: gates,
+      afterResponse: feedback,
       observer: (record) => records.push(record),
       fetch: (async (url, init) => {
         const json = typeof init?.body === "string" ? JSON.parse(init.body) : null;
@@ -75,7 +77,7 @@ function harness(
       }) as typeof fetch,
     },
   });
-  return { client, calls, records, gates };
+  return { client, calls, records, gates, feedback };
 }
 function source(size = 50 * MIB, targetOperationId = SELLER_TARGET): Extract<TiktokLargeVideoInput, { size: number }> {
   return {
@@ -90,6 +92,30 @@ function source(size = 50 * MIB, targetOperationId = SELLER_TARGET): Extract<Tik
 }
 
 describe("TikTok large video upload protocol", () => {
+  it("uploads a small chat video as the explicitly documented single chunk while creator files keep direct upload", async () => {
+    const h = harness();
+    expect(await uploadTiktokLargeVideo(h.client, source(512 * 1024))).toBe("9223372036854775806");
+    expect(h.calls).toHaveLength(2);
+    expect(h.calls[0]!.json).toMatchObject({
+      file_size: 512 * 1024,
+      total_chunk_count: 1,
+      target_path: "[POST]/customer_service/202606/conversations/{conversation_id}/messages",
+    });
+    expect(h.calls[1]!.bodyBytes).toBe(512 * 1024);
+    const creator = harness();
+    await expect(uploadTiktokLargeVideo(creator.client, source(512 * 1024, CREATOR_TARGET))).rejects.toMatchObject({
+      code: "commerce_invalid_file",
+    });
+    expect(creator.calls).toHaveLength(0);
+  });
+  it("bounds unavailable chunk-rate feedback without losing the acknowledged video resource", async () => {
+    const h = harness();
+    h.feedback.mockImplementationOnce(async () => {}).mockImplementation(async () => new Promise<void>(() => {}));
+    const started = performance.now();
+    expect(await uploadTiktokLargeVideo(h.client, source(512 * 1024))).toBe("9223372036854775806");
+    expect(h.calls).toHaveLength(2);
+    expect(performance.now() - started).toBeLessThan(1800);
+  });
   it("plans exact ranges and merges tails below five MiB", () => {
     expect(tiktokLargeVideoChunkRanges(50 * MIB)).toEqual([
       { start: 0, end: 20 * MIB },
@@ -118,6 +144,22 @@ describe("TikTok large video upload protocol", () => {
     expect(resource).toBe("9223372036854775806");
     expect(h.calls).toHaveLength(4);
     expect(h.gates).toHaveBeenCalledTimes(4);
+    expect(h.feedback).toHaveBeenCalledTimes(4);
+    expect(h.gates.mock.calls.slice(1)).toEqual(
+      Array.from({ length: 3 }, () => [
+        { method: "PUT", path: "/file/chunk-upload", applicationId: "public-app-key", principalScoped: true },
+      ]),
+    );
+    for (const [value] of h.feedback.mock.calls.slice(1))
+      expect(value).toMatchObject({
+        method: "PUT",
+        path: "/file/chunk-upload",
+        httpStatus: 200,
+        businessCode: "0",
+        complete: true,
+      });
+    for (const privateValue of [PRIVATE_TOKEN, UPLOAD_TOKEN, SHOP_CIPHER, "route=sg-unit"])
+      expect(JSON.stringify(h.feedback.mock.calls)).not.toContain(privateValue);
     expect(readRange.mock.calls).toEqual([
       [0, 20 * MIB],
       [20 * MIB, 40 * MIB],

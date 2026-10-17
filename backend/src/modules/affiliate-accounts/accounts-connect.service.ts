@@ -86,9 +86,10 @@ export class AffiliateAccountConnectService {
           (connector) => {
             if (!connector.accounts)
               throw new PermanentConnectorError({ code: "unsupported", message: "Account authorization unavailable" });
-            return connector.accounts.exchangeCode({ code, kind });
+            return connector.accounts.exchangeCode({ code, kind, program: row!.program });
           },
           () => ({ exchanged: true }),
+          row.channel,
         );
         const staged = await withTenantTx(this.db, actor, async (tx) => {
           await lockTenantKeys(tx, actor.tenantId);
@@ -164,11 +165,14 @@ export class AffiliateAccountConnectService {
             throw new PermanentConnectorError({ code: "unsupported", message: "Account authorization unavailable" });
           return connector.accounts.describe({
             kind,
+            program: stagedRow.program,
+            externalPrincipalId: grant.externalPrincipalId,
             accessToken: grant.tokens.accessToken,
             scopes: grant.tokens.scopes,
           });
         },
-        (p) => ({ region: p.region, categories: p.categoryAssets.length }),
+        (p) => ({ region: p.region, regionVerified: p.regionVerified !== false, categories: p.categoryAssets.length }),
+        row.channel,
       );
       const currentPrincipal = await this.users.loadPrincipal(actor.tenantId, principal.user.id);
       if (
@@ -183,10 +187,10 @@ export class AffiliateAccountConnectService {
       await withTenantTx(this.db, actor, async (tx) => {
         await lockTenantKeys(tx, actor.tenantId);
         await requireActiveAffiliateTenantIn(tx, actor.tenantId);
-        await this.repo.lockPrincipal(tx, kind, grant.externalPrincipalId);
+        await this.repo.lockPrincipal(tx, kind, grant.externalPrincipalId, stagedRow.channel);
         const existing = stagedRow.accountId
           ? await this.repo.get(tx, stagedRow.accountId, true)
-          : await this.repo.byPrincipal(tx, kind, grant.externalPrincipalId, true);
+          : await this.repo.byPrincipal(tx, kind, grant.externalPrincipalId, true, stagedRow.channel);
         const held = await this.repo.privateAuth(tx, authorizationId, true);
         if (held?.status !== "verifying" || held.claimId !== claimId) {
           await this.repo.clearGrant(tx, authorizationId);
@@ -194,13 +198,29 @@ export class AffiliateAccountConnectService {
         }
         if (
           held.accountId &&
-          (!existing || existing.kind !== kind || existing.externalPrincipalId !== grant.externalPrincipalId)
+          (!existing ||
+            existing.channel !== stagedRow.channel ||
+            existing.kind !== kind ||
+            existing.externalPrincipalId !== grant.externalPrincipalId)
         )
           throw new PermanentConnectorError({
             code: "account_mismatch",
             message: "Authorization belongs to another account",
           });
-        if (await this.sync.accountRevokedSince(tx, kind, grant.externalPrincipalId, held.callbackAt ?? held.createdAt))
+        const acceptedAt = held.callbackAt ?? held.createdAt;
+        if (
+          existing &&
+          (existing.connectedAt.getTime() > acceptedAt.getTime() ||
+            (existing.disconnectedAt && existing.disconnectedAt.getTime() >= acceptedAt.getTime()))
+        )
+          throw new PermanentConnectorError({
+            code: "stale_authorization",
+            message: "A newer authorization or disconnection superseded this grant",
+          });
+        if (
+          stagedRow.channel === "tiktokshop" &&
+          (await this.sync.accountRevokedSince(tx, kind, grant.externalPrincipalId, held.callbackAt ?? held.createdAt))
+        )
           throw new PermanentConnectorError({
             code: "authorization_revoked",
             message: "Creator authorization was revoked",
@@ -208,6 +228,8 @@ export class AffiliateAccountConnectService {
         const patch = {
           status: "active" as const,
           region: profile.region,
+          regionVerified: profile.regionVerified !== false,
+          program: stagedRow.program,
           profile: profile.info,
           scopes: grant.tokens.scopes,
           accessExpiresAt: grant.tokens.accessExpiresAt,
@@ -223,9 +245,12 @@ export class AffiliateAccountConnectService {
           : await this.repo.insert(tx, {
               id: newId(),
               tenantId: actor.tenantId,
+              channel: stagedRow.channel,
               kind,
               externalPrincipalId: grant.externalPrincipalId,
-              name: profile.displayName ?? `Mitra ${grant.externalPrincipalId}`,
+              name:
+                profile.displayName ??
+                `${stagedRow.channel === "shopee" ? "Creator Shopee" : "Mitra"} ${grant.externalPrincipalId}`,
               ...patch,
             });
         await this.credentials.saveIn(tx, actor, account.id, grant, profile.categoryAssets);
@@ -242,7 +267,8 @@ export class AffiliateAccountConnectService {
       const retry = isConnectorError(error) && error.kind === "transient" && attemptsMade < 4;
       const code = isConnectorError(error)
         ? error.code
-        : hasConstraint(error, "affiliate_account_active_owner_uq")
+        : hasConstraint(error, "affiliate_account_active_owner_uq") ||
+            hasConstraint(error, "affiliate_account_channel_active_owner_uq")
           ? "connected_elsewhere"
           : "operation_failed";
       const message = retry
@@ -257,7 +283,11 @@ export class AffiliateAccountConnectService {
                 ? "Akun masih terhubung ke bisnis lain. Putuskan koneksi sebelumnya terlebih dahulu."
                 : code === "permission_revoked"
                   ? "Izin pemohon telah berubah. Minta pengelola yang berwenang menghubungkan akun."
-                  : "Koneksi akun belum berhasil. Periksa akses Creator API/TAP, scope, wilayah Indonesia dan mulai otorisasi baru.";
+                  : code === "stale_authorization"
+                    ? "Koneksi ini telah digantikan oleh koneksi atau pemutusan yang lebih baru. Mulai otorisasi baru."
+                    : row.channel === "shopee"
+                      ? "Koneksi creator Shopee belum berhasil. Periksa izin aplikasi Video/LIVE dan mulai otorisasi baru."
+                      : "Koneksi akun belum berhasil. Periksa akses Creator API/TAP, scope, wilayah Indonesia dan mulai otorisasi baru.";
       await withTenantTx(this.db, ctx, async (tx) => {
         const held = await this.repo.privateAuth(tx, authorizationId, true);
         if (held?.claimId !== claimId) return;

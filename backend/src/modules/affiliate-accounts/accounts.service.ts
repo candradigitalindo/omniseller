@@ -4,6 +4,7 @@ import { newId } from "@omniseller/shared";
 import type { RequestContext } from "../../common/context/request-context";
 import {
   ConflictError,
+  ForbiddenError,
   NotFoundError,
   PreconditionError,
   UnprocessableError,
@@ -106,19 +107,38 @@ export class AffiliateAccountsService {
       return this.expired(row);
     });
   }
-  async start(ctx: RequestContext, input: { kind: MarketplaceAccountKind; accountId?: string }) {
+  async start(
+    ctx: RequestContext,
+    input: {
+      kind: MarketplaceAccountKind;
+      channel?: "tiktokshop" | "shopee";
+      program?: "standard" | "video" | "live";
+      accountId?: string;
+    },
+  ) {
+    if (ctx.actor.type !== "user")
+      throw new ForbiddenError("affiliate_account.user_required", "Masuk sebagai pengguna untuk menghubungkan akun.");
+    const channel = input.channel ?? "tiktokshop";
+    const program = input.program ?? "standard";
+    if (
+      (channel === "tiktokshop" && program !== "standard") ||
+      (channel === "shopee" && (input.kind !== "creator" || !["video", "live"].includes(program)))
+    )
+      throw new ValidationError([
+        { path: "program", message: "Pilih program creator yang sesuai dengan marketplace." },
+      ]);
     if (input.accountId) {
       const target = await this.get(ctx, input.accountId);
-      if (target.kind !== input.kind)
+      if (target.kind !== input.kind || target.channel !== channel)
         throw new ConflictError("affiliate_account.kind_mismatch", "Jenis akun otorisasi tidak sesuai.");
     }
     const state = ACCOUNT_STATE_PREFIX + newSecretToken();
-    const connector = this.connectors.get("tiktokshop");
+    const connector = this.connectors.get(channel);
     if (!connector.accounts)
       throw new UnprocessableError("affiliate_account.unsupported", "Koneksi akun ini belum tersedia.");
     let authorizeUrl: string;
     try {
-      authorizeUrl = connector.accounts.authorizeUrl({ kind: input.kind, state });
+      authorizeUrl = connector.accounts.authorizeUrl({ kind: input.kind, state, program });
     } catch (error) {
       if (isConnectorError(error) && error.code === "not_configured")
         throw new UnprocessableError(
@@ -131,20 +151,26 @@ export class AffiliateAccountsService {
       this.repo.insertAuth(tx, {
         id: newId(),
         tenantId: ctx.tenantId,
+        channel,
+        program,
         kind: input.kind,
         accountId: input.accountId ?? null,
         requestedBy: ctx.actor.type === "user" ? ctx.actor.id : null,
         stateHash: hashToken(state),
-        expiresAt: new Date(Date.now() + 30 * 60_000),
+        expiresAt: new Date(Date.now() + (channel === "shopee" ? 10 : 30) * 60_000),
       }),
     );
     return { row, authorizeUrl };
   }
-  async callback(ctx: RequestContext, input: { state: string; code?: string; error?: string }) {
+  async callback(
+    ctx: RequestContext,
+    input: { state: string; channel?: "tiktokshop" | "shopee"; code?: string; error?: string },
+  ) {
     return withTenantTx(this.db, ctx, async (tx) => {
       const row = await this.repo.authByState(tx, hashToken(input.state));
       if (
         row?.status !== "pending" ||
+        row.channel !== (input.channel ?? "tiktokshop") ||
         row.expiresAt.getTime() <= Date.now() ||
         ctx.actor.type !== "user" ||
         row.requestedBy !== ctx.actor.id
@@ -176,13 +202,17 @@ export class AffiliateAccountsService {
     return [
       {
         file: "akun_affiliate.csv",
-        description: "Akun creator/partner Indonesia beserta profil dan scope; tanpa token atau asset cipher.",
+        description:
+          "Akun creator/partner, marketplace, target wilayah dan status verifikasi; tanpa token atau asset cipher.",
         columns: [
           "id",
+          "marketplace",
+          "program",
           "jenis",
           "id_principal",
           "nama",
           "wilayah",
+          "wilayah_terverifikasi",
           "status",
           "scope",
           "profil",
@@ -195,10 +225,13 @@ export class AffiliateAccountsService {
             (rows) =>
               rows.map((r) => [
                 r.id,
+                r.channel,
+                r.program,
                 r.kind,
                 r.externalPrincipalId,
                 r.name,
                 r.region,
+                r.regionVerified,
                 r.status,
                 r.scopes.join(" "),
                 JSON.stringify(r.profile),
@@ -210,11 +243,32 @@ export class AffiliateAccountsService {
       {
         file: "otorisasi_akun_affiliate.csv",
         description: "Status percobaan koneksi tanpa state, kode otorisasi atau kredensial.",
-        columns: ["id", "jenis", "id_akun", "status", "kode_galat", "diminta_pada", "selesai_pada"],
+        columns: [
+          "id",
+          "marketplace",
+          "program",
+          "jenis",
+          "id_akun",
+          "status",
+          "kode_galat",
+          "diminta_pada",
+          "selesai_pada",
+        ],
         pages: (tx) =>
           keysetPages(
             (after) => this.repo.exportAuth(tx, after, EXPORT_PAGE_SIZE),
-            (rows) => rows.map((r) => [r.id, r.kind, r.accountId, r.status, r.errorCode, r.createdAt, r.completedAt]),
+            (rows) =>
+              rows.map((r) => [
+                r.id,
+                r.channel,
+                r.program,
+                r.kind,
+                r.accountId,
+                r.status,
+                r.errorCode,
+                r.createdAt,
+                r.completedAt,
+              ]),
           ),
       },
     ];

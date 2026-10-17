@@ -2613,6 +2613,10 @@
                   "principalId": {
                     "type": "string"
                   },
+                  "fieldName": {
+                    "type": "string",
+                    "description": "Field berkas tujuan; wajib untuk fitur yang menerima beberapa berkas."
+                  },
                   "file": {
                     "type": "string",
                     "format": "binary"
@@ -2668,6 +2672,261 @@
         "summary": "Unduh berkas hasil commerce selama masa simpan privat",
         "tags": [
           "commerce"
+        ],
+        "x-isolation": {
+          "fixture": "commerce_operation"
+        }
+      }
+    },
+    "/v1/commerce-inbox/conversations": {
+      "post": {
+        "operationId": "CommerceInboxController_create",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InboxCreateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommerceRequestDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Mulai percakapan dengan pembeli marketplace melalui worker",
+        "tags": [
+          "commerce-inbox"
+        ],
+        "x-isolation": {
+          "fixture": "commerce_principal"
+        }
+      }
+    },
+    "/v1/commerce-inbox/conversations/search": {
+      "post": {
+        "operationId": "CommerceInboxController_conversations",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InboxConversationsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommerceRequestDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Ambil halaman percakapan marketplace melalui worker",
+        "tags": [
+          "commerce-inbox"
+        ],
+        "x-isolation": {
+          "fixture": "commerce_principal"
+        }
+      }
+    },
+    "/v1/commerce-inbox/messages/search": {
+      "post": {
+        "operationId": "CommerceInboxController_messages",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InboxMessagesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommerceRequestDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Ambil halaman pesan marketplace melalui worker",
+        "tags": [
+          "commerce-inbox"
+        ],
+        "x-isolation": {
+          "fixture": "commerce_principal"
+        }
+      }
+    },
+    "/v1/commerce-inbox/messages/send": {
+      "post": {
+        "operationId": "CommerceInboxController_send",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InboxSendDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommerceRequestDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Kirim balasan ke marketplace melalui worker",
+        "tags": [
+          "commerce-inbox"
+        ],
+        "x-isolation": {
+          "fixture": "commerce_principal"
+        }
+      }
+    },
+    "/v1/commerce-inbox/messages/read": {
+      "post": {
+        "operationId": "CommerceInboxController_read",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InboxReadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommerceRequestDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Tandai pesan marketplace sudah dibaca melalui worker",
+        "tags": [
+          "commerce-inbox"
+        ],
+        "x-isolation": {
+          "fixture": "commerce_principal"
+        }
+      }
+    },
+    "/v1/commerce-inbox/requests/{id}": {
+      "get": {
+        "operationId": "CommerceInboxController_receipt",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxReceiptDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Status dan tampilan aman pesan marketplace",
+        "tags": [
+          "commerce-inbox"
         ],
         "x-isolation": {
           "fixture": "commerce_operation"
@@ -4526,6 +4785,124 @@
         "x-isolation": {
           "fixture": "store_authorization"
         }
+      }
+    },
+    "/v1/store-installations/tiktokshop/capture": {
+      "post": {
+        "operationId": "StoreInstallationsController_capture",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaptureStoreInstallationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapturedStoreInstallationDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stores"
+        ],
+        "x-isolation": "public"
+      }
+    },
+    "/v1/store-installations/tiktokshop": {
+      "get": {
+        "operationId": "StoreInstallationsController_inspect",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreInstallationChallengeDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stores"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/store-installations/tiktokshop/confirm": {
+      "post": {
+        "operationId": "StoreInstallationsController_confirm",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmStoreInstallationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stores"
+        ],
+        "x-isolation": "self"
+      }
+    },
+    "/v1/store-installations/tiktokshop/select-shops": {
+      "post": {
+        "operationId": "StoreInstallationsController_selectShops",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectInstallationShopsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationDto_Output"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "stores"
+        ],
+        "x-isolation": "self"
       }
     },
     "/v1/stores": {
@@ -13191,6 +13568,21 @@
                   "type": "string",
                   "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
                 },
+                "channel": {
+                  "type": "string",
+                  "enum": [
+                    "tiktokshop",
+                    "shopee"
+                  ]
+                },
+                "program": {
+                  "type": "string",
+                  "enum": [
+                    "standard",
+                    "video",
+                    "live"
+                  ]
+                },
                 "kind": {
                   "type": "string",
                   "enum": [
@@ -13206,6 +13598,9 @@
                 },
                 "region": {
                   "type": "string"
+                },
+                "regionVerified": {
+                  "type": "boolean"
                 },
                 "status": {
                   "type": "string",
@@ -13290,10 +13685,13 @@
               },
               "required": [
                 "id",
+                "channel",
+                "program",
                 "kind",
                 "name",
                 "externalPrincipalId",
                 "region",
+                "regionVerified",
                 "status",
                 "scopes",
                 "profile",
@@ -13332,6 +13730,21 @@
             "type": "string",
             "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
           },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "tiktokshop",
+              "shopee"
+            ]
+          },
+          "program": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "video",
+              "live"
+            ]
+          },
           "kind": {
             "type": "string",
             "enum": [
@@ -13347,6 +13760,9 @@
           },
           "region": {
             "type": "string"
+          },
+          "regionVerified": {
+            "type": "boolean"
           },
           "status": {
             "type": "string",
@@ -13439,10 +13855,13 @@
         },
         "required": [
           "id",
+          "channel",
+          "program",
           "kind",
           "name",
           "externalPrincipalId",
           "region",
+          "regionVerified",
           "status",
           "scopes",
           "profile",
@@ -13479,6 +13898,21 @@
               "affiliate_partner"
             ]
           },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "tiktokshop",
+              "shopee"
+            ]
+          },
+          "program": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "video",
+              "live"
+            ]
+          },
           "accountId": {
             "type": "string",
             "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
@@ -13494,6 +13928,21 @@
           "id": {
             "type": "string",
             "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "tiktokshop",
+              "shopee"
+            ]
+          },
+          "program": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "video",
+              "live"
+            ]
           },
           "kind": {
             "type": "string",
@@ -13573,6 +14022,8 @@
         },
         "required": [
           "id",
+          "channel",
+          "program",
           "kind",
           "accountId",
           "status",
@@ -13592,6 +14043,13 @@
             "type": "string",
             "minLength": 32,
             "maxLength": 200
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "tiktokshop",
+              "shopee"
+            ]
           },
           "code": {
             "type": "string",
@@ -13613,6 +14071,21 @@
           "id": {
             "type": "string",
             "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "tiktokshop",
+              "shopee"
+            ]
+          },
+          "program": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "video",
+              "live"
+            ]
           },
           "kind": {
             "type": "string",
@@ -13688,6 +14161,8 @@
         },
         "required": [
           "id",
+          "channel",
+          "program",
           "kind",
           "accountId",
           "status",
@@ -16568,6 +17043,17 @@
                 "region": {
                   "type": "string"
                 },
+                "regionVerified": {
+                  "type": "boolean"
+                },
+                "program": {
+                  "type": "string",
+                  "enum": [
+                    "standard",
+                    "video",
+                    "live"
+                  ]
+                },
                 "readOnly": {
                   "type": "boolean"
                 },
@@ -17146,6 +17632,327 @@
           "mime",
           "sizeBytes",
           "expiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "InboxCreateDto": {
+        "type": "object",
+        "properties": {
+          "principalId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "buyerUserId": {
+            "type": "string",
+            "pattern": "^\\d{1,30}$"
+          }
+        },
+        "required": [
+          "principalId",
+          "buyerUserId"
+        ],
+        "additionalProperties": false
+      },
+      "InboxConversationsDto": {
+        "type": "object",
+        "properties": {
+          "principalId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "principalId"
+        ],
+        "additionalProperties": false
+      },
+      "InboxMessagesDto": {
+        "type": "object",
+        "properties": {
+          "principalId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "conversationId": {
+            "type": "string",
+            "pattern": "^\\d{1,30}$"
+          }
+        },
+        "required": [
+          "principalId",
+          "conversationId"
+        ],
+        "additionalProperties": false
+      },
+      "InboxSendDto": {
+        "type": "object",
+        "properties": {
+          "principalId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "conversationId": {
+            "type": "string",
+            "pattern": "^\\d{1,30}$"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "TEXT",
+              "IMAGE",
+              "VIDEO",
+              "ORDER_CARD",
+              "PRODUCT_CARD",
+              "COUPON_CARD",
+              "LOGISTICS_CARD",
+              "RETURN_REFUND_CARD"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "uploadRequestId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "orderId": {
+            "type": "string",
+            "pattern": "^\\d{1,30}$"
+          },
+          "productId": {
+            "type": "string",
+            "pattern": "^\\d{1,30}$"
+          },
+          "couponId": {
+            "type": "string",
+            "pattern": "^\\d{1,30}$"
+          },
+          "packageId": {
+            "type": "string",
+            "pattern": "^\\d{1,30}$"
+          },
+          "skuId": {
+            "type": "string",
+            "pattern": "^\\d{1,30}$"
+          }
+        },
+        "required": [
+          "principalId",
+          "conversationId",
+          "type"
+        ],
+        "additionalProperties": false
+      },
+      "InboxReadDto": {
+        "type": "object",
+        "properties": {
+          "principalId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "conversationId": {
+            "type": "string",
+            "pattern": "^\\d{1,30}$"
+          }
+        },
+        "required": [
+          "principalId",
+          "conversationId"
+        ],
+        "additionalProperties": false
+      },
+      "InboxReceiptDto_Output": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "principalId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed",
+              "uncertain"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "conversations",
+              "messages",
+              "send",
+              "read",
+              "upload",
+              "video",
+              "create"
+            ]
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "errorMessage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "conversations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "preview": {
+                  "type": "string"
+                },
+                "unread": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "canReply": {
+                  "type": "boolean"
+                },
+                "updatedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "preview",
+                "unread",
+                "canReply",
+                "updatedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "sender": {
+                  "type": "string"
+                },
+                "incoming": {
+                  "type": "boolean"
+                },
+                "createdAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "mediaUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "type",
+                "text",
+                "sender",
+                "incoming",
+                "createdAt",
+                "mediaUrl"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "messageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "conversationId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "principalId",
+          "status",
+          "kind",
+          "nextCursor",
+          "errorMessage",
+          "conversations",
+          "messages",
+          "messageId",
+          "conversationId"
         ],
         "additionalProperties": false
       },
@@ -20915,6 +21722,57 @@
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
           },
+          "installation": {
+            "description": "App Store only: verified shop identities must be selected before any store is connected",
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "awaitingShopSelection": {
+                    "type": "boolean"
+                  },
+                  "shops": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "externalShopId": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "region": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "externalShopId",
+                        "name",
+                        "region"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "selectedShopIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "awaitingShopSelection",
+                  "shops",
+                  "selectedShopIds"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "authorizeUrl": {
             "type": "string",
             "format": "uri",
@@ -21145,6 +22003,57 @@
             "type": "string",
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          },
+          "installation": {
+            "description": "App Store only: verified shop identities must be selected before any store is connected",
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "awaitingShopSelection": {
+                    "type": "boolean"
+                  },
+                  "shops": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "externalShopId": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "region": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "externalShopId",
+                        "name",
+                        "region"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "selectedShopIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "awaitingShopSelection",
+                  "shops",
+                  "selectedShopIds"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -21159,6 +22068,104 @@
           "errorCode",
           "errorMessage",
           "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "CaptureStoreInstallationDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "CapturedStoreInstallationDto_Output": {
+        "type": "object",
+        "properties": {
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "expiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "StoreInstallationChallengeDto_Output": {
+        "type": "object",
+        "properties": {
+          "confirmationToken": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+          }
+        },
+        "required": [
+          "confirmationToken",
+          "expiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "ConfirmStoreInstallationDto": {
+        "type": "object",
+        "properties": {
+          "confirmationToken": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{43}$"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "confirmationToken",
+          "confirmed"
+        ],
+        "additionalProperties": false
+      },
+      "SelectInstallationShopsDto": {
+        "type": "object",
+        "properties": {
+          "authorizationId": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          },
+          "confirmationToken": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{43}$"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "const": true
+          },
+          "shopIds": {
+            "minItems": 1,
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          }
+        },
+        "required": [
+          "authorizationId",
+          "confirmationToken",
+          "confirmed",
+          "shopIds"
         ],
         "additionalProperties": false
       },

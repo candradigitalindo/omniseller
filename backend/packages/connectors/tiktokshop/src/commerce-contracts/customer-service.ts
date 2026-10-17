@@ -503,7 +503,16 @@ export const CUSTOMER_SERVICE_OPERATIONS: readonly CommerceOperation[] = [
         required: true,
         description:
           "Message type. Possible enumerations:\n- `TEXT`\n- `IMAGE`\n- `VIDEO`\n- `PRODUCT_CARD`\n- `ORDER_CARD`\n- `RETURN_REFUND_CARD`\n- `COUPON_CARD`\n- `LOGISTICS_CARD`",
-        options: ["TEXT", "VIDEO", "ORDER_CARD", "COUPON_CARD"],
+        options: [
+          "TEXT",
+          "IMAGE",
+          "VIDEO",
+          "PRODUCT_CARD",
+          "ORDER_CARD",
+          "RETURN_REFUND_CARD",
+          "COUPON_CARD",
+          "LOGISTICS_CARD",
+        ],
       },
       {
         name: "body.content",

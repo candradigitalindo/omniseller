@@ -150,7 +150,7 @@ export const SUPPLY_CHAIN_OPERATIONS: readonly CommerceOperation[] = [
                 required: false,
                 description:
                   "Package dimension unit\nPossible values:\n- METER\n- CENTIMETER\n- MILLIMETER\n- MICRON\n- FOOT\n- INCH",
-                options: ["METER", "MILLIMETER", "FOOT"],
+                options: ["METER", "CENTIMETER", "MILLIMETER", "MICRON", "FOOT", "INCH"],
               },
             ],
           },
@@ -174,7 +174,7 @@ export const SUPPLY_CHAIN_OPERATIONS: readonly CommerceOperation[] = [
                 type: "enum",
                 required: false,
                 description: "Package weight unit\nPossible values:\n- KILOGRAM\n- GRAM\n- MILLIGRAM\n- POUND\n- OUNCE",
-                options: ["KILOGRAM", "MILLIGRAM", "OUNCE"],
+                options: ["KILOGRAM", "GRAM", "MILLIGRAM", "POUND", "OUNCE"],
               },
             ],
           },

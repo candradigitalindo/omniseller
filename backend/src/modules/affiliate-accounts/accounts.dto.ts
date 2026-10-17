@@ -7,10 +7,13 @@ import type { AffiliateAccountRow, AffiliateAuthorizationMeta } from "./accounts
 const kind = z.enum(["creator", "affiliate_partner"]);
 const account = z.object({
   id: ulidSchema,
+  channel: z.enum(["tiktokshop", "shopee"]),
+  program: z.enum(["standard", "video", "live"]),
   kind,
   name: z.string(),
   externalPrincipalId: z.string(),
   region: z.string(),
+  regionVerified: z.boolean(),
   status: z.enum(AFFILIATE_ACCOUNT_STATUSES),
   scopes: z.array(z.string()),
   profile: z.record(z.string(), z.unknown()),
@@ -24,6 +27,8 @@ const account = z.object({
 });
 const authorization = z.object({
   id: ulidSchema,
+  channel: z.enum(["tiktokshop", "shopee"]),
+  program: z.enum(["standard", "video", "live"]),
   kind,
   accountId: ulidSchema.nullable(),
   status: z.enum(AFFILIATE_AUTHORIZATION_STATUSES),
@@ -41,23 +46,32 @@ export class AffiliateAccountQueryDto extends createZodDto(
 ) {}
 export class RenameAffiliateAccountDto extends createZodDto(z.object({ name: z.string().trim().min(1).max(100) })) {}
 export class StartAffiliateAuthorizationDto extends createZodDto(
-  z.object({ kind, accountId: ulidSchema.optional() }),
+  z.object({
+    kind,
+    channel: z.enum(["tiktokshop", "shopee"]).optional(),
+    program: z.enum(["standard", "video", "live"]).optional(),
+    accountId: ulidSchema.optional(),
+  }),
 ) {}
 export class AffiliateAuthorizationDto extends createZodDto(authorization) {}
 export class StartedAffiliateAuthorizationDto extends createZodDto(authorization.extend({ authorizeUrl: z.url() })) {}
 export class AffiliateAccountCallbackDto extends createZodDto(
   z.object({
     state: z.string().min(32).max(200),
+    channel: z.enum(["tiktokshop", "shopee"]).optional(),
     code: z.string().min(1).max(2000).optional(),
     error: z.string().max(200).optional(),
   }),
 ) {}
 export const accountView = (r: AffiliateAccountRow): z.infer<typeof account> => ({
   id: r.id,
+  channel: r.channel,
+  program: r.program,
   kind: r.kind,
   name: r.name,
   externalPrincipalId: r.externalPrincipalId,
   region: r.region,
+  regionVerified: r.regionVerified,
   status: r.status,
   scopes: r.scopes,
   profile: r.profile,
@@ -71,6 +85,8 @@ export const accountView = (r: AffiliateAccountRow): z.infer<typeof account> => 
 });
 export const authorizationView = (r: AffiliateAuthorizationMeta): z.infer<typeof authorization> => ({
   id: r.id,
+  channel: r.channel,
+  program: r.program,
   kind: r.kind,
   accountId: r.accountId,
   status: r.status,

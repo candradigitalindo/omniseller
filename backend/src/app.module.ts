@@ -32,6 +32,7 @@ import {
 } from "./modules/channel/channel.module";
 import { ClosureHttpModule, ClosureModule } from "./modules/closure/closure.module";
 import { CommerceHttpModule, CommerceWorkerModule } from "./modules/commerce/commerce.module";
+import { CommerceInboxHttpModule } from "./modules/commerce-inbox/commerce-inbox.module";
 import { ExportsHttpModule, ExportsWorkerModule } from "./modules/exports/exports.module";
 import { FilesHttpModule, FilesModule } from "./modules/files/files.module";
 import {
@@ -117,6 +118,7 @@ export class AppModule {
             BillingHttpModule,
             CampaignHttpModule,
             CommerceHttpModule,
+            CommerceInboxHttpModule,
             InventoryHttpModule,
             ChannelHttpModule,
             CatalogHttpModule,

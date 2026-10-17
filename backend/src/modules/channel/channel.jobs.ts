@@ -10,6 +10,7 @@ import {
   storeAuthorizationExpiring,
   storeAuthorizationReceived,
   storeConnected,
+  storeInstallationSelected,
   storeReauthRequired,
   storeWarehousesSyncRequested,
   tenantDekRotationRequested,
@@ -38,6 +39,25 @@ export const storeAuthorizeJob = defineJob({
   jobId: (p) => jobKey("store.authorize", p.authorizationId),
   handler: async (p, run) => {
     await run.deps.resolve(StoreConnectService).complete(run.ctx, p, run.attemptsMade + 1 < STORE_AUTHORIZE_ATTEMPTS);
+  },
+});
+
+/** Resumes only the worker's sealed grant after a verified shop selection, never exchanges a URL code. */
+export const storeInstallationConnectJob = defineJob({
+  queue: "mp.outbound",
+  name: "store.installation_connect",
+  schema: z.object({ authorizationId: ulidSchema }),
+  triggeredBy: [storeInstallationSelected],
+  options: { attempts: STORE_AUTHORIZE_ATTEMPTS, backoff: { type: "exponential", delay: 3_000 } },
+  jobId: (p) => jobKey("store.installation_connect", p.authorizationId),
+  handler: async (p, run) => {
+    await run.deps
+      .resolve(StoreConnectService)
+      .complete(
+        run.ctx,
+        { authorizationId: p.authorizationId, code: "" },
+        run.attemptsMade + 1 < STORE_AUTHORIZE_ATTEMPTS,
+      );
   },
 });
 
@@ -167,6 +187,7 @@ export const CHANNEL_JOBS = [
   storeAuthorizationCleanupJob,
   tenantDekRotateJob,
   storeAuthorizeJob,
+  storeInstallationConnectJob,
   storeWarehousesSyncJob,
   storeWebhooksSubscribeJob,
   storeTokenRefreshJob,

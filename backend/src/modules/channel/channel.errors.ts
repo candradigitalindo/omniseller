@@ -53,6 +53,8 @@ export const AUTHORIZATION_FAILURES = {
   shop_connected_elsewhere:
     "Toko ini sudah terhubung ke bisnis lain di OmniSeller. Putuskan dulu dari bisnis tersebut.",
   store_mismatch: "Akun yang diotorisasi bukan toko yang ingin dihubungkan ulang.",
+  billing_limit_reached:
+    "Batas toko marketplace pada paket bisnis sudah tercapai. Naik paket untuk menambah toko baru.",
   marketplace_error: "Marketplace sedang bermasalah. Coba hubungkan lagi beberapa saat lagi.",
 } as const;
 export type AuthorizationFailure = keyof typeof AUTHORIZATION_FAILURES;

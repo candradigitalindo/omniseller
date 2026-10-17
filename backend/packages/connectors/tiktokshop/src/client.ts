@@ -8,7 +8,7 @@ import {
   retryAfter,
   unixSeconds,
 } from "@omniseller/connector-core";
-
+import { mappingGetBodyFetch, TIKTOK_MAPPING_GET_PATH } from "./get-json-body.js";
 import { assertTiktokRequestScopes } from "./scope-guard.js";
 
 /**
@@ -109,12 +109,19 @@ export class TiktokShopClient {
     };
     // Serialize once: the signature covers these exact bytes.
     const body = input.body === undefined ? undefined : JSON.stringify(input.body);
+    if (input.method === "GET" && body !== undefined && input.path !== TIKTOK_MAPPING_GET_PATH)
+      throw new PermanentConnectorError({
+        code: "get_body_contract_unverified",
+        message: "Unreviewed GET body transport",
+      });
     const sign = tiktokSign(this.appSecret, tiktokSignString({ path: input.path, query, ...(body ? { body } : {}) }));
     const url = new URL(input.path, this.config.apiBaseUrl);
     for (const [k, v] of Object.entries(query)) url.searchParams.set(k, v);
     url.searchParams.set("sign", sign);
     const res = await requestJson(
-      this.config.http ?? {},
+      input.method === "GET" && body !== undefined
+        ? { ...this.config.http, fetch: mappingGetBodyFetch(this.config.apiBaseUrl, this.config.http?.fetch) }
+        : (this.config.http ?? {}),
       {
         method: input.method,
         url,

@@ -25,7 +25,7 @@ export class AffiliateAccountRevocationService {
       await this.repo.lockPrincipal(tx, event.externalAccount.kind, event.externalAccount.id);
       const account = await this.repo.get(tx, event.accountId, true);
       if (
-        !account ||
+        account?.channel !== "tiktokshop" ||
         account.kind !== event.externalAccount.kind ||
         account.externalPrincipalId !== event.externalAccount.id ||
         account.status === "disconnected"
@@ -55,6 +55,7 @@ export class AffiliateAccountRevocationService {
         })
         .where(
           and(
+            eq(affiliateAuthorization.channel, "tiktokshop"),
             eq(affiliateAuthorization.kind, "creator"),
             inArray(affiliateAuthorization.status, ["pending", "exchanging", "verifying"]),
             or(

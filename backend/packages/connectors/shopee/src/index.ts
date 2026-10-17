@@ -1,3 +1,4 @@
+export * from "./accounts.js";
 export * from "./affiliate.js";
 export * from "./catalog.js";
 export * from "./client.js";

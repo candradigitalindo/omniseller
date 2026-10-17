@@ -60,6 +60,8 @@ export interface CommerceInput {
 export interface CommerceCredentials {
   accessToken: string;
   externalShopId?: string;
+  /** Shopee Video/LIVE user principal, distinct from a seller shop id. */
+  externalAccountId?: string;
   shopCipher?: string | null;
   categoryAssets?: { cipher: string; categoryId: number; categoryName: string; market: string }[];
   files?: Record<

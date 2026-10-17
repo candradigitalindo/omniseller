@@ -22,7 +22,7 @@ The fixed dedicated-mutation set was reviewed against the pre-commerce applicati
 CSV at commit 834f22d; never regenerate that policy from the expanded current audit,
 or every newly integrated operation would incorrectly become unavailable.
 """
-import pathlib, json, re, collections, hashlib, argparse
+import pathlib, json, re, collections, hashlib, argparse, urllib.parse
 parser = argparse.ArgumentParser(description='Generate reviewed TikTok commerce descriptors from public documentation data only')
 parser.add_argument('--snapshot', type=pathlib.Path, required=True)
 parser.add_argument('--output-dir', type=pathlib.Path, default=pathlib.Path(__file__).resolve().parents[1] / 'packages/connectors/tiktokshop/src')
@@ -60,6 +60,55 @@ dedicated_mutations = {'POST /fulfillment/202309/packages/{id}/ship', 'POST /pro
 def canonical(path):
     return re.sub('\\{[^}]+\\}', '{id}', path)
 common = {'app_key', 'sign', 'timestamp', 'shop_cipher', 'category_asset_cipher', 'access_token', 'refresh_token', 'app_secret'}
+# These exceptions were reviewed against the complete official document and SDK examples.
+# Bind them to exact source bytes: a future documentation change requires another review.
+reviewed_contracts = {
+    '650a9191c16ffe02b8eec161': {
+        'metadata': 'ae6284ae84bfa69c827502287a7e458db32c342b1bd3d2d25666a3b265ad5cb0',
+        'document': '08583916029fe9cce0ba77e318313fea3d8b3880d7c97bbcc62e827949c144f0',
+        'readOnly': True,
+        'decision': 'Inventory Search explicitly retrieves inventory for product_ids/sku_ids. Its POST request contains only search identifiers, never quantities or updates.',
+    },
+    '69dde24cf76068049e2730b8': {
+        'metadata': '51bda8d035e65db796a44a1659c8d4a674da9cc29f20459e86352c75bc277503',
+        'document': 'd93158ebf86cb52295bae0bdba58c29bb8c31ce7afd7be96d6695eed9ca87341',
+        'readOnly': True,
+        'decision': 'List Opportunities explicitly searches and retrieves paginated leads using category, timestamp, type and tag filters; it does not create or change opportunities.',
+    },
+    '6a296867f76068049e634aa4': {
+        'metadata': '977c1789335973cb0e9a968aeb0ce502e693d087534c13225175598cc2bb210b',
+        'document': '3b83ddca540674ada38299685dc1c498de7fc401775b483b4896c368408848f6',
+        'readOnly': True,
+        'decision': 'List Product SKPP Statuses is explicitly a batch status query using product IDs, a status filter and pagination; no update is submitted.',
+    },
+    '67287d619ba2a002fe590322': {
+        'metadata': '143953e859358624317242bf4f4ca8ab16dda1194f098f964dbd42871ca3dd9a',
+        'document': 'c29c25fc822de836b03868df3781deef218e78464233ea8badb025440fdd9038',
+        'readOnly': True,
+        'decision': 'Creator Search Sample Application Fulfillments explicitly queries existing fulfillment statuses; its body is a status filter rather than a fulfillment command.',
+    },
+    '66716aa19a01ec02e5b90513': {
+        'metadata': '6d7210413d296aec09946412969d225916f84b7f550a9fff95d34f81422dea20',
+        'document': 'b934febe716093fa98eb31e0435335758c981c44965c1af6ef345067992306aa',
+        'readOnly': True,
+        'decision': 'Seller Search Open Collaboration Products explicitly searches eligible products using keyword/category/price/commission filters; no collaboration or product is changed.',
+    },
+    '6a335dc2f180ee049bf09ed6': {
+        'metadata': '1adb2ad3cd8de4c71385e7a3b9ad014b826829f1bdcaa439d83a604f088e5185',
+        'document': '7aa4cc29897d14dab977750213e8435061c9327e5deb67244fc2e37ca4695c4c',
+        'decision': 'The GET JSON body is explicit in the request table and Go/Java/Node SDK examples; the dedicated transport preserves it. Tokopedia int64 identifiers use exact decimal-string input and numeric JSON wire values.',
+    },
+    '6791db764ddec3030b395150': {
+        'metadata': 'bc8e0f12777bc63e796d0d4b0ca1af01749571aaf36a08ea78a0e87c2c3ff5af',
+        'document': '0e841ce2574376a0e8813f766010f316c3ede0e841c2bc0e988eeba1806eed1c',
+        'decision': 'only_need_conversation_id is explicitly documented and sampled as a query field; omit its redundant optional GET body copy.',
+    },
+    '68c8c9ed5514fb049cae029f': {
+        'metadata': '64738a50a601142147c77e89f316a109690daf4124597f9860cccde9e215fed8',
+        'document': '53acfe2edb7fdd85530f148fef74f1df336720af82e6402b1a3642c6ced28063',
+        'decision': 'The official Path and query example explicitly name campaign_id and product_id placeholders. Require opaque strings without coercion; never substitute a different endpoint or infer a missing permission.',
+    },
+}
 raw = []
 catalog = []
 errors = []
@@ -103,7 +152,8 @@ def fields(rows, prefix=''):
             f['required'] = True
         desc = r.get('desc', '')
         if typ == 'string' and (not isarr) and re.search('enumerat|possible values|valid values|supported values', desc, re.I):
-            values = re.findall('^\\s*[-*]\\s*`?([A-Z][A-Z0-9_]*)`?(?:\\s*[:\\-].*)?\\s*$', desc, re.M)
+            # Horizontal whitespace only: \s can swallow the next enum bullet as a description.
+            values = re.findall(r'''^[ \t]*[-*][ \t]*[`'"]?([A-Z][A-Z0-9_]*)[`'"]?(?:[ \t]*[:\-][^\r\n]*)?[ \t]*$''', desc, re.M)
             if len(values) > 1:
                 f.update(type='enum', options=list(dict.fromkeys(values)))
         if depth:
@@ -134,6 +184,12 @@ for node in tree:
     m = (md or {}).get('document_api_meta', {})
     if not m:
         raise ValueError('Missing metadata for ' + i)
+    reviewed = reviewed_contracts.get(i)
+    if reviewed and (
+        hashlib.sha256((p / 'api-meta' / f'{i}.json').read_bytes()).hexdigest() != reviewed['metadata']
+        or hashlib.sha256((p / 'details' / f'{i}.json').read_bytes()).hexdigest() != reviewed['document']
+    ):
+        raise ValueError('Reviewed contract source changed; explicit re-review required: ' + i)
     group = ancestry(i)[1]
     content = detail.get('content', '')
     curl = next((x.get('value', '') for x in m.get('sample_code', []) if x.get('key') == 'curl'), '')
@@ -179,6 +235,23 @@ for node in tree:
         fs, es = fields(m.get(key, []), prefix)
         request += fs
         issues += es
+    if reviewed and i == '6791db764ddec3030b395150':
+        request = [field for field in request if field['name'] != 'body.only_need_conversation_id']
+        issues = [issue for issue in issues if issue != 'GET body requires a dedicated documented transport']
+    if reviewed and i == '6a335dc2f180ee049bf09ed6':
+        for field in request:
+            if field['name'] == 'body.toko_pids':
+                field.update(itemType='string', required=True, minimum=1, maximum=100)
+                field['description'] += ' Enter exact positive decimal IDs; the connector sends JSON int64 values without floating-point conversion. The application permits up to 100 IDs per lookup.'
+        issues = [issue for issue in issues if issue != 'GET body requires a dedicated documented transport']
+    if reviewed and i == '68c8c9ed5514fb049cae029f':
+        for name in ['campaign_id', 'product_id']:
+            request.append({'name': 'path.' + name, 'label': name.replace('_', ' ').capitalize(), 'type': 'string', 'required': True, 'maxLength': 200, 'description': 'Exact ' + name + ' placeholder from the official API Path. Preserve the identifier as text.'})
+    if path == '/analytics/202609/shop_videos/batch_performance':
+        for field in request:
+            if field['name'] == 'query.video_ids':
+                field['itemType'] = 'string'
+                field['description'] += ' Preserve each numeric int64 video ID as an exact decimal string; numeric JSON is generated without floating-point conversion.'
     for name in re.findall('\\{([^}]+)\\}', path or ''):
         if not any((x['name'] == 'path.' + name for x in request)):
             issues.append('Path parameter schema missing:' + name)
@@ -195,7 +268,7 @@ for node in tree:
     regionexclusion = re.search('(?:only\\s+(?:available|supported|applicable)\\s+(?:in|for|to)|(?:available|supported)\\s+(?:only|exclusively)\\s+(?:in|for|to)|only\\s+available\\s+(?:in|for|to))\\s+([^\\n.]+)', regiontext, re.I)
     if regionexclusion and re.search('United States|United Kingdom|\\bUS\\b|\\bUK\\b|\\bGB\\b|Brazil|Japan|\\bBR\\b|\\bJP\\b|Europe|EU markets', regionexclusion.group(1), re.I) and (not re.search('Indonesia|\\bID\\b', regionexclusion.group(1), re.I)):
         issues.append('Documented region restriction requires review: ' + regionexclusion.group(0))
-    read_only = method == 'GET' or bool(re.match('^(?:Search|Get(?! or Create)|Query|Check|Recommend|Calculate|Validate|Preview)\\b', node['name'], re.I))
+    read_only = method == 'GET' or bool(re.match('^(?:Search|Get(?! or Create)|Query|Check|Recommend|Calculate|Validate|Preview)\\b', node['name'], re.I)) or bool(reviewed and reviewed.get('readOnly'))
     if method in ['PUT', 'DELETE', 'PATCH']:
         read_only = False
     if not read_only and f'{method} {canonical(path or chr(0))}' in dedicated_mutations:
@@ -215,6 +288,7 @@ for node in tree:
     raw.append({'provenance': {'metadataSha256': hashlib.sha256((p / 'api-meta' / f'{i}.json').read_bytes()).hexdigest(), 'documentSha256': hashlib.sha256((p / 'details' / f'{i}.json').read_bytes()).hexdigest()}, 'operation': operation, 'catalogDocumentId': i, 'version': re.search('/([0-9]{6})/', path or '').group(1) if re.search('/([0-9]{6})/', path or '') else None, 'description': envdesc, 'requestSchema': {k: m.get(k, []) for k in ['request_header_param', 'request_path_param', 'request_query_param', 'request_body_param']}, 'responseSchema': m.get('response_param', []), 'scopePackages': [{k: x.get(k) for k in ['scope_key', 'package_name', 'package_type', 'auth_type', 'data_source_list']} for x in m.get('scope_list', [])], 'principalEvidence': header, 'marketEvidence': regionexclusion.group(0) if regionexclusion else None, 'schemaIssues': es})
     catalog.append(operation)
 runtime_contracts = []
+query_serializers = {}
 for family in tree:
     if family['is_dir'] or not family['is_api_doc'] or family['doc_type'] != 1:
         continue
@@ -242,6 +316,21 @@ for family in tree:
             'scopes': [{'name': scope['scope_key'], 'authType': scope['auth_type']} for scope in meta.get('scope_list', []) if scope.get('scope_key')],
             'officialUrl': 'https://partner.tiktokshop.com/docv2/page/' + (meta.get('document_path') or document_id),
         })
+        sample_query = urllib.parse.parse_qs(urllib.parse.urlparse(meta.get('query', '')).query)
+        for field in meta.get('request_query_param', []):
+            if not field.get('type', '').startswith('[]'):
+                continue
+            example = sample_query.get(field['name'], [''])[0]
+            if field['type'] == '[]string' and example and not example.startswith('['):
+                encoding = 'csv'
+            elif field['type'] == '[]int' and re.fullmatch(r'\[[0-9]+(?:,[0-9]+)*\]', example):
+                encoding = 'json_int64'
+            else:
+                raise ValueError('Array query encoding is not proven by the official example: ' + document_id + ':' + field['name'])
+            serializers = query_serializers.setdefault(meta['interface_path'], {})
+            if field['name'] in serializers and serializers[field['name']] != encoding:
+                raise ValueError('Conflicting query array encodings: ' + document_id)
+            serializers[field['name']] = encoding
 expected = sum((not node['is_dir'] and node['is_api_doc'] and (node['doc_type'] == 1) for node in tree))
 if len(catalog) != expected:
     raise ValueError(f'Catalog is incomplete: {len(catalog)}/{expected}')
@@ -259,7 +348,7 @@ def data_hash(directory):
         h.update(file.read_bytes())
         h.update(b'\x00')
     return h.hexdigest()
-manifest = {'fetchedAt': capture['fetched_at'], 'treeSha256': capture['tree_sha256'], 'apiMetadataSha256': data_hash('api-meta'), 'documentDetailsSha256': data_hash('details'), 'versionListsSha256': data_hash('versions'), 'navigationEntries': len(tree), 'catalogOperations': len(catalog), 'apiVersionDocuments': len(list((p / 'api-meta').glob('*.json'))), 'availableContracts': sum((op['available'] for op in catalog)), 'scopeSemantics': 'An applicable listed package is a necessary condition only; marketplace authorization remains authoritative. FBT requires its additional documented onboarding preflight scope.', 'eligibility': 'App approval, Indonesia market/program and actual account grants remain runtime prerequisites.', 'dedicatedMutationPolicySource': 'AUDIT-TIKTOKSHOP-KODE.csv at repository commit 834f22d869ae0378bdc29e7c9a4aa7b6573944a1'}
+manifest = {'fetchedAt': capture['fetched_at'], 'treeSha256': capture['tree_sha256'], 'apiMetadataSha256': data_hash('api-meta'), 'documentDetailsSha256': data_hash('details'), 'versionListsSha256': data_hash('versions'), 'navigationEntries': len(tree), 'catalogOperations': len(catalog), 'apiVersionDocuments': len(list((p / 'api-meta').glob('*.json'))), 'availableContracts': sum((op['available'] for op in catalog)), 'reviewedContracts': {key: value for key, value in reviewed_contracts.items() if key in nodes}, 'scopeSemantics': 'An applicable listed package is a necessary condition only; marketplace authorization remains authoritative. FBT requires its additional documented onboarding preflight scope.', 'eligibility': 'App approval, Indonesia market/program and actual account grants remain runtime prerequisites.', 'dedicatedMutationPolicySource': 'AUDIT-TIKTOKSHOP-KODE.csv at repository commit 834f22d869ae0378bdc29e7c9a4aa7b6573944a1'}
 output = args.output_dir.resolve()
 target = output / 'commerce-contracts'
 target.mkdir(parents=True, exist_ok=True)
@@ -289,6 +378,10 @@ export interface TiktokRuntimeScopeContract {
 }
 export const TIKTOK_RUNTIME_SCOPE_CONTRACTS: readonly TiktokRuntimeScopeContract[] = """
 (output / 'runtime-scope-contracts.ts').write_text(runtime_header + json.dumps(runtime_contracts, ensure_ascii=False, indent=2) + ';\n')
+(output / 'commerce-query-contracts.ts').write_text('''/** Generated from explicit array query examples in all official API versions.
+ * Wire encoding is endpoint-specific; JSON arrays and comma-separated lists are not interchangeable.
+ */
+export const TIKTOK_COMMERCE_QUERY_SERIALIZERS: Readonly<Record<string, Readonly<Record<string, "csv" | "json_int64">>>> = ''' + json.dumps(query_serializers, ensure_ascii=False, indent=2) + ';\n')
 
 # Only explicit reviewed failure containers affect mutation outcomes. Do not interpret unrelated
 # monetary failed-delivery amounts or read-only listing/audit diagnostics as mutation refusals.
@@ -323,4 +416,4 @@ if args.data_output_dir:
     for name, data in [('tiktokshop.operations.json', raw), ('tiktokshop.catalog.json', catalog), ('tiktokshop.provenance.json', manifest)]:
         (args.data_output_dir / name).write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n')
 print(json.dumps(manifest, ensure_ascii=False, indent=2))
-print('Format generated files from backend/: pnpm exec biome check --write packages/connectors/tiktokshop/src/commerce-contracts.ts packages/connectors/tiktokshop/src/commerce-contracts packages/connectors/tiktokshop/src/runtime-scope-contracts.ts packages/connectors/tiktokshop/src/commerce-outcome-contracts.ts')
+print('Format generated files from backend/: pnpm exec biome check --write packages/connectors/tiktokshop/src/commerce-contracts.ts packages/connectors/tiktokshop/src/commerce-contracts packages/connectors/tiktokshop/src/runtime-scope-contracts.ts packages/connectors/tiktokshop/src/commerce-outcome-contracts.ts packages/connectors/tiktokshop/src/commerce-query-contracts.ts')

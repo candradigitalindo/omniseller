@@ -5,6 +5,7 @@ import {
   isConnectorError,
   PermanentConnectorError,
   TransientConnectorError,
+  withGrantedScopes,
 } from "@omniseller/connector-core";
 import { newId } from "@omniseller/shared";
 import { sql } from "drizzle-orm";
@@ -132,22 +133,38 @@ export class CommerceWorkerService {
           const current = await this.credentials.forAccount(actor, row.accountId!);
           // Fresh scopes after a token refresh can be narrower than at API submission.
           await this.commerce.assert(actor, operation, row.accountId!);
-          return this.gateway.callPrincipal(
-            actor,
-            row.accountId!,
-            { kind: "commerce.operation", direction: row.isWrite ? "push" : "pull" },
-            async (connector) => {
-              if (!connector.commerce)
-                throw new PermanentConnectorError({ code: "unsupported", message: "Commerce adapter unavailable" });
-              await dispatch();
-              return connector.commerce.execute(
-                { accessToken: current.accessToken, categoryAssets: current.categoryAssets, files },
-                operation.id,
-                row.input,
-              );
-            },
-            (r) => ({ acknowledgement: r.acknowledgement }),
-          );
+          return this.gateway
+            .callPrincipal(
+              actor,
+              row.accountId!,
+              { kind: "commerce.operation", direction: row.isWrite ? "push" : "pull" },
+              async (connector) => {
+                if (!connector.commerce)
+                  throw new PermanentConnectorError({ code: "unsupported", message: "Commerce adapter unavailable" });
+                await dispatch();
+                const invoke = () =>
+                  connector.commerce!.execute(
+                    {
+                      accessToken: current.accessToken,
+                      externalAccountId: current.account.externalPrincipalId,
+                      categoryAssets: current.categoryAssets,
+                      files,
+                    },
+                    operation.id,
+                    row.input,
+                  );
+                return current.account.channel === "tiktokshop"
+                  ? withGrantedScopes({ principalKind: current.account.kind, scopes: current.account.scopes }, invoke)
+                  : invoke();
+              },
+              (r) => ({ acknowledgement: r.acknowledgement }),
+              current.account.channel,
+            )
+            .catch(async (error: unknown) => {
+              if (isConnectorError(error) && error.kind === "auth_revoked")
+                await this.credentials.markRevoked(actor, row.accountId!, current.accessToken, error.code);
+              throw error;
+            });
         };
         try {
           execution = await call();

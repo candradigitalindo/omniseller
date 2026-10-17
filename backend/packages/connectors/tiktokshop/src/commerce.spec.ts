@@ -207,4 +207,126 @@ describe("reviewed TikTok commerce adapter", () => {
       code: "bad_response",
     });
   });
+  it("maps Tokopedia IDs with the documented GET body and exact numeric int64 wire values", async () => {
+    const h = harness({ product: [{ toko_pid: "9223372036854775806", tts_pid: "9223372036854775807" }] });
+    const op = operation("/affiliate_creator/202606/toko_product_mappers");
+    const result = await h.adapter.execute({ accessToken: "CREATOR_PRIVATE" }, op.id, {
+      body: { toko_pids: ["9223372036854775806"] },
+    });
+    const { url, init } = h.calls[0]!;
+    expect(init.method).toBe("GET");
+    expect(init.body).toBe('{"toko_pids":[9223372036854775806]}');
+    const query = Object.fromEntries(url.searchParams);
+    expect(query.sign).toBe(
+      tiktokSign("fixture-secret", tiktokSignString({ path: op.path, query, body: String(init.body) })),
+    );
+    expect(result.data).toEqual({ product: [{ toko_pid: "9223372036854775806", tts_pid: "9223372036854775807" }] });
+    expect(JSON.stringify(h.records)).not.toContain("CREATOR_PRIVATE");
+    h.setResponse({ code: 0, data: { error: { code: 1, message: "private detail" } } });
+    await expect(
+      h.adapter.execute({ accessToken: "creator" }, op.id, { body: { toko_pids: ["42"] } }),
+    ).rejects.toMatchObject({ code: "commerce_mapping_rejected" });
+  });
+  it("uses the documented affiliate conversation query rather than a redundant GET body", async () => {
+    const h = harness({ conversations: [] });
+    const op = operation("/affiliate_seller/202412/conversations");
+    await h.adapter.execute({ accessToken: "seller", shopCipher: "shop" }, op.id, {
+      query: { page_size: 10, only_need_conversation_id: false, conversation_status: "UNREAD" },
+    });
+    expect(h.calls[0]!.url.searchParams.get("only_need_conversation_id")).toBe("false");
+    expect(h.calls[0]!.init.body).toBeUndefined();
+    await expect(
+      h.adapter.execute({ accessToken: "seller" }, op.id, {
+        query: { page_size: 10 },
+        body: { only_need_conversation_id: true },
+      }),
+    ).rejects.toMatchObject({ code: "commerce_invalid_input" });
+  });
+  it("uses both documented campaign/product placeholders without coercion or traversal", async () => {
+    const h = harness({ creators: [] });
+    const op = operation("/affiliate_partner/202508/campaigns/{campaign_id}/products/{product_id}/performance");
+    const credentials = {
+      accessToken: "partner",
+      categoryAssets: [{ categoryId: 101, categoryName: "Fixture", market: "ID", cipher: "ASSET_PRIVATE" }],
+    };
+    await h.adapter.execute(credentials, op.id, {
+      path: { campaign_id: "9223372036854775806", product_id: "9223372036854775807" },
+      query: { page_size: 10 },
+    });
+    expect(h.calls[0]!.url.pathname).toBe(
+      "/affiliate_partner/202508/campaigns/9223372036854775806/products/9223372036854775807/performance",
+    );
+    await expect(
+      h.adapter.execute(credentials, op.id, { path: { campaign_id: "../other", product_id: "42" } }),
+    ).rejects.toMatchObject({ code: "commerce_invalid_input" });
+    expect(h.calls).toHaveLength(1);
+    expect(JSON.stringify(h.records)).not.toContain("ASSET_PRIVATE");
+  });
+  it("uploads return labels and QR evidence in one signed multipart request with per-field limits", async () => {
+    const h = harness({});
+    const op = operation("/return_refund/202405/returns/shipping_documents");
+    const labelId = "01ARZ3NDEKTSV4RRFFQ69G5FAV";
+    const qrId = "01ARZ3NDEKTSV4RRFFQ69G5FAW";
+    const files = {
+      [labelId]: { bytes: Buffer.from("%PDF-1.7\nPRIVATE_LABEL"), mime: "application/pdf", filename: "commerce.pdf" },
+      [qrId]: { bytes: Buffer.from("%PDF-1.7\nPRIVATE_QR"), mime: "application/pdf", filename: "commerce.pdf" },
+    };
+    const input = {
+      query: { return_ids: ["9223372036854775806"], return_id_type: "RMA" },
+      body: {
+        return_shipping_label: labelId,
+        return_qr_code: qrId,
+        tracking_number: "TRACK_PRIVATE",
+        return_provider_id: "42",
+      },
+    };
+    await h.adapter.execute({ accessToken: "seller", shopCipher: "SHOP_PRIVATE", files }, op.id, input);
+    const { url, init } = h.calls[0]!;
+    const form = init.body as FormData;
+    expect(form.get("return_shipping_label")).toBeInstanceOf(Blob);
+    expect(form.get("return_qr_code")).toBeInstanceOf(Blob);
+    expect(form.get("tracking_number")).toBe("TRACK_PRIVATE");
+    expect(url.searchParams.get("return_ids")).toBe("9223372036854775806");
+    const query = Object.fromEntries(url.searchParams);
+    expect(query.sign).toBe(tiktokSign("fixture-secret", tiktokSignString({ path: op.path, query })));
+    for (const value of ["TRACK_PRIVATE", "PRIVATE_LABEL", "SHOP_PRIVATE"])
+      expect(JSON.stringify(h.records)).not.toContain(value);
+    files[qrId]!.bytes = Buffer.alloc(2_000_001);
+    await expect(h.adapter.execute({ accessToken: "seller", files }, op.id, input)).rejects.toMatchObject({
+      code: "commerce_invalid_file",
+    });
+    expect(h.calls).toHaveLength(1);
+  });
+  it("never retains invisible provider messages or conversation previews in generic commerce results", async () => {
+    const h = harness({
+      messages: [
+        { id: "visible", is_visible: true, content: "PUBLIC" },
+        { id: "invisible", is_visible: false, content: "PRIVATE_HIDDEN_MESSAGE" },
+        { id: "unspecified", content: "PRIVATE_UNVERIFIED_MESSAGE" },
+      ],
+    });
+    const messages = operation("/customer_service/202309/conversations/{conversation_id}/messages");
+    const result = await h.adapter.execute({ accessToken: "seller" }, messages.id, {
+      path: { conversation_id: "thread" },
+      query: { page_size: 10 },
+    });
+    expect(result.data).toMatchObject({ messages: [{ id: "visible", is_visible: true, content: "PUBLIC" }] });
+    expect(JSON.stringify(result)).not.toContain("PRIVATE_");
+    h.setResponse({
+      code: 0,
+      data: {
+        conversations: [
+          { id: "first", latest_message: { id: "hidden", is_visible: false, content: "PRIVATE_PREVIEW" } },
+          { id: "second", latest_message: { id: "visible", is_visible: true, content: "PUBLIC" } },
+        ],
+      },
+    });
+    const conversations = TIKTOK_COMMERCE_OPERATIONS.find((item) => item.id === "tiktok_650a589f0fcef602bf29fecf")!;
+    const threads = await h.adapter.execute({ accessToken: "seller" }, conversations.id, { query: { page_size: 10 } });
+    expect(threads.data).toMatchObject({
+      conversations: [{ id: "first" }, { id: "second", latest_message: { content: "PUBLIC" } }],
+    });
+    expect(JSON.stringify(threads)).not.toContain("PRIVATE_PREVIEW");
+    expect(JSON.stringify(h.records)).not.toContain("PRIVATE_");
+  });
 });

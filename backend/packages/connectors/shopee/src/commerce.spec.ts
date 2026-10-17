@@ -2,7 +2,11 @@ import { type CallRecord, type CommerceInput, parseJsonSafe } from "@omniseller/
 import { describe, expect, it } from "vitest";
 import { ShopeeClient, shopeeBaseString, shopeeSign } from "./client.js";
 import { shopeeCommerce } from "./commerce.js";
-import { SHOPEE_COMMERCE_CONTRACTS, SHOPEE_COMMERCE_OPERATIONS } from "./commerce-contracts.js";
+import {
+  SHOPEE_COMMERCE_AUXILIARY_CONTRACTS,
+  SHOPEE_COMMERCE_CONTRACTS,
+  SHOPEE_COMMERCE_OPERATIONS,
+} from "./commerce-contracts.js";
 
 const LARGE = "9007199254740993";
 const credentials = { externalShopId: LARGE, accessToken: "test-token" };
@@ -36,8 +40,10 @@ const id = (action: string) => `shopee.${action}`;
 
 describe("Shopee reviewed commerce catalog", () => {
   it("accounts for all 428 pinned endpoints and all 28 modules with immutable method evidence", () => {
-    expect(SHOPEE_COMMERCE_OPERATIONS).toHaveLength(428);
-    expect(new Set(SHOPEE_COMMERCE_OPERATIONS.map((o) => o.id)).size).toBe(428);
+    expect(SHOPEE_COMMERCE_CONTRACTS).toHaveLength(428);
+    expect(SHOPEE_COMMERCE_AUXILIARY_CONTRACTS).toHaveLength(1);
+    expect(SHOPEE_COMMERCE_OPERATIONS).toHaveLength(429);
+    expect(new Set(SHOPEE_COMMERCE_OPERATIONS.map((o) => o.id)).size).toBe(429);
     expect(new Set(SHOPEE_COMMERCE_OPERATIONS.map((o) => o.id.split(".")[1])).size).toBe(28);
     for (const contract of SHOPEE_COMMERCE_CONTRACTS) {
       expect(contract.operation.path).toMatch(/^\/api\/v2\/[a-z0-9_/]+$/i);
@@ -48,7 +54,7 @@ describe("Shopee reviewed commerce catalog", () => {
       expect(contract.operation.scopes).toEqual([]);
       expect(contract.operation.eligibility).toBe("unverified");
       if (contract.operation.available) {
-        expect(contract.operation.principalKind).toBe("seller");
+        expect(["seller", "creator"]).toContain(contract.operation.principalKind);
         expect(contract.operation.appPrograms?.length).toBeGreaterThan(0);
       } else expect(contract.operation.unavailableReason).toBeTruthy();
     }
@@ -65,9 +71,9 @@ describe("Shopee reviewed commerce catalog", () => {
     ]) {
       expect(SHOPEE_COMMERCE_OPERATIONS.find((o) => o.id === id(name))).toMatchObject({ available: false });
     }
-    for (const operation of SHOPEE_COMMERCE_OPERATIONS.filter((o) => /\/(?:video|livestream)\//.test(o.path))) {
-      expect(operation).toMatchObject({ available: false, principalKind: "creator" });
-      expect(operation.unavailableReason).toContain("user_id");
+    for (const contract of SHOPEE_COMMERCE_CONTRACTS.filter((c) => /\/(?:video|livestream)\//.test(c.operation.path))) {
+      expect(contract.operation.principalKind).toBe("creator");
+      expect(contract.auth).toBe("user");
     }
   });
 
@@ -130,6 +136,24 @@ describe("Shopee reviewed commerce catalog", () => {
 });
 
 describe("Shopee commerce signed transport", () => {
+  it("serializes reviewed array queries with their documented comma, JSON or repeated-key encoding", async () => {
+    const h = harness({ response: { item_list: [], direct_item_list: [] } });
+    await h.api.execute(credentials, id("product.get_item_extra_info"), { query: { item_id_list: [LARGE, "12"] } });
+    expect(h.calls[0]!.url.searchParams.get("item_id_list")).toBe(`${LARGE},12`);
+    await h.api.execute(credentials, id("product.get_direct_item_list"), { query: { main_item_id: [LARGE, "12"] } });
+    expect(h.calls[1]!.url.searchParams.get("main_item_id")).toBe(`[${LARGE},12]`);
+    await h.api.execute(credentials, id("product.search_item"), {
+      query: { page_size: 10, item_status: ["NORMAL", "BANNED"] },
+    });
+    expect(h.calls[2]!.url.searchParams.getAll("item_status")).toEqual(["NORMAL", "BANNED"]);
+  });
+  it("keeps numeric continuation cursors exact and recognizes the documented zero terminator", async () => {
+    const h = harness({ data: [], cursor: LARGE });
+    const result = await h.api.execute(credentials, id("shop.get_shop_notification"), {});
+    expect(result.nextCursor).toBe(LARGE);
+    const end = harness({ data: [], cursor: 0 });
+    expect((await end.api.execute(credentials, id("shop.get_shop_notification"), {})).nextCursor).toBeNull();
+  });
   it("reads AMS with documented GET query, seller signature, precision and pagination", async () => {
     const h = harness(
       `{"error":"","request_id":"read","response":{"item_list":[{"item_id":${LARGE},"item_name":"Produk"}],"cursor":"next","has_more":true,"secret":"hidden","buyer_user_name":"private"}}`,
@@ -311,7 +335,7 @@ describe("Shopee commerce signed transport", () => {
       code: "commerce_unavailable",
     });
     await expect(safe.api.execute(credentials, id("video.get_video_list"), {})).rejects.toMatchObject({
-      code: "commerce_unavailable",
+      code: "commerce_principal_required",
     });
     await expect(safe.api.execute(credentials, id("product.update_stock"), {})).rejects.toMatchObject({
       code: "commerce_unavailable",

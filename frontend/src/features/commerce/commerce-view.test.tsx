@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { mockApi, renderApp, testMe } from "@/test/render";
-import { CommerceView, hasOperationScopes } from "./commerce-view";
+import { CommerceView, hasAccountProgram, hasOperationScopes } from "./commerce-view";
 import type { CommerceOperation, CommercePrincipal, CommerceRequest } from "./contracts";
 
 const principal: CommercePrincipal = {
@@ -290,4 +290,12 @@ describe("commerce operations workspace", () => {
     );
     expect(hasOperationScopes({ scopes: [], scopeMode: "any" }, principal)).toBe(false);
   });
+});
+
+it("keeps Shopee Video and LIVE connection purposes separate", () => {
+  const live = { ...read, channel: "shopee" as const, appPrograms: ["Livestream Management"] };
+  expect(hasAccountProgram(live, { ...principal, channel: "shopee", program: "live" })).toBe(true);
+  expect(hasAccountProgram(live, { ...principal, channel: "shopee", program: "video" })).toBe(false);
+  expect(hasAccountProgram(live, { ...principal, channel: "shopee", program: "standard" })).toBe(false);
+  expect(hasAccountProgram(read, principal)).toBe(true);
 });

@@ -4,6 +4,7 @@ import { baseColumns, tstz, ulid } from "../columns";
 export const commerceFile = pgTable("commerce_file", {
   ...baseColumns(),
   operationId: text("operation_id").notNull(),
+  fieldName: text("field_name"),
   principalKind: text("principal_kind").$type<CommercePrincipalKind>().notNull(),
   storeId: ulid("store_id"),
   accountId: ulid("account_id"),

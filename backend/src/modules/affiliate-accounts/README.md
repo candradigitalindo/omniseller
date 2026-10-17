@@ -66,6 +66,9 @@ shop webhook subscriptions. Current deployment configuration supports one TikTok
 It rechecks the tenant and principal under tenant-key/principal/account locks, marks `reauth_required`,
 removes credential material and soft-fails matching pending/staged grants while retaining history.
 A refresh/probe cannot restore these credentials because it checks the live account and token again.
+An explicit authorization-revoked response from a creator/partner commerce call also marks the current
+account `reauth_required` and deletes its credentials. The worker compares the rejected access token
+under the tenant-key/account locks; a newer grant committed during the old HTTP call remains active.
 
 Inbox routing/insertion and grant commit serialize on the principal lock. A staged grant also checks
 verified cancellation facts before commit, including notifications received before its first account
@@ -79,3 +82,42 @@ Migration 0035 expands only the global inbox metadata. Public routing returns te
 profile, scope, credentials and private assets remain unavailable through that lookup. Parser contract
 coverage is in `packages/connectors/tiktokshop/src/webhooks.spec.ts`; real-role end-to-end coverage is
 `test/e2e/creator-revocation.e2e.int.spec.ts`. Real marketplace delivery remains an approval/test gate.
+
+## Shopee Video and LIVE creator connections
+
+Migration `0039_shopee_creator_accounts.sql` adds `channel`, the requested creator `program`, and
+`region_verified` metadata. Existing TikTok rows retain their platform and verified Indonesia region.
+Shopee uses the official `/auth?auth_type=user` authorization page with the application's existing
+`/integrasi/callback/shopee` return page. The callback remains signed-in-user, tenant, marketplace,
+single-use-state and TTL bound. The API queues the code; only the worker exchanges, seals, refreshes
+and uses the separate user grant. Numeric `user_id` remains exact even above JavaScript's safe range.
+
+Choose Shopee Video or Shopee LIVE in the connection modal. This records the purpose of the consent
+flow; it does not manufacture an API scope. Both use the documented user token grant. One active
+connection per marketplace/user identity prevents competing refresh-token copies. Seller shop tokens
+and TikTok creator/partner tokens stay in different namespaces. A reconnect must preserve marketplace,
+kind and external identity. The current deployment uses one configured Shopee partner application;
+that application's program permissions must be approved in Shopee Console.
+
+Shopee's public grant contracts provide no account-country/profile lookup. `region='ID'` is the
+selected target market and `regionVerified=false` explicitly records the missing provider proof.
+The connection UI and result page show this distinction. Empty scopes do not mean every Video/LIVE
+operation is granted. Program eligibility is checked finally by Shopee. Only operations with reviewed
+user-principal and Indonesia program contracts can run; seller AMS is not a publisher authorization.
+
+Creator consent cancellation is handled through the documented platform contracts only. TikTok's
+creator revocation lookup, worker and grant fence are explicitly scoped to `channel='tiktokshop'`, so a
+Shopee user with the same textual id cannot be cancelled by that webhook. Shopee disconnect currently
+removes local credentials and cancels pending authorization; revoke application permission in Shopee
+when required. An undocumented creator-revocation webhook is not guessed.
+
+Sources: Shopee developer guides 20 (authorization/authentication), 669 (LIVE affiliate streamer
+integration), and 706 (Video creator integration), pinned with the source audit. Coverage includes
+signed wire tests, tenant/callback isolation, exact numeric identity, refresh rotation, namespace and
+ownership conflicts, stale-user authorization checks, private grant DB privileges, and both platform
+callback/UI tests. Live partner-console permission and real creator grant delivery remain external
+verification gates.
+
+Grant commit also compares callback time with the live account's connection/disconnection generation.
+An older unbound grant cannot overwrite a newer connection or revive a principal disconnected while
+its code was being exchanged. Terminal authorization history is retained; staged bytes are cleared.

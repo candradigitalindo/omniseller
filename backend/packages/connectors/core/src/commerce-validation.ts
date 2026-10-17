@@ -59,7 +59,13 @@ function value(field: CommerceField, item: CommerceValue, path: string, depth: n
       break;
   }
 }
-function fields(definitions: CommerceField[], input: Record<string, CommerceValue>, path: string, depth: number) {
+function fields(
+  definitions: CommerceField[],
+  input: Record<string, CommerceValue>,
+  path: string,
+  depth: number,
+  originRegions: readonly string[] = [],
+) {
   for (const key of Object.keys(input)) {
     if (forbidden.test(key)) fail(`${path}.${key}`, "credentials are selected by the server");
     if (!definitions.some((field) => field.name === key)) fail(`${path}.${key}`, "undocumented field");
@@ -77,7 +83,8 @@ function fields(definitions: CommerceField[], input: Record<string, CommerceValu
       /^(?:target_market|target_market_code|selection_region|region|region_code|country_code|market)$/.test(
         field.name,
       ) &&
-      entry !== "ID"
+      entry !== "ID" &&
+      !(field.name === "region" && typeof entry === "string" && originRegions.includes(entry))
     )
       fail(`${path}.${field.name}`, "only the documented Indonesia scope is enabled");
   }
@@ -104,12 +111,17 @@ export function validateCommerceInput(operation: CommerceOperation, input: Comme
       raw,
       section,
       0,
+      section === "body" && operation.id === "shopee.first_mile.bind_first_mile_tracking_number"
+        ? ["CN", "KR"]
+        : section === "body" && operation.id === "shopee.first_mile.generate_and_bind_first_mile_tracking_number"
+          ? ["CN"]
+          : [],
     );
   }
 }
 
 const privateField =
-  /(?:token|secret|cipher|password|authorization|buyer|customer|recipient|address|phone|email|mobile|identity|tracking_number|shipping_label|download_url)/i;
+  /(?:token|secret|cipher|password|authorization|buyer|customer|recipient|address|phone|email|mobile|identity|tracking_number|shipping_label|download_url)|(?:push_key|push_url|play_url|stream_url|file_link)$/i;
 /** Cache is intentionally stripped of buyer PII, secrets and private download URLs. */
 export function safeCommerceResult(input: unknown, depth = 0): CommerceValue {
   if (depth > 12) return null;

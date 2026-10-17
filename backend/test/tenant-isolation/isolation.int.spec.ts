@@ -52,6 +52,16 @@ const PATH_PARAMS: Record<string, string> = {
 
 /** Bodies for mutating operations, keyed by operationId. `ids` holds A's fixture ids and B's own ids. */
 const BODIES: Record<string, (ids: { a: Record<string, string>; bViewerRoleId: string; aState: string }) => object> = {
+  CommerceInboxController_conversations: ({ a }) => ({ principalId: a.store! }),
+  CommerceInboxController_create: ({ a }) => ({ principalId: a.store!, buyerUserId: "123" }),
+  CommerceInboxController_messages: ({ a }) => ({ principalId: a.store!, conversationId: "123" }),
+  CommerceInboxController_read: ({ a }) => ({ principalId: a.store!, conversationId: "123" }),
+  CommerceInboxController_send: ({ a }) => ({
+    principalId: a.store!,
+    conversationId: "123",
+    type: "TEXT",
+    text: "Pesan",
+  }),
   CommerceController_request: ({ a: ids }) => ({
     operationId: TIKTOK_COMMERCE_OPERATIONS.find(
       (operation) => operation.principalKind === "creator" && operation.available,

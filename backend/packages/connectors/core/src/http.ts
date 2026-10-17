@@ -14,6 +14,18 @@ export interface CallRecord {
 }
 
 export type CallObserver = (record: CallRecord) => void;
+export interface HttpCallTarget {
+  method: HttpRequest["method"];
+  path: string;
+  applicationId?: string;
+  principalScoped?: boolean;
+}
+export interface HttpRateFeedback extends HttpCallTarget {
+  httpStatus: number | null;
+  businessCode?: string;
+  retryAfterMs?: number;
+  complete: boolean;
+}
 
 export interface HttpConfig {
   fetch?: typeof fetch;
@@ -22,7 +34,8 @@ export interface HttpConfig {
   maxResponseBytes?: number;
   observer?: CallObserver;
   /** Awaited before every request: the backend's per-shop rate limit (token bucket). */
-  beforeRequest?: () => Promise<void>;
+  beforeRequest?: (target?: HttpCallTarget) => Promise<void>;
+  afterResponse?: (feedback: HttpRateFeedback) => Promise<void>;
 }
 
 export interface HttpRequest {
@@ -50,6 +63,59 @@ const DEFAULT_TIMEOUT_MS = 15_000;
 const MAX_JSON_BYTES = 32 * 1024 * 1024;
 /** Largest file a connector downloads (a label batch of 50 parcels is well below 5 MB). */
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
+
+function callTarget(req: HttpRequest): HttpCallTarget {
+  const applicationId = req.url.searchParams.get("app_key") ?? req.url.searchParams.get("partner_id");
+  return {
+    method: req.method,
+    path: req.url.pathname,
+    ...(applicationId ? { applicationId } : {}),
+    principalScoped: ["shop_id", "shop_cipher", "user_id", "category_asset_cipher"].some((key) =>
+      req.url.searchParams.has(key),
+    ),
+  };
+}
+function businessCode(json: unknown): string | undefined {
+  if (!json || typeof json !== "object") return undefined;
+  const value = (json as Record<string, unknown>).code ?? (json as Record<string, unknown>).error;
+  return (typeof value === "number" && Number.isSafeInteger(value)) ||
+    (typeof value === "string" && /^[A-Za-z0-9_.-]{0,80}$/.test(value))
+    ? String(value)
+    : undefined;
+}
+async function rateFeedback(
+  config: HttpConfig,
+  target: HttpCallTarget,
+  record: CallRecord,
+  headers: Headers | undefined,
+  json: unknown,
+  complete: boolean,
+) {
+  // Feedback must not replace the provider's actual outcome. The next active gate still fails closed
+  // if its shared Redis is unavailable.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    if (!config.afterResponse) return;
+    const pending = config.afterResponse({
+      ...target,
+      httpStatus: record.httpStatus,
+      businessCode: businessCode(json),
+      complete,
+      ...(headers ? retryAfter(headers) : {}),
+    });
+    await Promise.race([
+      pending,
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, 1000);
+        timer.unref();
+      }),
+    ]);
+  } catch {
+    /* Preserve the request outcome. */
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 function responseLimit(config: HttpConfig, ceiling: number): number {
   const requested = config.maxResponseBytes ?? ceiling;
@@ -133,7 +199,8 @@ export async function requestJson(
 ): Promise<HttpResponse> {
   const limit = responseLimit(config, MAX_JSON_BYTES);
   const doFetch = config.fetch ?? fetch;
-  await config.beforeRequest?.();
+  const target = callTarget(req);
+  await config.beforeRequest?.(target);
   const started = performance.now();
   const record: CallRecord = {
     method: req.method,
@@ -142,6 +209,9 @@ export async function requestJson(
     durationMs: 0,
     ...(req.logBody === undefined ? {} : { request: summarize(req.logBody) }),
   };
+  let responseHeaders: Headers | undefined;
+  let responseJson: unknown;
+  let complete = false;
   try {
     let res: Response;
     try {
@@ -156,6 +226,7 @@ export async function requestJson(
       throw new TransientConnectorError({ code: "network", message: (err as Error).message });
     }
     record.httpStatus = res.status;
+    responseHeaders = res.headers;
     const text = new TextDecoder().decode(await readResponse(res, limit, "response_too_large", record));
     let json: unknown;
     try {
@@ -178,12 +249,15 @@ export async function requestJson(
       });
     }
     const requestId = requestIdOf(json);
+    responseJson = json;
+    complete = true;
     if (requestId) record.requestId = requestId;
     record.response = summarize(json);
     return { status: res.status, headers: res.headers, json };
   } finally {
     record.durationMs = Math.round(performance.now() - started);
     config.observer?.(record);
+    await rateFeedback(config, target, record, responseHeaders, responseJson, complete);
   }
 }
 
@@ -208,7 +282,8 @@ export async function requestFile(
 ): Promise<FileResponse> {
   const limit = responseLimit(config, MAX_FILE_BYTES);
   const doFetch = config.fetch ?? fetch;
-  await config.beforeRequest?.();
+  const target = callTarget(req);
+  await config.beforeRequest?.(target);
   const started = performance.now();
   const record: CallRecord = {
     method: req.method,
@@ -217,6 +292,9 @@ export async function requestFile(
     durationMs: 0,
     ...(req.logBody === undefined ? {} : { request: summarize(req.logBody) }),
   };
+  let responseHeaders: Headers | undefined;
+  let responseJson: unknown;
+  let complete = false;
   try {
     let res: Response;
     try {
@@ -231,7 +309,9 @@ export async function requestFile(
       throw new TransientConnectorError({ code: "network", message: (err as Error).message });
     }
     record.httpStatus = res.status;
+    responseHeaders = res.headers;
     const bytes = await readResponse(res, limit, "file_too_large", record);
+    complete = true;
     const type = res.headers.get("content-type") ?? "";
     const looksJson = type.includes("json") || (bytes.length > 0 && bytes[0] === 0x7b);
     if (looksJson) {
@@ -245,6 +325,7 @@ export async function requestFile(
         const requestId = requestIdOf(json);
         if (requestId) record.requestId = requestId;
         record.response = summarize(json);
+        responseJson = json;
         return { status: res.status, headers: res.headers, json };
       }
     }
@@ -270,6 +351,7 @@ export async function requestFile(
   } finally {
     record.durationMs = Math.round(performance.now() - started);
     config.observer?.(record);
+    await rateFeedback(config, target, record, responseHeaders, responseJson, complete);
   }
 }
 

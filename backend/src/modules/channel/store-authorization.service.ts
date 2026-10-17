@@ -1,14 +1,16 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { newId } from "@omniseller/shared";
+import { sql } from "drizzle-orm";
+import type { Redis } from "ioredis";
 import type { RequestContext } from "../../common/context/request-context";
 import { ForbiddenError, ValidationError } from "../../common/errors/domain-errors";
 import { limitReached, planLimitReached } from "../../common/plan-limits";
-import { hashToken, newSecretToken } from "../../common/security/tokens";
+import { hashToken, looksLikeSecretToken, newSecretToken } from "../../common/security/tokens";
 import { ENV } from "../../config/config.module";
 import type { Env } from "../../config/env.schema";
 import type { DbHandle, Tx } from "../../db/client";
 import { withTenantTx } from "../../db/tenant-tx";
-import { DB_TENANT, OUTBOX } from "../../infra/tokens";
+import { DB_TENANT, OUTBOX, REDIS_CACHE } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
 import { TenantsService } from "../identity/tenants.service";
 import {
@@ -20,9 +22,10 @@ import {
   reauthorizeChannelMismatch,
   storeNotFound,
 } from "./channel.errors";
-import { storeAuthorizationReceived } from "./channel.events";
+import { storeAuthorizationReceived, storeInstallationSelected } from "./channel.events";
 import { ChannelRepository, type StoreAuthorizationRow } from "./channel.repository";
 import { CONNECTORS, type ConnectorRegistry, isSupportedChannel } from "./connector-registry";
+import { type InstallationReview, StoreInstallationStore } from "./store-installation.store";
 import { isManualChannel, publicWebUrl, StoresService } from "./stores.service";
 
 /** TikTok Shop codes live 30 minutes and Shopee codes 10; the link itself is kept a little longer. */
@@ -57,11 +60,145 @@ export class StoreAuthorizationService {
     @Inject(StoresService) private readonly stores: StoresService,
     @Inject(TenantsService) private readonly tenants: TenantsService,
     @Inject(ENV) private readonly env: Env,
+    @Inject(REDIS_CACHE) private readonly redis: Redis,
   ) {}
 
   private withStatus(row: StoreAuthorizationRow): AuthorizationView {
     const expired = row.status === "pending" && row.expiresAt.getTime() <= Date.now();
     return { row, status: expired ? "expired" : row.status };
+  }
+
+  private installations(): StoreInstallationStore {
+    const apiKey = "TOTP_ENCRYPTION_KEY" in this.env ? this.env.TOTP_ENCRYPTION_KEY : undefined;
+    if (!apiKey) throw new Error("Installation capture is available only in the API process");
+    return new StoreInstallationStore(this.redis, apiKey);
+  }
+
+  private interactive(ctx: RequestContext, session: string): void {
+    if (ctx.actor.type !== "user" || !looksLikeSecretToken(session))
+      throw new ForbiddenError("store_authorization.user_required", "Masuk sebagai pengguna untuk menghubungkan toko.");
+    if (!ctx.permissions.has("settings:store"))
+      throw new ForbiddenError("auth.permission_denied", "Anda tidak memiliki izin mengelola toko.");
+  }
+
+  async captureInstallation(code: string): Promise<{ token: string; expiresAt: Date }> {
+    this.connectors.get("tiktokshop");
+    return this.installations().capture(code);
+  }
+
+  async inspectInstallation(ctx: RequestContext, receipt: string, session: string) {
+    this.interactive(ctx, session);
+    return this.installations().challenge(receipt, session);
+  }
+
+  /** A code without state may only enter the existing worker flow after a user's fresh confirmation. */
+  async confirmInstallation(
+    ctx: RequestContext,
+    input: { receipt: string; session: string; confirmationToken: string },
+  ): Promise<AuthorizationView> {
+    this.interactive(ctx, input.session);
+    const installations = this.installations();
+    const claim = await installations.claim({
+      token: input.receipt,
+      session: input.session,
+      confirmationToken: input.confirmationToken,
+      tenantId: ctx.tenantId,
+      userId: ctx.actor.id,
+      authorizationId: newId(),
+    });
+    const view = await withTenantTx(this.db, ctx, async (tx) => {
+      // Concurrent confirmations and response-loss retries share one durable attempt and one outbox event.
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtextextended(${`store-install:${claim.authorizationId}`}, 0))`,
+      );
+      const existing = await this.repo.getAuthorization(tx, claim.authorizationId, true);
+      if (existing) {
+        if (existing.requestedBy !== ctx.actor.id || existing.channel !== "tiktokshop") throw authorizationInvalid();
+        return this.withStatus(existing);
+      }
+      if (!claim.code || claim.expiresAt.getTime() <= Date.now()) throw authorizationInvalid();
+      this.connectors.get("tiktokshop");
+      // Verification creates no stores. At quota the verified identity may still reconnect an existing
+      // shop; the worker checks the live quota while locking the tenant before each actual connection.
+      await this.repo.insertAuthorization(tx, {
+        id: claim.authorizationId,
+        tenantId: ctx.tenantId,
+        channel: "tiktokshop",
+        requestedBy: ctx.actor.id,
+        stateHash: hashToken(newSecretToken()),
+        status: "pending",
+        expiresAt: claim.expiresAt,
+      });
+      await this.repo.updateAuthorization(tx, claim.authorizationId, {
+        status: "exchanging",
+        callbackAt: new Date(),
+        result: { installation: { awaitingShopSelection: false, shops: [], selectedShopIds: [] } },
+      });
+      await this.outbox.enqueue(
+        tx,
+        ctx,
+        storeAuthorizationReceived,
+        { authorizationId: claim.authorizationId, code: claim.code },
+        claim.authorizationId,
+      );
+      return this.withStatus((await this.repo.getAuthorization(tx, claim.authorizationId))!);
+    });
+    await installations.clearCode(input.receipt);
+    return view;
+  }
+
+  async selectInstallationShops(
+    ctx: RequestContext,
+    input: { receipt: string; session: string; confirmationToken: string; authorizationId: string; shopIds: string[] },
+  ): Promise<AuthorizationView> {
+    this.interactive(ctx, input.session);
+    const claim = await this.installations().claim({
+      token: input.receipt,
+      session: input.session,
+      confirmationToken: input.confirmationToken,
+      tenantId: ctx.tenantId,
+      userId: ctx.actor.id,
+      authorizationId: newId(),
+    });
+    if (claim.authorizationId !== input.authorizationId) throw authorizationInvalid();
+    return withTenantTx(this.db, ctx, async (tx) => {
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtextextended(${`store-install:${claim.authorizationId}`}, 0))`,
+      );
+      const row = await this.repo.getAuthorization(tx, claim.authorizationId, true);
+      if (
+        !row ||
+        row.requestedBy !== ctx.actor.id ||
+        row.channel !== "tiktokshop" ||
+        row.expiresAt.getTime() <= Date.now()
+      )
+        throw authorizationInvalid();
+      const installation = row.result.installation as InstallationReview | undefined;
+      if (!installation) throw authorizationInvalid();
+      if (installation.selectedShopIds.length > 0) {
+        if (
+          installation.selectedShopIds.length !== input.shopIds.length ||
+          !input.shopIds.every((id) => installation.selectedShopIds.includes(id))
+        )
+          throw authorizationInvalid();
+        return this.withStatus(row);
+      }
+      if (
+        row.status !== "exchanging" ||
+        !installation.awaitingShopSelection ||
+        !input.shopIds.length ||
+        !input.shopIds.every((id) => installation.shops.some((shop) => shop.externalShopId === id))
+      )
+        throw authorizationInvalid();
+      await this.repo.updateAuthorization(tx, row.id, {
+        result: {
+          ...row.result,
+          installation: { ...installation, awaitingShopSelection: false, selectedShopIds: input.shopIds },
+        },
+      });
+      await this.outbox.enqueue(tx, ctx, storeInstallationSelected, { authorizationId: row.id }, row.id);
+      return this.withStatus((await this.repo.getAuthorization(tx, row.id))!);
+    });
   }
 
   async start(

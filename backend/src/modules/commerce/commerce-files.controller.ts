@@ -37,6 +37,10 @@ export class CommerceFilesController {
       properties: {
         operationId: { type: "string" },
         principalId: { type: "string" },
+        fieldName: {
+          type: "string",
+          description: "Field berkas tujuan; wajib untuk fitur yang menerima beberapa berkas.",
+        },
         file: { type: "string", format: "binary" },
       },
     },
@@ -47,7 +51,7 @@ export class CommerceFilesController {
   @UseInterceptors(
     FileInterceptor("file", {
       storage: commerceUploadStorage,
-      limits: { fileSize: 500 * 1024 * 1024, files: 1, fields: 2 },
+      limits: { fileSize: 500 * 1024 * 1024, files: 1, fields: 3 },
     }),
     CommerceUploadCleanupInterceptor,
   )
@@ -58,8 +62,13 @@ export class CommerceFilesController {
   ) {
     const operation = this.commerce.operation(body.operationId);
     await this.commerce.assert(ctx, operation, body.principalId);
-    return this.files.save(ctx, operation, body.principalId, file, () =>
-      this.commerce.assertFresh(ctx, operation, body.principalId),
+    return this.files.save(
+      ctx,
+      operation,
+      body.principalId,
+      file,
+      () => this.commerce.assertFresh(ctx, operation, body.principalId),
+      body.fieldName,
     );
   }
   @Get("requests/:id/download")

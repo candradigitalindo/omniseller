@@ -1414,7 +1414,12 @@ export const FULFILLED_BY_TIKTOK_FBT_OPERATIONS: readonly CommerceOperation[] = 
             required: true,
             description:
               "Return handling method stored for the FBT customer return service. This field is required on every update request.\nPossible values:\n- RESTOCK_SELLABLE_DISPOSE_UNSELLABLE\n- DISPOSAL_WITHOUT_INSPECTION\n- RETURN_WITHOUT_INSPECTION\n- RESTOCK_SELLABLE_RETURN_UNSELLABLE",
-            options: ["RESTOCK_SELLABLE_DISPOSE_UNSELLABLE", "RETURN_WITHOUT_INSPECTION"],
+            options: [
+              "RESTOCK_SELLABLE_DISPOSE_UNSELLABLE",
+              "DISPOSAL_WITHOUT_INSPECTION",
+              "RETURN_WITHOUT_INSPECTION",
+              "RESTOCK_SELLABLE_RETURN_UNSELLABLE",
+            ],
           },
           {
             name: "dimension_and_weight_base_info",
@@ -1457,7 +1462,7 @@ export const FULFILLED_BY_TIKTOK_FBT_OPERATIONS: readonly CommerceOperation[] = 
                 type: "enum",
                 required: true,
                 description: "Weight unit.\nPossible values:\n- MILLIGRAM\n- GRAM\n- KILOGRAM\n- POUND\n- OUNCE",
-                options: ["MILLIGRAM", "KILOGRAM", "OUNCE"],
+                options: ["MILLIGRAM", "GRAM", "KILOGRAM", "POUND", "OUNCE"],
               },
               {
                 name: "dimension_unit",
@@ -1466,7 +1471,7 @@ export const FULFILLED_BY_TIKTOK_FBT_OPERATIONS: readonly CommerceOperation[] = 
                 required: true,
                 description:
                   "Dimension unit. \nPossible values:\n- MILLIMETER \n- CENTIMETER\n- METER \n- FOOT \n- INCH",
-                options: ["MILLIMETER", "METER", "INCH"],
+                options: ["MILLIMETER", "CENTIMETER", "METER", "FOOT", "INCH"],
               },
             ],
           },
@@ -1491,7 +1496,7 @@ export const FULFILLED_BY_TIKTOK_FBT_OPERATIONS: readonly CommerceOperation[] = 
                 required: true,
                 description:
                   "hazardous goods type\nPossible values:\n-MAGNETIZED\n-BATTERY \n-FLAMMABLE_LIQUID\n-AEROSOLS",
-                options: ["MAGNETIZED", "FLAMMABLE_LIQUID"],
+                options: ["MAGNETIZED", "BATTERY", "FLAMMABLE_LIQUID", "AEROSOLS"],
               },
               {
                 name: "battery_extra_info",
@@ -1515,7 +1520,7 @@ export const FULFILLED_BY_TIKTOK_FBT_OPERATIONS: readonly CommerceOperation[] = 
                     required: true,
                     description:
                       "Battery packaging type.\nPossible values:\n- STANDALONE\n- IN_EQUIPMENT\n- WITH_EQUIPMENT\n- OTHER",
-                    options: ["STANDALONE", "WITH_EQUIPMENT"],
+                    options: ["STANDALONE", "IN_EQUIPMENT", "WITH_EQUIPMENT", "OTHER"],
                   },
                   {
                     name: "total_battery_weight",
@@ -1583,7 +1588,7 @@ export const FULFILLED_BY_TIKTOK_FBT_OPERATIONS: readonly CommerceOperation[] = 
                     type: "enum",
                     required: true,
                     description: "Flammable liquid type.\nPossible values:\n- PAINT\n- PERFUMERY\n- ALCOHOLIC\n- OTHER",
-                    options: ["PAINT", "ALCOHOLIC"],
+                    options: ["PAINT", "PERFUMERY", "ALCOHOLIC", "OTHER"],
                   },
                   {
                     name: "flammable_liquids_volume",
@@ -1607,7 +1612,7 @@ export const FULFILLED_BY_TIKTOK_FBT_OPERATIONS: readonly CommerceOperation[] = 
                 type: "enum",
                 required: true,
                 description: "Hazmat class\nPossible values:\n-CLASS_2\n-CLASS_3\n-CLASS_9",
-                options: ["CLASS_2", "CLASS_9"],
+                options: ["CLASS_2", "CLASS_3", "CLASS_9"],
               },
               {
                 name: "dg_uncode",
@@ -1616,7 +1621,7 @@ export const FULFILLED_BY_TIKTOK_FBT_OPERATIONS: readonly CommerceOperation[] = 
                 required: true,
                 description:
                   "UN identifier for the hazardous substance. Standard UN values use the `UN` prefix followed by four digits; `OTHER` is also supported.\nPossible values:\n- UN2807\n- UN3480\n- UN3090\n- UN3481\n- UN3091\n- UN1263\n- UN1266\n- UN3065\n- OTHER",
-                options: ["UN2807", "UN3090", "UN3091", "UN1266", "OTHER"],
+                options: ["UN2807", "UN3480", "UN3090", "UN3481", "UN3091", "UN1263", "UN1266", "UN3065", "OTHER"],
               },
               {
                 name: "msds_file_url",
@@ -1901,7 +1906,14 @@ export const FULFILLED_BY_TIKTOK_FBT_OPERATIONS: readonly CommerceOperation[] = 
             required: true,
             description:
               "Return handling method for the FBT customer return service. The default value will be Restock sellable, Dispose unsellable.\nPossible values:\n- COLLECT_RETURN_UNITS\n- RESTOCK_SELLABLE_COLLECT_UNSELLABLE\n- RESTOCK_SELLABLE_DISPOSE_UNSELLABLE\n- DISPOSAL_WITHOUT_INSPECTION\n- RETURN_WITHOUT_INSPECTION\n- RESTOCK_SELLABLE_RETURN_UNSELLABLE",
-            options: ["COLLECT_RETURN_UNITS", "RESTOCK_SELLABLE_DISPOSE_UNSELLABLE", "RETURN_WITHOUT_INSPECTION"],
+            options: [
+              "COLLECT_RETURN_UNITS",
+              "RESTOCK_SELLABLE_COLLECT_UNSELLABLE",
+              "RESTOCK_SELLABLE_DISPOSE_UNSELLABLE",
+              "DISPOSAL_WITHOUT_INSPECTION",
+              "RETURN_WITHOUT_INSPECTION",
+              "RESTOCK_SELLABLE_RETURN_UNSELLABLE",
+            ],
           },
           {
             name: "dimension_and_weight_base_info",
@@ -1979,7 +1991,7 @@ export const FULFILLED_BY_TIKTOK_FBT_OPERATIONS: readonly CommerceOperation[] = 
                 required: true,
                 description:
                   "hazardous goods type\nPossible values:\n-MAGNETIZED\n-BATTERY \n-FLAMMABLE_LIQUID\n-AEROSOLS",
-                options: ["MAGNETIZED", "FLAMMABLE_LIQUID"],
+                options: ["MAGNETIZED", "BATTERY", "FLAMMABLE_LIQUID", "AEROSOLS"],
               },
               {
                 name: "battery_extra_info",
@@ -2003,7 +2015,7 @@ export const FULFILLED_BY_TIKTOK_FBT_OPERATIONS: readonly CommerceOperation[] = 
                     required: true,
                     description:
                       "Battery packaging type.\nPossible values:\n- STANDALONE\n- IN_EQUIPMENT\n- WITH_EQUIPMENT\n- OTHER",
-                    options: ["STANDALONE", "WITH_EQUIPMENT"],
+                    options: ["STANDALONE", "IN_EQUIPMENT", "WITH_EQUIPMENT", "OTHER"],
                   },
                   {
                     name: "total_battery_weight",
@@ -2071,7 +2083,7 @@ export const FULFILLED_BY_TIKTOK_FBT_OPERATIONS: readonly CommerceOperation[] = 
                     type: "enum",
                     required: true,
                     description: "Flammable-liquid type.\nPossible values:\n- PAINT\n- PERFUMERY\n- ALCOHOLIC\n- OTHER",
-                    options: ["PAINT", "ALCOHOLIC"],
+                    options: ["PAINT", "PERFUMERY", "ALCOHOLIC", "OTHER"],
                   },
                   {
                     name: "flammable_liquids_volume",
@@ -2095,7 +2107,7 @@ export const FULFILLED_BY_TIKTOK_FBT_OPERATIONS: readonly CommerceOperation[] = 
                 type: "enum",
                 required: true,
                 description: "Hazmat class\nPossible values:\n-CLASS_2\n-CLASS_3\n-CLASS_9",
-                options: ["CLASS_2", "CLASS_9"],
+                options: ["CLASS_2", "CLASS_3", "CLASS_9"],
               },
               {
                 name: "dg_uncode",
@@ -2104,7 +2116,7 @@ export const FULFILLED_BY_TIKTOK_FBT_OPERATIONS: readonly CommerceOperation[] = 
                 required: true,
                 description:
                   "UN identifier for the hazardous substance. Standard UN values use the `UN` prefix followed by four digits; `OTHER` is also supported.\nPossible values:\n- UN2807\n- UN3480\n- UN3090\n- UN3481\n- UN3091\n- UN1263\n- UN1266\n- UN3065\n- OTHER",
-                options: ["UN2807", "UN3090", "UN3091", "UN1266", "OTHER"],
+                options: ["UN2807", "UN3480", "UN3090", "UN3481", "UN3091", "UN1263", "UN1266", "UN3065", "OTHER"],
               },
               {
                 name: "msds_file_url",

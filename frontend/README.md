@@ -14,7 +14,7 @@ cp .env.example .env.local      # API_ORIGIN: alamat proses api, bawaan http://l
 pnpm dev                        # http://localhost:3100 (sama dengan PUBLIC_WEB_URL backend)
 ```
 
-Web app memanggil api di origin-nya sendiri (`/v1/...`), jadi cookie sesi `os_session` ikut tanpa CORS. Di lokal Next meneruskan `/v1/*` ke `API_ORIGIN`; di produksi ALB yang meneruskannya ke api, dan web app tidak pernah tahu alamat api.
+Web app memanggil api di origin-nya sendiri (`/v1/...`), jadi cookie sesi `os_session` ikut tanpa CORS. Di lokal Next meneruskan `/v1/*` ke `API_ORIGIN`; di produksi ALB meneruskannya ke api. `API_ORIGIN` juga wajib benar saat runtime web: proxy menangkap callback pemasangan App Store Tokopedia & Shop secara server-side sebelum login. Kode tidak diteruskan ke parameter `next`, React, atau penyimpanan browser; hanya receipt HttpOnly yang bertahan selama 10 menit. Halaman `/integrasi/instalasi/tiktokshop` meminta konfirmasi niat pemasangan terhadap bisnis aktif sebelum worker memeriksa identitas toko. Grant tetap privat dan belum membuat toko. Pengguna kemudian memilih sendiri nama/ID toko yang sudah dikembalikan marketplace pada modal dengan pencarian dan pagination; hanya pilihan itu yang dihubungkan. Callback dengan state tetap menggunakan flow otorisasi existing. Origin URL web yang dilihat proxy harus sama dengan `PUBLIC_WEB_URL` backend. Log permintaan callback disembunyikan pada Next development dan responsnya memakai `Referrer-Policy: no-referrer`; log Next incoming requests tidak aktif pada produksi. Kode dan query callback juga harus disensor pada log ingress/CDN.
 
 | Perintah | Isi |
 |---|---|

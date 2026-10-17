@@ -130,8 +130,8 @@ REVOKE ALL ON TABLE affiliate_account_credential FROM omniseller_api;
 GRANT SELECT(id,tenant_id,created_at,updated_at,row_version,account_id),DELETE ON TABLE affiliate_account_credential TO omniseller_api;
 REVOKE INSERT ON TABLE affiliate_account FROM omniseller_api;
 REVOKE ALL ON TABLE affiliate_authorization FROM omniseller_api;
-GRANT SELECT(id,tenant_id,created_at,updated_at,row_version,kind,account_id,requested_by,state_hash,status,status_changed_at,expires_at,callback_at,completed_at,error_code,error_message),
- INSERT(id,tenant_id,kind,account_id,requested_by,state_hash,expires_at),
+GRANT SELECT(id,tenant_id,created_at,updated_at,row_version,channel,program,kind,account_id,requested_by,state_hash,status,status_changed_at,expires_at,callback_at,completed_at,error_code,error_message),
+ INSERT(id,tenant_id,channel,program,kind,account_id,requested_by,state_hash,expires_at),
  UPDATE(status,callback_at,completed_at,error_code,error_message) ON TABLE affiliate_authorization TO omniseller_api;
 
 -- Seller OAuth staged grants are worker-only. API can record callbacks and read safe metadata.

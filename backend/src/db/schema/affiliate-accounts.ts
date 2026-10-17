@@ -1,13 +1,16 @@
 import type { MarketplaceAccountKind, MarketplaceAccountProfile } from "@omniseller/connector-core";
 import type { AffiliateAccountStatus, AffiliateAuthorizationStatus } from "@omniseller/shared";
-import { integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
+import { boolean, integer, jsonb, pgTable, text } from "drizzle-orm/pg-core";
 import { baseColumns, bytea, tstz, ulid } from "../columns";
 export const affiliateAccount = pgTable("affiliate_account", {
   ...baseColumns(),
+  channel: text("channel").$type<"tiktokshop" | "shopee">().notNull().default("tiktokshop"),
+  program: text("program").$type<"standard" | "video" | "live">().notNull().default("standard"),
   kind: text("kind").$type<MarketplaceAccountKind>().notNull(),
   externalPrincipalId: text("external_principal_id").notNull(),
   name: text("name").notNull(),
   region: text("region").notNull().default("ID"),
+  regionVerified: boolean("region_verified").notNull().default(true),
   status: text("status").$type<AffiliateAccountStatus>().notNull().default("active"),
   statusChangedAt: tstz("status_changed_at").notNull().defaultNow(),
   scopes: text("scopes").array().notNull().default([]),
@@ -30,6 +33,8 @@ export const affiliateAccountCredential = pgTable("affiliate_account_credential"
 });
 export const affiliateAuthorization = pgTable("affiliate_authorization", {
   ...baseColumns(),
+  channel: text("channel").$type<"tiktokshop" | "shopee">().notNull().default("tiktokshop"),
+  program: text("program").$type<"standard" | "video" | "live">().notNull().default("standard"),
   kind: text("kind").$type<MarketplaceAccountKind>().notNull(),
   accountId: ulid("account_id"),
   requestedBy: ulid("requested_by"),

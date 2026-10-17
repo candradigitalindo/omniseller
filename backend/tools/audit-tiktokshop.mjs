@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import ts from "typescript";
+import { restrictedNodeTransportMethod } from "./audit-http-evidence.mjs";
 
 // Read an independently downloaded public documentation snapshot. Never execute downloaded code.
 const root = path.resolve(import.meta.dirname, "../..");
@@ -52,6 +53,7 @@ const helpers = new Map([
 ]);
 const callMethod = (call) =>
   helpers.get(ts.isPropertyAccessExpression(call.expression) ? call.expression.name.text : call.expression.getText());
+
 function methodOf(node, document) {
   for (let current = node; current; current = current.parent) {
     if (ts.isObjectLiteralExpression(current)) {
@@ -88,6 +90,8 @@ function methodOf(node, document) {
       }
       findUse(document);
       if (methods.size === 1) return [...methods][0];
+      const restricted = restrictedNodeTransportMethod(variable, document);
+      if (restricted) return restricted;
     }
   }
   return "Perlu tinjauan";

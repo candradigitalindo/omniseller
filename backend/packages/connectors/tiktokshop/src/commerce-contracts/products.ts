@@ -61,10 +61,11 @@ export const PRODUCTS_OPERATIONS: readonly CommerceOperation[] = [
       {
         name: "query.listing_platform",
         label: "Listing platform",
-        type: "string",
+        type: "enum",
         required: false,
         description:
           "Filter categories by the specified platform.\nPossible values:\n- TIKTOK_SHOP\n- TOKOPEDIA\nDefault: TIKTOK_SHOP\n\nApplicable only for sellers that migrated from Tokopedia.",
+        options: ["TIKTOK_SHOP", "TOKOPEDIA"],
       },
       {
         name: "query.include_prohibited_categories",
@@ -149,10 +150,11 @@ export const PRODUCTS_OPERATIONS: readonly CommerceOperation[] = [
       {
         name: "body.listing_platform",
         label: "Listing platform",
-        type: "string",
+        type: "enum",
         required: false,
         description:
           "Recommend categories that belong to the specified platform.\nPossible values:\n- TIKTOK_SHOP\n- TOKOPEDIA\nDefault: TIKTOK_SHOP\n\nApplicable only for sellers that migrated from Tokopedia.",
+        options: ["TIKTOK_SHOP", "TOKOPEDIA"],
       },
       {
         name: "body.locale",
@@ -740,7 +742,7 @@ export const PRODUCTS_OPERATIONS: readonly CommerceOperation[] = [
                 type: "enum",
                 required: false,
                 description: "The type of identifier code.\nPossible values:\n- GTIN\n- EAN\n- UPC\n- ISBN\n- JAN",
-                options: ["GTIN", "UPC", "JAN"],
+                options: ["GTIN", "EAN", "UPC", "ISBN", "JAN"],
               },
             ],
           },
@@ -982,7 +984,7 @@ export const PRODUCTS_OPERATIONS: readonly CommerceOperation[] = [
                 required: false,
                 description:
                   "An optional attribute that provides additional context for the fee. The accepted values may vary by fee type and market.\n\nPossible values for Pfand:\n- SINGLE_USE\n- REUSABLE\n- NOT_APPLICABLE",
-                options: ["SINGLE_USE", "NOT_APPLICABLE"],
+                options: ["SINGLE_USE", "REUSABLE", "NOT_APPLICABLE"],
               },
             ],
           },
@@ -1970,7 +1972,7 @@ export const PRODUCTS_OPERATIONS: readonly CommerceOperation[] = [
                 type: "enum",
                 required: false,
                 description: "The type of identifier code.\nPossible values:\n- GTIN\n- EAN\n- UPC\n- ISBN\n- JAN",
-                options: ["GTIN", "UPC", "JAN"],
+                options: ["GTIN", "EAN", "UPC", "ISBN", "JAN"],
               },
             ],
           },
@@ -2170,7 +2172,7 @@ export const PRODUCTS_OPERATIONS: readonly CommerceOperation[] = [
                 required: false,
                 description:
                   "An optional attribute that provides additional context for the fee. The accepted values may vary by fee type and market.\n\nPossible values for Pfand:\n- SINGLE_USE\n- REUSABLE\n- NOT_APPLICABLE",
-                options: ["SINGLE_USE", "NOT_APPLICABLE"],
+                options: ["SINGLE_USE", "REUSABLE", "NOT_APPLICABLE"],
               },
             ],
           },
@@ -3089,7 +3091,17 @@ export const PRODUCTS_OPERATIONS: readonly CommerceOperation[] = [
         required: false,
         description:
           "Filter products based on the product's base version. In other words, this filter does not apply to post-live drafts or edits. For example, `status=DRAFT` returns only unpublished products in the DRAFT state, not live products with an active draft.\n\nPossible values: \n- ALL\n- DRAFT\n- PENDING\n- FAILED\n- ACTIVATE\n- SELLER_DEACTIVATED\n- PLATFORM_DEACTIVATED\n- FREEZE\n- DELETED\nDefault: ALL",
-        options: ["ALL", "PENDING", "ACTIVATE", "PLATFORM_DEACTIVATED", "DELETED"],
+        options: [
+          "ALL",
+          "DRAFT",
+          "PENDING",
+          "FAILED",
+          "ACTIVATE",
+          "SELLER_DEACTIVATED",
+          "PLATFORM_DEACTIVATED",
+          "FREEZE",
+          "DELETED",
+        ],
       },
       {
         name: "body.seller_skus",
@@ -3185,10 +3197,11 @@ export const PRODUCTS_OPERATIONS: readonly CommerceOperation[] = [
       {
         name: "body.sns_filter",
         label: "Sns filter",
-        type: "string",
+        type: "enum",
         required: false,
         description:
           "Filter products by their Subscribe and Save (SNS) status. Possible values:\n- CONFIGURED\n- ELIGIBLE",
+        options: ["CONFIGURED", "ELIGIBLE"],
       },
       {
         name: "body.return_draft_version",
@@ -3481,7 +3494,7 @@ export const PRODUCTS_OPERATIONS: readonly CommerceOperation[] = [
     path: "/product/202309/inventory/search",
     scopes: ["seller.product.basic"],
     scopeMode: "any",
-    write: true,
+    write: false,
     officialUrl: "https://partner.tiktokshop.com/docv2/page/inventory-search-202309",
     fields: [
       {
@@ -4300,7 +4313,7 @@ export const PRODUCTS_OPERATIONS: readonly CommerceOperation[] = [
                 type: "enum",
                 required: false,
                 description: "The type of identifier code.\nPossible values:\n- GTIN\n- EAN\n- UPC\n- ISBN\n- JAN",
-                options: ["GTIN", "UPC", "JAN"],
+                options: ["GTIN", "EAN", "UPC", "ISBN", "JAN"],
               },
             ],
           },
@@ -4892,7 +4905,7 @@ export const PRODUCTS_OPERATIONS: readonly CommerceOperation[] = [
                     required: false,
                     description:
                       "An optional attribute that provides additional context for the fee. The accepted values may vary by fee type and market.\n\nPossible values for Pfand:\n- SINGLE_USE\n- REUSABLE\n- NOT_APPLICABLE",
-                    options: ["SINGLE_USE", "NOT_APPLICABLE"],
+                    options: ["SINGLE_USE", "REUSABLE", "NOT_APPLICABLE"],
                   },
                 ],
               },
@@ -5148,7 +5161,7 @@ export const PRODUCTS_OPERATIONS: readonly CommerceOperation[] = [
                 type: "enum",
                 required: false,
                 description: "The type of identifier code.\nPossible values:\n- GTIN\n- EAN\n- UPC\n- ISBN\n- JAN",
-                options: ["GTIN", "UPC", "JAN"],
+                options: ["GTIN", "EAN", "UPC", "ISBN", "JAN"],
               },
             ],
           },
@@ -5668,7 +5681,7 @@ export const PRODUCTS_OPERATIONS: readonly CommerceOperation[] = [
         required: false,
         description:
           "Filter global products by their status.\nPossible values:\n- PUBLISHED\n- UNPUBLISHED\n- DRAFT\n- DELETED",
-        options: ["PUBLISHED", "DRAFT"],
+        options: ["PUBLISHED", "UNPUBLISHED", "DRAFT", "DELETED"],
       },
       {
         name: "body.seller_skus",
@@ -6989,7 +7002,7 @@ export const PRODUCTS_OPERATIONS: readonly CommerceOperation[] = [
                 type: "enum",
                 required: false,
                 description: "The type of identifier code.\nPossible values:\n- GTIN\n- EAN\n- UPC\n- ISBN\n- JAN",
-                options: ["GTIN", "UPC", "JAN"],
+                options: ["GTIN", "EAN", "UPC", "ISBN", "JAN"],
               },
             ],
           },
@@ -7232,7 +7245,7 @@ export const PRODUCTS_OPERATIONS: readonly CommerceOperation[] = [
                 required: false,
                 description:
                   "An optional attribute that provides additional context for the fee. The accepted values may vary by fee type and market.\n\nPossible values for Pfand:\n- SINGLE_USE\n- REUSABLE\n- NOT_APPLICABLE",
-                options: ["SINGLE_USE", "NOT_APPLICABLE"],
+                options: ["SINGLE_USE", "REUSABLE", "NOT_APPLICABLE"],
               },
             ],
           },
@@ -9030,7 +9043,7 @@ export const PRODUCTS_OPERATIONS: readonly CommerceOperation[] = [
                 required: false,
                 description:
                   "An optional attribute that provides additional context for the fee. The accepted values may vary by fee type and market.\n\nPossible values for Pfand:\n- SINGLE_USE\n- REUSABLE\n- NOT_APPLICABLE",
-                options: ["SINGLE_USE", "NOT_APPLICABLE"],
+                options: ["SINGLE_USE", "REUSABLE", "NOT_APPLICABLE"],
               },
               {
                 name: "amount",
@@ -9079,7 +9092,7 @@ export const PRODUCTS_OPERATIONS: readonly CommerceOperation[] = [
                 type: "enum",
                 required: false,
                 description: "The type of identifier code.\nPossible values:\n- GTIN\n- EAN\n- UPC\n- ISBN\n- JAN",
-                options: ["GTIN", "UPC", "JAN"],
+                options: ["GTIN", "EAN", "UPC", "ISBN", "JAN"],
               },
             ],
           },
@@ -9739,7 +9752,7 @@ export const PRODUCTS_OPERATIONS: readonly CommerceOperation[] = [
                 type: "enum",
                 required: false,
                 description: "The type of identifier code.\nPossible values:\n- GTIN\n- EAN\n- UPC\n- ISBN\n- JAN",
-                options: ["GTIN", "UPC", "JAN"],
+                options: ["GTIN", "EAN", "UPC", "ISBN", "JAN"],
               },
             ],
           },
@@ -10293,7 +10306,7 @@ export const PRODUCTS_OPERATIONS: readonly CommerceOperation[] = [
     path: "/product/202604/opportunities/query",
     scopes: ["seller.product.basic"],
     scopeMode: "any",
-    write: true,
+    write: false,
     officialUrl: "https://partner.tiktokshop.com/docv2/page/list-opportunities-202604",
     fields: [
       {
@@ -10583,7 +10596,7 @@ export const PRODUCTS_OPERATIONS: readonly CommerceOperation[] = [
     path: "/product/202606/skpps/search",
     scopes: ["seller.product.basic"],
     scopeMode: "any",
-    write: true,
+    write: false,
     officialUrl: "https://partner.tiktokshop.com/docv2/page/list-product-skpp-statuses-202606",
     fields: [
       {

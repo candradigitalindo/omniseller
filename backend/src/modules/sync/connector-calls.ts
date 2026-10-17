@@ -1,12 +1,16 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { createHash } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import {
   type CallRecord,
   type ConnectorError,
+  type HttpCallTarget,
+  type HttpRateFeedback,
   isConnectorError,
   type RateLimitRule,
   TransientConnectorError,
 } from "@omniseller/connector-core";
+import { TIKTOK_COMMERCE_OPERATIONS } from "@omniseller/connector-tiktokshop";
 import type { RateLimiter } from "../../common/security/rate-limiter";
 
 /**
@@ -38,6 +42,7 @@ interface Gate {
   limiter: RateLimiter;
   key: string;
   rule: RateLimitRule;
+  channel?: string;
   background?: boolean;
   waitedMs: number;
 }
@@ -59,11 +64,73 @@ export function backgroundRule(rule: RateLimitRule): RateLimitRule {
   };
 }
 
-export async function connectorRequestGate(): Promise<void> {
+const endpointContracts = TIKTOK_COMMERCE_OPERATIONS.filter((operation) => operation.path.includes("{"))
+  .map((operation) => ({
+    method: operation.method,
+    path: operation.path,
+    pattern: new RegExp(
+      `^${operation.path
+        .split(/(\{[^}]+\})/g)
+        .map((part) => (/^\{[^}]+\}$/.test(part) ? "[^/]+" : part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+        .join("")}$`,
+    ),
+    specificity: operation.path.replace(/\{[^}]+\}/g, "").length,
+  }))
+  .sort((left, right) => right.specificity - left.specificity);
+
+function adaptiveKey(gate: Gate, target: HttpCallTarget): string {
+  // Opaque marketplace IDs are not reliably distinguishable from static path segments by length.
+  // Prefer the reviewed method/path template so all resources share their actual endpoint budget.
+  const endpoint =
+    endpointContracts.find((contract) => contract.method === target.method && contract.pattern.test(target.path))
+      ?.path ?? target.path.replace(/\/(?:\d{7,}|[a-f\d]{24,}|[0-9A-HJKMNP-TV-Z]{26})(?=\/|$)/gi, "/{id}");
+  const hash = (text: string) => createHash("sha256").update(text).digest("hex").slice(0, 24);
+  const app = hash(target.applicationId ?? "configured-app");
+  const appLevel = /(?:^|\/)(?:auth|authorization|token)(?:\/|$)/.test(target.path);
+  return `${appLevel ? `app:${gate.channel ?? gate.key.split(":")[1]}` : gate.key}:${app}:${hash(`${target.method} ${endpoint}`)}`;
+}
+export async function connectorRateFeedback(feedback: HttpRateFeedback): Promise<void> {
+  const gate = gateScope.getStore();
+  if (!gate?.limiter.marketplace) return;
+  const throttled = feedback.httpStatus === 429 || feedback.businessCode === "36009002";
+  const success =
+    feedback.complete &&
+    feedback.httpStatus !== null &&
+    feedback.httpStatus >= 200 &&
+    feedback.httpStatus < 300 &&
+    (!feedback.businessCode || feedback.businessCode === "0");
+  if (throttled || success)
+    await gate.limiter.marketplace.feedback(adaptiveKey(gate, feedback), throttled, feedback.retryAfterMs);
+}
+export async function connectorRequestGate(target?: HttpCallTarget): Promise<void> {
   const gate = gateScope.getStore();
   if (!gate) return;
   if (gate.background) await takeToken(gate, `${gate.key}:background`, backgroundRule(gate.rule));
   await takeToken(gate, gate.key, gate.rule);
+  if (target && gate.limiter.marketplace) {
+    const heavy = /analytics|data_compass|performance/.test(target.path);
+    const rate = heavy
+      ? 1
+      : target.method === "GET"
+        ? Math.min(10, gate.rule.refillPerSecond)
+        : Math.min(3, gate.rule.refillPerSecond);
+    for (;;) {
+      const decision = await gate.limiter.marketplace.take(adaptiveKey(gate, target), {
+        capacity: Math.max(1, Math.min(rate, gate.rule.capacity)),
+        refillPerSecond: rate,
+      });
+      if (decision.allowed) break;
+      const wait = Math.max(50, decision.retryAfterMs);
+      if (gate.waitedMs + wait > (gate.background ? BACKGROUND_MAX_WAIT_MS : MAX_WAIT_MS))
+        throw new TransientConnectorError({
+          code: "local_rate_limit",
+          message: "Marketplace endpoint is cooling down",
+          retryAfterMs: wait,
+        });
+      gate.waitedMs += wait;
+      await sleep(wait);
+    }
+  }
 }
 
 async function takeToken(gate: Gate, key: string, rule: RateLimitRule): Promise<void> {

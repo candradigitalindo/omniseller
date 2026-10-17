@@ -97,6 +97,65 @@ class CommerceContractCompilerTest(unittest.TestCase):
             self.assertIn("GET body", operation["unavailableReason"])
             self.assertIn("Path parameter schema missing:campaign_id", operation["unavailableReason"])
 
+    def test_preserves_every_enum_bullet_including_adjacent_message_types(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self.fixture(directory, body=[{
+                "name": "type", "type": "string", "required": "Y",
+                "desc": "Message type. Possible enumerations:\n- `TEXT`\n- `IMAGE`\n- `VIDEO`\n- `PRODUCT_CARD`\n- `ORDER_CARD`\n- `RETURN_REFUND_CARD`\n- `COUPON_CARD`\n- `LOGISTICS_CARD`",
+            }])
+            self.assertEqual(self.generate(root).returncode, 0)
+            self.assertEqual(self.operation(root)["fields"][0]["options"], [
+                "TEXT", "IMAGE", "VIDEO", "PRODUCT_CARD", "ORDER_CARD", "RETURN_REFUND_CARD", "COUPON_CARD", "LOGISTICS_CARD",
+            ])
+
+    def test_does_not_assign_a_neighboring_api_scope_when_undocumented(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self.fixture(directory)
+            file = root / "api-meta/test-document.json"
+            metadata = json.loads(file.read_text())
+            metadata["document_api_meta"].pop("scope_list")
+            file.write_text(json.dumps(metadata))
+            self.assertEqual(self.generate(root).returncode, 0)
+            operation = self.operation(root)
+            self.assertFalse(operation["available"])
+            self.assertEqual(operation["scopes"], [])
+            self.assertIn("scope has not been documented", operation["unavailableReason"])
+
+    def test_reviewed_exceptions_require_the_exact_source_bytes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self.fixture(directory)
+            reviewed_id = "6a335dc2f180ee049bf09ed6"
+            for directory in ["api-meta", "details", "versions"]:
+                file = root / directory / "test-document.json"
+                file.rename(file.with_name(reviewed_id + ".json"))
+            tree_file = root / "tree.json"
+            tree_file.write_text(tree_file.read_text().replace("test-document", reviewed_id))
+            snapshot_file = root / "snapshot.json"
+            snapshot = json.loads(snapshot_file.read_text())
+            snapshot["tree_sha256"] = hashlib.sha256(tree_file.read_bytes()).hexdigest()
+            snapshot_file.write_text(json.dumps(snapshot))
+            result = self.generate(root)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Reviewed contract source changed", result.stderr)
+            self.assertFalse((root / "generated").exists())
+
+    def test_generates_only_query_array_encodings_proven_by_official_examples(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self.fixture(directory)
+            file = root / "api-meta/test-document.json"
+            metadata = json.loads(file.read_text())
+            meta = metadata["document_api_meta"]
+            meta["request_query_param"].append({"name": "ids", "type": "[]string", "required": "Y", "desc": "Identifiers."})
+            meta["query"] = "https://open-api.tiktokglobalshop.com/affiliate_partner/202405/campaigns?ids=123,456"
+            file.write_text(json.dumps(metadata))
+            self.assertEqual(self.generate(root).returncode, 0)
+            self.assertIn('"ids": "csv"', (root / "generated/commerce-query-contracts.ts").read_text())
+            meta["query"] = "https://open-api.tiktokglobalshop.com/affiliate_partner/202405/campaigns"
+            file.write_text(json.dumps(metadata))
+            result = self.generate(root)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("encoding is not proven", result.stderr)
+
     def test_blocks_event_mutations_and_keeps_post_search_read_only(self):
         with tempfile.TemporaryDirectory() as directory:
             root = self.fixture(directory, title="Delete Webhook for an Event", group="Event", method="DELETE", path="/event/202309/webhooks")

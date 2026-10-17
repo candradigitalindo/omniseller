@@ -105,3 +105,38 @@ describe("commerce retention", () => {
     expect(safeCommerceResult({ value: Number.NaN })).toEqual({ value: null });
   });
 });
+
+describe("reviewed first-mile origin and streaming privacy", () => {
+  const fields: CommerceOperation["fields"] = [
+    { name: "body.region", label: "Origin", type: "string", required: true },
+  ];
+  it("allows only the documented cross-border origin on its exact operation", () => {
+    const bind = {
+      ...operation,
+      channel: "shopee" as const,
+      id: "shopee.first_mile.bind_first_mile_tracking_number",
+      fields,
+    };
+    expect(() => validateCommerceInput(bind, { body: { region: "CN" } })).not.toThrow();
+    expect(() => validateCommerceInput(bind, { body: { region: "KR" } })).not.toThrow();
+    expect(() => validateCommerceInput(bind, { body: { region: "US" } })).toThrow("Indonesia");
+    expect(() => validateCommerceInput({ ...bind, id: "another-operation" }, { body: { region: "CN" } })).toThrow(
+      "Indonesia",
+    );
+    expect(() =>
+      validateCommerceInput(
+        { ...bind, id: "shopee.first_mile.generate_and_bind_first_mile_tracking_number" },
+        { body: { region: "KR" } },
+      ),
+    ).toThrow("Indonesia");
+  });
+  it("retains public LIVE domain identifiers while removing credentials and playback links", () => {
+    expect(
+      safeCommerceResult({
+        stream_url_list: [{ domain_id: 1, push_key: "secret", push_url: "rtmp://secret", play_url: "https://private" }],
+        stream_url: "private",
+        file_link: "private",
+      }),
+    ).toEqual({ stream_url_list: [{ domain_id: 1 }] });
+  });
+});

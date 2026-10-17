@@ -89,6 +89,8 @@ export class CommerceService {
         status: store.status,
         scopes: credential?.scopes ?? [],
         region: store.region,
+        regionVerified: true,
+        program: "standard" as const,
         readOnly: store.syncMode === "read_only",
         sellerType: sellerType(store),
       };
@@ -98,11 +100,13 @@ export class CommerceService {
     return {
       id: account.id,
       kind,
-      channel: "tiktokshop" as const,
+      channel: account.channel,
       name: account.name,
       status: account.status,
       scopes: account.scopes,
       region: account.region,
+      regionVerified: account.regionVerified,
+      program: account.program,
       readOnly: false,
       sellerType: "unknown" as const,
     };
@@ -118,6 +122,8 @@ export class CommerceService {
         status: v.store.status,
         scopes: v.credential?.scopes ?? [],
         region: v.store.region,
+        regionVerified: true,
+        program: "standard" as const,
         readOnly: v.store.syncMode === "read_only",
         sellerType: sellerType(v.store),
         categories: [],
@@ -128,11 +134,13 @@ export class CommerceService {
           .map((a) => ({
             id: a.id,
             kind: a.kind,
-            channel: "tiktokshop" as const,
+            channel: a.channel,
             name: a.name,
             status: a.status,
             scopes: a.scopes,
             region: a.region,
+            regionVerified: a.regionVerified,
+            program: a.program,
             readOnly: false,
             sellerType: "unknown" as const,
             categories: Array.isArray(a.profile.categories)
@@ -154,6 +162,21 @@ export class CommerceService {
   async assert(ctx: RequestContext, operation: CommerceOperation, id: string) {
     const principal = await this.principal(ctx, id, operation.principalKind);
     if (principal.channel !== operation.channel) throw missing();
+    if (
+      principal.channel === "shopee" &&
+      operation.principalKind === "creator" &&
+      !operation.appPrograms?.includes(
+        principal.program === "live"
+          ? "Livestream Management"
+          : principal.program === "video"
+            ? "Shopee Video Management"
+            : "unsupported",
+      )
+    )
+      throw new UnprocessableError(
+        "commerce.program_required",
+        "Pilih koneksi Video atau LIVE yang sesuai dengan fitur dan persetujuan aplikasi Shopee.",
+      );
     if (
       operation.accountRequirements?.length &&
       !operation.accountRequirements.includes(principal.sellerType as "cross_border" | "local")

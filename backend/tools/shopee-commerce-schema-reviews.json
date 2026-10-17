@@ -1,0 +1,3553 @@
+{
+  "version": 1,
+  "sourceCommit": "300344af94cf347268b50847baf14b9c28aaf1ae",
+  "reviews": {
+    "v2.add_on_deal.update_add_on_deal_sub_item": {
+      "structuredSha256": "eb2a5b5c3dbca46e7a8d15dab8c58e3267c5d9ac5c46192bdc841b0aa9898c85",
+      "requestRowsSha256": "253c217a7b1c3b3b39d6ce7aef8e9b05cff289f3c7b43e759dfd28c12756df2b",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated.",
+      "requestRows": [
+        ["add_on_deal_id", "int", "True", "12069", "Shopee's unique identifier for add on deal activity."],
+        ["sub_item_list", "object[]", "True", "", "The sub items added in this add on deal promotion."],
+        ["item_id", "int", "False", "100760424", "Shopee's unique identifier for an item."],
+        ["model_id", "int", "False", "20760424", "Shopee's unique identifier for a model."],
+        ["status", "int", "False", "1", "The status of add on deal item：enable = 1；disable =2"],
+        ["sub_item_input_price", "float", "False", "390.0", "Add-on discount price before tax"],
+        [
+          "sub_item_limit",
+          "int",
+          "False",
+          "12",
+          "The purchase limit of sub item.The purchase limit of each sub item. Only the add on discount can be set and the default limit of gift with mini.spend is 1"
+        ]
+      ],
+      "rowPaths": [
+        "add_on_deal_id",
+        "sub_item_list[]",
+        "sub_item_list[].item_id",
+        "sub_item_list[].model_id",
+        "sub_item_list[].status",
+        "sub_item_list[].sub_item_input_price",
+        "sub_item_list[].sub_item_limit"
+      ],
+      "fieldOverrides": {
+        "sub_item_list[]": {
+          "minimum": 1
+        }
+      }
+    },
+    "v2.bundle_deal.add_bundle_deal": {
+      "structuredSha256": "2c8913f59f7342d742252a91e1a6f60793ed92b397852d3602be1567dceed890",
+      "requestRowsSha256": "e133a91c9dbb3d82c4c3f446fc36cd8924580bdbd3ddb8622bf4e5c9e4fcc1bb",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. Conditional discount columns are alternatives selected by rule_type (1=fix_price, 2=discount_percentage, 3=discount_value). Update documents additional_tiers as object, retained exactly; no array is inferred.",
+      "requestRows": [
+        [
+          "rule_type",
+          "int32",
+          "True",
+          "1",
+          "The bundle deal rule type：FIX_PRICE = 1 ；DISCOUNT_PERCENTAGE = 2； DISCOUNT_VALUE = 3"
+        ],
+        [
+          "discount_value",
+          "float",
+          "True",
+          "11.0",
+          "The deducted price when when buying a bundle deal. Need to input it when the bundle deal rule type is 3"
+        ],
+        [
+          "fix_price",
+          "float",
+          "True",
+          "11.0",
+          "The amount of the buyer needs to spend to purchase a bundle deal. Need to input it when the bundle deal rule type is 1"
+        ],
+        [
+          "discount_percentage",
+          "int32",
+          "True",
+          "33",
+          "The discount that the buyer can get when buying a bundle deal. Need to input it when the bundle deal rule type is 2"
+        ],
+        ["min_amount", "int32", "True", "1", "The quantity of items that need buyer to combine purchased"],
+        [
+          "start_time",
+          "timestamp",
+          "True",
+          "1600000000",
+          "The time when bundle deal activity start.The start time must be later than current time."
+        ],
+        [
+          "end_time",
+          "timestamp",
+          "True",
+          "1610000000",
+          "The time when bundle deal activity end. The end time must be 1 hour later than start time."
+        ],
+        ["name", "string", "True", "bundle name", "Title of the bundle deal"],
+        ["purchase_limit", "int32", "True", "3", "Maximum number of bundle deals that can be bought by a buyer."],
+        [
+          "additional_tiers",
+          "object[]",
+          "False",
+          "",
+          "Use to create tiered discount for bundle deals, a max of 2 additional tiers are allowed to create. the rule of multiple tiers needs to follow this faq https://open.shopee.com/faq/53 For additional tiers, the fix price, discount_percentage, discount_value should be consistent with tier 1"
+        ],
+        [
+          "min_amount",
+          "int32",
+          "True",
+          "100",
+          "The quantity of items that the buyers need to purchase for additional tier"
+        ],
+        [
+          "fix_price",
+          "float",
+          "False",
+          "100.00",
+          "The bundle price when the buyers purchase a bundle deal for additional tiers. Need to input it when the bundle deal rule type is 1."
+        ],
+        [
+          "discount_value",
+          "float",
+          "False",
+          "20.00",
+          "The bundle deal discount amount the buyer can save when purchasing a bundle deal. Need to input it when the bundle deal rule type is 3"
+        ],
+        [
+          "discount_percentage",
+          "int32",
+          "False",
+          "20",
+          "The bundle deal discount% that the buyer can get when buying a bundle deal for additional tiers. Need to input it when the bundle deal rule type is 2"
+        ]
+      ],
+      "rowPaths": [
+        "rule_type",
+        "discount_value",
+        "fix_price",
+        "discount_percentage",
+        "min_amount",
+        "start_time",
+        "end_time",
+        "name",
+        "purchase_limit",
+        "additional_tiers[]",
+        "additional_tiers[].min_amount",
+        "additional_tiers[].fix_price",
+        "additional_tiers[].discount_value",
+        "additional_tiers[].discount_percentage"
+      ],
+      "fieldOverrides": {
+        "discount_value": {
+          "required": false
+        },
+        "fix_price": {
+          "required": false
+        },
+        "discount_percentage": {
+          "required": false
+        },
+        "start_time": {
+          "timestampUnit": "seconds"
+        },
+        "end_time": {
+          "timestampUnit": "seconds"
+        },
+        "additional_tiers[]": {
+          "maximum": 2
+        }
+      }
+    },
+    "v2.bundle_deal.update_bundle_deal": {
+      "structuredSha256": "0e0a37227a7b46c6930df377b5fb68bf0c351160008c571bc25f07615d3decae",
+      "requestRowsSha256": "eaf56847aee9172b81db23ec5d5b4a0769d9c5b53dcf37cdc0140b804b4a1e87",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. Conditional discount columns are alternatives selected by rule_type (1=fix_price, 2=discount_percentage, 3=discount_value). Update documents additional_tiers as object, retained exactly; no array is inferred.",
+      "requestRows": [
+        [
+          "rule_type",
+          "int32",
+          "False",
+          "1",
+          "The bundle deal rule type：FIX_PRICE = 1 ；DISCOUNT_PERCENTAGE = 2； DISCOUNT_VALUE = 3"
+        ],
+        [
+          "discount_value",
+          "float",
+          "False",
+          "11.0",
+          "The deducted price when when buying a bundle deal. Need to input it when the bundle deal rule type is 3"
+        ],
+        [
+          "fix_price",
+          "float",
+          "False",
+          "11.0",
+          "The amount of the buyer needs to spend to purchase a bundle deal.Need to input it when the bundle deal rule type is 1"
+        ],
+        [
+          "discount_percentage",
+          "int32",
+          "False",
+          "33",
+          "The discount that the buyer can get when buying a bundle deal. Need to input it when the bundle deal rule type is 2"
+        ],
+        ["min_amount", "int32", "False", "123", "The quantity of items that need buyer to combine purchased"],
+        [
+          "start_time",
+          "timestamp",
+          "False",
+          "1655654412",
+          "The time when bundle deal activity start.The start time must be later than current time."
+        ],
+        [
+          "end_time",
+          "timestamp",
+          "False",
+          "1658246412",
+          "The time when bundle deal activity end. The end time must be later than current time."
+        ],
+        ["name", "string", "False", "bundle name", "Title of the bundle deal"],
+        ["purchase_limit", "int32", "False", "3", "Maximum number of bundle deals that can be bought by a buyer."],
+        ["bundle_deal_id", "int32", "True", "6833", "Shopee's unique identifier for a bundle deal activity."],
+        [
+          "additional_tiers",
+          "object",
+          "False",
+          "",
+          "Use to create tiered discount for bundle deals, a max of 2 additional tiers are allowed to create bundle deals like buy 2 get 10% off, buy 3 for 15% off, buy 4 for 20% off; For each tier, we will need to set the following 4 values based on bundle deal type + min_amount = IntAttribute() + fix_price = IntAttribute() + discount_percentage = IntAttribute() + discount_value = IntAttribute()Note: for additional tiers, the fix price, discount_percentage, discount_value should be consistent with tier 1"
+        ],
+        [
+          "min_amount",
+          "int32",
+          "True",
+          "100",
+          "The quantity of items that the buyers need to purchase for additional tier"
+        ],
+        [
+          "fix_price",
+          "float",
+          "False",
+          "100.00",
+          "The bundle price when the buyers purchase a bundle deal for additional tiers. Need to input it when the bundle deal rule type is 1."
+        ],
+        [
+          "discount_value",
+          "float",
+          "False",
+          "20.00",
+          "The bundle deal discount amount the buyer can save when purchasing a bundle deal. Need to input it when the bundle deal rule type is 3"
+        ],
+        [
+          "discount_percentage",
+          "int32",
+          "False",
+          "20",
+          "The bundle deal discount% that the buyer can get when buying a bundle deal for additional tiers. Need to input it when the bundle deal rule type is 2"
+        ]
+      ],
+      "rowPaths": [
+        "rule_type",
+        "discount_value",
+        "fix_price",
+        "discount_percentage",
+        "min_amount",
+        "start_time",
+        "end_time",
+        "name",
+        "purchase_limit",
+        "bundle_deal_id",
+        "additional_tiers",
+        "additional_tiers.min_amount",
+        "additional_tiers.fix_price",
+        "additional_tiers.discount_value",
+        "additional_tiers.discount_percentage"
+      ],
+      "fieldOverrides": {
+        "discount_value": {
+          "required": false
+        },
+        "fix_price": {
+          "required": false
+        },
+        "discount_percentage": {
+          "required": false
+        },
+        "start_time": {
+          "timestampUnit": "seconds"
+        },
+        "end_time": {
+          "timestampUnit": "seconds"
+        }
+      }
+    },
+    "v2.discount.add_discount_item": {
+      "structuredSha256": "f5a3b2c052d37998d5b8f584f5385645557ee58548e00b4356f7de02614a1b77",
+      "requestRowsSha256": "2fbde024901f443d01cfc593f96cb62729e24db5c02ac0303876ffe0f5636fb1",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. The example has a duplicate model_promotion_price typo; the table independently defines price and stock, and its hierarchy is also confirmed by update_discount_item. No duplicate JSON is silently repaired.",
+      "requestRows": [
+        ["discount_id", "int64", "True", "665123666665499", "Shopee's unique identifier for a discount activity."],
+        ["item_list", "object[]", "True", "", "The items added in this discount promotion."],
+        ["item_id", "int64", "True", "1776783", "Shopee's unique identifier for an item."],
+        [
+          "item_promotion_price",
+          "float",
+          "False",
+          "11.0",
+          "The discount price of the item. If the item has no variation, this param is necessary."
+        ],
+        ["item_promotion_stock", "int32", "False", "22", "The reserved stock of the item."],
+        ["model_list", "object[]", "False", "", "The models which belongs to this item."],
+        [
+          "model_id",
+          "int64",
+          "True",
+          "1776782",
+          "Shopee's unique identifier for a variation of an item. If there is no variation of this item, you don't need to input this param. Dafault is 0."
+        ],
+        ["model_promotion_price", "float", "True", "11.0", "The discount price of the item."],
+        [
+          "model_promotion_stock",
+          "int32",
+          "False",
+          "22",
+          "The reserved stock of the model, default is no limit, and can not update. To edit the promotion stock, you need to delete the exist discount and re-add again."
+        ],
+        [
+          "purchase_limit",
+          "int32",
+          "True",
+          "2",
+          "The max number of this product in the promotion price. If it's No Limit, please input the 0 for this request data."
+        ]
+      ],
+      "rowPaths": [
+        "discount_id",
+        "item_list[]",
+        "item_list[].item_id",
+        "item_list[].item_promotion_price",
+        "item_list[].item_promotion_stock",
+        "item_list[].model_list[]",
+        "item_list[].model_list[].model_id",
+        "item_list[].model_list[].model_promotion_price",
+        "item_list[].model_list[].model_promotion_stock",
+        "item_list[].purchase_limit"
+      ],
+      "fieldOverrides": {
+        "item_list[]": {
+          "minimum": 1
+        },
+        "item_list[].model_list[]": {
+          "minimum": 1
+        }
+      }
+    },
+    "v2.first_mile.bind_courier_delivery_first_mile_tracking_number": {
+      "structuredSha256": "6cc6ea911a311636b3c0bdb881e97da34cf3ec403d85a31b494dd7afac8e3368",
+      "requestRowsSha256": "a78d0c3c5f28e1f092b5d333c7d60b76bb2df66e0ba69e8905a3e78a18ce0053",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated.",
+      "requestRows": [
+        [
+          "shipment_method",
+          "string",
+          "True",
+          "courier_delivery",
+          "The shipment method for generate and bind orders. Available value: courier_delivery."
+        ],
+        [
+          "binding_id",
+          "string",
+          "True",
+          "DCN247547439397PU",
+          "If using courier_delivery as the shipment method, the \"binding_id\" field should pass the value generated from v2.first_mile.generate_and_bind_first_mile_tracking_number."
+        ],
+        [
+          "order_list",
+          "object[]",
+          "True",
+          "",
+          "The list of order_sn. You can specify up to 50 order_sns in this call. One fm_tn maximum number of total bind orders is 10000."
+        ],
+        ["order_sn", "string", "True", "2410106R7DE3BX", "Shopee's unique identifier for an order."],
+        [
+          "package_number",
+          "string",
+          "False",
+          "",
+          "Shopee's unique identifier for the package under an order. You should't fill the field with empty string when there isn't a package number."
+        ]
+      ],
+      "rowPaths": [
+        "shipment_method",
+        "binding_id",
+        "order_list[]",
+        "order_list[].order_sn",
+        "order_list[].package_number"
+      ]
+    },
+    "v2.first_mile.bind_first_mile_tracking_number": {
+      "structuredSha256": "ab63a47725f3cab21107fe947c07b3b1abf51910726eb14918740a251f471b72",
+      "requestRowsSha256": "b9b4ba5e8b69ad03623fc283727d89d35317ef350ebb5dd3357b55cdf67dd4a9",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. Warehouse metadata refers to the whole first-mile parcel, not an individual order. Region denotes CN/KR merchant origin; this operation requires cross-border shops.",
+      "requestRows": [
+        [
+          "first_mile_tracking_number",
+          "string",
+          "True",
+          "CNF731738838434210105",
+          "If using \"pickup\" or \"self_deliver\" as the shipment method the \"first_mile_tracking_number\" field should pass the value generated from v2.first_mile.generate_first_mile_tracking_number. If using \"dropoff\" as the shipment method the \"first_mile_tracking_number\" field should pass the tracking number provide by the supplier."
+        ],
+        [
+          "shipment_method",
+          "string",
+          "True",
+          "pickup",
+          "The shipment method for bound orders, should be pickup, dropoff or self_deliver."
+        ],
+        [
+          "region",
+          "string",
+          "True",
+          "cn",
+          "Use this field to specify the region you want to ship parcel. Available value: cn,kr. Please fill in the field according to the region of the Merchant to which the shop belongs."
+        ],
+        [
+          "logistics_channel_id",
+          "int32",
+          "True",
+          "813",
+          "The identity of first-mile logistic channel. If you using \"dropoff\" or \"pickup\" as shipment method, please call v2.first_mile.get_channel_list to get the logsitc_channel_id then fill it. If you using \"self_deliver\"as shipment method then the logistics_channel_id should be \"null\"."
+        ],
+        ["volume", "float", "False", "1.0", "The volume of the parcel."],
+        ["weight", "float", "False", "2.0", "The weight of the parcel."],
+        ["width", "float", "False", "3.0", "The width of the parcel."],
+        ["length", "float", "False", "4.0", "The length of the parcel."],
+        ["height", "float", "False", "5.0", "The height of the parcel."],
+        [
+          "order_list",
+          "object[]",
+          "True",
+          "",
+          "The set of ordersn. You can specify up to 50 ordersns in this call.one fm_tn maximum number of total bind orders is 10000."
+        ],
+        ["order_sn", "string", "True", "201229TVRKVB8W", "Shopee's unique identifier for an order."],
+        [
+          "package_number",
+          "string",
+          "False",
+          "",
+          "Shopee's unique identifier for the package under an order. You should't fill the field with empty string when there is't a package number."
+        ],
+        [
+          "warehouse_id",
+          "string",
+          "False",
+          "ECP03",
+          "The identity of transit warehouse address. Retrieved from v2.first_mile.get_transit_warehouse_list. Note: When the first-mile delivery mode is \"Drop Off\", this field is expected to be a required field. However, to avoid affecting your existing services, this field will be temporarily optional until April 30, 2026. Please complete the integration before then to avoid any impact on your services if it is changed to a required field later."
+        ],
+        [
+          "warehouse_type",
+          "int32",
+          "False",
+          "0",
+          "Warehouse type. Retrieved from v2.first_mile.get_transit_warehouse_list. 0 = normal warehouse 1 = vendor warehouse Note: When the first-mile delivery mode is \"Drop Off\", this field is expected to be a required field. However, to avoid affecting your existing services, this field will be temporarily optional until April 30, 2026. Please complete the integration before then to avoid any impact on your services if it is changed to a required field later."
+        ]
+      ],
+      "rowPaths": [
+        "first_mile_tracking_number",
+        "shipment_method",
+        "region",
+        "logistics_channel_id",
+        "volume",
+        "weight",
+        "width",
+        "length",
+        "height",
+        "order_list[]",
+        "order_list[].order_sn",
+        "order_list[].package_number",
+        "warehouse_id",
+        "warehouse_type"
+      ],
+      "fieldOverrides": {
+        "order_list[].package_number": {
+          "allowEmpty": true
+        }
+      },
+      "accountRequirements": ["cross_border"]
+    },
+    "v2.first_mile.generate_and_bind_first_mile_tracking_number": {
+      "structuredSha256": "0ae0f5f40da3e87f9a3d34d0c08256644b9c27f8c2bb713e72f6cefcb2283b4a",
+      "requestRowsSha256": "f3ec23fd55052d6d77ef051cb131f2cc6b20daad0bc1874f0b29006f9920baaa",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. Courier-delivery section is explicitly described as CN origin; this requires a cross-border shop.",
+      "requestRows": [
+        [
+          "shipment_method",
+          "string",
+          "True",
+          "courier_delivery",
+          "The shipment method for generate and bind orders. Available value: courier_delivery."
+        ],
+        [
+          "region",
+          "string",
+          "False",
+          "CN",
+          "Use this field to specify the region you want to ship parcel. Available value: CN."
+        ],
+        [
+          "order_list",
+          "object[]",
+          "True",
+          "",
+          "The list of order_sn. You can specify up to 50 order_sns in this call. One fm_tn maximum number of total bind orders is 10000."
+        ],
+        ["order_sn", "string", "True", "2410106R7TSAJR", "Shopee's unique identifier for an order."],
+        [
+          "package_number",
+          "string",
+          "False",
+          "",
+          "Shopee's unique identifier for the package under an order. You should fill the field with empty string when there isn't a package number."
+        ],
+        [
+          "courier_delivery_info",
+          "object",
+          "True",
+          "",
+          "The set of information you need to generate FM tracking number and bind orders."
+        ],
+        [
+          "address_id",
+          "int64",
+          "True",
+          "11222",
+          "The identity of address. Retrieved from v2.logistics.get_address_list, address_type need to be FIRST_MILE_PICKUP_ADDRESS."
+        ],
+        [
+          "warehouse_id",
+          "string",
+          "True",
+          "ECP04",
+          "The identity of transit warehouse address. Retrieved from v2.first_mile.get_transit_warehouse_list."
+        ],
+        [
+          "logistics_product_id",
+          "int64",
+          "True",
+          "1010004",
+          "The definition of logistics product ID: 1010003 (kuaidi100 to C) - seller book courier pickup and pay offline 1010004 (kuaidi100 prepaid(MP)) - seller can use prepaid account to place courier order, so prepaid_account_id is required"
+        ],
+        [
+          "prepaid_account_id",
+          "int64",
+          "False",
+          "21",
+          "ID of prepaid account. Retrieved from v2.merchant.get_merchant_prepaid_account_list."
+        ],
+        [
+          "courier_service_id",
+          "string",
+          "True",
+          "LCN70002",
+          "The identity of courier service. Retrieved from v2.first_mile.get_courier_delivery_channel_list."
+        ]
+      ],
+      "rowPaths": [
+        "shipment_method",
+        "region",
+        "order_list[]",
+        "order_list[].order_sn",
+        "order_list[].package_number",
+        "courier_delivery_info",
+        "courier_delivery_info.address_id",
+        "courier_delivery_info.warehouse_id",
+        "courier_delivery_info.logistics_product_id",
+        "courier_delivery_info.prepaid_account_id",
+        "courier_delivery_info.courier_service_id"
+      ],
+      "fieldOverrides": {
+        "order_list[].package_number": {
+          "allowEmpty": true
+        }
+      },
+      "accountRequirements": ["cross_border"]
+    },
+    "v2.logistics.batch_ship_order": {
+      "structuredSha256": "8c6394fd0853748fdb22a4def9b5bf03d74ab8bba2189e61352cead127d64cae",
+      "requestRowsSha256": "4b1be76ca26b21d2bd4d02ff544900e042c6b62df65d12b7925ddcc55adc9802",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. Pickup/dropoff/non_integrated are top-level alternatives described in their own table rows; tracking_number appears once in each. The sample tracking_no alias is excluded because it has no parameter row.",
+      "requestRows": [
+        ["order_list", "object[]", "True", "", "The list of order."],
+        ["order_sn", "string", "True", "201212DCXHJUIKJ", "Shopee's unique identifier for an order. Limit 150."],
+        [
+          "package_number",
+          "string",
+          "False",
+          "",
+          "Shopee's unique identifier for the package under an order. You should't fill the field with empty string when there is't a package number."
+        ],
+        [
+          "pickup",
+          "object",
+          "False",
+          "",
+          "Required parameter ONLY if GetParameterForInit returns \"pickup\" or if GetLogisticsInfo returns \"pickup\" under \"info_needed\" for the same order. Developer should still include \"pickup\" field in the call even if \"pickup\" has empty value."
+        ],
+        ["address_id", "int", "False", "", "The identity of address. Retrieved from shopee.logistics.GetAddress."],
+        ["pickup_time_id", "string", "False", "", "The pickup time id. Retrieved from shopee.logistics.GetTimeSlot."],
+        [
+          "tracking_number",
+          "string",
+          "False",
+          "",
+          "Need input this field when \"tracking_number\" is returned from \"info_need\". Please note that this tracking number is assigned by third-party shipping carrier for item shipment."
+        ],
+        [
+          "dropoff",
+          "object",
+          "False",
+          "",
+          "Required parameter ONLY if GetParameterForInit returns \"dropoff\" or if GetLogisticsInfo returns \"dropoff\" under \"info_needed\" for the same order. Developer should still include \"dropoff\" field in the call even if \"dropoff\" has empty value. For logistic_id 80003 and 80004, both Regular and JOB shipping methods are supported. If you choose Regular shipping method, please use \"tracking_no\" to call Init API. If you choose JOB shipping method, please use \"sender_real_name\" to call Init API. Note that only one of \"tracking_no\" and \"sender_real_name\" can be selected."
+        ],
+        ["branch_id", "int", "False", "0", "The identity of branch. Retrieved from shopee.logistics.GetBranch branch."],
+        ["sender_real_name", "string", "False", "", "The real name of sender."],
+        [
+          "tracking_number",
+          "string",
+          "False",
+          "",
+          "Need input this field when \"tracking_number\" is returned from \"info_need\". Please note that this tracking number is assigned by third-party shipping carrier for item shipment."
+        ],
+        [
+          "non_integrated",
+          "object",
+          "False",
+          "",
+          "Optional parameter when GetParameterForInit returns \"non-integrated\" or GetLogisticsInfo returns \"non-integrated\" under \"info_needed\"."
+        ],
+        [
+          "tracking_number",
+          "string",
+          "False",
+          "",
+          "Optional parameter for non-integrated channel order. The tracking number assigned by the shipping carrier for item shipment."
+        ]
+      ],
+      "rowPaths": [
+        "order_list[]",
+        "order_list[].order_sn",
+        "order_list[].package_number",
+        "pickup",
+        "pickup.address_id",
+        "pickup.pickup_time_id",
+        "pickup.tracking_number",
+        "dropoff",
+        "dropoff.branch_id",
+        "dropoff.sender_real_name",
+        "dropoff.tracking_number",
+        "non_integrated",
+        "non_integrated.tracking_number"
+      ]
+    },
+    "v2.logistics.create_shipping_document_job": {
+      "structuredSha256": "1b0d62d99ea89eb84872fe9265b17a98e4f5c4fce81f1ce9f76e96e5a503d2cf",
+      "requestRowsSha256": "386b05948a8902f1125d9704a0778b9889a349914d79ce38357dfc6145ab2a71",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. The package_list row explicitly says it is an alternative to unpackaged_sku_requests.",
+      "requestRows": [
+        [
+          "shipping_document_type",
+          "string",
+          "True",
+          "THERMAL_UNPACKAGED_LABEL",
+          "The type of shipping document. Available values: THERMAL_UNPACKAGED_LABEL"
+        ],
+        [
+          "unpackaged_sku_requests",
+          "object[]",
+          "False",
+          "",
+          "List of Unpackaged SKUs to generate labels for. Note: The unpackaged_sku_requests and package_list cannot be populated at the same time, please select one."
+        ],
+        ["unpackaged_sku_id", "string", "False", "844091087_11192347", "Unpackaged SKU ID of the model."],
+        [
+          "quantity",
+          "int64",
+          "False",
+          "10",
+          "Number of copies for the generated labels (maximum 600 total across all requested SKUs)."
+        ],
+        [
+          "package_list",
+          "string[]",
+          "False",
+          "",
+          "List of Package Numbers to generate labels for. (maximum 600 total) Note: The unpackaged_sku_requests and package_list cannot be populated at the same time, please select one."
+        ]
+      ],
+      "rowPaths": [
+        "shipping_document_type",
+        "unpackaged_sku_requests[]",
+        "unpackaged_sku_requests[].unpackaged_sku_id",
+        "unpackaged_sku_requests[].quantity",
+        "package_list[]"
+      ],
+      "fieldOverrides": {
+        "shipping_document_type": {
+          "type": "enum",
+          "options": ["THERMAL_UNPACKAGED_LABEL"]
+        },
+        "unpackaged_sku_requests[].quantity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600
+        }
+      }
+    },
+    "v2.logistics.get_booking_shipping_document_data_info": {
+      "structuredSha256": "06b529cb04c4fa83d8f5c6e3af9a05f9f5b645c3ac650342937608c20d6a4a7c",
+      "requestRowsSha256": "2aca983026b509ee07cdff1e073f643cc4788a67f14c90766703f062c014a4a4",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated.",
+      "requestRows": [
+        ["booking_sn", "string", "True", "201201E81SYYKE", "Shopee's unique identifier for a booking."],
+        ["recipient_address_info", "object[]", "False", "", "recipient address to query as image"],
+        [
+          "key",
+          "string",
+          "True",
+          "name",
+          "fields to query in the recipient address, should be name, phone, full_address, town, district, city, state, region, zipcode."
+        ],
+        ["style", "object", "False", "", "image style"],
+        ["text_style", "string[]", "False", "[\"bold\", \"italic\"]", "supports bold and italic"],
+        ["font_size", "int64", "False", "12", "supports 1 - 108"],
+        ["text_color", "string", "False", "#39c5bb", "color string like \"#AbCd12\""],
+        ["image_width", "float", "False", "3.0", "supports 0.1-30, in centimeters"],
+        ["h_align", "string", "False", "center", "text horizontal align, supports left, center and right."]
+      ],
+      "rowPaths": [
+        "booking_sn",
+        "recipient_address_info[]",
+        "recipient_address_info[].key",
+        "recipient_address_info[].style",
+        "recipient_address_info[].style.text_style[]",
+        "recipient_address_info[].style.font_size",
+        "recipient_address_info[].style.text_color",
+        "recipient_address_info[].style.image_width",
+        "recipient_address_info[].style.h_align"
+      ],
+      "fieldOverrides": {
+        "recipient_address_info[].style.font_size": {
+          "minimum": 1,
+          "maximum": 108
+        },
+        "recipient_address_info[].style.image_width": {
+          "minimum": 0.1,
+          "maximum": 30
+        },
+        "recipient_address_info[].style.h_align": {
+          "type": "enum",
+          "options": ["left", "center", "right"]
+        }
+      }
+    },
+    "v2.logistics.ship_booking": {
+      "structuredSha256": "135cca93fd63bd9cf11a4881e22715c9cfbf86badfe97806ffae5a51f9493972",
+      "requestRowsSha256": "8c2311f0ed9771499b8ef35720de9b2ac4a9e23828f576a2fe632cb31ca36b21",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. The request table lists pickup.address_id as required even though omitted from example; retain its requirement when pickup is present. Dropoff explicitly permits an empty object.",
+      "requestRows": [
+        ["booking_sn", "string", "True", "201214JASXYXY6", "Shopee's unique identifier for a booking."],
+        [
+          "pickup",
+          "object",
+          "False",
+          "",
+          "Required parameter ONLY if get_shipping_parameter returns \"pickup\" under \"info_needed\". Developer should still include \"pickup\" field in the call even if \"pickup\" has empty value."
+        ],
+        [
+          "address_id",
+          "int64",
+          "True",
+          "",
+          "The identity of address. Retrieved from v2.logistics.get_booking_shipping_parameter."
+        ],
+        [
+          "pickup_time_id",
+          "string",
+          "False",
+          "",
+          "The pickup time id. Retrieved from v2.logistics.get_shipping_booking_parameter, you can only select one from the time_slot_list. Some logistics channels may not return any date or time for pickup time slots. In such cases, sellers can arrange shipment without selecting any time slot, and Shopee will arrange a suitable timing for these situations."
+        ],
+        [
+          "dropoff",
+          "object",
+          "False",
+          "",
+          "Required parameter ONLY if get_shipping_parameter returns \"dropoff\" under \"info_needed\". Developer should still include \"dropoff\" field in the call even if \"dropoff\" has empty value. If you choose Regular shipping method, please use \"tracking_no\" to call Init API. If you choose JOB shipping method, please use \"sender_real_name\" to call Init API. Note that only one of \"tracking_no\" and \"sender_real_name\" can be selected."
+        ]
+      ],
+      "rowPaths": ["booking_sn", "pickup", "pickup.address_id", "pickup.pickup_time_id", "dropoff"],
+      "emptyObjects": ["dropoff"]
+    },
+    "v2.logistics.update_channel": {
+      "structuredSha256": "f44cafdde2bc7330214ebcc7814d0f187d2fa1f8088ca691faf8a3d6522fec77",
+      "requestRowsSha256": "c7fc7182713f8134502b513b48c4d05dbd8730b0d37247dbc18e6e9271665321",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. Table defines one auto_call_driver_setting object with two adjacent fields; preparation_time is conditional when auto_call_driver_enabled=true.",
+      "requestRows": [
+        ["logistics_channel_id", "int64", "True", "14623", "The identity of logistic channel."],
+        ["enabled", "boolean", "False", "true", "Whether to enable this logistic channel."],
+        [
+          "cod_enabled",
+          "boolean",
+          "False",
+          "true",
+          "Whether to enable COD for this logistic channel. Only COD supported channels are applicable."
+        ],
+        ["auto_call_driver_setting", "object", "False", "", ""],
+        [
+          "auto_call_driver_enabled",
+          "boolean",
+          "False",
+          "true",
+          "Whether to enable Auto Call Driver for this logistic channel."
+        ],
+        [
+          "preparation_time",
+          "int32",
+          "False",
+          "10",
+          "Used to set the Preparation Time for this channel, in minutes. Required when auto_call_driver_enabled = true. Note: Please ensure the passed preparation_time value falls within the preparation_time_limit range returned by v2.logistics.get_channel_list."
+        ]
+      ],
+      "rowPaths": [
+        "logistics_channel_id",
+        "enabled",
+        "cod_enabled",
+        "auto_call_driver_setting",
+        "auto_call_driver_setting.auto_call_driver_enabled",
+        "auto_call_driver_setting.preparation_time"
+      ]
+    },
+    "v2.logistics.update_operating_hours": {
+      "structuredSha256": "323e9ac84db6b5603d7c2212692d5c99ce4b1417c857c04fcbbc8916995d6ddd",
+      "requestRowsSha256": "e3ce69166f3e9e3a681ab39fc6082e1d634e874c3ed4130d413e52366069a441",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. Every day object and its start/end rows occurs in the full request example, including the documented thrusday wire spelling. Clock fields are local HH:mm and date fields are ISO calendar dates.",
+      "requestRows": [
+        [
+          "regular_operating_hour",
+          "object",
+          "False",
+          "",
+          "Details of Pickup Operating Hours / Preferred Pickup Hours: You can skip this parameter if you are not updating the Pickup Operating Hours / Preferred Pickup Hours"
+        ],
+        [
+          "monday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Monday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "tuesday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Tuesday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "wednesday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Wednesday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "thursday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Thursday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "friday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Friday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "saturday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Saturday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "sunday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Sunday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "public_holiday",
+          "object",
+          "False",
+          "",
+          "Operating hours for public holiday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "special_operating_hour",
+          "object",
+          "False",
+          "",
+          "Details of Special Operating Hours : You can skip this parameter if you are not creating Special Operating Hours or if you do not have access to create Special Operating Hours"
+        ],
+        ["name", "string", "True", "3.3 Campaign", "The name of Special Operating Hours"],
+        [
+          "start_date",
+          "string",
+          "True",
+          "2025-03-03",
+          "The start date of the Special Operating Hours. The value should be within [today + 1] and [today + 365 days]."
+        ],
+        [
+          "end_date",
+          "string",
+          "True",
+          "2025-03-05",
+          "The end date of the Special Operating Hours. The value should be within [start_date + 30 days]"
+        ],
+        ["operating_hours", "object[]", "True", "", "To specify the operating hours for each date"],
+        ["date", "string", "True", "2025-03-03", "Date: it should be include all date from start_date until end_date"],
+        [
+          "start_time",
+          "string",
+          "True",
+          "00:00",
+          "Start time for operating hours on that date: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "23:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "enable",
+          "boolean",
+          "True",
+          "true",
+          "To specify this value as False if you're not operate on that date (close)"
+        ],
+        [
+          "instant_operating_hour",
+          "object",
+          "False",
+          "",
+          "Details of Instant Operating Hours : You can skip this parameter if you are not creating/updating Instant Operating Hours or if you do not have access to create/update Instant Operating Hours"
+        ],
+        [
+          "monday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Monday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "tuesday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Tuesday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "wednesday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Wednesday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "thrusday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Thursday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "friday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Friday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "saturday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Saturday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "sunday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Sunday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "public_holiday",
+          "object",
+          "False",
+          "",
+          "Operating hours for public holiday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "shop_collection_operating_hour",
+          "object",
+          "False",
+          "",
+          "Details of Shop Collection Operating Hours : You can skip this parameter if you are not creating/updating Shop Collection Operating Hours or if you do not have access to create/update Shop Collection Operating Hours"
+        ],
+        [
+          "monday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Monday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "tuesday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Tuesday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "wednesday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Wednesday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "thursday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Thursday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "friday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Friday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "saturday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Saturday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "sunday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Sunday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ],
+        [
+          "public_holiday",
+          "object",
+          "False",
+          "",
+          "Operating hours for Public Holiday: You can skip this information if you want to mark the day as closed."
+        ],
+        [
+          "start_time",
+          "string",
+          "True",
+          "09:00",
+          "Start time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30."
+        ],
+        [
+          "end_time",
+          "string",
+          "True",
+          "18:30",
+          "End time for operating hours on that day: The time should be in the format XX:YY, where YY is either 00 or 30. Except for a 24-hour, you can input a start_time of 00:00 and an end_time of 23:59"
+        ]
+      ],
+      "rowPaths": [
+        "regular_operating_hour",
+        "regular_operating_hour.monday",
+        "regular_operating_hour.monday.start_time",
+        "regular_operating_hour.monday.end_time",
+        "regular_operating_hour.tuesday",
+        "regular_operating_hour.tuesday.start_time",
+        "regular_operating_hour.tuesday.end_time",
+        "regular_operating_hour.wednesday",
+        "regular_operating_hour.wednesday.start_time",
+        "regular_operating_hour.wednesday.end_time",
+        "regular_operating_hour.thursday",
+        "regular_operating_hour.thursday.start_time",
+        "regular_operating_hour.thursday.end_time",
+        "regular_operating_hour.friday",
+        "regular_operating_hour.friday.start_time",
+        "regular_operating_hour.friday.end_time",
+        "regular_operating_hour.saturday",
+        "regular_operating_hour.saturday.start_time",
+        "regular_operating_hour.saturday.end_time",
+        "regular_operating_hour.sunday",
+        "regular_operating_hour.sunday.start_time",
+        "regular_operating_hour.sunday.end_time",
+        "regular_operating_hour.public_holiday",
+        "regular_operating_hour.public_holiday.start_time",
+        "regular_operating_hour.public_holiday.end_time",
+        "special_operating_hour",
+        "special_operating_hour.name",
+        "special_operating_hour.start_date",
+        "special_operating_hour.end_date",
+        "special_operating_hour.operating_hours[]",
+        "special_operating_hour.operating_hours[].date",
+        "special_operating_hour.operating_hours[].start_time",
+        "special_operating_hour.operating_hours[].end_time",
+        "special_operating_hour.operating_hours[].enable",
+        "instant_operating_hour",
+        "instant_operating_hour.monday",
+        "instant_operating_hour.monday.start_time",
+        "instant_operating_hour.monday.end_time",
+        "instant_operating_hour.tuesday",
+        "instant_operating_hour.tuesday.start_time",
+        "instant_operating_hour.tuesday.end_time",
+        "instant_operating_hour.wednesday",
+        "instant_operating_hour.wednesday.start_time",
+        "instant_operating_hour.wednesday.end_time",
+        "instant_operating_hour.thrusday",
+        "instant_operating_hour.thrusday.start_time",
+        "instant_operating_hour.thrusday.end_time",
+        "instant_operating_hour.friday",
+        "instant_operating_hour.friday.start_time",
+        "instant_operating_hour.friday.end_time",
+        "instant_operating_hour.saturday",
+        "instant_operating_hour.saturday.start_time",
+        "instant_operating_hour.saturday.end_time",
+        "instant_operating_hour.sunday",
+        "instant_operating_hour.sunday.start_time",
+        "instant_operating_hour.sunday.end_time",
+        "instant_operating_hour.public_holiday",
+        "instant_operating_hour.public_holiday.start_time",
+        "instant_operating_hour.public_holiday.end_time",
+        "shop_collection_operating_hour",
+        "shop_collection_operating_hour.monday",
+        "shop_collection_operating_hour.monday.start_time",
+        "shop_collection_operating_hour.monday.end_time",
+        "shop_collection_operating_hour.tuesday",
+        "shop_collection_operating_hour.tuesday.start_time",
+        "shop_collection_operating_hour.tuesday.end_time",
+        "shop_collection_operating_hour.wednesday",
+        "shop_collection_operating_hour.wednesday.start_time",
+        "shop_collection_operating_hour.wednesday.end_time",
+        "shop_collection_operating_hour.thursday",
+        "shop_collection_operating_hour.thursday.start_time",
+        "shop_collection_operating_hour.thursday.end_time",
+        "shop_collection_operating_hour.friday",
+        "shop_collection_operating_hour.friday.start_time",
+        "shop_collection_operating_hour.friday.end_time",
+        "shop_collection_operating_hour.saturday",
+        "shop_collection_operating_hour.saturday.start_time",
+        "shop_collection_operating_hour.saturday.end_time",
+        "shop_collection_operating_hour.sunday",
+        "shop_collection_operating_hour.sunday.start_time",
+        "shop_collection_operating_hour.sunday.end_time",
+        "shop_collection_operating_hour.public_holiday",
+        "shop_collection_operating_hour.public_holiday.start_time",
+        "shop_collection_operating_hour.public_holiday.end_time"
+      ],
+      "fieldOverrides": {
+        "regular_operating_hour.monday.start_time": {
+          "format": "time"
+        },
+        "regular_operating_hour.monday.end_time": {
+          "format": "time"
+        },
+        "regular_operating_hour.tuesday.start_time": {
+          "format": "time"
+        },
+        "regular_operating_hour.tuesday.end_time": {
+          "format": "time"
+        },
+        "regular_operating_hour.wednesday.start_time": {
+          "format": "time"
+        },
+        "regular_operating_hour.wednesday.end_time": {
+          "format": "time"
+        },
+        "regular_operating_hour.thursday.start_time": {
+          "format": "time"
+        },
+        "regular_operating_hour.thursday.end_time": {
+          "format": "time"
+        },
+        "regular_operating_hour.friday.start_time": {
+          "format": "time"
+        },
+        "regular_operating_hour.friday.end_time": {
+          "format": "time"
+        },
+        "regular_operating_hour.saturday.start_time": {
+          "format": "time"
+        },
+        "regular_operating_hour.saturday.end_time": {
+          "format": "time"
+        },
+        "regular_operating_hour.sunday.start_time": {
+          "format": "time"
+        },
+        "regular_operating_hour.sunday.end_time": {
+          "format": "time"
+        },
+        "regular_operating_hour.public_holiday.start_time": {
+          "format": "time"
+        },
+        "regular_operating_hour.public_holiday.end_time": {
+          "format": "time"
+        },
+        "special_operating_hour.operating_hours[].start_time": {
+          "format": "time"
+        },
+        "special_operating_hour.operating_hours[].end_time": {
+          "format": "time"
+        },
+        "instant_operating_hour.monday.start_time": {
+          "format": "time"
+        },
+        "instant_operating_hour.monday.end_time": {
+          "format": "time"
+        },
+        "instant_operating_hour.tuesday.start_time": {
+          "format": "time"
+        },
+        "instant_operating_hour.tuesday.end_time": {
+          "format": "time"
+        },
+        "instant_operating_hour.wednesday.start_time": {
+          "format": "time"
+        },
+        "instant_operating_hour.wednesday.end_time": {
+          "format": "time"
+        },
+        "instant_operating_hour.thrusday.start_time": {
+          "format": "time"
+        },
+        "instant_operating_hour.thrusday.end_time": {
+          "format": "time"
+        },
+        "instant_operating_hour.friday.start_time": {
+          "format": "time"
+        },
+        "instant_operating_hour.friday.end_time": {
+          "format": "time"
+        },
+        "instant_operating_hour.saturday.start_time": {
+          "format": "time"
+        },
+        "instant_operating_hour.saturday.end_time": {
+          "format": "time"
+        },
+        "instant_operating_hour.sunday.start_time": {
+          "format": "time"
+        },
+        "instant_operating_hour.sunday.end_time": {
+          "format": "time"
+        },
+        "instant_operating_hour.public_holiday.start_time": {
+          "format": "time"
+        },
+        "instant_operating_hour.public_holiday.end_time": {
+          "format": "time"
+        },
+        "shop_collection_operating_hour.monday.start_time": {
+          "format": "time"
+        },
+        "shop_collection_operating_hour.monday.end_time": {
+          "format": "time"
+        },
+        "shop_collection_operating_hour.tuesday.start_time": {
+          "format": "time"
+        },
+        "shop_collection_operating_hour.tuesday.end_time": {
+          "format": "time"
+        },
+        "shop_collection_operating_hour.wednesday.start_time": {
+          "format": "time"
+        },
+        "shop_collection_operating_hour.wednesday.end_time": {
+          "format": "time"
+        },
+        "shop_collection_operating_hour.thursday.start_time": {
+          "format": "time"
+        },
+        "shop_collection_operating_hour.thursday.end_time": {
+          "format": "time"
+        },
+        "shop_collection_operating_hour.friday.start_time": {
+          "format": "time"
+        },
+        "shop_collection_operating_hour.friday.end_time": {
+          "format": "time"
+        },
+        "shop_collection_operating_hour.saturday.start_time": {
+          "format": "time"
+        },
+        "shop_collection_operating_hour.saturday.end_time": {
+          "format": "time"
+        },
+        "shop_collection_operating_hour.sunday.start_time": {
+          "format": "time"
+        },
+        "shop_collection_operating_hour.sunday.end_time": {
+          "format": "time"
+        },
+        "shop_collection_operating_hour.public_holiday.start_time": {
+          "format": "time"
+        },
+        "shop_collection_operating_hour.public_holiday.end_time": {
+          "format": "time"
+        }
+      }
+    },
+    "v2.order.handle_prescription_check": {
+      "structuredSha256": "400706f8e6f7ac54b47d8793d011f433bc1bd43c50e6a4ff6e2f806a42e0f653",
+      "requestRowsSha256": "1170922b4d904b2eb17d8911ea88a24aac9043ae872eeacbe432882df9a8d41f",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. This API explicitly covers ID prescription orders. Malformed illustrative JSON (missing comma) is not parsed or repaired; the table and item-list description independently establish the three item IDs.",
+      "requestRows": [
+        ["order_sn", "string", "True", "", "Shopee's unique identifier for an order."],
+        ["is_approved", "boolean", "True", "", "Approve or reject the prescription. Available values: TRUE, FALSE."],
+        [
+          "reject_reason_code",
+          "int",
+          "False",
+          "",
+          "Reject reason code. Available values: 1 = Invalid Prescription (counterfeit/incorrect format) 2 = Incorrect Dosage 3 = No Prescription 4 = Unclear Image 5 = Free Text"
+        ],
+        ["items", "object[]", "False", "", "The list of invalid items that make the prescription get rejected"],
+        ["item_id", "int", "True", "", "Shopee's unique identifier for an item."],
+        ["model_id", "int", "True", "", "Shopee's unique identifier for a model of an item."],
+        [
+          "group_id",
+          "int",
+          "True",
+          "",
+          "The identify of product promotion. For items in one same add on deal promotion, the group_id should share the same id. For items not in add on deal promotion, the group_id should be 0. And the data is from group_id of shopee.orders.GetOrderDetails."
+        ],
+        [
+          "pharmacist_name",
+          "string",
+          "False",
+          "",
+          "Full name of the pharmacist. Required for PH and ID Prescription Orders."
+        ],
+        [
+          "free_text",
+          "string",
+          "False",
+          "",
+          "The reason for rejecting the prescription. Only usable when the reject_reason_code = 5."
+        ]
+      ],
+      "rowPaths": [
+        "order_sn",
+        "is_approved",
+        "reject_reason_code",
+        "items[]",
+        "items[].item_id",
+        "items[].model_id",
+        "items[].group_id",
+        "pharmacist_name",
+        "free_text"
+      ],
+      "fieldOverrides": {
+        "reject_reason_code": {
+          "minimum": 1,
+          "maximum": 5
+        },
+        "items[]": {
+          "minimum": 1
+        }
+      }
+    },
+    "v2.order.split_order": {
+      "structuredSha256": "53715d152bf94d425510025631e433c8d3d8915c7ea0f728d1fa6b9c9e61fbe3",
+      "requestRowsSha256": "2a80904fdc7c2e6eb6da4ef834d90a8baf57d8b4e8d47a0945ca5a8021b286fe",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. Unit-level model_quantity is explicitly limited to SG/TH/TW/MY and is omitted for Indonesia.",
+      "requestRows": [
+        ["order_sn", "string", "True", "2012300NQJVTYN", "Shopee's unique identifier for an order."],
+        [
+          "package_list",
+          "object[]",
+          "True",
+          "",
+          "The list of packages that you want to split. Note: - Orders that include installation services cannot be split by quantity. - When splitting the order, must contain all items in the order in one request. - You can split the order into 30 parcels at most in TW and 5 parcels at most in other regions."
+        ],
+        ["item_list", "object[]", "True", "", "The list of items under the same package."],
+        ["item_id", "int64", "True", "3600140554", "Shopee's unique identifier for an item."],
+        [
+          "model_id",
+          "int64",
+          "True",
+          "10000605797",
+          "Shopee's unique identifier for a model of an item. For single item without variation, you can set model_id as 0."
+        ],
+        [
+          "order_item_id",
+          "int",
+          "False",
+          "",
+          "The identify of order item. For items in one same bundle deal promotion, the order_item_id should share the same id, such as 1,2. For items not in bundle deal promotion, the order_item_id should be the same as item_id."
+        ],
+        [
+          "promotion_group_id",
+          "int",
+          "False",
+          "",
+          "The identify of product promotion.It's required for add on deal and bundle deal items. For items in one same add on deal or bundle deal promotion, the promotion_group_id should share the same id. For items not in add on deal or bundle deal promotion, the promotion_group_id should be 0. And the data is from promotion_group_id of v2,order.get_order_detail."
+        ],
+        [
+          "model_quantity",
+          "int32",
+          "False",
+          "2",
+          "The number of identical items put in the package, the quantity sum of the same item from each parcel must be the full item quantity of the whole order. This field is only eligible for the shop whitelisted to the unit-level split in SG/TH/TW/MY markets."
+        ]
+      ],
+      "rowPaths": [
+        "order_sn",
+        "package_list[]",
+        "package_list[].item_list[]",
+        "package_list[].item_list[].item_id",
+        "package_list[].item_list[].model_id",
+        "package_list[].item_list[].order_item_id",
+        "package_list[].item_list[].promotion_group_id",
+        null
+      ],
+      "omittedRows": {
+        "7": "model_quantity is only eligible for whitelisted SG/TH/TW/MY shops, outside Indonesia."
+      },
+      "fieldOverrides": {
+        "package_list[].item_list[]": {
+          "minimum": 1
+        }
+      }
+    },
+    "v2.product.add_kit_item": {
+      "structuredSha256": "e72cf5ed321c12c68b846d4104c1ab723f0a934c1525313a2c13270f60dbce1e",
+      "requestRowsSha256": "59e4bbff5503e239663926eb0300058bcc6c0ef601bba0e80e14693f727000d0",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. All omitted optional containers (long_images and image_info) are named in the same request-table description, using matching images and rich-description contracts. Component quantity is kit composition, never an inventory mutation.",
+      "requestRows": [
+        ["item_setting", "object", "True", "", ""],
+        ["item_name", "string", "True", "item name sample", "The name of this kit item."],
+        ["images", "object", "True", "", "Item images with 1:1 ratio."],
+        ["image_id_list", "string[]", "True", "", "ID of image."],
+        ["long_images", "object", "False", "", "Item images with 3:4 ratio."],
+        ["image_id_list", "string[]", "True", "", "ID of image."],
+        [
+          "video_upload_id",
+          "string[]",
+          "False",
+          "[\"sg_f4bde9bc-ff3c-485e-a6dd-3161dab4b942_000000\"]",
+          "Video upload ID returned from video uploading API. Only accept one video_upload_id."
+        ],
+        [
+          "description",
+          "string",
+          "False",
+          "item description sample",
+          "If description_type is normal, description information should be set by this field."
+        ],
+        [
+          "description_info",
+          "object",
+          "False",
+          "",
+          "Rich text description field. Only whitelist sellers can use it. If you use the field, please upload the description_type=extended otherwise api will return error. If you don't use this field, you don't need to upload the description_type or upload description_type=normal"
+        ],
+        [
+          "extended_description",
+          "object",
+          "True",
+          "",
+          "If description_type is extended , Description information should be set by this field."
+        ],
+        ["field_list", "object[]", "True", "", "Field of extended description."],
+        [
+          "field_type",
+          "string",
+          "True",
+          "",
+          "Type of extended description field. See Data Definition- description_field_type (text , image)."
+        ],
+        ["text", "string", "True", "", "If field_type is text, text information will be set by this field."],
+        ["image_info", "object", "False", "", "If field_type is image, image will be set by this field."],
+        ["image_id", "string", "True", "", "Image id."],
+        [
+          "description_type",
+          "string",
+          "True",
+          "extended",
+          "See Data Definition- description_type (normal , extended). If you want to use extended_description, this field must be inputed."
+        ],
+        ["logistic_info", "object[]", "True", "", "Logistic channel setting."],
+        ["logistic_id", "int64", "True", "", "ID of the channel."],
+        ["enabled", "boolean", "True", "", "Whether channel is enabled for this kit item."],
+        ["shipping_fee", "float", "False", "", "Shipping fee. Only needed when logistics fee_type = CUSTOM_PRICE."],
+        ["size_id", "int64", "False", "", "Size ID. Only needed when logistic fee_type = SIZE_SELECTION."],
+        ["is_free", "boolean", "False", "", "Whether cover shipping fee for buyer."],
+        ["unlisted", "boolean", "False", "false", "Unlist or not."],
+        ["item_sku", "string", "False", "item sku sample", "SKU tag of item"],
+        ["weight", "float", "True", "1.1", "The weight of this kit item, the unit is KG."],
+        ["dimension", "object", "False", "", "The dimension of this kit item."],
+        ["package_length", "int32", "True", "11", "The length of package for this kit item, the unit is CM."],
+        ["package_width", "int32", "True", "11", "The width of package for this kit item, the unit is CM."],
+        ["package_height", "int32", "True", "11", "The height of package for this kit item, the unit is CM."],
+        ["pre_order", "object", "False", "", "Pre order setting."],
+        ["is_pre_order", "boolean", "True", "true", "Whether kit item is pre order."],
+        [
+          "days_to_ship",
+          "int32",
+          "False",
+          "10",
+          "The guaranteed days to ship orders. Please get the days_to_ship range from get_kit_item_limit api."
+        ],
+        ["model_list", "object[]", "True", "", "Model info list, model number at most 9."],
+        ["tier_index", "int32[]", "True", "[0]", "Tier index of this kit model."],
+        [
+          "model_sku",
+          "string",
+          "False",
+          "model sku sample",
+          "Seller SKU of this kit model, model_sku length information needs to be no more than 100 characters."
+        ],
+        ["original_price", "float", "True", "38.3", "Original price of this kit model."],
+        [
+          "component_list",
+          "object[]",
+          "True",
+          "",
+          "Please get the amount of item/model that one kit model support from get_kit_item_limit."
+        ],
+        ["component_item_id", "int64", "True", "892568916", "ID of the item that composes this kit model."],
+        ["component_model_id", "int64", "False", "8501462426", "ID of the model that composes this kit model."],
+        ["quantity", "int32", "True", "2", "The amount of the item/model that composes this kit model."],
+        [
+          "main_component",
+          "boolean",
+          "False",
+          "true",
+          "Whether this item/model is the main component for this kit. One kit item can only have one item/model as main component."
+        ],
+        [
+          "tier_variation_list",
+          "object[]",
+          "True",
+          "",
+          "Tier variation info list. Only support one tier variation, and each kit item can have from 1 to 9 kit variations."
+        ],
+        ["name", "string", "False", "", "Tier variation name."],
+        ["option_list", "object[]", "True", "", "Tier variation option info list."],
+        ["option", "string", "True", "", "Option name."],
+        ["image", "object", "False", "", "Option image."],
+        [
+          "image_id",
+          "string",
+          "True",
+          "",
+          "ID of image. If you choose to define, you need to define an image for all options."
+        ],
+        ["sync_setting", "object", "False", "", ""],
+        ["auto_sync_dts", "boolean", "True", "true", "Auto sync the pre_order setting from main component or not."]
+      ],
+      "rowPaths": [
+        "item_setting",
+        "item_setting.item_name",
+        "item_setting.images",
+        "item_setting.images.image_id_list[]",
+        "item_setting.long_images",
+        "item_setting.long_images.image_id_list[]",
+        "item_setting.video_upload_id[]",
+        "item_setting.description",
+        "item_setting.description_info",
+        "item_setting.description_info.extended_description",
+        "item_setting.description_info.extended_description.field_list[]",
+        "item_setting.description_info.extended_description.field_list[].field_type",
+        "item_setting.description_info.extended_description.field_list[].text",
+        "item_setting.description_info.extended_description.field_list[].image_info",
+        "item_setting.description_info.extended_description.field_list[].image_info.image_id",
+        "item_setting.description_type",
+        "item_setting.logistic_info[]",
+        "item_setting.logistic_info[].logistic_id",
+        "item_setting.logistic_info[].enabled",
+        "item_setting.logistic_info[].shipping_fee",
+        "item_setting.logistic_info[].size_id",
+        "item_setting.logistic_info[].is_free",
+        "item_setting.unlisted",
+        "item_setting.item_sku",
+        "item_setting.weight",
+        "item_setting.dimension",
+        "item_setting.dimension.package_length",
+        "item_setting.dimension.package_width",
+        "item_setting.dimension.package_height",
+        "item_setting.pre_order",
+        "item_setting.pre_order.is_pre_order",
+        "item_setting.pre_order.days_to_ship",
+        "item_setting.model_list[]",
+        "item_setting.model_list[].tier_index[]",
+        "item_setting.model_list[].model_sku",
+        "item_setting.model_list[].original_price",
+        "item_setting.model_list[].component_list[]",
+        "item_setting.model_list[].component_list[].component_item_id",
+        "item_setting.model_list[].component_list[].component_model_id",
+        "item_setting.model_list[].component_list[].quantity",
+        "item_setting.model_list[].component_list[].main_component",
+        "item_setting.tier_variation_list[]",
+        "item_setting.tier_variation_list[].name",
+        "item_setting.tier_variation_list[].option_list[]",
+        "item_setting.tier_variation_list[].option_list[].option",
+        "item_setting.tier_variation_list[].option_list[].image",
+        "item_setting.tier_variation_list[].option_list[].image.image_id",
+        "sync_setting",
+        "sync_setting.auto_sync_dts"
+      ],
+      "fieldOverrides": {
+        "item_setting.description_info.extended_description.field_list[].text": {
+          "required": false
+        },
+        "item_setting.description_info.extended_description.field_list[].field_type": {
+          "type": "enum",
+          "options": ["text", "image"]
+        },
+        "item_setting.model_list[]": {
+          "minimum": 1
+        },
+        "item_setting.model_list[].component_list[]": {
+          "minimum": 1
+        }
+      }
+    },
+    "v2.product.update_kit_item": {
+      "structuredSha256": "aeaa1d58b02d6f4e0b8dc809ce433a64ebc29652b5a4c369eba22c1281bc5128",
+      "requestRowsSha256": "5ef6d5d662dd56d75bb0a9217c4c0f995687296c7fcacfd3c297f781927d6e70",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. All omitted optional containers (long_images and image_info) are named in the same request-table description, using matching images and rich-description contracts. Component quantity is kit composition, never an inventory mutation.",
+      "requestRows": [
+        ["item_id", "int64", "True", "28001430", "ID of kit item."],
+        ["item_setting", "object", "False", "", ""],
+        ["item_name", "string", "False", "item name sample", "The name of this kit item."],
+        ["images", "object", "False", "", "Item images with 1:1 ratio."],
+        ["image_id_list", "string[]", "True", "", "ID of image."],
+        ["long_images", "object", "False", "", "Item images with 3:4 ratio."],
+        ["image_id_list", "string[]", "True", "", "ID of image."],
+        [
+          "video_upload_id",
+          "string[]",
+          "False",
+          "[\"sg_f4bde9bc-ff3c-485e-a6dd-3161dab4b942_000000\"]",
+          "Video upload ID returned from video uploading API. Only accept one video_upload_id."
+        ],
+        [
+          "description",
+          "string",
+          "False",
+          "item description sample",
+          "If description_type is normal, description information should be set by this field."
+        ],
+        [
+          "description_info",
+          "object",
+          "False",
+          "",
+          "Rich text description field. Only whitelist sellers can use it. If you use the field, please upload the description_type=extended otherwise api will return error. If you don't use this field, you don't need to upload the description_type or upload description_type=normal"
+        ],
+        [
+          "extended_description",
+          "object",
+          "True",
+          "",
+          "If description_type is extended , Description information should be set by this field."
+        ],
+        ["field_list", "object[]", "True", "", "Field of extended description."],
+        [
+          "field_type",
+          "string",
+          "True",
+          "",
+          "Type of extended description field. See Data Definition- description_field_type (text , image)."
+        ],
+        ["text", "string", "True", "", "If field_type is text, text information will be set by this field."],
+        ["image_info", "object", "False", "", "If field_type is image, image will be set by this field."],
+        ["image_id", "string", "True", "", "Image id."],
+        [
+          "description_type",
+          "string",
+          "False",
+          "extended",
+          "See Data Definition- description_type (normal , extended). If you want to use extended_description, this field must be inputed."
+        ],
+        ["logistic_info", "object[]", "False", "", "Logistic channel setting."],
+        ["logistic_id", "int64", "True", "", "ID of the channel."],
+        ["enabled", "boolean", "True", "", "Whether channel is enabled for this kit item."],
+        ["shipping_fee", "float", "False", "", "Shipping fee. Only needed when logistics fee_type = CUSTOM_PRICE."],
+        ["size_id", "int64", "False", "", "Size ID. Only needed when logistic fee_type = SIZE_SELECTION."],
+        ["is_free", "boolean", "False", "", "Whether cover shipping fee for buyer."],
+        ["unlisted", "boolean", "False", "false", "Unlist or not."],
+        ["item_sku", "string", "False", "item sku sample", "SKU tag of item"],
+        ["weight", "float", "False", "1.1", "The weight of this kit item, the unit is KG."],
+        ["dimension", "object", "False", "", "The dimension of this kit item."],
+        ["package_length", "int32", "True", "11", "The length of package for this kit item, the unit is CM."],
+        ["package_width", "int32", "True", "11", "The width of package for this kit item, the unit is CM."],
+        ["package_height", "int32", "True", "11", "The height of package for this kit item, the unit is CM."],
+        ["pre_order", "object", "False", "", "Pre order setting."],
+        ["is_pre_order", "boolean", "True", "false", "Whether kit item is pre order."],
+        [
+          "days_to_ship",
+          "int64",
+          "False",
+          "10",
+          "The guaranteed days to ship orders. Please get the days_to_ship range from get_kit_item_limit api."
+        ],
+        ["model_list", "object[]", "False", "", "Model info list, model number at most 9."],
+        ["model_id", "int64", "False", "1002066586922", "ID of this kit model."],
+        ["tier_index", "int64[]", "True", "[2]", "Tier index of this kit model."],
+        [
+          "model_sku",
+          "string",
+          "False",
+          "model sku sample",
+          "Seller SKU of this kit model, model_sku length information needs to be no more than 100 characters."
+        ],
+        ["original_price", "float", "False", "38.3", "Original price of this kit model."],
+        [
+          "component_list",
+          "object[]",
+          "False",
+          "",
+          "Please get the amount of item/model that one kit model support from get_kit_item_limit."
+        ],
+        ["component_item_id", "int64", "True", "892568916", "ID of the item that composes this kit model."],
+        ["component_model_id", "int64", "False", "8501462426", "ID of the model that composes this kit model."],
+        ["quantity", "int64", "True", "2", "The amount of the item/model that composes this kit model."],
+        [
+          "main_component",
+          "boolean",
+          "False",
+          "false",
+          "Whether this item/model is the main component for this kit. One kit item can only have one item/model as main component."
+        ],
+        [
+          "tier_variation_list",
+          "object[]",
+          "False",
+          "",
+          "Tier variation info list. Only support one tier variation, and each kit item can have from 1 to 9 kit variations."
+        ],
+        ["name", "string", "False", "", "Tier variation name."],
+        ["option_list", "object[]", "True", "", "Tier variation option info list."],
+        ["option", "string", "True", "", "Option name."],
+        ["image", "object", "False", "", "Option image."],
+        [
+          "image_id",
+          "string",
+          "True",
+          "",
+          "ID of image. If you choose to define, you need to define an image for all options."
+        ],
+        ["sync_setting", "object", "False", "", ""],
+        ["auto_sync_dts", "boolean", "True", "", "Auto sync the pre_order setting from main component or not."]
+      ],
+      "rowPaths": [
+        "item_id",
+        "item_setting",
+        "item_setting.item_name",
+        "item_setting.images",
+        "item_setting.images.image_id_list[]",
+        "item_setting.long_images",
+        "item_setting.long_images.image_id_list[]",
+        "item_setting.video_upload_id[]",
+        "item_setting.description",
+        "item_setting.description_info",
+        "item_setting.description_info.extended_description",
+        "item_setting.description_info.extended_description.field_list[]",
+        "item_setting.description_info.extended_description.field_list[].field_type",
+        "item_setting.description_info.extended_description.field_list[].text",
+        "item_setting.description_info.extended_description.field_list[].image_info",
+        "item_setting.description_info.extended_description.field_list[].image_info.image_id",
+        "item_setting.description_type",
+        "item_setting.logistic_info[]",
+        "item_setting.logistic_info[].logistic_id",
+        "item_setting.logistic_info[].enabled",
+        "item_setting.logistic_info[].shipping_fee",
+        "item_setting.logistic_info[].size_id",
+        "item_setting.logistic_info[].is_free",
+        "item_setting.unlisted",
+        "item_setting.item_sku",
+        "item_setting.weight",
+        "item_setting.dimension",
+        "item_setting.dimension.package_length",
+        "item_setting.dimension.package_width",
+        "item_setting.dimension.package_height",
+        "item_setting.pre_order",
+        "item_setting.pre_order.is_pre_order",
+        "item_setting.pre_order.days_to_ship",
+        "item_setting.model_list[]",
+        "item_setting.model_list[].model_id",
+        "item_setting.model_list[].tier_index[]",
+        "item_setting.model_list[].model_sku",
+        "item_setting.model_list[].original_price",
+        "item_setting.model_list[].component_list[]",
+        "item_setting.model_list[].component_list[].component_item_id",
+        "item_setting.model_list[].component_list[].component_model_id",
+        "item_setting.model_list[].component_list[].quantity",
+        "item_setting.model_list[].component_list[].main_component",
+        "item_setting.tier_variation_list[]",
+        "item_setting.tier_variation_list[].name",
+        "item_setting.tier_variation_list[].option_list[]",
+        "item_setting.tier_variation_list[].option_list[].option",
+        "item_setting.tier_variation_list[].option_list[].image",
+        "item_setting.tier_variation_list[].option_list[].image.image_id",
+        "sync_setting",
+        "sync_setting.auto_sync_dts"
+      ],
+      "fieldOverrides": {
+        "item_setting.description_info.extended_description.field_list[].text": {
+          "required": false
+        },
+        "item_setting.description_info.extended_description.field_list[].field_type": {
+          "type": "enum",
+          "options": ["text", "image"]
+        },
+        "item_setting.model_list[]": {
+          "minimum": 1
+        },
+        "item_setting.model_list[].component_list[]": {
+          "minimum": 1
+        }
+      }
+    },
+    "v2.product.generate_kit_image": {
+      "structuredSha256": "b680ac1f31d02954ae623e767a3b50996963c02cba06525d728ee199c8fc24fa",
+      "requestRowsSha256": "f95ac51f47888242b7ecc4c34a73a87e3cfdcddbc307671129e43d2faca7e107",
+      "rationale": "The only request container is component_list; its two adjacent documented child IDs explicitly identify the components. No other container or key is introduced.",
+      "requestRows": [
+        ["component_list", "object[]", "True", "", "Please send up until 9 components."],
+        ["component_item_id", "int64", "True", "", "ID of the item that composes this kit model."],
+        ["component_model_id", "int64", "False", "", "ID of the model that composes this kit model."]
+      ],
+      "rowPaths": ["component_list[]", "component_list[].component_item_id", "component_list[].component_model_id"],
+      "fieldOverrides": {
+        "component_list[]": {
+          "minimum": 1
+        }
+      }
+    },
+    "v2.product.get_product_certification_rule": {
+      "structuredSha256": "0aba1bf07b55cf418d0b4fdfc1db1a2b200888d337b1b0f0c254638d9d41ab42",
+      "requestRowsSha256": "cefdd46e540ba3a561acde71f2b089307535e5fad31cee10473c7273c236539e",
+      "rationale": "The attribute_list/attribute_value_list hierarchy is the same named request-table contract and descriptions as get_weight_recommendation/update_item, whose complete examples verify those paths. category_id is a top-level category selector.",
+      "requestRows": [
+        ["attribute_list", "object[]", "False", "", "Item attributes."],
+        ["attribute_id", "int64", "True", "5357", "ID of attribute."],
+        ["attribute_value_list", "object[]", "False", "", ""],
+        [
+          "value_id",
+          "int64",
+          "True",
+          "38173",
+          "ID of attribute value. In the following cases, the value id needs to be uploaded as 0, and original_value_name is mandatory, needs to be filled in customized value. (1) AttributeInputType is TEXT_FILED; (2) AttributeInputType is COMBO_BOX or MULTIPLE_SELECT_COMBO_BOX, and the seller want to fill in a customized value."
+        ],
+        [
+          "original_value_name",
+          "string",
+          "False",
+          "Red",
+          "Value name. original_value_name from produc.get_attributes api. If value id=0, this field is required. If AttributeType is DATE_TYPE or TIMESTAMP_TYPE, you can upload timestamp(string type) as the original_value_name."
+        ],
+        ["value_unit", "string", "False", "kg", "Unit of attribute value (quantitative attribute only)."],
+        ["category_id", "int64", "False", "", "ID of category."]
+      ],
+      "rowPaths": [
+        "attribute_list[]",
+        "attribute_list[].attribute_id",
+        "attribute_list[].attribute_value_list[]",
+        "attribute_list[].attribute_value_list[].value_id",
+        "attribute_list[].attribute_value_list[].original_value_name",
+        "attribute_list[].attribute_value_list[].value_unit",
+        "category_id"
+      ]
+    },
+    "v2.product.get_weight_recommendation": {
+      "structuredSha256": "7ff4ae40378e010c144284443eea41f48eaa814607ec1d53c4c45222a2108c0d",
+      "requestRowsSha256": "ad5578c1f9f12f1b248a6869fe2cc462cfdb336efa5b26dbe204c4a61daac48f",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. The official example has a trailing comma; no malformed JSON is silently repaired. Explicit request-table descriptions identify the optional description and image_info branches independently.",
+      "requestRows": [
+        ["item_name", "string", "True", "paper", "Name of the item in local language."],
+        ["cover_image_id", "string", "True", "e9a76cf159c3e7f12510a7017e120467", "Image id of first product image."],
+        ["category_id", "int", "True", "100061", "Shopee's unique identifier for a category."],
+        ["attribute_list", "object[]", "True", "", ""],
+        ["attribute_id", "int", "True", "100019", "The Identify of each attribute."],
+        ["attribute_value_list", "object[]", "True", "", ""],
+        ["value_id", "int", "True", "1009", "Unique identifier for value of this item attribute."],
+        ["original_value_name", "string", "False", "value", "Value name of this item attribute."],
+        ["value_unit", "string", "False", "kg", "Value unit of this item attribute."],
+        ["brand_id", "int", "True", "100021", "Id of brand."],
+        [
+          "description_type",
+          "string",
+          "True",
+          "extended",
+          "Type of description, values: See Data Definition- description_type (normal , extended)."
+        ],
+        [
+          "description",
+          "string",
+          "False",
+          "",
+          "If description_type is normal , Description information should be set by this field."
+        ],
+        [
+          "description_info",
+          "object",
+          "False",
+          "",
+          "New description field. Only whitelist sellers can use it. If you use the field, please upload the description_type=extended."
+        ],
+        [
+          "extended_description",
+          "object",
+          "False",
+          "",
+          "If description_type is extended , Description information should be set by this field."
+        ],
+        ["field_list", "object[]", "False", "", "Field of extended description."],
+        [
+          "field_type",
+          "string",
+          "False",
+          "text",
+          "Type of extended description field, values: See Data Definition- description_field_type (text , image)."
+        ],
+        ["text", "string", "False", "desc text", "If field_type is text, text information will be set by this field."],
+        ["image_info", "object", "False", "", "If field_type is image, image information will be set by this field."],
+        ["image_id", "string", "False", "564d29618a333337fa1798f20476c4f5", "Image id."]
+      ],
+      "rowPaths": [
+        "item_name",
+        "cover_image_id",
+        "category_id",
+        "attribute_list[]",
+        "attribute_list[].attribute_id",
+        "attribute_list[].attribute_value_list[]",
+        "attribute_list[].attribute_value_list[].value_id",
+        "attribute_list[].attribute_value_list[].original_value_name",
+        "attribute_list[].attribute_value_list[].value_unit",
+        "brand_id",
+        "description_type",
+        "description",
+        "description_info",
+        "description_info.extended_description",
+        "description_info.extended_description.field_list[]",
+        "description_info.extended_description.field_list[].field_type",
+        "description_info.extended_description.field_list[].text",
+        "description_info.extended_description.field_list[].image_info",
+        "description_info.extended_description.field_list[].image_info.image_id"
+      ],
+      "fieldOverrides": {
+        "description_info.extended_description.field_list[].field_type": {
+          "type": "enum",
+          "options": ["text", "image"]
+        },
+        "description_info.extended_description.field_list[].text": {
+          "required": false
+        }
+      }
+    },
+    "v2.product.register_brand": {
+      "structuredSha256": "41bae725866082c3acb4e8aab64c69edb2917ff236643fb9d7bd169ed555b87e",
+      "requestRowsSha256": "6153f5ba2e96d2de2e072c75b0266da3d8bda1926e0bfe3805c810b02c9d6239",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. licenses is a top-level appeal-certificate list; brand_registration_website is described as the registration website required for a blacklisted brand. ID market makes product_image optional.",
+      "requestRows": [
+        ["original_brand_name", "string", "True", "Nike", "Brand name, length<=254."],
+        [
+          "category_list",
+          "int[]",
+          "True",
+          "[16521,16522]",
+          "Category_id list for this brand, please input category in L1 or L2. Max input num of category_id is 50."
+        ],
+        ["product_image", "object", "True", "", ""],
+        [
+          "image_id_list",
+          "string[]",
+          "True",
+          "",
+          "Image Id of product image for this brand, max input num of file = 10 ,each file's length<=498. ID market is optional."
+        ],
+        [
+          "app_logo_image_id",
+          "string",
+          "False",
+          "6373157f9408b42c8aacda1d63d3a209",
+          "Image_id of logo for app client,please input hashcode of this picture."
+        ],
+        ["brand_website", "string", "False", "www.nike.com", "Official website of brand, length<=254."],
+        [
+          "brand_description",
+          "string",
+          "False",
+          "Our mission is what drives us to do everything possible to expand human potential. We do that by creating groundbreaking sport innovations, by making our products more sustainably, by building a creative and diverse global team and by making a positive impact in communities where we live and work",
+          "The description of this brand, can input the information, length<=254."
+        ],
+        [
+          "additional_information",
+          "string",
+          "False",
+          "additional notes or comment can seller can add",
+          "Additional notes or comment can seller can add, length<=254."
+        ],
+        [
+          "pc_logo_image_id",
+          "string",
+          "False",
+          "6373157f9408b42c8aacda1d63d3a209",
+          "Image_id of logo for pc client,please input hashcode of this picture."
+        ],
+        ["brand_region", "string", "True", "US", "origin region of brand."],
+        ["licenses", "object[]", "False", "", "For appeal blacklisted brand data"],
+        ["file_name", "string", "False", "image.jpg", "Brand registration certificate image name, len < 254"],
+        [
+          "file_hash",
+          "string",
+          "False",
+          "6373157f9408b42c8aacda1d63d3a209",
+          "Image id of brand registration certificate image , max input num of file = 1 , each file's length<=498"
+        ],
+        [
+          "brand_registration_website",
+          "string",
+          "False",
+          "https://www.jumbomark.com/indonesia/trademark-registration/mischief-DID2019017755",
+          "The link to brand registration website, It is mandatory when brand name hit blacklist.len<254"
+        ]
+      ],
+      "rowPaths": [
+        "original_brand_name",
+        "category_list[]",
+        "product_image",
+        "product_image.image_id_list[]",
+        "app_logo_image_id",
+        "brand_website",
+        "brand_description",
+        "additional_information",
+        "pc_logo_image_id",
+        "brand_region",
+        "licenses[]",
+        "licenses[].file_name",
+        "licenses[].file_hash",
+        "brand_registration_website"
+      ],
+      "fieldOverrides": {
+        "product_image": {
+          "required": false
+        }
+      }
+    },
+    "v2.product.update_item": {
+      "structuredSha256": "73cbf11398f440828be724933e0392355bb93900e65c853ace5187e87ef4667f",
+      "requestRowsSha256": "1ba14bed5bcc469322bfedf44add7c2d6c77356b252e0d00dff7f54017b7fb17",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. Later optional containers have explicit domain names and matching request-table descriptions. Ambiguous primary image update and foreign-market subtrees are excluded, preserving a useful exact Indonesia edit contract.",
+      "requestRows": [
+        [
+          "description",
+          "string",
+          "False",
+          "Hello product product WlQPdMV4SlVoG7QD1v0fEecNoCVEBNx6",
+          "Description of item."
+        ],
+        [
+          "weight",
+          "float",
+          "False",
+          "0.9",
+          "The weight of this item, the unit is KG. Updating the weight of this item will overwrite the weight of all models under this item."
+        ],
+        ["pre_order", "object", "False", "", "Pre Order setting."],
+        ["days_to_ship", "int32", "True", "7", "Days to ship."],
+        ["is_pre_order", "boolean", "True", "false", "Whether the item is pre order."],
+        ["item_name", "string", "False", "Hello Pgkk50jdNgEnlWvX", "Item name."],
+        ["attribute_list", "object[]", "False", "", "Item attributes."],
+        ["attribute_id", "int32", "True", "5357", "ID of attribute."],
+        ["attribute_value_list", "object[]", "False", "", ""],
+        [
+          "value_id",
+          "int32",
+          "True",
+          "38173",
+          "ID of attribute value. In the following cases, the value id needs to be uploaded as 0, and original_value_name is mandatory, needs to be filled in customized value. (1) AttributeInputType is TEXT_FILED; (2) AttributeInputType is COMBO_BOX or MULTIPLE_SELECT_COMBO_BOX, and the seller want to fill in a customized value."
+        ],
+        [
+          "original_value_name",
+          "string",
+          "False",
+          "Red",
+          "Value name. original_value_name from produc.get_attributes api. If value id=0, this field is required. If AttributeType is DATE_TYPE or TIMESTAMP_TYPE, you can upload timestamp(string type) as the original_value_name."
+        ],
+        ["value_unit", "string", "False", "kg", "Unit of attribute value (quantitative attribute only)."],
+        ["image", "object", "False", "", "Images of item."],
+        ["image_id_list", "object[]", "True", "", "Image ID."],
+        ["image_ratio", "string", "False", "3:4", "Ratio of image, OptionalAllowed ratios : \"1:1\" (default) \"3:4\""],
+        ["item_sku", "string", "False", "abc", "SKU tag for item."],
+        ["item_status", "string", "False", "UNLIST", "Item status, could be UNLIST or NORMAL."],
+        ["logistic_info", "object[]", "False", "", "Logistic channel setting."],
+        ["size_id", "int32", "False", "1", "Size ID."],
+        ["shipping_fee", "float", "False", "9.0", "Shipping fee."],
+        ["enabled", "boolean", "True", "false", "Whether the channel is enabled for this item."],
+        ["logistic_id", "int32", "True", "10007", "ID of logistics channel."],
+        ["is_free", "boolean", "False", "false", "Whether cover shipping fee for buyer."],
+        [
+          "wholesale",
+          "object[]",
+          "False",
+          "",
+          "Wholesale setting. If you want to delete it, please pass it with blank."
+        ],
+        ["min_count", "int32", "True", "0", "Minimum count of this tier."],
+        ["unit_price", "float", "True", "9.9", "Price of this tier."],
+        ["max_count", "int32", "True", "10", "Maximum count of this tier."],
+        ["item_id", "int64", "True", "28001430", "ID of item."],
+        ["category_id", "int32", "False", "34106", "ID of category."],
+        [
+          "dimension",
+          "object",
+          "False",
+          "",
+          "The dimension of this item. Updating the dimension of this item will overwrite the dimension of all models under this item."
+        ],
+        ["package_height", "int32", "True", "13", "The height of package for this item, the unit is CM."],
+        ["package_length", "int32", "True", "12", "The length of package for this item, the unit is CM."],
+        ["package_width", "int32", "True", "14", "The width of package for this item, the unit is CM."],
+        ["condition", "string", "False", "USED", "Condition of item, could be NEW or USED."],
+        [
+          "video_upload_id",
+          "string[]",
+          "False",
+          "[\"sg_f4bde9bc-ff3c-485e-a6dd-3161dab4b942_000000\"]",
+          "Video upload ID returned from video uploading API. If you want to delete it, please pass it with blank."
+        ],
+        ["brand", "object", "False", "", ""],
+        ["brand_id", "int32", "False", "0", "Id of brand."],
+        ["original_brand_name", "string", "False", "nike", "Original name of brand."],
+        [
+          "item_dangerous",
+          "int32",
+          "False",
+          "0",
+          "This field is only applicable for local sellers in Indonesia and Malaysia. Use this field to identify whether a product is a dangerous product. 0 for non-dangerous product and 1 for dangerous product. For more information, please visit the market's respective Seller Education Hub."
+        ],
+        ["tax_info", "object", "False", "", "Tax information"],
+        [
+          "ncm",
+          "string",
+          "False",
+          "",
+          "Mercosur Common Nomenclature, it is a convention between Mercosur member countries to easily recognize goods, services and productive factors negotiated among themselves. (BR region) NCM must have 8 digits, OR, if your item doesn't have a NCM enter the value \"00\""
+        ],
+        [
+          "same_state_cfop",
+          "string",
+          "False",
+          "",
+          "Tax Code of Operations and Installments for orders that seller and buyer are in the same state. It identifies a specific operation by category at the time of issuing the invoice."
+        ],
+        [
+          "diff_state_cfop",
+          "string",
+          "False",
+          "",
+          "Tax Code of Operations and Installments for orders that seller and buyer are in different states. It identifies a specific operation by category at the time of issuing the invoice."
+        ],
+        [
+          "csosn",
+          "string",
+          "False",
+          "",
+          "Code of Operation Status – Simples Nacional, code for company operations to identify the origin of the goods and the taxation regime of the operations."
+        ],
+        ["origin", "string", "False", "", "Product source, domestic or foreig"],
+        [
+          "cest",
+          "string",
+          "False",
+          "",
+          "Tax Replacement Specifying Code (CEST), to separate within the same NCM products that do or do not have ICMS tax substitution. (BR region) CEST must have 7 digits, OR, if your item doesn't have a CEST enter the value \"00\"."
+        ],
+        ["measure_unit", "string", "False", "", "(BR region)"],
+        [
+          "invoice_option",
+          "string",
+          "False",
+          "",
+          "Value shuold be one of NO_INVOICES VAT_MARGIN_SCHEME_INVOICES VAT_INVOICES NON_VAT_INVOICES and if value is NON_VAT_INVOICE vat_rate should be null (PL region)"
+        ],
+        ["vat_rate", "string", "False", "", "Value should be one of 0% 5% 8% 23% NO_VAT_RATE (PL region)"],
+        ["hs_code", "string", "False", "", "HS Code. (Only for IN region)"],
+        ["tax_code", "string", "False", "", "Tax Code. (Only for IN region)"],
+        [
+          "tax_type",
+          "int32",
+          "False",
+          "",
+          "tax_type only for TW whitelist shop. Shopee will referred Tax type when substitute sellers for issuing e-receipts to buyers. All variations share the same tax type. The meaning of value: 0: no tax type 1: tax-able 2: tax-free"
+        ],
+        [
+          "pis",
+          "string",
+          "False",
+          "",
+          "Only for BR shop. PIS - Programa de Integração Social (Social Integration Program). It is a government tax to collect resources for the payment of unemployment insurance and other employee related rights. PIS % - the tax applied to this product"
+        ],
+        [
+          "cofins",
+          "string",
+          "False",
+          "",
+          "Only for BR shop. COFINS – Contribuição para Financiamento da Seguridade Social (Contribution for Social Security Funding). It is a government tax to collect resources for public health system and social security. COFINS % - the tax applied to this product"
+        ],
+        [
+          "icms_cst",
+          "string",
+          "False",
+          "",
+          "Only for BR shop. ICMS - Imposto sobre Circulação de Mercadorias e Serviços (Circulation of Goods and Services Tax). CST - Código da Situação Tributária (Tax Situation Code) is represented by a combination of 3 numbers with the purpose of demonstrating the origin of a product and determining the form of taxation that will apply to it. Therefore, each digit in the CST Table has a specific meaning: the first digit indicates the origin of the operation, the second digit represents the ICMS taxation on the operation and the third digit provides additional information about the form of taxation."
+        ],
+        [
+          "pis_cofins_cst",
+          "string",
+          "False",
+          "",
+          "Only for BR shop. The CST PIS/Cofins is a code on the Electronic Invoice (NF-e) that identifies the tax situation of PIS (Programa de Integração Social) and Cofins (Contribuição para o Financiamento da Seguridade Social) in sales of goods."
+        ],
+        [
+          "federal_state_taxes",
+          "string",
+          "False",
+          "",
+          "Only for BR shop. Enter the total percentage of the combination of federal, state, and municipal taxes, using up to two decimals."
+        ],
+        ["operation_type", "string", "False", "", "Only for BR shop. 1: Retailer 2: Manufacturer"],
+        [
+          "ex_tipi",
+          "string",
+          "False",
+          "",
+          "Only for BR shop. The EXTIPI field in the NF-e (Nota Fiscal Eletrônica) is used to indicate if there's an exception to the IPI (Imposto sobre Produtos Industrializados) tax rate for a specific product."
+        ],
+        [
+          "fci_num",
+          "string",
+          "False",
+          "",
+          "Only for BR shop. The FCI Control Number is a unique identifier assigned to each import FCI (Import Content Form). It's mandatory on the corresponding NF-e (electronic invoice) to ensure compliance with Brazilian import tax regulations."
+        ],
+        [
+          "recopi_num",
+          "string",
+          "False",
+          "",
+          "Only for BR shop. RECOPI NACIONAL is a Brazilian government system that facilitates the registration and management of tax-exempt operations involving paper destined for printing books, newspapers, and periodicals (known as \"papel imune\" in Portuguese)."
+        ],
+        [
+          "additional_info",
+          "string",
+          "False",
+          "",
+          "Only for BR shop. Include relevant information to display on Invoice."
+        ],
+        ["group_item_info", "object", "False", "", "Only for BR shop. Required if the item is a group item."],
+        [
+          "group_qtd",
+          "string",
+          "False",
+          "",
+          "Example: The package contains 6 soda cans. Whether you are selling a pack of 6 cans (fardo) or a single can (unit), enter 6."
+        ],
+        [
+          "group_unit",
+          "string",
+          "False",
+          "",
+          "Example: The package contains 6 soda cans. Whether you are selling a pack of 6 cans (fardo) or a single can (unit), enter UNI for the individual can."
+        ],
+        [
+          "group_unit_value",
+          "string",
+          "False",
+          "",
+          "Example: The package contains 6 soda cans. Whether you are selling a pack of 6 cans (fardo) or a single can (unity), enter the value of the individual can."
+        ],
+        [
+          "original_group_price",
+          "string",
+          "False",
+          "",
+          "Example: The item is a package that contains 6 soda cans. Enter the price of the whole package."
+        ],
+        [
+          "group_gtin_sscc",
+          "string",
+          "False",
+          "",
+          "Example: The item is a package that contains 6 soda cans. Please inform the GTIN SSCC code for the package."
+        ],
+        [
+          "group_grai_gtin_sscc",
+          "string",
+          "False",
+          "",
+          "Example: The item is box, that contain 6 packages. Each package contains 6 soda cans. Please inform the GRAI GTIN SSCC code for the Box."
+        ],
+        [
+          "export_cfop",
+          "string",
+          "False",
+          "",
+          "7101 - for sales of self-produced goods 7102 - resale of third-party goods"
+        ],
+        [
+          "complaint_policy",
+          "object",
+          "False",
+          "",
+          "Complaint Policy for item. Only required for local PL sellers, ignored otherwise."
+        ],
+        ["warranty_time", "string", "False", "", "Value should be in one of ONE_YEAR TWO_YEARS OVER_TWO_YEARS."],
+        [
+          "exclude_entrepreneur_warranty",
+          "boolean",
+          "False",
+          "",
+          "If True means \"I exclude warranty complaints for entrepreneur\""
+        ],
+        [
+          "complaint_address_id",
+          "int32",
+          "False",
+          "",
+          "Address for complaint. Fetch available addresses using v2.logistics.get_address_list, and use address_id returned from it."
+        ],
+        [
+          "additional_information",
+          "string",
+          "False",
+          "",
+          "Additional information for warranty claim. Should be less than 1000 characters."
+        ],
+        [
+          "description_info",
+          "object",
+          "False",
+          "",
+          "New description field. Only whitelist sellers can use it. If you use the field, please upload the description_type=extended otherwise api will return error. If you don't use this field, you don't need to upload the description_type or upload description_type=normal"
+        ],
+        [
+          "extended_description",
+          "object",
+          "False",
+          "",
+          "If description_type is extended , description information should be set by this field."
+        ],
+        ["field_list", "object[]", "False", "", "Field of extended description."],
+        [
+          "field_type",
+          "string",
+          "False",
+          "",
+          "Type of extended description field ：values: See Data Definition- description_field_type (text , image)."
+        ],
+        ["text", "string", "False", "", "If field_type is text， text information will be set by this field."],
+        ["image_info", "object", "False", "", "If field_type is image，image url will be set by this field."],
+        ["image_id", "string", "False", "", "Image id."],
+        [
+          "description_type",
+          "string",
+          "False",
+          "",
+          "Values: See Data Definition- description_type (normal , extended). If you want to use extended_description or change description type ,this field must be inputed"
+        ],
+        [
+          "gtin_code",
+          "string",
+          "False",
+          "",
+          "- GTIN is an identifier for trade items, developed by the international organization GS1. - They have 8 to 14 digits. The most common are UPC, EAN, JAN and ISBN. - GTIN will help boost positioning in online marketing channels like Google and Facebook. - That incorporation with GTIN will also aid in Search and Recommendation in Shopee itself allowing buyers to have higher likelihood of finding one's listing. Note: If you want to set “Item without GTIN”, please pass the gtin_code as \"00\". The validation rule is based on the value return in gtin_validation_rule\" field in v2.product.get_item_limit API - Mandatory: This field is required and must contain a correctly formatted GTiN number. - Flexible: This field is required and must contain either a correctly formatted GTlN number or \"00\" to declare that the item/model has no valid GTlN. - Optional: This field is optional and can contain a correctly formatted GTiN number, \"00\" or be omitted entirely."
+        ],
+        ["ds_cat_rcmd_id", "string", "False", "", "category recommendation service id"],
+        [
+          "promotion_images",
+          "object",
+          "False",
+          "",
+          "Promotion Image Currently only allow one promoton image You could set promotion image only if the product images' ratio is 3:4"
+        ],
+        ["image_id_list", "string[]", "False", "", "Promotion Image"],
+        ["compatibility_info", "object", "False", "", ""],
+        ["vehicle_info_list", "object[]", "True", "", ""],
+        ["brand_id", "int64", "True", "1234", "ID of the brand."],
+        ["model_id", "int64", "True", "2345", "ID of the model."],
+        ["year_id", "int64", "False", "3456", "ID of the year."],
+        ["version_id", "int64", "False", "4567", "ID of the version."],
+        [
+          "scheduled_publish_time",
+          "timestamp",
+          "False",
+          "1733590920",
+          "Scheduled publish time of this item: 1) Can only set scheduled_publish_time for item with UNLIST status 2) Can only set the time from current time +1hour to current time +90days, and the time is only allowed to be accurate to the minute"
+        ],
+        ["authorised_brand_id", "int64", "False", "", "ID of authorised reseller brand."],
+        ["size_chart_info", "object", "False", "", ""],
+        [
+          "size_chart",
+          "string",
+          "False",
+          "",
+          "ID of size chart image. If you want to remove the image size chart of the item, please pass the \"size_chart\" empty. You only need to fill out either the image or template. If both are filled, only the template will be kept. Notes: Both CB shops and local shops are supported to set \"size_chart\"."
+        ],
+        [
+          "size_chart_id",
+          "int64",
+          "False",
+          "",
+          "ID of template size chart. If you want to remove the template size chart of the item, please pass the \"size_chart_id\" as 0. You only need to fill out either the image or template. If both are filled, only the template will be kept. Notes: Only local shops are supported to set \"size_chart_id\", for CB shops please use \"size_chart\"."
+        ],
+        [
+          "certification_info",
+          "object",
+          "False",
+          "",
+          "For PH product certification input Required for some category and attribute option"
+        ],
+        [
+          "certification_list",
+          "object[]",
+          "False",
+          "",
+          "Array of certification records for the product, each containing type, certificate number, permit ID, and proof documents."
+        ],
+        [
+          "certification_no",
+          "string",
+          "True",
+          "",
+          "Certification number issued by the regulatory or certifying authority; uniquely identifies the certification. refer to https://seller.shopee.ph/edu/article/24236"
+        ],
+        [
+          "permit_id",
+          "int64",
+          "True",
+          "",
+          "Platform-defined permit ID used to link to a specific certification template or rule. get from v2.product.get_product_certification_rule"
+        ],
+        ["expiry_date", "int32", "False", "1610000000", "Expiry timestamp. Required for PH, but not needed for TW."],
+        [
+          "certification_proofs",
+          "object",
+          "False",
+          "",
+          "An array of proof documents for the certification; each element represents one proof file.<path></path>"
+        ],
+        [
+          "image_id",
+          "string",
+          "True",
+          "",
+          "The unique image ID of the certification proof, returned by the image upload API."
+        ],
+        ["file_name", "string", "True", "", "The name of the uploaded certification proof file."],
+        [
+          "ratio",
+          "float",
+          "True",
+          "",
+          "image weight/ image height Will be optional in the future; can input 0.75 by default"
+        ],
+        ["purchase_limit_info", "object", "False", "", "purchase limit info"],
+        ["min_purchase_limit", "int32", "False", "", "minimum purchase count for each order"],
+        ["max_purchase_limit", "object", "False", "", ""],
+        ["purchase_limit", "int32", "False", "", "maximum purchase limit for each order."],
+        [
+          "medicine_id",
+          "int64",
+          "False",
+          "",
+          "[Only for ID local sellers] as a unique identifier for each standardized medicine, the medicine id can only be obtained offline"
+        ]
+      ],
+      "rowPaths": [
+        "description",
+        "weight",
+        "pre_order",
+        "pre_order.days_to_ship",
+        "pre_order.is_pre_order",
+        "item_name",
+        "attribute_list[]",
+        "attribute_list[].attribute_id",
+        "attribute_list[].attribute_value_list[]",
+        "attribute_list[].attribute_value_list[].value_id",
+        "attribute_list[].attribute_value_list[].original_value_name",
+        "attribute_list[].attribute_value_list[].value_unit",
+        null,
+        null,
+        null,
+        "item_sku",
+        "item_status",
+        "logistic_info[]",
+        "logistic_info[].size_id",
+        "logistic_info[].shipping_fee",
+        "logistic_info[].enabled",
+        "logistic_info[].logistic_id",
+        "logistic_info[].is_free",
+        "wholesale[]",
+        "wholesale[].min_count",
+        "wholesale[].unit_price",
+        "wholesale[].max_count",
+        "item_id",
+        "category_id",
+        "dimension",
+        "dimension.package_height",
+        "dimension.package_length",
+        "dimension.package_width",
+        "condition",
+        "video_upload_id[]",
+        "brand",
+        "brand.brand_id",
+        "brand.original_brand_name",
+        "item_dangerous",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "description_info",
+        "description_info.extended_description",
+        "description_info.extended_description.field_list[]",
+        "description_info.extended_description.field_list[].field_type",
+        "description_info.extended_description.field_list[].text",
+        "description_info.extended_description.field_list[].image_info",
+        "description_info.extended_description.field_list[].image_info.image_id",
+        "description_type",
+        "gtin_code",
+        "ds_cat_rcmd_id",
+        "promotion_images",
+        "promotion_images.image_id_list[]",
+        "compatibility_info",
+        "compatibility_info.vehicle_info_list[]",
+        "compatibility_info.vehicle_info_list[].brand_id",
+        "compatibility_info.vehicle_info_list[].model_id",
+        "compatibility_info.vehicle_info_list[].year_id",
+        "compatibility_info.vehicle_info_list[].version_id",
+        "scheduled_publish_time",
+        "authorised_brand_id",
+        "size_chart_info",
+        "size_chart_info.size_chart",
+        "size_chart_info.size_chart_id",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "purchase_limit_info",
+        "purchase_limit_info.min_purchase_limit",
+        "purchase_limit_info.max_purchase_limit",
+        "purchase_limit_info.max_purchase_limit.purchase_limit",
+        "medicine_id"
+      ],
+      "fieldOverrides": {
+        "size_chart_info.size_chart": {
+          "allowEmpty": true
+        },
+        "description_info.extended_description.field_list[].field_type": {
+          "type": "enum",
+          "options": ["text", "image"]
+        },
+        "description_info.extended_description.field_list[].text": {
+          "required": false
+        },
+        "scheduled_publish_time": {
+          "timestampUnit": "seconds"
+        }
+      },
+      "omittedRows": {
+        "12": "Official update example shows image IDs as empty objects while table says object[]; use the existing dedicated product image workflow until the source is consistent.",
+        "13": "Official update example shows image IDs as empty objects while table says object[]; use the existing dedicated product image workflow until the source is consistent.",
+        "14": "Official update example shows image IDs as empty objects while table says object[]; use the existing dedicated product image workflow until the source is consistent.",
+        "39": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "40": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "41": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "42": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "43": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "44": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "45": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "46": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "47": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "48": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "49": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "50": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "51": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "52": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "53": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "54": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "55": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "56": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "57": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "58": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "59": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "60": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "61": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "62": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "63": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "64": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "65": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "66": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "67": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "68": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "69": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "70": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "71": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "72": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "73": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "74": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "98": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "99": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "100": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "101": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "102": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "103": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "104": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "105": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs.",
+        "106": "Foreign-market tax/complaint/certification fields are not Indonesia contract inputs."
+      }
+    },
+    "v2.product.update_model": {
+      "structuredSha256": "42df309d083e3d831bc7937672745cf4b692b4a74386496d3ff7fbe8de4ea742",
+      "requestRowsSha256": "70c1e2cd0cca4f7342829103177d7e7700cb4be56b43231be13c7e1638a7935b",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. The sample omits required item_id and model_id but both rows explicitly define their positions. Later gtin, weight and dimension describe the model, not pre_order.",
+      "requestRows": [
+        ["item_id", "int64", "True", "1000", "ID of item"],
+        ["model", "object[]", "True", "", "Length should be between 1 to 50"],
+        ["model_id", "int64", "True", "1625698439", "ID of model"],
+        [
+          "model_sku",
+          "string",
+          "True",
+          "abc",
+          "Seller SKU for model, model_sku length information needs to be no more than 100 characters. CNSC and KRSC sellers are not allowed to update the MPSKU model sku."
+        ],
+        ["pre_order", "object", "False", "", ""],
+        ["is_pre_order", "boolean", "True", "false", "Pre-order"],
+        ["days_to_ship", "int32", "True", "3", "The days to ship. Only work for is_pre_order=true"],
+        [
+          "gtin_code",
+          "string",
+          "False",
+          "",
+          "- GTIN is an identifier for trade items, developed by the international organization GS1. - They have 8 to 14 digits. The most common are UPC, EAN, JAN and ISBN. - GTIN will help boost positioning in online marketing channels like Google and Facebook. - That incorporation with GTIN will also aid in Search and Recommendation in Shopee itself allowing buyers to have higher likelihood of finding one's listing. Note: If you want to set “Item without GTIN”, please pass the gtin_code as \"00\". The validation rule is based on the value return in gtin_validation_rule\" field in v2.product.get_item_limit API - Mandatory: This field is required and must contain a correctly formatted GTiN number. - Flexible: This field is required and must contain either a correctly formatted GTlN number or \"00\" to declare that the item/model has no valid GTlN. - Optional: This field is optional and can contain a correctly formatted GTiN number, \"00\" or be omitted entirely."
+        ],
+        [
+          "model_status",
+          "string",
+          "False",
+          "",
+          "can be \"NORMAL\" or \"UNAVAILABLE\". Only CNSC and KRSC sellers can set the model_status. Normal models can be sold on the buyer's side, and UNAVAILABLE models cannot be sold on the buyer's side."
+        ],
+        [
+          "weight",
+          "float",
+          "False",
+          "1.1",
+          "The weight of this model, the unit is KG. If don't set the weight of this model, will use the weight of item by default. If set the dimension of this model, them must set the weight of this model."
+        ],
+        [
+          "dimension",
+          "object",
+          "False",
+          "",
+          "The dimension of this model. If don't set the dimension of this model, will use the dimension of item by default."
+        ],
+        ["package_height", "int32", "True", "11", "The height of package for this model, the unit is CM."],
+        ["package_length", "int32", "True", "11", "The length of package for this model, the unit is CM."],
+        ["package_width", "int32", "True", "11", "The width of package for this model, the unit is CM."]
+      ],
+      "rowPaths": [
+        "item_id",
+        "model[]",
+        "model[].model_id",
+        "model[].model_sku",
+        "model[].pre_order",
+        "model[].pre_order.is_pre_order",
+        "model[].pre_order.days_to_ship",
+        "model[].gtin_code",
+        "model[].model_status",
+        "model[].weight",
+        "model[].dimension",
+        "model[].dimension.package_height",
+        "model[].dimension.package_length",
+        "model[].dimension.package_width"
+      ],
+      "fieldOverrides": {
+        "model[].pre_order.days_to_ship": {
+          "required": false
+        },
+        "model[].model_sku": {
+          "maxLength": 100
+        }
+      }
+    },
+    "v2.product.update_tier_variation": {
+      "structuredSha256": "b8c29474f8978823093b4d9c695eb32415ad46d777234044ef35db5234669ac0",
+      "requestRowsSha256": "2fe9c0f4a711e3be7abc80140729cf6abbef88cf1ac2869a845d8a8d22381890",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated.",
+      "requestRows": [
+        ["item_id", "int64", "True", "1000", "ID of item."],
+        ["model_list", "object[]", "False", "", "Item's model list"],
+        ["model_id", "int64", "True", "1002066586922", "ID of model"],
+        ["tier_index", "int64[]", "True", "[1,1]", "Model's tier_variation"],
+        [
+          "standardise_tier_variation",
+          "object[]",
+          "False",
+          "",
+          "item standardise tier variation There is at least one standardise_tier_variation and tier_variation"
+        ],
+        ["variation_id", "int64", "True", "", "standardise tier variation ID"],
+        ["variation_name", "string", "False", "", "standardise tier variation name"],
+        ["variation_group_id", "int64", "False", "", "standardise tier variation group id"],
+        ["variation_option_list", "object[]", "True", "", "standardise tier variation option list"],
+        ["variation_option_id", "int64", "True", "", "standardise tier variation option ID"],
+        ["variation_option_name", "string", "False", "", "standardise tier variation option value"],
+        ["image_id", "string", "False", "", "ID of image"]
+      ],
+      "rowPaths": [
+        "item_id",
+        "model_list[]",
+        "model_list[].model_id",
+        "model_list[].tier_index[]",
+        "standardise_tier_variation[]",
+        "standardise_tier_variation[].variation_id",
+        "standardise_tier_variation[].variation_name",
+        "standardise_tier_variation[].variation_group_id",
+        "standardise_tier_variation[].variation_option_list[]",
+        "standardise_tier_variation[].variation_option_list[].variation_option_id",
+        "standardise_tier_variation[].variation_option_list[].variation_option_name",
+        "standardise_tier_variation[].variation_option_list[].image_id"
+      ],
+      "fieldOverrides": {
+        "model_list[]": {
+          "minimum": 1
+        }
+      }
+    },
+    "v2.shop_flash_sale.add_shop_flash_sale_items": {
+      "structuredSha256": "55f441a6b75830981efabe6ceb95de4637d9555ed296b7f73122084a26cdb638",
+      "requestRowsSha256": "ef61046829f28426d4532e65c0e57e7c07a7f885d7bde7068d60770744d150c1",
+      "rationale": "The table explicitly contrasts variation model fields with item-level price/stock for non-variation products. This reserves campaign stock; it is never a direct local inventory mutation.",
+      "requestRows": [
+        ["flash_sale_id", "int64", "True", "", ""],
+        ["items", "object[]", "True", "", ""],
+        ["item_id", "int64", "True", "", ""],
+        ["purchase_limit", "int32", "True", "", "min=0, 0 means no limit"],
+        ["models", "object[]", "False", "", "If the item has variation, this param is necessary."],
+        ["model_id", "int64", "True", "", "If the item has variation, this param is necessary."],
+        ["input_promo_price", "float", "True", "", "promotion price without tax"],
+        [
+          "stock",
+          "int32",
+          "True",
+          "",
+          "min=1, Campaign Stock, Campaign stock can only be reserved from either Shopee stock or Seller stock"
+        ],
+        [
+          "item_input_promo_price",
+          "float",
+          "False",
+          "",
+          "promotion price without tax of the item. If the item has no variation, this param is necessary, otherwise don't use this field"
+        ],
+        [
+          "item_stock",
+          "int32",
+          "False",
+          "",
+          "min=1, The campaign stock of the item. If the item has no variation, this param is necessary, otherwise don't use this field"
+        ]
+      ],
+      "rowPaths": [
+        "flash_sale_id",
+        "items[]",
+        "items[].item_id",
+        "items[].purchase_limit",
+        "items[].models[]",
+        "items[].models[].model_id",
+        "items[].models[].input_promo_price",
+        "items[].models[].stock",
+        "items[].item_input_promo_price",
+        "items[].item_stock"
+      ],
+      "fieldOverrides": {
+        "items[].models[].stock": {
+          "minimum": 1
+        },
+        "items[].item_stock": {
+          "minimum": 1
+        },
+        "items[].purchase_limit": {
+          "minimum": 0
+        },
+        "items[]": {
+          "minimum": 1
+        },
+        "items[].models[]": {
+          "minimum": 1
+        }
+      }
+    },
+    "v2.shop_flash_sale.update_shop_flash_sale_items": {
+      "structuredSha256": "fd92c18c98efb034b8f24b5156c3fc2101b1d27e2bd9fa611b4aec9ea3bd1a38",
+      "requestRowsSha256": "6dc3494928db300df0ce3fa57d9d79f4cf0ad72d82ea4e4f3c60c03a434d63a1",
+      "rationale": "Same documented variation/item-level branches as add_shop_flash_sale_items; status controls which promotion fields are editable. Existing state eligibility remains enforced by Shopee.",
+      "requestRows": [
+        ["flash_sale_id", "int64", "True", "", ""],
+        ["items", "object[]", "True", "", ""],
+        ["item_id", "int64", "True", "", ""],
+        [
+          "purchase_limit",
+          "int32",
+          "False",
+          "",
+          "min=0, 0 means no limit if the item is in enabled status or the item has models in enabled status, you can't set this field"
+        ],
+        [
+          "models",
+          "object[]",
+          "False",
+          "",
+          "If the item has variation, this param is necessary, otherwise please don't use this field"
+        ],
+        ["model_id", "int64", "True", "", "If the item has variation, this param is necessary."],
+        ["status", "int32", "True", "", "you can use this field to set the status of model 0: disable 1: enable"],
+        [
+          "input_promo_price",
+          "float",
+          "False",
+          "",
+          "promotion price without tax if the model is enabled(status = 1) now, you can't set this field, you can only disable the model if the model is disabled(status = 0) now and you want to set this field, you should also set status to 1"
+        ],
+        [
+          "stock",
+          "int32",
+          "False",
+          "",
+          "min=1, Campaign Stock, Campaign stock can only be reserved from either Shopee stock or Seller stock if the model is enabled(status = 1) now, you can't set this field, you can only disable the model if the model is disabled(status = 0) now and you want to set this field, you should also set status to 1"
+        ],
+        [
+          "item_status",
+          "int32",
+          "False",
+          "",
+          "The status of the item. If the item has no variation, this param is necessary, otherwise don't use this field you can use this field to set the status of item 0: disable 1: enable"
+        ],
+        [
+          "item_input_promo_price",
+          "float",
+          "False",
+          "",
+          "The promotion price of the item. If the item has no variation, you can use this field to update the promotion price of the item, otherwise don't use this field if the item is enabled(item_status = 1) now, you can't set this field, you can only disable the item if the item is disabled(item_status = 0) now and you want to set this field, you should also set item_status to 1"
+        ],
+        [
+          "item_stock",
+          "int32",
+          "False",
+          "",
+          "min=1, The campaign stock of the item. If the item has no variation, you can use this field to update the campaign stock of the item, otherwise don't use this field if the item is enabled(item_status = 1) now, you can't set this field, you can only disable the item if the item is disabled(item_status = 0) now and you want to set this field, you should also set item_status to 1"
+        ]
+      ],
+      "rowPaths": [
+        "flash_sale_id",
+        "items[]",
+        "items[].item_id",
+        "items[].purchase_limit",
+        "items[].models[]",
+        "items[].models[].model_id",
+        "items[].models[].status",
+        "items[].models[].input_promo_price",
+        "items[].models[].stock",
+        "items[].item_status",
+        "items[].item_input_promo_price",
+        "items[].item_stock"
+      ],
+      "fieldOverrides": {
+        "items[].models[].stock": {
+          "minimum": 1
+        },
+        "items[].item_stock": {
+          "minimum": 1
+        },
+        "items[].purchase_limit": {
+          "minimum": 0
+        },
+        "items[].models[].status": {
+          "minimum": 0,
+          "maximum": 1
+        },
+        "items[].item_status": {
+          "minimum": 0,
+          "maximum": 1
+        },
+        "items[]": {
+          "minimum": 1
+        },
+        "items[].models[]": {
+          "minimum": 1
+        }
+      }
+    },
+    "v2.product.get_item_extra_info": {
+      "structuredSha256": "ff786587308b47468ff92296ad6c75aa1ea4f794cb33a6cffc5f14440a35ae9a",
+      "requestRowsSha256": "e1c4c24db1ed86d34e9e9a5d58a0d67a2cda72b387cbd523d7937dbe8f3784cc",
+      "rationale": "The Java/PHP/cURL/Python GET request examples explicitly encode this exact array in comma form.",
+      "requestRows": [["item_id_list", "int64[]", "True", "[34001,34002]", "item_id list, limit [0,50]"]],
+      "rowPaths": ["item_id_list[]"],
+      "queryArrays": {
+        "item_id_list": "comma"
+      }
+    },
+    "v2.product.get_item_promotion": {
+      "structuredSha256": "1f5aa88cd5f9b9d38cb9eee7544212abc1d6809ce62db602b6fcacab954e5add",
+      "requestRowsSha256": "21e3c6e50cc8169e00e062b510f81772a8f5e54824bfb9198eb598fa75354267",
+      "rationale": "The Java/PHP/cURL/Python GET request examples explicitly encode this exact array in comma form.",
+      "requestRows": [
+        ["item_id_list", "int64[]", "True", "13233406680,17924576533", "Item ID list, can send 1 to 50 items."]
+      ],
+      "rowPaths": ["item_id_list[]"],
+      "queryArrays": {
+        "item_id_list": "comma"
+      }
+    },
+    "v2.product.get_direct_item_list": {
+      "structuredSha256": "9c5cad65722e2b78e04fded579c9d83219b15418f6d6330e8c94b38073a40e4b",
+      "requestRowsSha256": "a2f12581f5a3962df40affc4d026b50d474667168aff070f63850923064cf5be",
+      "rationale": "The Java/PHP/cURL/Python GET request examples explicitly encode this exact array in json form.",
+      "requestRows": [["main_item_id", "int64[]", "True", "801931707", "Item id of main shop."]],
+      "rowPaths": ["main_item_id[]"],
+      "queryArrays": {
+        "main_item_id": "json"
+      }
+    },
+    "v2.product.get_main_item_list": {
+      "structuredSha256": "e99a6321713dffe734d6c713a78e96164d62118d148d447d1a0f0c47a21fbb93",
+      "requestRowsSha256": "0fe4846f8fb5dbdc066d65a270f4abc16b18b22be99ba053b3f0fe528bd8a77a",
+      "rationale": "The Java/PHP/cURL/Python GET request examples explicitly encode this exact array in json form.",
+      "requestRows": [["direct_item_id", "int64[]", "True", "801931707", "Item id of direct shop."]],
+      "rowPaths": ["direct_item_id[]"],
+      "queryArrays": {
+        "direct_item_id": "json"
+      }
+    },
+    "v2.product.search_item": {
+      "structuredSha256": "524eb1497ba38af105b673434266ee89c84a3d754fc4e7ecc8ea3777c40b93aa",
+      "requestRowsSha256": "e518462156f67674ad8bbb74a6337fde2a58694e3be477ce0c55a589aabb7ace",
+      "rationale": "The item_status description explicitly requires repeated query keys: item_status=NORMAL&item_status=BANNED. The optional initial offset is an opaque string.",
+      "requestRows": [
+        [
+          "offset",
+          "string",
+          "False",
+          "0",
+          "Specifies the starting entry of data to return in the current call. Default is empty. if data is more than one page, the offset can be some entry to start next call."
+        ],
+        ["page_size", "int", "True", "10", "the size of one page."],
+        ["item_name", "string", "False", "apple", "name of item."],
+        [
+          "attribute_status",
+          "int",
+          "False",
+          "2",
+          "1:get item lack of requires attribute. 2:get item lack of optional attribute."
+        ],
+        [
+          "item_sku",
+          "string",
+          "False",
+          "sku",
+          "sku. If you search for item_sku and item_name at the same time, only the results that match item_sku will be returned. If you search for item_sku and attribute_status at the same time, the results that match both item_sku and attribute_status will be returned."
+        ],
+        [
+          "item_status",
+          "string[]",
+          "False",
+          "[\"NORMAL\"]",
+          "NORMAL/BANNED/UNLIST/REVIEWING/SELLER_DELETE/SHOPEE_DELETE If you want to search multiple status, please upload the url like this: item_status=NORMAL&item_status=BANNED"
+        ],
+        [
+          "deboost_only",
+          "boolean",
+          "False",
+          "true",
+          "If deboost_only is true, then API will return items whose deboost is true, if deboost_only is empty or false, then API will return items whose deboost is true and false simultaneously"
+        ]
+      ],
+      "rowPaths": ["offset", "page_size", "item_name", "attribute_status", "item_sku", "item_status[]", "deboost_only"],
+      "fieldOverrides": {
+        "offset": {
+          "allowEmpty": true
+        }
+      },
+      "queryArrays": {
+        "item_status": "repeat"
+      }
+    },
+    "v2.shop.get_shop_notification": {
+      "structuredSha256": "cd711d3943929c255a9b83462747aa76d511fc0ea942f97902d5ee364a0ba7a8",
+      "requestRowsSha256": "08671c7f6f79b209eee7058c6509f29dcfb5a6ccde1d921760da91f87b0c82e4",
+      "rationale": "The response example and response table explicitly place the integer cursor at the root. This last notification ID is retained as an exact decimal string.",
+      "requestRows": [
+        [
+          "cursor",
+          "int",
+          "False",
+          "1",
+          "The last notification_id returned on the page. When using the cursor, notifications will start with the one following this cursor notification. If no cursor is provided, the latest message from the shop will be returned."
+        ],
+        ["page_size", "int", "False", "1", "Default 10; maximum 50"]
+      ],
+      "rowPaths": ["cursor", "page_size"],
+      "fieldOverrides": {
+        "cursor": {
+          "type": "string"
+        }
+      },
+      "pagination": {
+        "cursorPath": ["cursor"],
+        "numeric": true
+      }
+    },
+    "v2.product.search_attribute_value_list": {
+      "structuredSha256": "c87cc2e421510bd5749c9258fd9307d920d618d5e8fcd7904bceffcca771b82b",
+      "requestRowsSha256": "62d6d40dfa05dc799d4374166b66c88e75ee1b49546d0ab8c2113d8e1fa3c96d",
+      "rationale": "The response table defines response.page_info with cursor and has_next, alongside response.value_list. Numeric cursor is exact decimal text in UI and converted to JSON/query integer at transport.",
+      "requestRows": [
+        ["attribute_id", "int32", "True", "", ""],
+        ["value_name", "string", "False", "", "search the keywords of the attributes value"],
+        ["cursor", "int64", "True", "", ""],
+        ["limit", "int64", "True", "100", "The range is 1 to 100"]
+      ],
+      "rowPaths": ["attribute_id", "value_name", "cursor", "limit"],
+      "fieldOverrides": {
+        "cursor": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
+      "pagination": {
+        "cursorPath": ["page_info", "cursor"],
+        "morePath": ["page_info", "has_next"],
+        "numeric": true
+      }
+    },
+    "v2.add_on_deal.add_add_on_deal_sub_item": {
+      "structuredSha256": "65c2c57d41d5d5549fce476bef6a68e1bd6e3aae75ff8b3c4e15454e6f1380d6",
+      "requestRowsSha256": "949d26d196a726d8328235d433c12b21d84595d91e39d269d32f86c175fa6a11",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. Different array examples omit optional sub_item_limit; their identical documented schema is merged without requiring every row to appear in every example.",
+      "requestRows": [
+        ["add_on_deal_id", "int", "True", "1", "Shopee's unique identifier for add on deal activity."],
+        ["sub_item_list", "object[]", "True", "", "The sub items added in this add on deal promotion."],
+        ["item_id", "int", "False", "3800024281", "Shopee's unique identifier for an item."],
+        ["model_id", "int", "False", "2741736", "Shopee's unique identifier for a model."],
+        ["status", "int", "False", "1", "The status of add on deal item：enable = 1；disable =2"],
+        ["sub_item_input_price", "float", "False", "159293.0", "Add-on discount price before tax"],
+        ["sub_item_limit", "int", "False", "10", "The purchase limit of sub item."]
+      ],
+      "rowPaths": [
+        "add_on_deal_id",
+        "sub_item_list[]",
+        "sub_item_list[].item_id",
+        "sub_item_list[].model_id",
+        "sub_item_list[].status",
+        "sub_item_list[].sub_item_input_price",
+        "sub_item_list[].sub_item_limit"
+      ],
+      "fieldOverrides": {
+        "sub_item_list[]": {
+          "minimum": 1
+        }
+      }
+    },
+    "v2.discount.update_discount_item": {
+      "structuredSha256": "bc7fe21163cf48e243ac15ef555d95756012e1fce9503f0525cac26aeb925b83",
+      "requestRowsSha256": "15e621f66317d0682f7e2fdf0be6514ba3946ad10861b5cf4b933a8640e8c323",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. The example explicitly contains item-level and variation-level branches in separate list elements; the array schema is their documented union, retaining each table requiredness within its optional parent.",
+      "requestRows": [
+        ["discount_id", "int64", "True", "1000029745", "Shopee's unique identifier for a discount activity."],
+        [
+          "item_list",
+          "object[]",
+          "True",
+          "",
+          "The items selected to this discount. You can update at most 50 items per call."
+        ],
+        ["item_id", "int64", "True", "1776783", "Shopee's unique identifier for an item."],
+        ["item_promotion_price", "float", "False", "96.0", "The discount price of the item."],
+        ["model_list", "object[]", "False", "", "The models selected to this discount."],
+        [
+          "model_id",
+          "int64",
+          "True",
+          "1776782",
+          "Shopee's unique identifier for a variation of an item. If there is no variation of this item, you don't need to input this param. Dafault is 0."
+        ],
+        ["model_promotion_price", "float", "True", "96.0", "The discount price of the item."],
+        ["purchase_limit", "int32", "False", "1", "The max number of this product in the promotion price."]
+      ],
+      "rowPaths": [
+        "discount_id",
+        "item_list[]",
+        "item_list[].item_id",
+        "item_list[].item_promotion_price",
+        "item_list[].model_list[]",
+        "item_list[].model_list[].model_id",
+        "item_list[].model_list[].model_promotion_price",
+        "item_list[].purchase_limit"
+      ],
+      "fieldOverrides": {
+        "item_list[]": {
+          "minimum": 1
+        },
+        "item_list[].model_list[]": {
+          "minimum": 1
+        }
+      }
+    },
+    "v2.first_mile.unbind_first_mile_tracking_number": {
+      "structuredSha256": "c4e078ef30ea188be49148b07cf034394e708e5402fba3f20ae1b3be81772a57",
+      "requestRowsSha256": "6235b75c8aff0680527dea3029a1acd6841421526b250f45a98c0cc2942353aa",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. Some example list elements omit optional package_number; this is optional-field absence, not an ambiguous schema.",
+      "requestRows": [
+        [
+          "first_mile_tracking_number",
+          "string",
+          "True",
+          "CNF918114805245200519",
+          "The identifier for an API request for error tracking."
+        ],
+        [
+          "order_list",
+          "object[]",
+          "True",
+          "",
+          "The list of order info you want to unbind from the given first mile tracking number. You can specify up to 50 orders in this call."
+        ],
+        ["order_sn", "string", "True", "20042025DAD68U", "Shopee's unique identifier for an order."],
+        [
+          "package_number",
+          "string",
+          "False",
+          "2332058284081153446",
+          "Shopee's unique identifier for the package under an order. You should't fill the field with empty string when there is't a package number."
+        ]
+      ],
+      "rowPaths": ["first_mile_tracking_number", "order_list[]", "order_list[].order_sn", "order_list[].package_number"]
+    },
+    "v2.logistics.set_address_config": {
+      "structuredSha256": "19edcaaa70ebc23419700739d4b19cd1db3b1b9a57a7d067d7386cd9b2e78392",
+      "requestRowsSha256": "3b491f30a9e3a7779040f5a0d8aa34e43baae176b060ec7d51a38982ac704c80",
+      "rationale": "The request example establishes container boundaries; omitted optional siblings are listed directly in the adjacent request-table rows. Duplicate names are mapped to their documented parent, never globally deduplicated. Top-level show_pickup_address conflicts with show_pick_up_address in the example, so both aliases are excluded; address_type_config is independently consistent.",
+      "requestRows": [
+        ["show_pickup_address", "boolean", "False", "true", "Definite show pickup address or not."],
+        ["address_type_config", "object", "False", "", "The config of your shop addres."],
+        ["address_id", "int64", "False", "1234", "The identifier id of the address."],
+        [
+          "address_type",
+          "string[]",
+          "False",
+          "[\"PICKUP_ADDRESS\", \"RETURN_ADDRESS\"]",
+          "The type of address. Available values: DEFAULT_ADDRESS, PICKUP_ADDRESS, RETURN_ADDRESS, INBOUND_PICKUP_ADDRESS."
+        ]
+      ],
+      "rowPaths": [null, "address_type_config", "address_type_config.address_id", "address_type_config.address_type[]"],
+      "omittedRows": {
+        "0": "Source table and example disagree on show_pickup_address spelling; omit this optional toggle until confirmed."
+      }
+    }
+  }
+}

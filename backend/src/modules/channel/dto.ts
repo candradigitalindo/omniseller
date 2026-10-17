@@ -62,6 +62,41 @@ export class AuthorizationCallbackDto extends createZodDto(
   }),
 ) {}
 
+/** App Store installation codes are captured before login and are never returned to the browser. */
+export class CaptureStoreInstallationDto extends createZodDto(
+  z
+    .object({
+      code: z
+        .string()
+        .trim()
+        .min(1)
+        .max(512)
+        .refine((v) => v !== "null"),
+    })
+    .strict(),
+) {}
+export class CapturedStoreInstallationDto extends createZodDto(z.object({ expiresAt: iso })) {}
+export class StoreInstallationChallengeDto extends createZodDto(
+  z.object({ confirmationToken: z.string(), expiresAt: iso }),
+) {}
+export class ConfirmStoreInstallationDto extends createZodDto(
+  z.object({ confirmationToken: z.string().regex(/^[A-Za-z0-9_-]{43}$/), confirmed: z.literal(true) }).strict(),
+) {}
+export class SelectInstallationShopsDto extends createZodDto(
+  z
+    .object({
+      authorizationId: ulidSchema,
+      confirmationToken: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+      confirmed: z.literal(true),
+      shopIds: z
+        .array(z.string().min(1).max(100))
+        .min(1)
+        .max(100)
+        .refine((ids) => new Set(ids).size === ids.length),
+    })
+    .strict(),
+) {}
+
 const authorizationSchema = z.object({
   id: ulidSchema,
   channel: z.string(),
@@ -80,6 +115,15 @@ const authorizationSchema = z.object({
   errorCode: z.string().nullable(),
   errorMessage: z.string().nullable(),
   createdAt: iso,
+  installation: z
+    .object({
+      awaitingShopSelection: z.boolean(),
+      shops: z.array(z.object({ externalShopId: z.string(), name: z.string(), region: z.string() })),
+      selectedShopIds: z.array(z.string()),
+    })
+    .nullable()
+    .optional()
+    .describe("App Store only: verified shop identities must be selected before any store is connected"),
 });
 export class AuthorizationDto extends createZodDto(authorizationSchema) {}
 export class StartedAuthorizationDto extends createZodDto(
@@ -101,6 +145,8 @@ export function authorizationView(v: AuthorizationView): z.infer<typeof authoriz
     errorCode: v.status === "expired" && !r.errorCode ? "expired" : r.errorCode,
     errorMessage: r.errorMessage,
     createdAt: r.createdAt.toISOString(),
+    installation:
+      (r.result as { installation?: z.infer<typeof authorizationSchema>["installation"] }).installation ?? null,
   };
 }
 

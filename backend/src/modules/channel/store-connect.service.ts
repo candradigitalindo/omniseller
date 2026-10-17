@@ -9,23 +9,27 @@ import { logger } from "@omniseller/logging";
 import { newId } from "@omniseller/shared";
 import { eq } from "drizzle-orm";
 import { type RequestContext, userContext } from "../../common/context/request-context";
+import { limitReached } from "../../common/plan-limits";
+import type { RateLimiter } from "../../common/security/rate-limiter";
 import { lockTenantKeys, type TokenVault } from "../../common/security/token-vault";
 import { withAdvisoryLock } from "../../db/advisory-lock";
 import type { DbHandle } from "../../db/client";
 import { tenant } from "../../db/schema";
 import { withTenantTx } from "../../db/tenant-tx";
-import { DB_TENANT, OUTBOX, TOKEN_VAULT } from "../../infra/tokens";
+import { DB_TENANT, OUTBOX, RATE_LIMITER, TOKEN_VAULT } from "../../infra/tokens";
 import type { Outbox } from "../../outbox/outbox";
+import { TenantsService } from "../identity/tenants.service";
 import { UsersService } from "../identity/users.service";
 import { WarehousesService } from "../inventory/warehouses.service";
-import { describeSyncError } from "../sync/connector-calls";
+import { describeSyncError, withRequestGate } from "../sync/connector-calls";
 import type { AuthorizationFailure } from "./channel.errors";
 import { storeConnected } from "./channel.events";
 import { ChannelRepository, type StoreAuthorizationRow } from "./channel.repository";
 import { CONNECTORS, type ConnectorRegistry, MANIFESTS, type SupportedChannel } from "./connector-registry";
 import { CredentialService } from "./credential.service";
 import { failurePatch } from "./store-authorization.service";
-import { usableStatus } from "./stores.service";
+import type { InstallationReview } from "./store-installation.store";
+import { isManualChannel, usableStatus } from "./stores.service";
 
 const log = logger.forModule("channel.connect");
 
@@ -44,6 +48,7 @@ export interface AuthorizationResult {
   stores: ConnectedShop[];
   skipped: { externalShopId: string; region: string | null; reason: "region_not_supported" }[];
   failed: { externalShopId: string; reason: AuthorizationFailure }[];
+  installation?: InstallationReview;
 }
 
 /**
@@ -63,6 +68,8 @@ export class StoreConnectService {
     @Inject(WarehousesService) private readonly warehouses: WarehousesService,
     @Inject(UsersService) private readonly users: UsersService,
     @Inject(TOKEN_VAULT) private readonly vault: TokenVault,
+    @Inject(RATE_LIMITER) private readonly limiter: RateLimiter,
+    @Inject(TenantsService) private readonly tenants: TenantsService,
   ) {}
 
   /**
@@ -117,11 +124,26 @@ export class StoreConnectService {
   ): Promise<void> {
     const row = await withTenantTx(this.db, jobCtx, (tx) => this.repo.privateAuthorization(tx, input.authorizationId));
     if (row?.status !== "exchanging") return;
+    const installation = row.result.installation as InstallationReview | undefined;
+    if (installation && row.expiresAt.getTime() <= Date.now()) {
+      await this.fail(jobCtx, row.id, "expired");
+      return;
+    }
     let ctx = jobCtx;
     let grant: AuthorizationGrant;
     let profiles: ShopProfile[];
     const channel = row.channel as SupportedChannel;
     const connector = this.connectors.get(channel);
+    const request = <T>(fn: () => Promise<T>) =>
+      withRequestGate(
+        {
+          limiter: this.limiter,
+          key: `mp:authorization:${row.id}`,
+          rule: connector.manifest.shopRateLimit,
+          channel: connector.manifest.id,
+        },
+        fn,
+      );
     try {
       ctx = await this.requester(jobCtx, row);
       if (row.grantEnc && row.grantDekVersion !== null) {
@@ -138,11 +160,18 @@ export class StoreConnectService {
           await this.fail(ctx, row.id, "expired");
           return;
         }
-        grant = await connector.auth.exchangeCode({
-          code: input.code,
-          ...(input.shopId ? { shopId: input.shopId } : {}),
-          ...(input.mainAccountId ? { mainAccountId: input.mainAccountId } : {}),
-        });
+        if (!input.code || (installation && installation.selectedShopIds.length > 0))
+          throw new PermanentConnectorError({
+            code: "grant_missing",
+            message: "The verified installation grant is unavailable",
+          });
+        grant = await request(() =>
+          connector.auth.exchangeCode({
+            code: input.code,
+            ...(input.shopId ? { shopId: input.shopId } : {}),
+            ...(input.mainAccountId ? { mainAccountId: input.mainAccountId } : {}),
+          }),
+        );
         // Persist before any shop discovery HTTP. A restart/retry must never consume the code twice.
         await withTenantTx(this.db, ctx, async (tx) => {
           await lockTenantKeys(tx, ctx.tenantId);
@@ -153,7 +182,7 @@ export class StoreConnectService {
           await this.repo.stageAuthorizationGrant(tx, row.id, sealed.data, sealed.dekVersion);
         });
       }
-      profiles = await connector.shops.describe(grant);
+      profiles = await request(() => connector.shops.describe(grant));
       ctx = await this.requester(jobCtx, row);
     } catch (err) {
       const transient = isConnectorError(err) && err.kind === "transient";
@@ -173,7 +202,12 @@ export class StoreConnectService {
     }
 
     const previous = row.result as Partial<AuthorizationResult>;
-    const result: AuthorizationResult = { stores: previous.stores ?? [], skipped: [], failed: [] };
+    const result: AuthorizationResult = {
+      stores: previous.stores ?? [],
+      skipped: [],
+      failed: [],
+      ...(installation ? { installation } : {}),
+    };
     const supported = MANIFESTS[channel].supportedRegions;
     const eligible = profiles.filter((p) => {
       if (supported.includes(p.region)) return true;
@@ -185,7 +219,44 @@ export class StoreConnectService {
       return false;
     });
 
+    if (installation && installation.selectedShopIds.length === 0) {
+      if (!eligible.length) {
+        await this.fail(ctx, row.id, "no_supported_shop");
+        return;
+      }
+      await withTenantTx(this.db, ctx, async (tx) => {
+        const held = await this.repo.getAuthorization(tx, row.id, true);
+        if (held?.status !== "exchanging" || held.expiresAt.getTime() <= Date.now()) return;
+        const review = held.result.installation as InstallationReview | undefined;
+        // An old verification retry must never undo a selection already accepted by the API.
+        if (!review || review.selectedShopIds.length > 0) return;
+        await this.repo.updateAuthorization(tx, row.id, {
+          result: {
+            ...held.result,
+            skipped: result.skipped,
+            installation: {
+              awaitingShopSelection: true,
+              shops: eligible.map((profile) => ({
+                externalShopId: profile.externalShopId,
+                name: profile.name,
+                region: profile.region,
+              })),
+              selectedShopIds: [],
+            },
+          },
+        });
+      });
+      return;
+    }
+
     let targets = eligible;
+    if (installation) {
+      if (!installation.selectedShopIds.every((id) => eligible.some((profile) => profile.externalShopId === id))) {
+        await this.fail(ctx, row.id, "store_mismatch");
+        return;
+      }
+      targets = eligible.filter((profile) => installation.selectedShopIds.includes(profile.externalShopId));
+    }
     if (row.storeId) {
       const target = await withTenantTx(this.db, ctx, (tx) => this.repo.getStore(tx, row.storeId!));
       if (!target || !eligible.some((p) => p.externalShopId === target.externalShopId)) {
@@ -250,7 +321,7 @@ export class StoreConnectService {
           .select({ status: tenant.status })
           .from(tenant)
           .where(eq(tenant.id, ctx.tenantId))
-          .for("share");
+          .for("update");
         if (business?.status !== "active")
           throw new PermanentConnectorError({ code: "tenant_inactive", message: "Tenant is no longer active" });
         const authorization = await this.repo.getAuthorization(tx, row.id, true);
@@ -270,6 +341,15 @@ export class StoreConnectService {
         };
         const existing = await this.repo.storeByExternalId(tx, row.channel, profile.externalShopId);
         if (ctx.storeScope && (!existing || !ctx.storeScope.has(existing.id))) return "permission_revoked" as const;
+        if (!existing || existing.status === "disconnected") {
+          // The tenant row serializes simultaneous grants. Count again at the store/credential commit,
+          // including every shop of a multi-shop grant and plan changes made since authorization began.
+          const plan = await this.tenants.planIn(tx, ctx);
+          const connected = (await this.repo.listStores(tx, null)).filter(
+            (item) => !isManualChannel(item.channel) && item.status !== "disconnected",
+          ).length;
+          if (limitReached(plan.limits, "stores", connected)) return "billing_limit_reached" as const;
+        }
         let storeId: string;
         if (existing) {
           // A reconnect keeps the seller's name, sync mode, and default warehouse. Failures from before

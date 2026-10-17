@@ -4,6 +4,7 @@ import {
   isConnectorError,
   PermanentConnectorError,
   parseJsonSafe,
+  retryAfter,
 } from "@omniseller/connector-core";
 import { TiktokShopClient } from "./client.js";
 import { assertTiktokRequestScopes } from "./scope-guard.js";
@@ -158,7 +159,9 @@ async function responseText(response: Response): Promise<string> {
 /**
  * Official "Large File Uploads" (wfi3nz36), captured 2026-10-17: init, sequential raw PUT parts,
  * then resource_id. Only video is implemented: the guide also lists image/PDF while the current
- * Upload File Init reference explicitly supports video only. No chunk or bind retry is performed.
+ * Upload File Init reference explicitly supports video only and permits a single chunk at <=5MiB.
+ * Creator files <=10MB keep the dedicated direct uploader; Customer Service has no direct video
+ * upload API and uses this fixed target for small files too. No chunk or bind retry is performed.
  * An uncertain response is permanent to prevent a queue from automatically resending the file.
  */
 export async function uploadTiktokLargeVideo(client: TiktokShopClient, input: TiktokLargeVideoInput): Promise<string> {
@@ -169,7 +172,8 @@ export async function uploadTiktokLargeVideo(client: TiktokShopClient, input: Ti
     (input.readRange !== undefined && typeof input.readRange !== "function") ||
     (input.readRange === undefined && !(input.bytes instanceof Uint8Array)) ||
     !Number.isSafeInteger(size) ||
-    size! <= 10_000_000 ||
+    size! <= 0 ||
+    (target.principalKind === "creator" && size! <= 10_000_000) ||
     size! > target.maxBytes ||
     !["video/mp4", "video/quicktime", "video/webm"].includes(input.contentType) ||
     !opaque(input.filename) ||
@@ -177,7 +181,7 @@ export async function uploadTiktokLargeVideo(client: TiktokShopClient, input: Ti
     /[/\\]/.test(input.filename) ||
     !opaque(input.accessToken)
   )
-    invalid("commerce_invalid_file", "A validated video above the direct-upload limit is required");
+    invalid("commerce_invalid_file", "A validated video within the target upload limits is required");
   if (target.principalKind === "seller" && !opaque(input.shopCipher))
     invalid("commerce_invalid_credentials", "A seller upload requires its authorized shop identifier");
   let api: URL;
@@ -260,15 +264,26 @@ export async function uploadTiktokLargeVideo(client: TiktokShopClient, input: Ti
       request: { chunk: index + 1, chunks: ranges.length, bytes: range.end - range.start },
       response: { completed: false },
     };
+    const rateTarget = {
+      method: "PUT" as const,
+      path: CHUNK_LOG_PATH,
+      applicationId: client.appKey,
+      principalScoped: target.principalKind === "seller",
+    };
+    let responseHeaders: Headers | undefined;
+    let businessCode: string | undefined;
+    let complete = false;
+    let dispatched = false;
     try {
       const chunk = input.readRange
         ? await input.readRange(range.start, range.end)
         : input.bytes!.subarray(range.start, range.end);
       if (!(chunk instanceof Uint8Array) || chunk.byteLength !== range.end - range.start)
         invalid("commerce_file_read_failed", "The private video range did not match its declared size");
-      await http?.beforeRequest?.();
+      await http?.beforeRequest?.(rateTarget);
       let response: Response;
       try {
+        dispatched = true;
         response = await doFetch(url, {
           method: "PUT",
           redirect: "manual",
@@ -284,11 +299,14 @@ export async function uploadTiktokLargeVideo(client: TiktokShopClient, input: Ti
         return unknown();
       }
       record.httpStatus = response.status;
+      responseHeaders = response.headers;
       if (response.redirected || (response.status >= 300 && response.status < 400))
         invalid("upload_redirect_rejected", "Chunk redirects are not supported");
       let envelope: unknown;
       try {
         envelope = parseJsonSafe(await responseText(response));
+        complete = true;
+        if (object(envelope) && Number.isSafeInteger(envelope.code)) businessCode = String(envelope.code);
       } catch {
         return unknown(response.status);
       }
@@ -314,6 +332,30 @@ export async function uploadTiktokLargeVideo(client: TiktokShopClient, input: Ti
       return unknown(record.httpStatus ?? undefined);
     } finally {
       record.durationMs = Math.round(performance.now() - started);
+      if (dispatched) {
+        let feedbackTimer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          const pending = http?.afterResponse?.({
+            ...rateTarget,
+            httpStatus: record.httpStatus,
+            complete,
+            ...(businessCode ? { businessCode } : {}),
+            ...(responseHeaders ? retryAfter(responseHeaders) : {}),
+          });
+          if (pending)
+            await Promise.race([
+              pending,
+              new Promise<void>((resolve) => {
+                feedbackTimer = setTimeout(resolve, 1000);
+                feedbackTimer.unref();
+              }),
+            ]);
+        } catch {
+          // Adaptive rate feedback cannot replace the provider's acknowledged or uncertain outcome.
+        } finally {
+          if (feedbackTimer) clearTimeout(feedbackTimer);
+        }
+      }
       http?.observer?.(record);
     }
   }

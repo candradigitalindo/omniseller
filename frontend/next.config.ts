@@ -11,6 +11,12 @@ const API_ORIGIN = process.env.API_ORIGIN ?? "http://localhost:3000";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  logging: {
+    incomingRequests: { ignore: [/\/integrasi\/callback\/(?:shopee|tiktokshop)(?:[/?]|$)/] },
+  },
+  async headers() {
+    return [{ source: "/integrasi/callback/:channel", headers: [{ key: "Referrer-Policy", value: "no-referrer" }] }];
+  },
   async rewrites() {
     return [{ source: "/v1/:path*", destination: `${API_ORIGIN}/v1/:path*` }];
   },

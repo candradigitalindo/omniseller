@@ -55,6 +55,25 @@ export function commerceFileOperation(operation: CommerceOperation): CommerceOpe
     };
   if (operation.path === "/affiliate_seller/202603/compass/offline_tasks/{task_id}/file")
     return { ...operation, available: true, unavailableReason: null, transport: "private_download" };
+  if (operation.path === "/return_refund/202405/returns/shipping_documents")
+    return {
+      ...operation,
+      available: true,
+      unavailableReason: null,
+      transport: "multipart",
+      fields: operation.fields.map((field) =>
+        field.type === "file"
+          ? {
+              ...field,
+              // Conservative application limits; the official contract does not promise a byte ceiling.
+              maxBytes: field.name === "body.return_qr_code" ? 2_000_000 : 10_000_000,
+              // Official error 25021023 states that only PDF documents are accepted.
+              accept: ["application/pdf"],
+              description: `${field.description ?? ""} Only PDF documents are supported (official error 25021023). Application limits are 10 MB for labels and 2 MB for QR documents; marketplace validation remains authoritative.`,
+            }
+          : field,
+      ),
+    };
   return operation;
 }
 /** Prepare a resource for a fixed business endpoint; this never publishes content or sends a message. */
@@ -65,12 +84,14 @@ export function largeVideoOperations(operations: readonly CommerceOperation[]): 
       target: "tiktok_69cb362bf76068049e7a08f2",
       title: "Unggah aset video creator berukuran besar",
       maxBytes: 500 * 1024 * 1024,
+      minBytes: 10_000_001,
     },
     {
       id: "tiktok_large_chat_video",
       target: "tiktok_6a1ff121795c140490537a5c",
       title: "Unggah aset video untuk pesan pelanggan",
       maxBytes: 100 * 1024 * 1024,
+      minBytes: 1,
     },
   ];
   return variants.flatMap((variant) => {
@@ -95,10 +116,12 @@ export function largeVideoOperations(operations: readonly CommerceOperation[]): 
             type: "file" as const,
             required: true,
             maxBytes: variant.maxBytes,
-            minBytes: 10_000_001,
+            minBytes: variant.minBytes,
             accept: ["video/mp4", "video/quicktime", "video/webm"],
             description:
-              "Unggah aset video di atas 10 MB. Hasil berupa resource ID untuk operasi tujuan yang ditentukan. Pengunggahan ini belum menerbitkan video atau mengirim pesan.",
+              variant.id === "tiktok_large_chat_video"
+                ? "Unggah aset video untuk pesan pelanggan. Video hingga 5 MiB dikirim dalam satu bagian sesuai dokumentasi. Hasil berupa resource ID; pengunggahan ini belum mengirim pesan."
+                : "Unggah aset video di atas 10 MB. Hasil berupa resource ID untuk operasi tujuan yang ditentukan. Pengunggahan ini belum menerbitkan video.",
           },
         ],
         responseFields: ["resource_id", "target_operation_id"],

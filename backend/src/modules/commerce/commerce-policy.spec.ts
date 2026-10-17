@@ -1,4 +1,5 @@
 import type { CommerceOperation } from "@omniseller/connector-core";
+import { TIKTOK_COMMERCE_OPERATIONS } from "@omniseller/connector-tiktokshop";
 import { describe, expect, it } from "vitest";
 import { systemContext } from "../../common/context/request-context";
 import { authorizeCommerceInput, authorizeOperation, publicOperation } from "./commerce-policy";
@@ -56,6 +57,23 @@ describe("commerce authorization", () => {
     ]) {
       expect(publicOperation({ ...base, path, write: true }).available).toBe(false);
     }
+  });
+  it("allows the documented POST inventory search for a reader while preserving the stock mutation guard", () => {
+    const operation = TIKTOK_COMMERCE_OPERATIONS.find((item) => item.id === "tiktok_650a9191c16ffe02b8eec161")!;
+    expect(operation).toMatchObject({ method: "POST", write: false, available: true });
+    const exposed = publicOperation(operation);
+    expect(exposed).toMatchObject({ available: true, unavailableReason: null });
+    expect(exposed.requiredPermissions).not.toContain("commerce:write");
+    expect(exposed.requiredPermissions).not.toContain("catalog:write");
+    const reader = { ...context(), permissions: new Set(["commerce:read", "catalog:read"]) };
+    expect(() => authorizeOperation(reader, operation, operation.scopes)).not.toThrow();
+    expect(() =>
+      authorizeCommerceInput(reader, operation, { body: { product_ids: ["9223372036854775807"] } }),
+    ).not.toThrow();
+    expect(
+      publicOperation({ ...operation, write: true, path: "/product/202309/products/{product_id}/inventory/update" })
+        .available,
+    ).toBe(false);
   });
   it("protects nested product stock payloads and requires the extra price permission", () => {
     const operation = { ...base, path: "/product/202309/products/{product_id}", write: true };

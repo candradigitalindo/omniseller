@@ -9,6 +9,7 @@ const costKey = (key: string) =>
 
 /** Commerce permissions supplement the owning module; an affiliate or ads scope is not a finance grant. */
 export function additionalCommercePermissions(operation: CommerceOperation): string[] {
+  if (operation.id === "shopee.livestream.get_stream_credentials") return ["affiliate:write"];
   const path = operation.path;
   const financial =
     /\/(?:finance|payment|ads)\//i.test(path) ||

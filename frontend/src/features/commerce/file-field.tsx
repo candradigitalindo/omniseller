@@ -41,6 +41,7 @@ export function CommerceFileField({
       const form = new FormData();
       form.append("operationId", context.operationId);
       form.append("principalId", context.principalId);
+      form.append("fieldName", field.name);
       form.append("file", file);
       return unwrap(
         api.POST("/v1/commerce/files", {

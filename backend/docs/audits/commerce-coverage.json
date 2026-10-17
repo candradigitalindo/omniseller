@@ -2,9 +2,9 @@
   "meaning": "Executable workspace contracts, not proof of live marketplace approval. Unavailable includes dedicated existing workflows and unsupported contracts/principals/regions.",
   "platforms": {
     "shopee": {
-      "operations": 428,
-      "workspaceAvailable": 224,
-      "unavailableOrDedicated": 204,
+      "operations": 429,
+      "workspaceAvailable": 308,
+      "unavailableOrDedicated": 121,
       "groups": [
         "Afiliasi seller AMS",
         "Aplikasi partner",
@@ -37,12 +37,12 @@
       ],
       "byPrincipal": {
         "seller": {
-          "total": 388,
-          "available": 224
+          "total": 385,
+          "available": 264
         },
         "creator": {
-          "total": 40,
-          "available": 0
+          "total": 44,
+          "available": 44
         },
         "affiliate_partner": {
           "total": 0,
@@ -52,8 +52,8 @@
     },
     "tiktokshop": {
       "operations": 319,
-      "workspaceAvailable": 267,
-      "unavailableOrDedicated": 52,
+      "workspaceAvailable": 272,
+      "unavailableOrDedicated": 47,
       "groups": [
         "Affiliate creator",
         "Affiliate partner",
@@ -78,15 +78,15 @@
       "byPrincipal": {
         "seller": {
           "total": 268,
-          "available": 219
+          "available": 222
         },
         "creator": {
           "total": 35,
-          "available": 34
+          "available": 35
         },
         "affiliate_partner": {
           "total": 16,
-          "available": 14
+          "available": 15
         }
       }
     }

@@ -1,0 +1,126 @@
+{
+  "reviewedAt": "2026-10-17",
+  "sources": [
+    {
+      "file": "developer-guide/authorization-and-authentication.structured.json",
+      "sha256": "3eb8d25f4cecc98ebdf96fcabfa476b6b74ca626e0df5636e050e2c4e83fdc51",
+      "officialUrl": "https://open.shopee.com/developer-guide/20",
+      "lastUpdated": "2026-05-13",
+      "crawledAt": "2026-05-15T03:46:15.640Z"
+    },
+    {
+      "file": "developer-guide/livestream-api-integration-guide.structured.json",
+      "sha256": "53e980c4df5f4e3f0282e7680f0849280db070198448cdbeee04c5e1fe0ac13a",
+      "officialUrl": "https://open.shopee.com/developer-guide/669",
+      "lastUpdated": "2026-01-09",
+      "crawledAt": "2026-05-15T03:47:44.916Z"
+    },
+    {
+      "file": "developer-guide/shopee-video-api-integration-guide.structured.json",
+      "sha256": "9691714dc3ffb9a52ee32aaa0b69b1517449d09b4b0014a8e024acc0878438b7",
+      "officialUrl": "https://open.shopee.com/developer-guide/706",
+      "lastUpdated": "2025-12-19",
+      "crawledAt": "2026-05-15T03:47:50.145Z"
+    },
+    {
+      "file": "v2.public.get_access_token.md",
+      "sha256": "78c9f54be99e6dd17591bb3692763169b3633626ca327cec6a12124c137302e9",
+      "officialUrl": "https://open.shopee.com/documents/v2/v2.public.get_access_token?module=104&type=1",
+      "crawledAt": "2026-05-15T03:38:14.628Z"
+    },
+    {
+      "file": "v2.public.refresh_access_token.md",
+      "sha256": "7fd56a8b423c3b3c660efe8bc6ab4201def2b74e9cff0d73cc3dc4786b5651f6",
+      "officialUrl": "https://open.shopee.com/documents/v2/v2.public.refresh_access_token?module=104&type=1",
+      "crawledAt": "2026-05-15T03:38:17.208Z"
+    },
+    {
+      "file": "v2.media_space.init_video_upload.md",
+      "sha256": "6bb797758d288b5a6aab63e88ce86adfcc5919345fd0799a228f0a396c088175",
+      "officialUrl": "https://open.shopee.com/documents/v2/v2.media_space.init_video_upload?module=91&type=1",
+      "crawledAt": "2026-05-15T03:27:30.074Z"
+    },
+    {
+      "file": "v2.media_space.upload_video_part.md",
+      "sha256": "7c7bf636249f5bf044a94074a4443419012ef1401038a5399446c8541ff0abab",
+      "officialUrl": "https://open.shopee.com/documents/v2/v2.media_space.upload_video_part?module=91&type=1",
+      "crawledAt": "2026-05-15T03:27:32.739Z"
+    },
+    {
+      "file": "v2.media_space.complete_video_upload.md",
+      "sha256": "cf46b0b188366b60b212afe6af4233558b488a85d61875391370b729caa7141e",
+      "officialUrl": "https://open.shopee.com/documents/v2/v2.media_space.complete_video_upload?module=91&type=1",
+      "crawledAt": "2026-05-15T03:27:35.305Z"
+    },
+    {
+      "file": "v2.media.init_video_upload.md",
+      "sha256": "c9c6ebc7af4b075f159ffa95199353755d7eacb42964bc607c52b740c7c1a852",
+      "officialUrl": "https://open.shopee.com/documents/v2/v2.media.init_video_upload?module=130&type=1",
+      "crawledAt": "2026-05-15T03:27:48.450Z"
+    },
+    {
+      "file": "v2.media.upload_video_part.md",
+      "sha256": "cd229ca98bcff5989eb818cc587abeec660118f06263d914b752db637b244e42",
+      "officialUrl": "https://open.shopee.com/documents/v2/v2.media.upload_video_part?module=130&type=1",
+      "crawledAt": "2026-05-15T03:27:51.146Z"
+    },
+    {
+      "file": "v2.media.complete_video_upload.md",
+      "sha256": "9a378c0e842079588679e6b23dd7b25399624efdeeff5b4f7c23e632e189cd50",
+      "officialUrl": "https://open.shopee.com/documents/v2/v2.media.complete_video_upload?module=130&type=1",
+      "crawledAt": "2026-05-15T03:27:53.842Z"
+    },
+    {
+      "file": "v2.livestream.get_session_detail.md",
+      "sha256": "9e04401f8427cbfecd9b90921f2db7ba86b92af2c6e96e24ccca50b2259798bf",
+      "officialUrl": "https://open.shopee.com/documents/v2/v2.livestream.get_session_detail?module=125&type=1",
+      "crawledAt": "2026-05-15T03:39:12.667Z"
+    }
+  ],
+  "contracts": {
+    "creatorAuthorization": {
+      "authType": "user",
+      "callbackFields": ["code", "state"],
+      "grantIdentityField": "user_id_list",
+      "singlePrincipalOnly": true,
+      "refreshIdentityField": "user_id",
+      "independentUserRefresh": true,
+      "userSignatureTail": ["access_token", "user_id"],
+      "regionVerified": false,
+      "selectedMarket": "ID",
+      "videoAppType": "Shopee Video Management",
+      "liveAppType": "Livestream Management"
+    },
+    "productVideo": {
+      "operationId": "shopee.media_space.init_video_upload",
+      "maxBytes": 31457280,
+      "partBytes": 4194304,
+      "initAuth": "shop",
+      "partAuth": "public",
+      "completeAuth": "public",
+      "partDigestField": "content_md5",
+      "asynchronousTranscoding": true
+    },
+    "creatorVideo": {
+      "operationId": "shopee.media.init_video_upload",
+      "business": 3,
+      "scene": 1,
+      "localMaxBytes": 524288000,
+      "officialMaxBytes": 1073741824,
+      "durationSeconds": [1, 180],
+      "partBytes": "init response.part_size",
+      "partDigestField": "part_md5",
+      "allUploadRequestsAuth": "public",
+      "asynchronousTranscoding": true
+    },
+    "streamCredentials": {
+      "operationId": "shopee.livestream.get_stream_credentials",
+      "syntheticAuxiliaryOperation": true,
+      "officialPath": "/api/v2/livestream/get_session_detail",
+      "privateArtifactMime": "text/plain",
+      "credentialFields": ["push_url", "push_key"],
+      "excludedFromJsonHistory": true,
+      "artifactTtlSeconds": 3600
+    }
+  }
+}

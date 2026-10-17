@@ -385,7 +385,7 @@ export const AFFILIATE_PARTNER_OPERATIONS: readonly CommerceOperation[] = [
         required: true,
         description:
           "The product review decision by the TikTok Affiliate Partner. This is an enumerated type with values:\n- APPROVE\n- REJECT\n- REJECT_FOREVER",
-        options: ["APPROVE", "REJECT_FOREVER"],
+        options: ["APPROVE", "REJECT", "REJECT_FOREVER"],
       },
       {
         name: "body.reject_reasons",
@@ -527,7 +527,7 @@ export const AFFILIATE_PARTNER_OPERATIONS: readonly CommerceOperation[] = [
         required: false,
         description:
           "This parameter is required.\nThe campaign status. The status is an enumerated type with values:\n- `READY`\n- `UPCOMING`\n- `ONGOING`\n- `CLOSED`\n- `UNSPECIFIED`",
-        options: ["READY", "ONGOING", "UNSPECIFIED"],
+        options: ["READY", "UPCOMING", "ONGOING", "CLOSED", "UNSPECIFIED"],
       },
       {
         name: "query.type",
@@ -536,7 +536,7 @@ export const AFFILIATE_PARTNER_OPERATIONS: readonly CommerceOperation[] = [
         required: false,
         description:
           "The campaign type. This is an enumerated type with values: \n- MY_CAMPAIGNS\n- GS_SELLING_CAMPAIGNS \n- SELLER_CAMPAIGNS\n- EXCLUSIVE_TIKTOK_SHOP  \nDefault value is MY_CAMPAIGNS.",
-        options: ["MY_CAMPAIGNS", "SELLER_CAMPAIGNS"],
+        options: ["MY_CAMPAIGNS", "GS_SELLING_CAMPAIGNS", "SELLER_CAMPAIGNS", "EXCLUSIVE_TIKTOK_SHOP"],
       },
       {
         name: "query.query_type_filter",
@@ -598,7 +598,7 @@ export const AFFILIATE_PARTNER_OPERATIONS: readonly CommerceOperation[] = [
         required: false,
         description:
           "The product review status. This an enumerated type with values:\n- PENDING\n- APPROVED\n- REJECTED\n- PENDING_CLOSED\n- CLOSED",
-        options: ["PENDING", "REJECTED", "CLOSED"],
+        options: ["PENDING", "APPROVED", "REJECTED", "PENDING_CLOSED", "CLOSED"],
       },
       {
         name: "query.product_name",
@@ -750,9 +750,25 @@ export const AFFILIATE_PARTNER_OPERATIONS: readonly CommerceOperation[] = [
         description:
           "An opaque token used to retrieve the next page of a paginated result set. Retrieve this value from the result of the `next_page_token` from a previous response. It is not needed for the first page.",
       },
+      {
+        name: "path.campaign_id",
+        label: "Campaign id",
+        type: "string",
+        required: true,
+        maxLength: 200,
+        description: "Exact campaign_id placeholder from the official API Path. Preserve the identifier as text.",
+      },
+      {
+        name: "path.product_id",
+        label: "Product id",
+        type: "string",
+        required: true,
+        maxLength: 200,
+        description: "Exact product_id placeholder from the official API Path. Preserve the identifier as text.",
+      },
     ],
-    available: false,
-    unavailableReason: "Path parameter schema missing:campaign_id; Path parameter schema missing:product_id",
+    available: true,
+    unavailableReason: null,
     responseFields: ["total_creator_count", "promotion_creators", "next_page_token"],
     eligibility: "unverified",
     eligibilityReason:

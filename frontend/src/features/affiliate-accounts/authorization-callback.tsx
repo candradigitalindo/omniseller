@@ -12,7 +12,7 @@ import { errorMessage } from "@/lib/api/errors";
 
 const final = (status: string) => ["succeeded", "failed", "expired"].includes(status);
 /** Uses the already registered marketplace callback URL; the state namespace selects the account flow. */
-export function AffiliateAccountCallback() {
+export function AffiliateAccountCallback({ channel = "tiktokshop" }: { channel?: "tiktokshop" | "shopee" }) {
   const t = useTranslations("affiliateAccounts");
   const params = useSearchParams();
   const sent = useRef(false);
@@ -23,6 +23,7 @@ export function AffiliateAccountCallback() {
         api.POST("/v1/affiliate/authorizations/callback", {
           body: {
             state: params.get("state") ?? "",
+            channel,
             ...(params.get("code") ? { code: params.get("code")! } : {}),
             ...(params.get("error") ? { error: params.get("error")! } : {}),
           },
@@ -64,8 +65,8 @@ export function AffiliateAccountCallback() {
           : failed
             ? (current?.errorMessage ?? t("callbackFailureHint"))
             : succeeded
-              ? t("callbackSuccessHint")
-              : t("callbackWorkingHint")}
+              ? t(channel === "shopee" ? "callbackShopeeSuccessHint" : "callbackSuccessHint")
+              : t(channel === "shopee" ? "callbackShopeeWorkingHint" : "callbackWorkingHint")}
       </p>
       {poll.isError ? (
         <div role="alert" className="grid gap-2 text-sm text-danger">

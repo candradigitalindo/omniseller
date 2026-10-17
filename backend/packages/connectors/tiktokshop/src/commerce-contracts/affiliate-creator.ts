@@ -91,10 +91,11 @@ export const AFFILIATE_CREATOR_OPERATIONS: readonly CommerceOperation[] = [
       {
         name: "body.add_type",
         label: "Add type",
-        type: "string",
+        type: "enum",
         required: true,
         description:
           "Specifies how products are added to the showcase. This an enumerated type with values:\n- PRODUCT_ID\n- PRODUCT_LINK ",
+        options: ["PRODUCT_ID", "PRODUCT_LINK"],
       },
       {
         name: "body.product_ids",
@@ -509,7 +510,7 @@ export const AFFILIATE_CREATOR_OPERATIONS: readonly CommerceOperation[] = [
     path: "/affiliate_creator/202409/sample_applications/fulfillments/search",
     scopes: ["creator.affiliate_collaboration.read"],
     scopeMode: "any",
-    write: true,
+    write: false,
     officialUrl: "https://partner.tiktokshop.com/docv2/page/creator-search-sample-application-fulfillments-202409",
     fields: [
       {
@@ -899,15 +900,16 @@ export const AFFILIATE_CREATOR_OPERATIONS: readonly CommerceOperation[] = [
         required: false,
         description:
           "Sort field.\nPossible values:\n- PRODUCT_ID\n- PRICE\n- SALE\n\nIf omitted or empty, defaults to PRODUCT_ID. Any other value is rejected.",
-        options: ["PRODUCT_ID", "SALE"],
+        options: ["PRODUCT_ID", "PRICE", "SALE"],
       },
       {
         name: "query.sort_order",
         label: "Sort order",
-        type: "string",
+        type: "enum",
         required: false,
         description:
           "Sort order.\nPossible values:\n- DESC\n- ASC\n\nIf omitted or empty, defaults to DESC. Any other value is rejected.",
+        options: ["DESC", "ASC"],
       },
       {
         name: "query.page_size",
@@ -1194,13 +1196,16 @@ export const AFFILIATE_CREATOR_OPERATIONS: readonly CommerceOperation[] = [
         name: "body.toko_pids",
         label: "Toko pids",
         type: "array",
-        required: false,
-        description: "List of Tokopedia product IDs to map to TikTok Shop product IDs.",
-        itemType: "integer",
+        required: true,
+        description:
+          "List of Tokopedia product IDs to map to TikTok Shop product IDs. Enter exact positive decimal IDs; the connector sends JSON int64 values without floating-point conversion. The application permits up to 100 IDs per lookup.",
+        itemType: "string",
+        minimum: 1,
+        maximum: 100,
       },
     ],
-    available: false,
-    unavailableReason: "GET body requires a dedicated documented transport",
+    available: true,
+    unavailableReason: null,
     responseFields: ["error", "product"],
     eligibility: "unverified",
     eligibilityReason:

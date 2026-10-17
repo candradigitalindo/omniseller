@@ -1,8 +1,8 @@
 # OmniSeller
 
-Aplikasi manajemen penjualan multi-marketplace. Root repositori hanya berisi dokumen; setiap komponen berada di foldernya sendiri.
+Integrator commerce multi-marketplace untuk seller, creator dan affiliate partner. Root repositori hanya berisi dokumen; setiap komponen berada di foldernya sendiri.
 
-Pusat **Fitur Commerce** (`/commerce`) menyediakan operasi seller Shopee dan Tokopedia & Shop serta creator/affiliate partner Indonesia melalui koneksi marketplace yang diotorisasi. Tenant menghubungkan akun melalui consent platform; API key aplikasi saja tidak memberi seluruh izin. [Matriks operasi executable](IMPLEMENTASI-COMMERCE-OPERASI.csv) dan [status implementasi](IMPLEMENTASI-MARKETPLACE.md) membedakan kontrak lokal, alur khusus, batas program dan sandbox nyata yang belum tersedia.
+Pusat **Fitur Commerce** (`/commerce`) menyediakan operasi seller Shopee dan Tokopedia & Shop serta creator/affiliate partner Indonesia melalui koneksi marketplace yang diotorisasi. Inbox `/commerce/pesan`, creator Shopee Video/LIVE dan pemasangan Tokopedia & Shop dari App Store tersedia dengan pemeriksaan role serta identitas toko. Tenant menghubungkan akun melalui consent platform; API key aplikasi saja tidak memberi seluruh izin. [Matriks operasi executable](IMPLEMENTASI-COMMERCE-OPERASI.csv) dan [status implementasi](IMPLEMENTASI-MARKETPLACE.md) membedakan kontrak lokal, alur khusus, batas program dan sandbox nyata yang belum tersedia.
 
 | Dokumen | Isi |
 |---|---|

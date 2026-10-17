@@ -304,10 +304,11 @@ export const RETURN_AND_REFUND_OPERATIONS: readonly CommerceOperation[] = [
       {
         name: "query.return_id_type",
         label: "Return id type",
-        type: "string",
+        type: "enum",
         required: false,
         description:
           "Specifies what kind of ID type was passed in the related return_ids field. (If the id type is not specified, the default value will be SKU_RETURN_ORDER.)\nPossible values:\n- RMA\n- SKU_RETURN_ORDER",
+        options: ["RMA", "SKU_RETURN_ORDER"],
       },
       {
         name: "body.return_shipping_label",
@@ -697,18 +698,20 @@ export const RETURN_AND_REFUND_OPERATIONS: readonly CommerceOperation[] = [
       {
         name: "body.shipment_type",
         label: "Shipment type",
-        type: "string",
+        type: "enum",
         required: false,
         description:
           "Specifies the return shipping method the buyer uses to send items back to the seller in a return request. Supported values:\n- `PLATFORM`\n- `BUYER_ARRANGE`",
+        options: ["PLATFORM", "BUYER_ARRANGE"],
       },
       {
         name: "body.handover_method",
         label: "Handover method",
-        type: "string",
+        type: "enum",
         required: false,
         description:
           "**Optional**. Only applicable when shipment_type is `PLATFORM`. Specifies the handover method the buyer uses to return the item through platform-supported shipping. Supported values:\n- `DROP_OFF`\n- `PICKUP`",
+        options: ["DROP_OFF", "PICKUP"],
       },
       {
         name: "body.order_line_list",
@@ -1071,10 +1074,11 @@ export const RETURN_AND_REFUND_OPERATIONS: readonly CommerceOperation[] = [
       {
         name: "query.initiate_aftersale_user",
         label: "Initiate aftersale user",
-        type: "string",
+        type: "enum",
         required: false,
         description:
           "The type of user you would like to check aftersale options for.\nDefault: SELLER\nPossible values:\n- SELLER\n- BUYER",
+        options: ["SELLER", "BUYER"],
       },
       {
         name: "query.request_types",
@@ -1242,16 +1246,18 @@ export const RETURN_AND_REFUND_OPERATIONS: readonly CommerceOperation[] = [
           {
             name: "sort_field",
             label: "Sort field",
-            type: "string",
+            type: "enum",
             required: false,
             description: "Name of the field used for sorting.\nPossible values:\n- `CREATE_TIME`\n- `UPDATE_TIME`\n",
+            options: ["CREATE_TIME", "UPDATE_TIME"],
           },
           {
             name: "sort_order",
             label: "Sort order",
-            type: "string",
+            type: "enum",
             required: false,
             description: "Sort direction.\nPossible values:\n- `ASC`\n- `DESC`",
+            options: ["ASC", "DESC"],
           },
         ],
       },
@@ -1434,16 +1440,18 @@ export const RETURN_AND_REFUND_OPERATIONS: readonly CommerceOperation[] = [
           {
             name: "sort_field",
             label: "Sort field",
-            type: "string",
+            type: "enum",
             required: false,
             description: "Field used to sort results.\nPossible values:\n- `CREATE_TIME`\n- `UPDATE_TIME`",
+            options: ["CREATE_TIME", "UPDATE_TIME"],
           },
           {
             name: "sort_order",
             label: "Sort order",
-            type: "string",
+            type: "enum",
             required: false,
             description: "Sort direction.\nPossible values:\n- `ASC`\n- `DESC`",
+            options: ["ASC", "DESC"],
           },
         ],
       },
@@ -1688,9 +1696,10 @@ export const RETURN_AND_REFUND_OPERATIONS: readonly CommerceOperation[] = [
           {
             name: "request_id_type",
             label: "Request id type",
-            type: "string",
+            type: "enum",
             required: false,
             description: "Type of identifier provided in request_id.\nPossible values:\n- `AFTERSALES`\n- `RMA`",
+            options: ["AFTERSALES", "RMA"],
           },
           {
             name: "line_item_decisions",
@@ -1737,8 +1746,11 @@ export const RETURN_AND_REFUND_OPERATIONS: readonly CommerceOperation[] = [
                   "Action/decision to be applied.\nPossible values:\n- `APPROVE_REQUEST`\n- `APPROVE_RETURN_PACKAGE`\n- `REJECT_REQUEST`\n- `REJECT_RETURN_PACKAGE`\n- `REFUND_INSTEAD`\n- `OFFER_PARTIAL_REFUND`\n- `OFFER_PARTIAL_REFUND_AFTER_RECEIVING_PKG`",
                 options: [
                   "APPROVE_REQUEST",
+                  "APPROVE_RETURN_PACKAGE",
                   "REJECT_REQUEST",
+                  "REJECT_RETURN_PACKAGE",
                   "REFUND_INSTEAD",
+                  "OFFER_PARTIAL_REFUND",
                   "OFFER_PARTIAL_REFUND_AFTER_RECEIVING_PKG",
                 ],
               },

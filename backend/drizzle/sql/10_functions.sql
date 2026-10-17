@@ -447,7 +447,7 @@ CREATE OR REPLACE FUNCTION resolve_affiliate_account(p_source text,p_kind text,p
 RETURNS TABLE(tenant_id text,account_id text)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public,pg_temp AS $$
  SELECT a.tenant_id,a.id FROM affiliate_account a
- WHERE p_source='tiktokshop' AND p_kind='creator' AND a.kind=p_kind
+ WHERE p_source='tiktokshop' AND a.channel=p_source AND p_kind='creator' AND a.kind=p_kind
    AND a.external_principal_id=p_external_id AND a.status<>'disconnected'
  LIMIT 1
 $$;

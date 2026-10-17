@@ -1,0 +1,149 @@
+{
+  "reviewedAt": "2026-10-17",
+  "scope": "Indonesia seller, creator and affiliate partner; local contract and signed mock/loopback verification, not sandbox authorization",
+  "enabled": [
+    {
+      "documentId": "6a335dc2f180ee049bf09ed6",
+      "officialUrl": "https://partner.tiktokshop.com/docv2/page/map-tokopedia-to-tiktok-shop-product-ids-202606",
+      "metadataSha256": "1adb2ad3cd8de4c71385e7a3b9ad014b826829f1bdcaa439d83a604f088e5185",
+      "detailSha256": "7aa4cc29897d14dab977750213e8435061c9327e5deb67244fc2e37ca4695c4c",
+      "operation": "Map Tokopedia to TikTok Shop Product IDs",
+      "decision": "Preserve documented GET JSON body, HMAC exact body, decimal int64 inputs and numeric wire values. Node transport exact path/origin allowlist; no redirect following. Nested data.error rejects failed reads."
+    },
+    {
+      "documentId": "6791db764ddec3030b395150",
+      "officialUrl": "https://partner.tiktokshop.com/docv2/page/get-conversation-list-202412",
+      "metadataSha256": "bc8e0f12777bc63e796d0d4b0ca1af01749571aaf36a08ea78a0e87c2c3ff5af",
+      "detailSha256": "0e841ce2574376a0e8813f766010f316c3ede0e841c2bc0e988eeba1806eed1c",
+      "operation": "Get Conversation List",
+      "decision": "Use explicit query only_need_conversation_id, omit duplicate optional GET body copy."
+    },
+    {
+      "documentId": "68c8c9ed5514fb049cae029f",
+      "officialUrl": "https://partner.tiktokshop.com/docv2/page/get-creator-performance-for-campaign-product-202508",
+      "metadataSha256": "64738a50a601142147c77e89f316a109690daf4124597f9860cccde9e215fed8",
+      "detailSha256": "53acfe2edb7fdd85530f148fef74f1df336720af82e6402b1a3642c6ced28063",
+      "operation": "Get Creator Performance for Campaign Product",
+      "decision": "Require both campaign_id and product_id string placeholders explicitly named in official Path; keep private category asset injection."
+    },
+    {
+      "documentId": "6662ab77a69f5502c38443eb",
+      "officialUrl": "https://partner.tiktokshop.com/docv2/page/upload-return-shipping-information-202405",
+      "metadataSha256": "fd67fffcb5ee47aed0467c81ca487fad007f57a707cd3b827644f5961d699171",
+      "detailSha256": "d31a53f5a061666b2be2c7de7cb3bd2b6502eac415ce3a290b2d8ee1b0f28f4e",
+      "operation": "Upload Return Shipping Information",
+      "decision": "Signed multipart with two optional files, exact CSV return_ids. Official25021023 requires PDF only; application bounds10MB label/2MB QR document, not provider claimed bounds."
+    }
+  ],
+  "corrected": [
+    {
+      "documentId": "6a1ff121795c140490537a5c",
+      "officialUrl": "https://partner.tiktokshop.com/docv2/page/send-message-202606",
+      "metadataSha256": "428920d4074453985a095a45686344ccd0f903f7534513c92f56c326b57dea82",
+      "detailSha256": "89afaa9b43add74cf726c77fe194eddf1a9c81d41383a71d2764c6a2f678925a",
+      "operation": "Send Message202606",
+      "decision": "All eight message enum values retained. Compiler horizontal whitespace prevents swallowing alternate enum bullets. IMAGE content is a JSON string containing url,width,height, from Upload Buyer Messages Image."
+    },
+    {
+      "operation": "All documented array query fields",
+      "decision": "Generated per-path serializer follows all390 version query examples: CSV string lists, exact numeric JSON int64 video_ids only where explicitly sampled. Unproven query encoding makes generation fail."
+    }
+  ],
+  "blockedMissingScopes": [
+    {
+      "documentId": "6ad07b7b26401b04cdc8c13c",
+      "officialUrl": "https://partner.tiktokshop.com/docv2/page/check-creator-outreach-eligibility-202610",
+      "metadataSha256": "2d2c0bf7c65bf0b8f61e4f09acc17a554ffbb3ca21e6a6a27c0b5524517178d5",
+      "detailSha256": "8f94bbdd51128dd8f9138a97fc975ecfd6b0d145e9d0b63b8851a36dd4ddc656",
+      "operation": "Check Creator Outreach Eligibility",
+      "reason": "No scope_list or API auth package is published in the captured official metadata, and detail.content is empty. Do not infer grants from nearby APIs."
+    },
+    {
+      "documentId": "6aba1036abf7b104cb3c1c27",
+      "officialUrl": "https://partner.tiktokshop.com/docv2/page/predict-product-package-dimensions-and-weight-202609",
+      "metadataSha256": "123eafcba3611b702dae976ef53f541c45f7074f413c9db2bc399af88ab8ed25",
+      "detailSha256": "3f899b205e9064b2a109bfe08818cd23193db8faf4629a43a28a2e9d38b3346b",
+      "operation": "Predict Product Package Dimensions and Weight",
+      "reason": "No scope_list or API auth package is published in the captured official metadata, and detail.content is empty. Do not infer grants from nearby APIs."
+    },
+    {
+      "documentId": "6aba10380c118504c745cbc1",
+      "officialUrl": "https://partner.tiktokshop.com/docv2/page/recommend-required-product-properties-202609",
+      "metadataSha256": "6bb401091e1ae1b10d99c45394e57657cc457e91ff87d49fefb216d22abd1164",
+      "detailSha256": "3af9eff2040abc5c7b3e7762bea44f009c88829bd0741831d32261f102675687",
+      "operation": "Recommend Required Product Properties",
+      "reason": "No scope_list or API auth package is published in the captured official metadata, and detail.content is empty. Do not infer grants from nearby APIs."
+    },
+    {
+      "documentId": "6aba32215fe27304c71128cd",
+      "officialUrl": "https://partner.tiktokshop.com/docv2/page/submit-strikethrough-price-202609",
+      "metadataSha256": "db2f8dd060b17cc735d2a677b4ac309ba22d4e94d5a9add94091aa9c922bb442",
+      "detailSha256": "66fc4da65919b0e804d4a711b6c9703cf29426c8490c95438fce8118a2b0280e",
+      "operation": "Submit Strikethrough Price",
+      "reason": "No scope_list or API auth package is published in the captured official metadata, and detail.content is empty. Do not infer grants from nearby APIs."
+    }
+  ],
+  "largeCreatorBinding": {
+    "sources": [
+      {
+        "documentId": "69cb362bf76068049e7a08f2",
+        "officialUrl": "https://partner.tiktokshop.com/docv2/page/post-shoppable-video-202603",
+        "metadataSha256": "8b7c3beb6116e370a3a593d1c0734e6596cc09c34b1a2d8cf5c148f6c8f59a22",
+        "detailSha256": "71ce18972051336eea7cc00bb298b260d977c66f23f8862504c780d58bb5fd98"
+      },
+      {
+        "documentId": "694aca8bea754504a0c44bea",
+        "officialUrl": "https://partner.tiktokshop.com/docv2/page/694aca8bea754504a0c44bea",
+        "metadataSha256": null,
+        "detailSha256": "eefd5795e41ae913f02d4fc8ea633eb0ba0ba872ae253adab07ef80ffac5e495"
+      }
+    ],
+    "decision": "Large500MiB creator asset preparation is available, but resource_id to Post Shoppable Video video_info.file_id is not established. Post API explicitly names direct Upload Shoppable Video File as source. The large upload guide gives only CustomerService resource_id to vid binding. Do not auto-publish by guessing."
+  },
+  "tests": {
+    "pythonCompiler": "12 regression tests",
+    "tiktokConnector": "all package tests, including signed mocks, int64 conversion, multipart privacy, loopback GET body, source pin, enum and query serializer checks"
+  },
+  "postRetrievalClassification": [
+    {
+      "documentId": "650a9191c16ffe02b8eec161",
+      "operation": "Inventory Search",
+      "officialUrl": "https://partner.tiktokshop.com/docv2/page/inventory-search-202309",
+      "metadataSha256": "ae6284ae84bfa69c827502287a7e458db32c342b1bd3d2d25666a3b265ad5cb0",
+      "documentSha256": "08583916029fe9cce0ba77e318313fea3d8b3880d7c97bbcc62e827949c144f0",
+      "decision": "Read-only POST: official description and complete request fields retrieve existing records using filters or identifiers; no state-changing command. Inventory Search must not be blocked by the inventory mutation policy."
+    },
+    {
+      "documentId": "69dde24cf76068049e2730b8",
+      "operation": "List Opportunities",
+      "officialUrl": "https://partner.tiktokshop.com/docv2/page/list-opportunities-202604",
+      "metadataSha256": "51bda8d035e65db796a44a1659c8d4a674da9cc29f20459e86352c75bc277503",
+      "documentSha256": "d93158ebf86cb52295bae0bdba58c29bb8c31ce7afd7be96d6695eed9ca87341",
+      "decision": "Read-only POST: official description and complete request fields retrieve existing records using filters or identifiers; no state-changing command. Inventory Search must not be blocked by the inventory mutation policy."
+    },
+    {
+      "documentId": "6a296867f76068049e634aa4",
+      "operation": "List Product SKPP Statuses",
+      "officialUrl": "https://partner.tiktokshop.com/docv2/page/list-product-skpp-statuses-202606",
+      "metadataSha256": "977c1789335973cb0e9a968aeb0ce502e693d087534c13225175598cc2bb210b",
+      "documentSha256": "3b83ddca540674ada38299685dc1c498de7fc401775b483b4896c368408848f6",
+      "decision": "Read-only POST: official description and complete request fields retrieve existing records using filters or identifiers; no state-changing command. Inventory Search must not be blocked by the inventory mutation policy."
+    },
+    {
+      "documentId": "67287d619ba2a002fe590322",
+      "operation": "Creator Search Sample Application Fulfillments",
+      "officialUrl": "https://partner.tiktokshop.com/docv2/page/creator-search-sample-application-fulfillments-202409",
+      "metadataSha256": "143953e859358624317242bf4f4ca8ab16dda1194f098f964dbd42871ca3dd9a",
+      "documentSha256": "c29c25fc822de836b03868df3781deef218e78464233ea8badb025440fdd9038",
+      "decision": "Read-only POST: official description and complete request fields retrieve existing records using filters or identifiers; no state-changing command. Inventory Search must not be blocked by the inventory mutation policy."
+    },
+    {
+      "documentId": "66716aa19a01ec02e5b90513",
+      "operation": "Seller Search Open Collaboration Products",
+      "officialUrl": "https://partner.tiktokshop.com/docv2/page/seller-search-open-collaboration-products-202405",
+      "metadataSha256": "6d7210413d296aec09946412969d225916f84b7f550a9fff95d34f81422dea20",
+      "documentSha256": "b934febe716093fa98eb31e0435335758c981c44965c1af6ef345067992306aa",
+      "decision": "Read-only POST: official description and complete request fields retrieve existing records using filters or identifiers; no state-changing command. Inventory Search must not be blocked by the inventory mutation policy."
+    }
+  ]
+}

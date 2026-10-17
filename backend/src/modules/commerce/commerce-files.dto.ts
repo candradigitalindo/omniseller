@@ -2,7 +2,11 @@ import { ulidSchema } from "@omniseller/shared";
 import { createZodDto } from "nestjs-zod";
 import { z } from "zod";
 export class UploadCommerceFileDto extends createZodDto(
-  z.object({ operationId: z.string().min(1).max(200), principalId: ulidSchema }),
+  z.object({
+    operationId: z.string().min(1).max(200),
+    principalId: ulidSchema,
+    fieldName: z.string().min(1).max(200).optional(),
+  }),
 ) {}
 export class CommerceFileDto extends createZodDto(
   z.object({

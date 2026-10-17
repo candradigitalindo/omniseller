@@ -29,6 +29,8 @@ export interface ShopeeConfig {
   apiBaseUrl: string;
   /** https://open.shopee.com (sandbox: https://open.sandbox.test-stable.shopee.com) */
   authBaseUrl: string;
+  /** Registered creator callback, selected by the application rather than supplied by an API user. */
+  accountRedirectUri?: string;
   http?: HttpConfig;
   /**
    * Wait between add_item and init_tier_variation: Shopee asks for at least 5 seconds, since the new
@@ -71,6 +73,8 @@ const AUTH_REVOKED = new Set([
   "merchant_no_linked",
   "error_merchant_refresh_token",
   "shop_banned",
+  "user_no_linked",
+  "user_banned",
 ]);
 const TRANSIENT = new Set([
   "error_server",
@@ -141,13 +145,42 @@ export class ShopeeClient {
     return this.call<T>(method, path, { ...opts, shop });
   }
 
+  /** Video and Live APIs use the independently refreshed user grant, never a seller shop token. */
+  userCall<T>(
+    user: { externalAccountId: string; accessToken: string },
+    method: "GET" | "POST",
+    path: string,
+    opts: { query?: Record<string, string | readonly string[]>; body?: object } = {},
+  ) {
+    return this.call<T>(method, path, { ...opts, user });
+  }
+
+  /** Public media uploads sign partner/path/time only, as their common parameter tables require. */
+  publicUpload<T>(path: string, form: { body: FormData; logBody: Record<string, unknown> }) {
+    return this.upload<T>(this.signedUrl(path), form);
+  }
+
+  userUpload<T>(
+    user: { externalAccountId: string; accessToken: string },
+    path: string,
+    form: { body: FormData; logBody: Record<string, unknown> },
+  ) {
+    return this.upload<T>(this.signedUrl(path, undefined, undefined, user), form);
+  }
+
   /** Shop API multipart upload (`media_space.upload_image`); the signature covers the URL only. */
   async shopUpload<T>(
     shop: { externalShopId: string; accessToken: string },
     path: string,
     form: { body: FormData; logBody: Record<string, unknown> },
   ): Promise<T & ShopeeEnvelope> {
-    const url = this.signedUrl(path, undefined, shop);
+    return this.upload<T>(this.signedUrl(path, undefined, shop), form);
+  }
+
+  private async upload<T>(
+    url: URL,
+    form: { body: FormData; logBody: Record<string, unknown> },
+  ): Promise<T & ShopeeEnvelope> {
     const res = await requestJson(
       this.config.http ?? {},
       { method: "POST", url, body: form.body, logBody: form.logBody },
@@ -191,8 +224,9 @@ export class ShopeeClient {
 
   private signedUrl(
     path: string,
-    query: Record<string, string | readonly string[]> | undefined,
+    query?: Record<string, string | readonly string[]>,
     shop?: { externalShopId: string; accessToken: string },
+    user?: { externalAccountId: string; accessToken: string },
   ): URL {
     const timestamp = unixSeconds();
     const sign = shopeeSign(
@@ -202,6 +236,7 @@ export class ShopeeClient {
         path,
         timestamp,
         ...(shop ? { accessToken: shop.accessToken, shopId: shop.externalShopId } : {}),
+        ...(user ? { accessToken: user.accessToken, shopId: user.externalAccountId } : {}),
       }),
     );
     const url = new URL(path, this.config.apiBaseUrl);
@@ -210,6 +245,10 @@ export class ShopeeClient {
     if (shop) {
       url.searchParams.set("access_token", shop.accessToken);
       url.searchParams.set("shop_id", shop.externalShopId);
+    }
+    if (user) {
+      url.searchParams.set("access_token", user.accessToken);
+      url.searchParams.set("user_id", user.externalAccountId);
     }
     url.searchParams.set("sign", sign);
     // Array parameters repeat the key (item_status=NORMAL&item_status=BANNED), as Shopee documents.
@@ -227,10 +266,11 @@ export class ShopeeClient {
       query?: Record<string, string | readonly string[]>;
       body?: object;
       shop?: { externalShopId: string; accessToken: string };
+      user?: { externalAccountId: string; accessToken: string };
       passErrors?: readonly string[];
     },
   ): Promise<T & ShopeeEnvelope> {
-    const url = this.signedUrl(path, opts.query, opts.shop);
+    const url = this.signedUrl(path, opts.query, opts.shop, opts.user);
     const body = opts.body === undefined ? undefined : JSON.stringify(opts.body);
     const res = await requestJson(
       this.config.http ?? {},

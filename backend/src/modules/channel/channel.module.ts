@@ -17,6 +17,7 @@ import { KeyRotationService } from "./key-rotation.service";
 import { MarketplaceGateway } from "./marketplace-gateway";
 import { StoreAuthorizationService } from "./store-authorization.service";
 import { StoreConnectService } from "./store-connect.service";
+import { StoreInstallationsController } from "./store-installation.controller";
 import { StoresService } from "./stores.service";
 
 /**
@@ -75,6 +76,6 @@ export class ChannelWorkerModule {
 
 @Module({
   imports: [ChannelModule, SyncModule],
-  controllers: [ChannelsController, StoreAuthorizationsController, StoresController],
+  controllers: [ChannelsController, StoreAuthorizationsController, StoreInstallationsController, StoresController],
 })
 export class ChannelHttpModule {}

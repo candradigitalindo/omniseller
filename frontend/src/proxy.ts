@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { captureAppStoreInstallation, isAppStoreRedirect } from "./lib/store-installation-capture";
 
 /** The session cookie the api sets on login (backend doc 8.10). */
 export const SESSION_COOKIE = "os_session";
@@ -15,7 +16,9 @@ export function isPublicPath(pathname: string): boolean {
  * coming back afterwards. Whether the session is still valid is the api's call; any 401 it answers sends
  * the browser to `/masuk` as well (lib/api/client.ts).
  */
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
+  // Capture the state-less public App Store code server-side before the optimistic login redirect.
+  if (isAppStoreRedirect(request.nextUrl)) return captureAppStoreInstallation(request);
   const { pathname, search } = request.nextUrl;
   if (isPublicPath(pathname) || request.cookies.has(SESSION_COOKIE)) return NextResponse.next();
   const login = new URL("/masuk", request.url);

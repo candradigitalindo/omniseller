@@ -109,7 +109,7 @@ the 143 methods the older code-example-only audit could not extract. Each descri
 source filenames, SHA-256 hashes and pinned commit. This is a snapshot catalogue, not a claim that
 428 features have been completed or that all app programs are approved.
 
-224 operations currently have executable local JSON contracts. These cover additional seller AMS
+Executable local contracts cover additional seller AMS
 campaigns/performance, discounts, vouchers, flash sales, bundles, add-on deals, ads, store categories,
 account health, payment reports, and verified new product/order/return/logistics commands. Nested
 inputs require a complete documented JSON payload; duplicate, missing or contradictory nesting stays
@@ -118,17 +118,37 @@ their owning modules. New accepted product/order/return commands trigger owning-
 through the application consumer; `accepted` means Shopee acknowledged the request, not that all
 processing has finished or local facts were confirmed.
 
-The remaining 204 descriptors include existing owned operations, merchant/global-account scope,
+Unavailable descriptors include existing owned operations, merchant/global-account scope,
 app-level credentials and configuration, file workflows, unresolved schemas and pagination, and
-user-account authorization. Private PDF downloads for booking documents and shipping-document jobs
+unresolved app-level workflows. Private PDF downloads for booking documents and shipping-document jobs
 return bytes to the worker for private, short-lived artifacts. They accept only PDF content up to 20 MB;
 redirects are capped at three and must remain on the configured Shopee API origin. JSON file links
 are never followed. Invoice upload/download restricted to PH/BR, Taiwan-only TO labels and Brazil-only
-KML uploads remain unavailable for Indonesia. FBS invoice links remain unavailable because request
-nesting and provider link hosts are not documented sufficiently in this snapshot.
+KML uploads remain unavailable for Indonesia. FBS tax invoice workflows remain unavailable: the
+snapshot does not establish Indonesian program eligibility, uses conflicting status names and
+numeric error envelopes, and does not establish an allowlist for private file-link hosts.
 
-All 40 Video/Live APIs use **user_id** authentication in this snapshot;
-they are unavailable with a seller shop token. No Shopee creator authorization is inferred.
+Video/Live APIs use **user_id** authentication and independently refreshed user credentials. Guides
+[669](https://open.shopee.com/developer-guide/669) and
+[706](https://open.shopee.com/developer-guide/706) establish `auth_type=user`, the code exchange,
+`user_id_list`, user-specific refresh, and user HMAC signing. The connector rejects ambiguous
+multi-user grants and changed identities. The configured callback and CSRF state are application
+owned. Shopee exposes no account-country lookup in this snapshot: the selected market is Indonesia,
+with `regionVerified=false`; it must not be displayed as a verified country. Live requires a
+Livestream Management app; Video requires a Shopee Video Management app and accepted Video terms.
+A seller shop token never substitutes for a user grant.
+
+Product video upload is a composite operation: a private MP4 up to 30 MiB initializes MediaSpace
+with a file MD5, uploads exact 4 MiB parts (except the last) with per-part MD5 and public signatures,
+then completes once. The separately documented result read confirms asynchronous transcoding.
+Shopee Video uses the distinct public Media API: the server-returned `part_size` controls bounded
+range reads, `part_md5` names the chunk digest, and the initial request fixes business 3/scene 1.
+The local upload ceiling is 500 MiB (the official Media API allows 1 GiB), with duration 1–180 seconds.
+Accepted upload never means published video; editing and publishing are separate reviewed requests.
+Malformed initialization, chunk or completion acknowledgements stop the workflow without automatic
+resends. Private image uploads cover product images, Live covers, and return evidence (business 2,
+scene 1). Returned stream keys, signed playback/push URLs and file links are excluded from generic
+JSON history; they must never reach sync logs or exports.
 
 Shopee app programs come from the documented **API Permissions** section. They are displayed as
 unverified eligibility metadata, never invented OAuth scopes: possession of a key/token does not

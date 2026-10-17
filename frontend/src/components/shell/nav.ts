@@ -31,6 +31,7 @@ import {
 import type { Permission } from "@/lib/session";
 
 type NavKey =
+  | "commerceInbox"
   | "commerce"
   | "affiliateAccounts"
   | "affiliate"
@@ -80,6 +81,7 @@ export interface NavItem {
    * everyone.
    */
   permission?: Permission | readonly Permission[];
+  allPermissions?: readonly Permission[];
   /**
    * Whether the screen exists in this web app yet. Items of screens still to come are hidden, not shown
    * disabled (7.1: "disembunyikan sampai fiturnya aktif").
@@ -188,6 +190,14 @@ export const NAV: readonly NavGroup[] = [
     items: [
       { key: "stores", href: "/integrasi", icon: Plug, permission: "settings:store", ready: true },
       { key: "commerce", href: "/commerce", icon: Store, permission: "commerce:read", ready: true },
+      {
+        key: "commerceInbox",
+        href: "/commerce/pesan",
+        icon: Users,
+        permission: "chat:read",
+        allPermissions: ["commerce:read"],
+        ready: true,
+      },
       { key: "migration", href: "/migrasi", icon: Database, permission: "settings:store", ready: true },
       {
         key: "businessProfile",
@@ -210,7 +220,7 @@ function allowed(permission: NavItem["permission"], can: (p: Permission) => bool
 export function visibleNav(can: (p: Permission) => boolean): NavGroup[] {
   return NAV.map((g) => ({
     ...g,
-    items: g.items.filter((i) => i.ready && allowed(i.permission, can)),
+    items: g.items.filter((i) => i.ready && allowed(i.permission, can) && (i.allPermissions?.every(can) ?? true)),
   })).filter((g) => g.items.length > 0);
 }
 

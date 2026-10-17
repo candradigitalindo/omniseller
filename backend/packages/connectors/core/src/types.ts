@@ -1000,21 +1000,30 @@ export interface MarketplaceAccountGrant {
 export interface MarketplaceAccountProfile {
   displayName: string | null;
   region: string;
+  /** False when the provider verifies identity but does not return an account market. */
+  regionVerified?: boolean;
   info: Record<string, unknown>;
   /** Worker-only opaque asset identifiers, kept separately from public profile metadata. */
   categoryAssets: { cipher: string; categoryId: number; categoryName: string; market: string }[];
 }
 export interface MarketplaceAccountAuth {
-  authorizeUrl(input: { state: string; kind: MarketplaceAccountKind }): string;
-  exchangeCode(input: { code: string; kind: MarketplaceAccountKind }): Promise<MarketplaceAccountGrant>;
+  authorizeUrl(input: { state: string; kind: MarketplaceAccountKind; program?: "standard" | "video" | "live" }): string;
+  exchangeCode(input: {
+    code: string;
+    kind: MarketplaceAccountKind;
+    program?: "standard" | "video" | "live";
+  }): Promise<MarketplaceAccountGrant>;
   refresh(input: {
     refreshToken: string;
     kind: MarketplaceAccountKind;
     externalPrincipalId: string;
+    program?: "standard" | "video" | "live";
   }): Promise<MarketplaceAccountGrant>;
   describe(input: {
     accessToken: string;
     kind: MarketplaceAccountKind;
     scopes: readonly string[];
+    externalPrincipalId?: string;
+    program?: "standard" | "video" | "live";
   }): Promise<MarketplaceAccountProfile>;
 }

@@ -43,8 +43,14 @@ export class CommerceFilesService {
     principalId: string,
     upload: CommerceUpload | undefined,
     beforeCommit: () => Promise<unknown>,
+    fieldName?: string,
   ) {
-    const field = operation.fields.find((item) => item.type === "file");
+    const fields = operation.fields.filter((item) => item.type === "file");
+    const field = fieldName
+      ? fields.find((item) => item.name === fieldName)
+      : fields.length === 1
+        ? fields[0]
+        : undefined;
     if (!field || !upload || upload.size <= 0) throw invalid("Pilih berkas yang sesuai fitur marketplace.");
     const type = commerceMediaType(await commerceUploadPrefix(upload));
     const limit = (type ? field.maxBytesByMime?.[type.mime] : undefined) ?? field.maxBytes ?? 10_000_000;
@@ -73,6 +79,7 @@ export class CommerceFilesService {
         id,
         tenantId: ctx.tenantId,
         operationId: operation.id,
+        fieldName: field.name,
         principalKind: operation.principalKind,
         storeId: operation.principalKind === "seller" ? principalId : null,
         accountId: operation.principalKind !== "seller" ? principalId : null,
@@ -109,10 +116,15 @@ export class CommerceFilesService {
       if (
         !row?.fileId ||
         row.operationId !== operation.id ||
+        (row.fieldName !== null && row.fieldName !== field.name) ||
+        (operation.fields.filter((item) => item.type === "file").length > 1 && row.fieldName === null) ||
         (row.storeId ?? row.accountId) !== principalId ||
         row.principalKind !== operation.principalKind ||
         row.expiresAt.getTime() <= Date.now()
       )
+        throw missing();
+      const limit = field.maxBytesByMime?.[row.mime] ?? field.maxBytes ?? 10_000_000;
+      if (!field.accept?.includes(row.mime) || row.sizeBytes > limit || row.sizeBytes < (field.minBytes ?? 1))
         throw missing();
       const stored = await this.files.metadata(ctx, row.fileId);
       if (stored?.purpose !== "other" || stored.mime !== row.mime || stored.sizeBytes !== row.sizeBytes)
@@ -166,6 +178,7 @@ export class CommerceFilesService {
         columns: [
           "id",
           "operasi",
+          "field_berkas",
           "jenis_akun",
           "id_toko",
           "id_akun",
@@ -181,6 +194,7 @@ export class CommerceFilesService {
               rows.map((row) => [
                 row.id,
                 row.operationId,
+                row.fieldName,
                 row.principalKind,
                 row.storeId,
                 row.accountId,

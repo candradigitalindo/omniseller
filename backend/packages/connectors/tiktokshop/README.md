@@ -76,7 +76,47 @@ Category Assets 202405, and accepts Indonesian selection regions/assets only. No
 is sent. Private category ciphers are separated from public metadata and redacted in call summaries.
 The application consumer is `src/modules/affiliate-accounts` and UI `/affiliate/akun` (ADR-047).
 Signed mock tests cover transport; real Creator API/TAP approval/test-account access remains missing.
-This connection foundation does not implement collaboration, samples, links or performance features.
+The connection foundation owns authorization; business operations such as collaboration, samples,
+links, content and performance are exposed through the reviewed commerce registry and workspace.
+
+## Reviewed commerce contracts
+
+`tools/generate-tiktok-commerce-contracts.py` compiles the pinned public documentation into the
+317 default descriptors, 390 runtime scope contracts, documented batch-failure containers and
+endpoint-specific query array encodings. Use `--snapshot /path/to/snapshot`; it makes no network
+requests, verifies completeness and checksums, and never infers a missing API scope. Format the
+generated files with the command printed by the compiler. Exact-source reviewed exceptions are
+included in `TIKTOK_COMMERCE_CONTRACT_CAPTURE.reviewedContracts`; changing their source bytes
+requires an explicit re-review. Regression tests run with
+`python3 -m unittest tools/test_generate_tiktok_commerce_contracts.py` from `backend/`.
+
+Tokopedia product mapping keeps the documented GET JSON body. The narrow Node HTTP transport
+accepts only that exact configured API origin/path, sends the same signed bytes, never follows
+redirects, and preserves shared timeout/rate/response limits and safe observation. Decimal int64
+IDs remain strings at the application boundary and numeric JSON on the wire, without Number
+rounding. Other GET-body contracts remain disabled. Affiliate conversation listing uses its
+explicit query field instead of the redundant optional GET-body copy.
+
+String query arrays use the CSV encoding shown in each official API example; numeric video ID
+arrays use exact numeric JSON only where the example specifies that encoding. The compiler refuses
+unproven encodings. Customer Service message types retain every documented enum value. Messages
+without explicit `is_visible: true`, including hidden conversation previews, are removed before
+generic result caching and public projection.
+
+Return shipping information supports signed multipart with two independently bound optional PDF
+files. Official error 25021023 limits documents to PDF. Application limits are 10 MB for a label
+and 2 MB for a QR document; these limits do not claim provider maximums. File IDs, permissions,
+tenant/account ownership and expiration are enforced by the commerce module.
+
+Large uploads supply rate feedback for every raw chunk without exposing the returned URL or
+upload credentials; feedback is bounded to one second and cannot change an acknowledged outcome.
+Customer Service video uses the same fixed target for small uploads too: Upload File Init
+explicitly permits a single chunk at 5 MiB or less, and no direct small-video endpoint is published.
+Creator assets up to 500 MiB can be prepared, but the official Post Shoppable
+Video reference names the direct upload's `file_id`; it does not establish equivalence with the
+large upload's `resource_id`. Automatic substitution remains unavailable. Four newest API
+documents also lack published scope metadata. The exact findings, hashes and official links are
+recorded in `docs/audits/tiktok-remaining-contract-review.json`.
 
 ## Runtime granted-scope enforcement
 

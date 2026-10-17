@@ -103,6 +103,30 @@ export class AffiliateAccountCredentialsService {
       categoryAssets: current.credential.categoryAssets,
     };
   }
+  /** A rejected old request must never revoke a newer completed authorization. */
+  async markRevoked(ctx: RequestContext, accountId: string, expectedAccessToken: string, code: string) {
+    return withTenantTx(this.db, ctx, async (tx) => {
+      await lockTenantKeys(tx, ctx.tenantId);
+      const live = await this.repo.get(tx, accountId, true);
+      const credential = await this.repo.credential(tx, accountId);
+      if (!live || live.status === "disconnected" || !credential) return false;
+      const token = await this.vault.open(
+        tx,
+        ctx.tenantId,
+        credential.accessTokenEnc,
+        credential.dekVersion,
+        accountTokenPurpose(accountId, "access"),
+      );
+      if (token !== expectedAccessToken) return false;
+      await this.repo.update(tx, accountId, {
+        status: "reauth_required",
+        errorCode: /^[a-z0-9_.-]{1,96}$/i.test(code) ? code : "authorization_revoked",
+        errorMessage: "Akses akun marketplace tidak lagi berlaku. Hubungkan ulang akun untuk melanjutkan.",
+      });
+      await this.repo.deleteCredential(tx, accountId);
+      return true;
+    });
+  }
   async refresh(ctx: RequestContext, accountId: string, canRetry: boolean, force = false): Promise<void> {
     await withAdvisoryLock(this.db, `affiliate_account:${accountId}`, async () => {
       let current = await this.state(ctx, accountId);
@@ -121,10 +145,12 @@ export class AffiliateAccountCredentialsService {
             return connector.accounts.refresh({
               refreshToken: token,
               kind: before.account.kind,
+              program: before.account.program,
               externalPrincipalId: before.account.externalPrincipalId,
             });
           },
           () => ({ refreshed: true }),
+          before.account.channel,
         );
         await withTenantTx(this.db, ctx, async (tx) => {
           await lockTenantKeys(tx, ctx.tenantId);
@@ -179,9 +205,20 @@ export class AffiliateAccountCredentialsService {
                   code: "unsupported",
                   message: "Account authorization unavailable",
                 });
-              return connector.accounts.describe({ accessToken, kind: row.kind, scopes: row.scopes });
+              return connector.accounts.describe({
+                accessToken,
+                kind: row.kind,
+                program: row.program,
+                externalPrincipalId: row.externalPrincipalId,
+                scopes: row.scopes,
+              });
             },
-            (p) => ({ region: p.region, categories: p.categoryAssets.length }),
+            (p) => ({
+              region: p.region,
+              regionVerified: p.regionVerified !== false,
+              categories: p.categoryAssets.length,
+            }),
+            row.channel,
           );
         };
         let profile: MarketplaceAccountProfile;
@@ -211,6 +248,8 @@ export class AffiliateAccountCredentialsService {
           await this.repo.update(tx, accountId, {
             status: "active",
             profile: profile.info,
+            region: profile.region,
+            regionVerified: profile.regionVerified !== false,
             errorCode: null,
             errorMessage: null,
           });

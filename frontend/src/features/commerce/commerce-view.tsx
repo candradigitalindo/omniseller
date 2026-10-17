@@ -70,6 +70,19 @@ export function hasSellerType(operation: CommerceOperation, principal: CommerceP
   );
 }
 
+export function hasAccountProgram(operation: CommerceOperation, principal: CommercePrincipal): boolean {
+  if (principal.channel !== "shopee" || principal.kind === "seller") return true;
+  return (
+    operation.appPrograms?.includes(
+      principal.program === "live"
+        ? "Livestream Management"
+        : principal.program === "video"
+          ? "Shopee Video Management"
+          : "unsupported",
+    ) ?? false
+  );
+}
+
 export function hasTenantPermissions(operation: CommerceOperation, permissions: readonly string[]): boolean {
   return (
     Array.isArray(operation.requiredPermissions) &&
@@ -222,6 +235,7 @@ export function CommerceView() {
                   ["active", "token_expiring"].includes(principal.status) &&
                   hasOperationScopes(item, principal) &&
                   hasSellerType(item, principal) &&
+                  hasAccountProgram(item, principal) &&
                   hasTenantPermissions(item, permissions) &&
                   (!item.write || (can("commerce:write") && !principal.readOnly));
                 return (
@@ -396,13 +410,15 @@ function OperationDialog({
           ? t("missingScopes")
           : !hasSellerType(operation, principal)
             ? t("sellerTypeUnavailable")
-            : operation.write && principal.readOnly
-              ? t("readOnly")
-              : operation.categoryAsset && !categories.length
-                ? t("missingCategory")
-                : operation.write && !can("commerce:write")
-                  ? t("writeDenied")
-                  : null;
+            : !hasAccountProgram(operation, principal)
+              ? t("programUnavailable")
+              : operation.write && principal.readOnly
+                ? t("readOnly")
+                : operation.categoryAsset && !categories.length
+                  ? t("missingCategory")
+                  : operation.write && !can("commerce:write")
+                    ? t("writeDenied")
+                    : null;
   const submit = useMutation({
     mutationFn: () =>
       unwrap(
@@ -463,6 +479,11 @@ function OperationDialog({
             {principal.name} · {t(`channel.${principal.channel}`)} · {t(`kind.${principal.kind}`)}
           </DialogDescription>
         </DialogHeader>
+        {principal.regionVerified === false ? (
+          <p role="status" className="rounded-xl bg-warning-soft p-3 text-sm text-warning">
+            {t("regionUnverified")}
+          </p>
+        ) : null}
         {blocked ? (
           <div className="grid gap-3">
             <div className="flex items-start gap-2 rounded-xl bg-warning-soft p-3 text-sm text-warning">

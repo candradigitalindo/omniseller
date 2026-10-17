@@ -16,9 +16,11 @@ import {
   StoreAuthorizationsController,
   StoresController,
 } from "../../modules/channel/channel.controllers";
+import { StoreInstallationsController } from "../../modules/channel/store-installation.controller";
 import { AccountClosureController } from "../../modules/closure/closure.controller";
 import { CommerceController } from "../../modules/commerce/commerce.controller";
 import { CommerceFilesController } from "../../modules/commerce/commerce-files.controller";
+import { CommerceInboxController } from "../../modules/commerce-inbox/commerce-inbox.controller";
 import { ExportsController } from "../../modules/exports/exports.controller";
 import { FilesController } from "../../modules/files/files.controller";
 import { DocumentsController, ShipmentsController } from "../../modules/fulfillment/fulfillment.controllers";
@@ -65,6 +67,8 @@ const CONTROLLERS = [
   AffiliateProductsController,
   CommerceController,
   CommerceFilesController,
+  CommerceInboxController,
+  StoreInstallationsController,
   HealthController,
   AuthController,
   MeController,

@@ -23,6 +23,13 @@ export const storeAuthorizationReceived = defineEvent({
   }),
 });
 
+/** A seller selected the verified shops of an App Store grant; the code has already been exchanged. */
+export const storeInstallationSelected = defineEvent({
+  type: "store.installation_selected",
+  aggregate: "store_authorization",
+  schema: z.object({ authorizationId: ulidSchema }),
+});
+
 /** A store was connected or reconnected and has fresh credentials. */
 export const storeConnected = defineEvent({
   type: "store.connected",

@@ -401,7 +401,7 @@ export const FULFILLMENT_OPERATIONS: readonly CommerceOperation[] = [
         required: false,
         description:
           "Possible values:\n- `TO_FULFILL`\n- `PROCESSING`: Package has been arranged by seller. Waiting for carrier to collect the parcel.\n- `FULFILLING`: Package has been collected by carrier and in transit.\n- `COMPLETED`: Package has been delivered.\n- `CANCELLED`: Package has been canceled. Normally, the package is canceled due to the package being lost or damaged.",
-        options: ["TO_FULFILL", "FULFILLING", "COMPLETED", "CANCELLED"],
+        options: ["TO_FULFILL", "PROCESSING", "FULFILLING", "COMPLETED", "CANCELLED"],
       },
     ],
     available: true,

@@ -372,9 +372,10 @@ export const ANALYTICS_OPERATIONS: readonly CommerceOperation[] = [
       {
         name: "query.product_status_filter",
         label: "Product status filter",
-        type: "string",
+        type: "enum",
         required: false,
         description: "Filter SKUs by product status. Possible values:\n- LIVE\n- INACTIVE\n- ALL (default)",
+        options: ["LIVE", "INACTIVE"],
       },
       {
         name: "query.product_ids",
@@ -1455,8 +1456,9 @@ export const ANALYTICS_OPERATIONS: readonly CommerceOperation[] = [
         label: "Video ids",
         type: "array",
         required: true,
-        description: "The IDs of the shop videos whose performance details are requested.",
-        itemType: "integer",
+        description:
+          "The IDs of the shop videos whose performance details are requested. Preserve each numeric int64 video ID as an exact decimal string; numeric JSON is generated without floating-point conversion.",
+        itemType: "string",
       },
       {
         name: "query.start_date_ge",
